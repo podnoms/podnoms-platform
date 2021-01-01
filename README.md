@@ -5,7 +5,7 @@ Umbrella project for PodNoms system - all issues should be reported in here
 ### Project Status
 | Project | Url | Build Status|
 | ------ | ------ | ------ |
-| Podnoms Web | [podnoms/podnoms-web][PnWeb] | ![Build PodNoms Web](https://github.com/podnoms/podnoms-web/workflows/Build%20PodNoms%20Web/badge.svg) |
+| Podnoms Web | [podnoms/podnoms-web][PnWeb] | ![Build Status](https://github.com/podnoms/podnoms-web/workflows/Build%20PodNoms%20Web/badge.svg) |
 | Podnoms Api | [podnoms/podnoms-backend][PnApi] | ![Build Status](https://github.com/podnoms/podnoms-backend/workflows/Publish%20API/badge.svg) |
 | Podnoms Jobs | [podnoms/podnoms-jobs][PnJobs] | ![Build Status](https://github.com/podnoms/podnoms-backend/workflows/Publish%20Jobs/badge.svg) |
 | Podnoms Pages | [podnoms/podnoms-pages][PnPages] | ![Build Status](https://github.com/podnoms/podnoms-pages/workflows/Build%20PodNoms%20Pages/badge.svg) |
