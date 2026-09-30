@@ -6,6 +6,9 @@ import { z } from 'zod'
 export const env = createEnv({
   server: {
     DATABASE_URL: z.url(),
+    // Where downloaded episode audio is kept. Relative paths are from the project root.
+    STORAGE_DIR: z.string().default('storage'),
+    YTDLP_PATH: z.string().default('yt-dlp'),
     AUTH_SECRET: z.string().min(32),
     // Public base URL of the app. Only needed when it can't be inferred from the request.
     AUTH_URL: z.url().optional(),

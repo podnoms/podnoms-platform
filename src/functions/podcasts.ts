@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { newEpisodeSchema } from '~/lib/episode-schema'
 import { newPodcastSchema } from '~/lib/podcast-schema'
 import { getSession } from '~/server/auth.server'
+import { getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
 import { createEpisode, listEpisodes } from '~/server/episodes.server'
 import { createPodcast, getPodcastBySlug, listPodcasts } from '~/server/podcasts.server'
 
@@ -24,7 +25,12 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
   .handler(async ({ data }) => {
     const podcast = await getPodcastBySlug(await requireUserId(), data.slug)
     if (!podcast) throw notFound()
-    return { ...podcast, episodes: await listEpisodes(podcast.id) }
+    void resumeUnfinishedEpisodes()
+    const episodes = await listEpisodes(podcast.id)
+    return {
+      ...podcast,
+      episodes: episodes.map((episode) => ({ ...episode, progress: getEpisodeProgress(episode.id) })),
+    }
   })
 
 export const createMyPodcast = createServerFn({ method: 'POST' })

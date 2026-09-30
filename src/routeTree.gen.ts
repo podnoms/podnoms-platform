@@ -14,6 +14,7 @@ import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedPodcastsSlugRouteImport } from './routes/_authed/podcasts/$slug'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiEpisodesIdAudioRouteImport } from './routes/api/episodes/$id/audio'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -39,18 +40,25 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiEpisodesIdAudioRoute = ApiEpisodesIdAudioRouteImport.update({
+  id: '/api/episodes/$id/audio',
+  path: '/api/episodes/$id/audio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -59,12 +67,23 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authed/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/podcasts/$slug' | '/api/auth/$'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/podcasts/$slug'
+    | '/api/auth/$'
+    | '/api/episodes/$id/audio'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/podcasts/$slug' | '/api/auth/$'
+  to:
+    | '/'
+    | '/login'
+    | '/podcasts/$slug'
+    | '/api/auth/$'
+    | '/api/episodes/$id/audio'
   id:
     | '__root__'
     | '/'
@@ -72,6 +91,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authed/podcasts/$slug'
     | '/api/auth/$'
+    | '/api/episodes/$id/audio'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -79,6 +99,7 @@ export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiEpisodesIdAudioRoute: typeof ApiEpisodesIdAudioRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -118,6 +139,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/episodes/$id/audio': {
+      id: '/api/episodes/$id/audio'
+      path: '/api/episodes/$id/audio'
+      fullPath: '/api/episodes/$id/audio'
+      preLoaderRoute: typeof ApiEpisodesIdAudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -137,6 +165,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiEpisodesIdAudioRoute: ApiEpisodesIdAudioRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '~/components/ui/dialog'
-import { Field, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
 import { Textarea } from '~/components/ui/textarea'
 import { createMyEpisode } from '~/functions/podcasts'
@@ -60,27 +60,33 @@ export function NewEpisodeDialog({ podcastId, children }: { podcastId: string; c
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New episode</DialogTitle>
-          <DialogDescription>Paste a link to the audio or video you want to turn into an episode.</DialogDescription>
+          <DialogDescription>
+            Paste a link to a video or audio track, e.g. on YouTube. It's downloaded and turned into an episode
+            in the background.
+          </DialogDescription>
         </DialogHeader>
         <form id="new-episode" onSubmit={onSubmit}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="episode-title">Title</FieldLabel>
-              <Input id="episode-title" name="title" autoComplete="off" required maxLength={200} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="episode-source">Source link</FieldLabel>
+              <FieldLabel htmlFor="episode-source">Link</FieldLabel>
               <Input
                 id="episode-source"
                 name="sourceUrl"
                 type="url"
                 placeholder="https://www.youtube.com/watch?v=…"
                 autoComplete="off"
+                required
               />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="episode-title">Title</FieldLabel>
+              <Input id="episode-title" name="title" autoComplete="off" maxLength={200} />
+              <FieldDescription>Leave blank to use the video's title.</FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor="episode-description">Description</FieldLabel>
               <Textarea id="episode-description" name="description" maxLength={4000} />
+              <FieldDescription>Leave blank to use the video's description.</FieldDescription>
             </Field>
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
