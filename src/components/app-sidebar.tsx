@@ -1,8 +1,11 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useLoaderData } from '@tanstack/react-router'
+import { Icons } from '~/components/icons'
+import { NewPodcastDialog } from '~/components/new-podcast-dialog'
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
+  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
@@ -14,6 +17,8 @@ import {
 import { navLinks } from '~/lib/nav-links'
 
 export function AppSidebar() {
+  const { podcasts } = useLoaderData({ from: '__root__' })
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -26,6 +31,42 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Podcasts</SidebarGroupLabel>
+          <NewPodcastDialog>
+            <SidebarGroupAction title="New podcast">
+              <Icons.add />
+              <span className="sr-only">New podcast</span>
+            </SidebarGroupAction>
+          </NewPodcastDialog>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {podcasts.map((podcast) => (
+                <SidebarMenuItem key={podcast.id}>
+                  <SidebarMenuButton asChild>
+                    <Link
+                      to="/podcasts/$slug"
+                      params={{ slug: podcast.slug }}
+                      activeProps={{ 'data-active': '' }}
+                    >
+                      {podcast.title}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+              {podcasts.length === 0 && (
+                <SidebarMenuItem>
+                  <NewPodcastDialog>
+                    <SidebarMenuButton>
+                      <Icons.add />
+                      New podcast
+                    </SidebarMenuButton>
+                  </NewPodcastDialog>
+                </SidebarMenuItem>
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>

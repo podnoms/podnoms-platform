@@ -8,6 +8,7 @@ import { SidebarInset, SidebarProvider } from '~/components/ui/sidebar'
 import { LoginDialog } from '~/components/login-dialog'
 import { PublicHeader } from '~/components/public-header'
 import { fetchOAuthProviders, fetchSession } from '~/functions/auth'
+import { fetchMyPodcasts } from '~/functions/podcasts'
 import { loginSearchSchema } from '~/lib/login-search'
 import appCss from '~/styles/app.css?url'
 
@@ -17,8 +18,15 @@ export const Route = createRootRoute({
   // Makes the signed-in user available to every route as `context.session`.
   beforeLoad: async () => ({ session: await fetchSession() }),
   validateSearch: loginSearchSchema,
-  // Which OAuth providers have keys, for the login dialog. Fixed at startup.
-  loader: () => fetchOAuthProviders(),
+  // OAuth providers with keys (for the login dialog) and the user's podcasts
+  // (for the sidebar). Loaded once; creating a podcast calls router.invalidate().
+  loader: async ({ context }) => {
+    const [providers, podcasts] = await Promise.all([
+      fetchOAuthProviders(),
+      context.session ? fetchMyPodcasts() : [],
+    ])
+    return { providers, podcasts }
+  },
   staleTime: Infinity,
   head: () => ({
     meta: [

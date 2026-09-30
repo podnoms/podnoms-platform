@@ -12,10 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as AuthedClientOnlyRouteImport } from './routes/_authed/client-only'
-import { Route as AuthedDataOnlyRouteImport } from './routes/_authed/data-only'
-import { Route as AuthedItemsRouteImport } from './routes/_authed/items'
-import { Route as AuthedStreamRouteImport } from './routes/_authed/stream'
+import { Route as AuthedPodcastsSlugRouteImport } from './routes/_authed/podcasts/$slug'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -32,24 +29,9 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthedClientOnlyRoute = AuthedClientOnlyRouteImport.update({
-  id: '/client-only',
-  path: '/client-only',
-  getParentRoute: () => AuthedRoute,
-} as any)
-const AuthedDataOnlyRoute = AuthedDataOnlyRouteImport.update({
-  id: '/data-only',
-  path: '/data-only',
-  getParentRoute: () => AuthedRoute,
-} as any)
-const AuthedItemsRoute = AuthedItemsRouteImport.update({
-  id: '/items',
-  path: '/items',
-  getParentRoute: () => AuthedRoute,
-} as any)
-const AuthedStreamRoute = AuthedStreamRouteImport.update({
-  id: '/stream',
-  path: '/stream',
+const AuthedPodcastsSlugRoute = AuthedPodcastsSlugRouteImport.update({
+  id: '/podcasts/$slug',
+  path: '/podcasts/$slug',
   getParentRoute: () => AuthedRoute,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -61,19 +43,13 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/client-only': typeof AuthedClientOnlyRoute
-  '/data-only': typeof AuthedDataOnlyRoute
-  '/items': typeof AuthedItemsRoute
-  '/stream': typeof AuthedStreamRoute
+  '/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/client-only': typeof AuthedClientOnlyRoute
-  '/data-only': typeof AuthedDataOnlyRoute
-  '/items': typeof AuthedItemsRoute
-  '/stream': typeof AuthedStreamRoute
+  '/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -81,40 +57,20 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
-  '/_authed/client-only': typeof AuthedClientOnlyRoute
-  '/_authed/data-only': typeof AuthedDataOnlyRoute
-  '/_authed/items': typeof AuthedItemsRoute
-  '/_authed/stream': typeof AuthedStreamRoute
+  '/_authed/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/login'
-    | '/client-only'
-    | '/data-only'
-    | '/items'
-    | '/stream'
-    | '/api/auth/$'
+  fullPaths: '/' | '/login' | '/podcasts/$slug' | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/login'
-    | '/client-only'
-    | '/data-only'
-    | '/items'
-    | '/stream'
-    | '/api/auth/$'
+  to: '/' | '/login' | '/podcasts/$slug' | '/api/auth/$'
   id:
     | '__root__'
     | '/'
     | '/_authed'
     | '/login'
-    | '/_authed/client-only'
-    | '/_authed/data-only'
-    | '/_authed/items'
-    | '/_authed/stream'
+    | '/_authed/podcasts/$slug'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -148,32 +104,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authed/client-only': {
-      id: '/_authed/client-only'
-      path: '/client-only'
-      fullPath: '/client-only'
-      preLoaderRoute: typeof AuthedClientOnlyRouteImport
-      parentRoute: typeof AuthedRoute
-    }
-    '/_authed/data-only': {
-      id: '/_authed/data-only'
-      path: '/data-only'
-      fullPath: '/data-only'
-      preLoaderRoute: typeof AuthedDataOnlyRouteImport
-      parentRoute: typeof AuthedRoute
-    }
-    '/_authed/items': {
-      id: '/_authed/items'
-      path: '/items'
-      fullPath: '/items'
-      preLoaderRoute: typeof AuthedItemsRouteImport
-      parentRoute: typeof AuthedRoute
-    }
-    '/_authed/stream': {
-      id: '/_authed/stream'
-      path: '/stream'
-      fullPath: '/stream'
-      preLoaderRoute: typeof AuthedStreamRouteImport
+    '/_authed/podcasts/$slug': {
+      id: '/_authed/podcasts/$slug'
+      path: '/podcasts/$slug'
+      fullPath: '/podcasts/$slug'
+      preLoaderRoute: typeof AuthedPodcastsSlugRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/api/auth/$': {
@@ -187,17 +122,11 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedRouteChildren {
-  AuthedClientOnlyRoute: typeof AuthedClientOnlyRoute
-  AuthedDataOnlyRoute: typeof AuthedDataOnlyRoute
-  AuthedItemsRoute: typeof AuthedItemsRoute
-  AuthedStreamRoute: typeof AuthedStreamRoute
+  AuthedPodcastsSlugRoute: typeof AuthedPodcastsSlugRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
-  AuthedClientOnlyRoute: AuthedClientOnlyRoute,
-  AuthedDataOnlyRoute: AuthedDataOnlyRoute,
-  AuthedItemsRoute: AuthedItemsRoute,
-  AuthedStreamRoute: AuthedStreamRoute,
+  AuthedPodcastsSlugRoute: AuthedPodcastsSlugRoute,
 }
 
 const AuthedRouteWithChildren =

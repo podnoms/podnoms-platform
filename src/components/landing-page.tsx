@@ -6,21 +6,21 @@ import { Card, CardDescription, CardHeader, CardTitle } from '~/components/ui/ca
 // Placeholder marketing copy — replace with the real pitch.
 const features: { icon: Icon; title: string; description: string }[] = [
   {
-    icon: Icons.stream,
+    icon: Icons.broadcast,
     title: 'Create',
     description: 'Your own podcast feeds from diverse sources.',
   },
   {
-    icon: Icons.items,
+    icon: Icons.list,
     title: 'Curate',
     description: 'Add YouTube videos, Mixcloud/Soundcloud audio and many, many more.',
   },
   {
-    icon: Icons.dataOnly,
+    icon: Icons.database,
     title: 'Monitor',
     description: 'Automatically add new episodes as they arrive.',
   }, {
-    icon: Icons.dataOnly,
+    icon: Icons.database,
     title: 'Customise',
     description: 'Custom domains, notifications and much more!!.',
   },

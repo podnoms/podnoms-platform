@@ -40,7 +40,7 @@ function currentPageUrl() {
 
 export function LoginDialog() {
   const { session } = useRouteContext({ from: '__root__' })
-  const providers = useLoaderData({ from: '__root__' })
+  const { providers } = useLoaderData({ from: '__root__' })
   const search = useSearch({ from: '__root__' })
   const navigate = useNavigate()
   const open = !session && Boolean(search.login)

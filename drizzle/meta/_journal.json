@@ -15,6 +15,13 @@
       "when": 1790803469559,
       "tag": "0001_flaky_vision",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790808964253,
+      "tag": "0002_whole_the_professor",
+      "breakpoints": true
     }
   ]
 }
