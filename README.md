@@ -85,9 +85,9 @@ Back it up along with the database.
 ### Docker Compose
 
 The [Dockerfile](Dockerfile) builds the application and includes Node.js, yt-dlp,
-ffmpeg and ffprobe. On each push to `master`, [GitHub Actions](.github/workflows/docker.yml)
-publishes the image to `ghcr.io/podnoms/podnoms-platform` with `latest`, `master`
-and commit SHA tags. The workflow uses the repository's `GITHUB_TOKEN`; no
+ffmpeg and ffprobe. On each pushed `v*` tag, [GitHub Actions](.github/workflows/docker.yml)
+publishes the image to `ghcr.io/podnoms/podnoms-platform` with `latest`, version
+(e.g. `0.1.0` and `0.1`) and commit SHA tags. The workflow uses the repository's `GITHUB_TOKEN`; no
 registry secret is needed. For a fork, set `PODNOMS_IMAGE` to its GHCR image.
 
 Use Docker Compose 2.20 or later. Copy `.env.example` to `.env`, set `AUTH_SECRET`
