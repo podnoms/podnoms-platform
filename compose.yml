@@ -1,0 +1,46 @@
+services:
+  app:
+    image: ${PODNOMS_IMAGE:-ghcr.io/podnoms/podnoms-platform:latest}
+    build: .
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://podnoms:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD for bundled Postgres, or DATABASE_URL for external Postgres}@postgres:5432/podnoms}
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET to at least 32 characters}
+      AUTH_URL: ${AUTH_URL:-http://localhost:${PORT:-3000}}
+      MEDIA_DIR: /app/media
+      AUTH_GITHUB_ID: ${AUTH_GITHUB_ID:-}
+      AUTH_GITHUB_SECRET: ${AUTH_GITHUB_SECRET:-}
+      AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID:-}
+      AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:-}
+      AUTH_FACEBOOK_ID: ${AUTH_FACEBOOK_ID:-}
+      AUTH_FACEBOOK_SECRET: ${AUTH_FACEBOOK_SECRET:-}
+    volumes:
+      - media:/app/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+
+  postgres:
+    image: postgres:17-bookworm
+    profiles: [postgres]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: podnoms
+      POSTGRES_DB: podnoms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  media:
+  postgres:

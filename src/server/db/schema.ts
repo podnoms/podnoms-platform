@@ -123,6 +123,9 @@ export const episodes = pgTable(
       .notNull()
       .references(() => podcasts.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
+    // Used in the episode's URL, so unique within the podcast. Kept when the
+    // title is edited, so links keep working.
+    slug: text('slug').notNull(),
     description: text('description'),
     imageUrl: text('imageUrl'),
     // Where the episode came from (e.g. a YouTube URL), if it was imported.
@@ -139,7 +142,10 @@ export const episodes = pgTable(
     publishedAt: timestamp('publishedAt', { mode: 'date', withTimezone: true }),
     ...timestamps,
   },
-  (table) => [index('episode_podcastId_publishedAt_idx').on(table.podcastId, table.publishedAt)],
+  (table) => [
+    index('episode_podcastId_publishedAt_idx').on(table.podcastId, table.publishedAt),
+    uniqueIndex('episode_podcastId_slug_idx').on(table.podcastId, table.slug),
+  ],
 )
 
 // Where a user left off in an episode, so playback resumes there on any device.

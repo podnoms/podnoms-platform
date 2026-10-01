@@ -119,7 +119,7 @@ function PodcastPage() {
       ) : (
         <ItemGroup className="gap-3">
           {episodes.map((episode) => (
-            <EpisodeRow key={episode.id} episode={episode} podcastTitle={podcast.title} />
+            <EpisodeRow key={episode.id} episode={episode} podcastSlug={podcast.slug} podcastTitle={podcast.title} />
           ))}
         </ItemGroup>
       )}

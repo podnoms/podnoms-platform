@@ -17,8 +17,9 @@ type PlayerContextValue = {
   currentTime: number
   duration: number
   rate: number
-  // Plays the episode, or toggles play/pause if it's already loaded.
-  play: (episode: PlayerEpisode) => void
+  // Plays the episode, or toggles play/pause if it's already loaded. With
+  // `startAt`, plays from there instead of where the listener left off.
+  play: (episode: PlayerEpisode, options?: { startAt?: number }) => void
   toggle: () => void
   seek: (seconds: number) => void
   skip: (seconds: number) => void
@@ -62,15 +63,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [positions],
   )
 
+  // Where to start the episode that's loading, instead of resuming.
+  const startAt = useRef<number | null>(null)
+
   const play = useCallback(
-    (next: PlayerEpisode) => {
+    (next: PlayerEpisode, options?: { startAt?: number }) => {
       const audio = audioRef.current
       if (!audio) return
       if (episode?.id === next.id) {
-        if (audio.paused) void audio.play()
+        if (options?.startAt !== undefined) {
+          audio.currentTime = options.startAt
+          if (audio.paused) void audio.play()
+        } else if (audio.paused) void audio.play()
         else audio.pause()
         return
       }
+      startAt.current = options?.startAt ?? null
       if (episode) savePosition(episode.id, audio.currentTime)
       setEpisode(next)
       setCurrentTime(0)
@@ -156,6 +164,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         onLoadedMetadata={(event) => {
           const audio = event.currentTarget
           setDuration(audio.duration)
+          if (startAt.current !== null) {
+            audio.currentTime = startAt.current
+            startAt.current = null
+            return
+          }
           // Resume where the listener left off, unless that was the very end.
           const resumeAt = episode ? positionOf(episode.id, episode.positionSeconds) : 0
           if (resumeAt > 0 && resumeAt < audio.duration - 10) audio.currentTime = resumeAt

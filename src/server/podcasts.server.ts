@@ -1,8 +1,9 @@
 import '@tanstack/react-start/server-only'
-import { and, asc, eq, like, or } from 'drizzle-orm'
+import { and, asc, eq, like, or, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
-import { podcasts } from '~/server/db/schema'
+import { episodes, podcasts } from '~/server/db/schema'
 import { plainTextToHtml } from '~/lib/rich-text'
+import { firstFreeSlug, slugify } from '~/lib/slug'
 import { commitImage, deleteImage } from '~/server/images.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import type { EditPodcastInput, NewPodcastInput } from '~/lib/podcast-schema'
@@ -14,8 +15,20 @@ const summaryColumns = {
   imageUrl: podcasts.imageUrl,
 }
 
+// The podcast's own artwork, or else its newest ready episode's, as on the podcast page.
+const artwork = sql<string | null>`coalesce(${podcasts.imageUrl}, (
+  select ${episodes.imageUrl} from ${episodes}
+  where ${episodes.podcastId} = ${podcasts.id} and ${episodes.status} = 'ready' and ${episodes.imageUrl} is not null
+  order by ${episodes.createdAt} desc
+  limit 1
+))`
+
 export function listPodcasts(userId: string) {
-  return db.select(summaryColumns).from(podcasts).where(eq(podcasts.userId, userId)).orderBy(asc(podcasts.title))
+  return db
+    .select({ ...summaryColumns, imageUrl: artwork })
+    .from(podcasts)
+    .where(eq(podcasts.userId, userId))
+    .orderBy(asc(podcasts.title))
 }
 
 export async function getPodcastBySlug(userId: string, slug: string) {
@@ -27,31 +40,14 @@ export async function getPodcastBySlug(userId: string, slug: string) {
   return podcast ?? null
 }
 
-function slugify(title: string) {
-  const slug = title
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60)
-    .replace(/-+$/, '')
-  return slug || 'podcast'
-}
-
 // Slugs are unique across all users: "my-show", then "my-show-2", "my-show-3"…
 async function availableSlug(title: string) {
-  const base = slugify(title)
-  const taken = new Set(
-    (
-      await db
-        .select({ slug: podcasts.slug })
-        .from(podcasts)
-        .where(or(eq(podcasts.slug, base), like(podcasts.slug, `${base}-%`)))
-    ).map((row) => row.slug),
-  )
-  if (!taken.has(base)) return base
-  for (let n = 2; ; n++) if (!taken.has(`${base}-${n}`)) return `${base}-${n}`
+  const base = slugify(title, 'podcast')
+  const taken = await db
+    .select({ slug: podcasts.slug })
+    .from(podcasts)
+    .where(or(eq(podcasts.slug, base), like(podcasts.slug, `${base}-%`)))
+  return firstFreeSlug(base, new Set(taken.map((row) => row.slug)))
 }
 
 export async function createPodcast(userId: string, input: NewPodcastInput) {

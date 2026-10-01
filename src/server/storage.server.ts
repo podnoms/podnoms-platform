@@ -13,6 +13,8 @@ const sourcesDir = resolve(env.MEDIA_DIR, 'sources')
 const imagesDir = resolve(env.MEDIA_DIR, 'images')
 // Images users have uploaded but not yet saved to a podcast or episode.
 const stagedImagesDir = resolve(env.MEDIA_DIR, 'staged-images')
+// Episode waveforms, as JSON (see waveforms.server.ts).
+const waveformsDir = resolve(env.MEDIA_DIR, 'waveforms')
 
 export async function ensureAudioDir() {
   await mkdir(audioDir, { recursive: true })
@@ -21,6 +23,10 @@ export async function ensureAudioDir() {
 
 export function episodeAudioPath(episodeId: string) {
   return join(audioDir, `${episodeId}.mp3`)
+}
+
+export function episodeWaveformPath(episodeId: string) {
+  return join(waveformsDir, `${safeId(episodeId)}.json`)
 }
 
 export function episodeAudioUrl(episodeId: string) {
