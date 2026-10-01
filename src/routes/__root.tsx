@@ -6,6 +6,8 @@ import { ThemeProvider } from '~/components/theme-provider'
 import { TopNav } from '~/components/top-nav'
 import { SidebarInset, SidebarProvider } from '~/components/ui/sidebar'
 import { LoginDialog } from '~/components/login-dialog'
+import { PlayerBar } from '~/components/player/player-bar'
+import { PlayerProvider } from '~/components/player/player-provider'
 import { PublicHeader } from '~/components/public-header'
 import { fetchOAuthProviders, fetchSession } from '~/functions/auth'
 import { fetchMyPodcasts } from '~/functions/podcasts'
@@ -60,13 +62,16 @@ function RootDocument({ signedIn, children }: { signedIn: boolean; children: Rea
         <ThemeProvider>
           {/* The app shell (sidebar and top nav) is only for signed-in users. */}
           {signedIn ? (
-            <SidebarProvider>
-              <AppSidebar />
-              <SidebarInset>
-                <TopNav />
-                {children}
-              </SidebarInset>
-            </SidebarProvider>
+            <PlayerProvider>
+              <SidebarProvider>
+                <AppSidebar />
+                <SidebarInset>
+                  <TopNav />
+                  {children}
+                  <PlayerBar />
+                </SidebarInset>
+              </SidebarProvider>
+            </PlayerProvider>
           ) : (
             <>
               <PublicHeader />

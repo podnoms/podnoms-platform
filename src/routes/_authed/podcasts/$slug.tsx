@@ -1,8 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { EditDetailsDialog } from '~/components/edit-details-dialog'
+import { EpisodeRow } from '~/components/episode-row'
+import { FeedUrlButton } from '~/components/feed-url-button'
 import { Icons } from '~/components/icons'
 import { NewEpisodeDialog } from '~/components/new-episode-dialog'
-import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import {
   Empty,
@@ -12,102 +14,17 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '~/components/ui/empty'
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemFooter,
-  ItemGroup,
-  ItemMedia,
-  ItemTitle,
-} from '~/components/ui/item'
-import { Progress } from '~/components/ui/progress'
-import { Spinner } from '~/components/ui/spinner'
-import { fetchMyPodcast } from '~/functions/podcasts'
-import type { EpisodeStatus } from '~/server/db/schema'
-import type { EpisodeProgress } from '~/server/episode-processor.server'
+import { ItemGroup } from '~/components/ui/item'
+import { fetchMyPodcast, updateMyPodcast } from '~/functions/podcasts'
+import { formatLength } from '~/lib/format'
+import { imageSrc } from '~/lib/images'
+import { htmlToText } from '~/lib/rich-text'
 
 export const Route = createFileRoute('/_authed/podcasts/$slug')({
   loader: ({ params }) => fetchMyPodcast({ data: { slug: params.slug } }),
   head: ({ loaderData }) => ({ meta: loaderData ? [{ title: `${loaderData.title} · podnoms` }] : [] }),
   component: PodcastPage,
 })
-
-const statusLabels: Record<EpisodeStatus, string> = {
-  pending: 'Queued',
-  processing: 'Processing',
-  ready: 'Ready',
-  failed: 'Failed',
-}
-
-const stageLabels: Record<EpisodeProgress['stage'], string> = {
-  queued: 'Queued',
-  fetching: 'Fetching details',
-  downloading: 'Downloading',
-  converting: 'Converting',
-}
-
-// A fixed locale and time zone so server and browser render the same text.
-const dateFormat = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'UTC' })
-
-function formatDuration(seconds: number) {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = String(seconds % 60).padStart(2, '0')
-  return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`
-}
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`
-}
-
-function formatTimeLeft(seconds: number) {
-  if (seconds < 60) return `${Math.max(1, Math.round(seconds))}s left`
-  if (seconds < 3600) return `${Math.round(seconds / 60)} min left`
-  return `${Math.floor(seconds / 3600)} h ${Math.round((seconds % 3600) / 60)} min left`
-}
-
-// A progress bar and one line of detail for an episode that's being processed.
-function EpisodeProgressView({ progress }: { progress: EpisodeProgress | null }) {
-  if (!progress) {
-    return <p className="text-sm text-muted-foreground">Waiting for the server to pick this up…</p>
-  }
-  if (progress.stage === 'downloading') {
-    const { downloadedBytes, totalBytes, bytesPerSecond, secondsLeft } = progress
-    const percent = totalBytes ? Math.min(100, (downloadedBytes / totalBytes) * 100) : null
-    const detail = [
-      totalBytes ? `${formatBytes(downloadedBytes)} of ${formatBytes(totalBytes)}` : formatBytes(downloadedBytes),
-      bytesPerSecond ? `${formatBytes(bytesPerSecond)}/s` : null,
-      secondsLeft != null ? formatTimeLeft(secondsLeft) : null,
-    ].filter(Boolean)
-    return (
-      <div className="flex w-full flex-col gap-1.5">
-        <div className="flex text-sm text-muted-foreground">
-          <span>Downloading{percent != null && ` · ${Math.floor(percent)}%`}</span>
-          <span className="ml-auto tabular-nums">{detail.join(' · ')}</span>
-        </div>
-        <Progress value={percent ?? 0} />
-      </div>
-    )
-  }
-  const text = {
-    queued:
-      progress.stage === 'queued' && progress.ahead > 0
-        ? `Waiting to start · ${progress.ahead} ahead in the queue`
-        : 'Starting…',
-    fetching: 'Fetching video details…',
-    converting: 'Downloaded · converting to MP3…',
-  }[progress.stage]
-  return (
-    <div className="flex w-full flex-col gap-1.5">
-      <p className="text-sm text-muted-foreground">{text}</p>
-      <Progress value={progress.stage === 'converting' ? 100 : 0} />
-    </div>
-  )
-}
 
 // While episodes are being processed, refresh this page every second.
 function usePollWhileProcessing(active: boolean) {
@@ -123,7 +40,18 @@ function usePollWhileProcessing(active: boolean) {
 
 function PodcastPage() {
   const podcast = Route.useLoaderData()
-  usePollWhileProcessing(podcast.episodes.some((e) => e.status === 'pending' || e.status === 'processing'))
+  const router = useRouter()
+  const [editing, setEditing] = useState(false)
+  const { episodes } = podcast
+  usePollWhileProcessing(episodes.some((e) => e.status === 'pending' || e.status === 'processing'))
+
+  const ready = episodes.filter((e) => e.status === 'ready')
+  const totalSeconds = ready.reduce((sum, e) => sum + (e.durationSeconds ?? 0), 0)
+  const artwork = podcast.imageUrl ?? ready.find((e) => e.imageUrl)?.imageUrl ?? null
+  const stats = [
+    `${episodes.length} ${episodes.length === 1 ? 'episode' : 'episodes'}`,
+    totalSeconds ? formatLength(totalSeconds) : null,
+  ].filter(Boolean)
 
   const newEpisodeButton = (
     <NewEpisodeDialog podcastId={podcast.id}>
@@ -135,59 +63,63 @@ function PodcastPage() {
   )
 
   return (
-    <div className="flex flex-col gap-6 p-4">
-      <header className="flex items-start gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">{podcast.title}</h1>
-          {podcast.description && <p className="text-muted-foreground">{podcast.description}</p>}
+    <div className="flex w-full max-w-5xl flex-col gap-8 p-4 md:p-6">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        {artwork ? (
+          <img src={imageSrc(artwork, 112)} alt="" className="size-28 shrink-0 rounded-xl object-cover shadow-sm" />
+        ) : (
+          <div className="flex size-28 shrink-0 items-center justify-center rounded-xl bg-muted">
+            <Icons.logo className="size-10 text-muted-foreground" />
+          </div>
+        )}
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Podcast</p>
+          <h1 className="text-3xl font-semibold tracking-tight">{podcast.title}</h1>
+          {podcast.description && (
+            <p className="line-clamp-2 text-muted-foreground">{htmlToText(podcast.description)}</p>
+          )}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-4">
+            <p className="text-sm text-muted-foreground">{stats.join(' · ')}</p>
+            <div className="flex flex-wrap gap-2 sm:ml-auto">
+              <Button variant="outline" onClick={() => setEditing(true)}>
+                <Icons.edit />
+                Edit
+              </Button>
+              <FeedUrlButton feedUrl={podcast.feedUrl} />
+              {episodes.length > 0 && newEpisodeButton}
+            </div>
+          </div>
         </div>
-        {podcast.episodes.length > 0 && <div className="ml-auto">{newEpisodeButton}</div>}
       </header>
-      {podcast.episodes.length === 0 ? (
-        <Empty>
+      <EditDetailsDialog
+        open={editing}
+        onOpenChange={setEditing}
+        heading="Edit podcast"
+        description="Changes show in podcast apps the next time they check the feed. The feed URL stays the same."
+        details={{ title: podcast.title, description: podcast.description, imageUrl: podcast.imageUrl }}
+        maxTitleLength={100}
+        onSave={async (change) => {
+          await updateMyPodcast({ data: { id: podcast.id, ...change } })
+          await router.invalidate()
+        }}
+      />
+      {episodes.length === 0 ? (
+        <Empty className="border border-dashed">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <Icons.logo />
             </EmptyMedia>
             <EmptyTitle>No episodes yet</EmptyTitle>
-            <EmptyDescription>Add your first episode from a YouTube link.</EmptyDescription>
+            <EmptyDescription>
+              Paste a YouTube link or upload an audio file, and podnoms will turn it into an episode.
+            </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>{newEpisodeButton}</EmptyContent>
         </Empty>
       ) : (
-        <ItemGroup>
-          {podcast.episodes.map((episode) => (
-            <Item key={episode.id} variant="outline">
-              {episode.imageUrl && (
-                <ItemMedia variant="image">
-                  <img src={episode.imageUrl} alt="" />
-                </ItemMedia>
-              )}
-              <ItemContent>
-                <ItemTitle>{episode.title}</ItemTitle>
-                <ItemDescription>
-                  Added {dateFormat.format(episode.createdAt)}
-                  {episode.durationSeconds != null && ` · ${formatDuration(episode.durationSeconds)}`}
-                  {episode.status === 'failed' && episode.error && ` · ${episode.error}`}
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <Badge variant={episode.status === 'failed' ? 'destructive' : 'secondary'}>
-                  {(episode.status === 'pending' || episode.status === 'processing') && <Spinner />}
-                  {episode.progress ? stageLabels[episode.progress.stage] : statusLabels[episode.status]}
-                </Badge>
-              </ItemActions>
-              {(episode.status === 'pending' || episode.status === 'processing') && (
-                <ItemFooter>
-                  <EpisodeProgressView progress={episode.progress} />
-                </ItemFooter>
-              )}
-              {episode.status === 'ready' && episode.audioUrl && (
-                <ItemFooter>
-                  <audio controls preload="none" src={episode.audioUrl} className="w-full" />
-                </ItemFooter>
-              )}
-            </Item>
+        <ItemGroup className="gap-3">
+          {episodes.map((episode) => (
+            <EpisodeRow key={episode.id} episode={episode} podcastTitle={podcast.title} />
           ))}
         </ItemGroup>
       )}

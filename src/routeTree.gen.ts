@@ -12,6 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ApiImagesRouteImport } from './routes/api/images'
+import { Route as ApiUploadsRouteImport } from './routes/api/uploads'
+import { Route as FeedSlugRouteImport } from './routes/feed/$slug'
+import { Route as ImagesFileRouteImport } from './routes/images/$file'
 import { Route as AuthedPodcastsSlugRouteImport } from './routes/_authed/podcasts/$slug'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiEpisodesIdAudioRouteImport } from './routes/api/episodes/$id/audio'
@@ -28,6 +32,26 @@ const AuthedRoute = AuthedRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiImagesRoute = ApiImagesRouteImport.update({
+  id: '/api/images',
+  path: '/api/images',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUploadsRoute = ApiUploadsRouteImport.update({
+  id: '/api/uploads',
+  path: '/api/uploads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedSlugRoute = FeedSlugRouteImport.update({
+  id: '/feed/$slug',
+  path: '/feed/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImagesFileRoute = ImagesFileRouteImport.update({
+  id: '/images/$file',
+  path: '/images/$file',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedPodcastsSlugRoute = AuthedPodcastsSlugRouteImport.update({
@@ -49,6 +73,10 @@ const ApiEpisodesIdAudioRoute = ApiEpisodesIdAudioRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/api/images': typeof ApiImagesRoute
+  '/api/uploads': typeof ApiUploadsRoute
+  '/feed/$slug': typeof FeedSlugRoute
+  '/images/$file': typeof ImagesFileRoute
   '/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
@@ -56,6 +84,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/api/images': typeof ApiImagesRoute
+  '/api/uploads': typeof ApiUploadsRoute
+  '/feed/$slug': typeof FeedSlugRoute
+  '/images/$file': typeof ImagesFileRoute
   '/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
@@ -65,6 +97,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
+  '/api/images': typeof ApiImagesRoute
+  '/api/uploads': typeof ApiUploadsRoute
+  '/feed/$slug': typeof FeedSlugRoute
+  '/images/$file': typeof ImagesFileRoute
   '/_authed/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
@@ -74,6 +110,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/api/images'
+    | '/api/uploads'
+    | '/feed/$slug'
+    | '/images/$file'
     | '/podcasts/$slug'
     | '/api/auth/$'
     | '/api/episodes/$id/audio'
@@ -81,6 +121,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/api/images'
+    | '/api/uploads'
+    | '/feed/$slug'
+    | '/images/$file'
     | '/podcasts/$slug'
     | '/api/auth/$'
     | '/api/episodes/$id/audio'
@@ -89,6 +133,10 @@ export interface FileRouteTypes {
     | '/'
     | '/_authed'
     | '/login'
+    | '/api/images'
+    | '/api/uploads'
+    | '/feed/$slug'
+    | '/images/$file'
     | '/_authed/podcasts/$slug'
     | '/api/auth/$'
     | '/api/episodes/$id/audio'
@@ -98,6 +146,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthedRoute: typeof AuthedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiImagesRoute: typeof ApiImagesRoute
+  ApiUploadsRoute: typeof ApiUploadsRoute
+  FeedSlugRoute: typeof FeedSlugRoute
+  ImagesFileRoute: typeof ImagesFileRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiEpisodesIdAudioRoute: typeof ApiEpisodesIdAudioRoute
 }
@@ -123,6 +175,34 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/images': {
+      id: '/api/images'
+      path: '/api/images'
+      fullPath: '/api/images'
+      preLoaderRoute: typeof ApiImagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/uploads': {
+      id: '/api/uploads'
+      path: '/api/uploads'
+      fullPath: '/api/uploads'
+      preLoaderRoute: typeof ApiUploadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feed/$slug': {
+      id: '/feed/$slug'
+      path: '/feed/$slug'
+      fullPath: '/feed/$slug'
+      preLoaderRoute: typeof FeedSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/images/$file': {
+      id: '/images/$file'
+      path: '/images/$file'
+      fullPath: '/images/$file'
+      preLoaderRoute: typeof ImagesFileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/podcasts/$slug': {
@@ -164,6 +244,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthedRoute: AuthedRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiImagesRoute: ApiImagesRoute,
+  ApiUploadsRoute: ApiUploadsRoute,
+  FeedSlugRoute: FeedSlugRoute,
+  ImagesFileRoute: ImagesFileRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiEpisodesIdAudioRoute: ApiEpisodesIdAudioRoute,
 }

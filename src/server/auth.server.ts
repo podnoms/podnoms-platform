@@ -98,7 +98,7 @@ export const authConfig: AuthConfig = {
 // Auth.js derives its URLs (OAuth callbacks, secure cookie names) from the
 // request. Behind a proxy that doesn't forward the original protocol and host,
 // set AUTH_URL to the public base URL and requests are rewritten to match it.
-function publicUrl(request: Request) {
+export function publicUrl(request: Request) {
   const url = new URL(request.url)
   if (env.AUTH_URL) {
     const base = new URL(env.AUTH_URL)

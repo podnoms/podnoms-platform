@@ -142,6 +142,22 @@ export const episodes = pgTable(
   (table) => [index('episode_podcastId_publishedAt_idx').on(table.podcastId, table.publishedAt)],
 )
 
+// Where a user left off in an episode, so playback resumes there on any device.
+export const playbackPositions = pgTable(
+  'playback_position',
+  {
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    episodeId: text('episodeId')
+      .notNull()
+      .references(() => episodes.id, { onDelete: 'cascade' }),
+    positionSeconds: integer('positionSeconds').notNull(),
+    updatedAt: timestamps.updatedAt,
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.episodeId] })],
+)
+
 export const usersRelations = relations(users, ({ many }) => ({
   podcasts: many(podcasts),
 }))

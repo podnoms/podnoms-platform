@@ -2,7 +2,10 @@ import '@tanstack/react-start/server-only'
 import { and, asc, eq, like, or } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
 import { podcasts } from '~/server/db/schema'
-import type { NewPodcastInput } from '~/lib/podcast-schema'
+import { plainTextToHtml } from '~/lib/rich-text'
+import { commitImage, deleteImage } from '~/server/images.server'
+import { sanitizeDescription } from '~/server/rich-text.server'
+import type { EditPodcastInput, NewPodcastInput } from '~/lib/podcast-schema'
 
 const summaryColumns = {
   id: podcasts.id,
@@ -53,7 +56,8 @@ async function availableSlug(title: string) {
 
 export async function createPodcast(userId: string, input: NewPodcastInput) {
   const slug = await availableSlug(input.title)
-  const values = { userId, title: input.title, description: input.description, slug }
+  const description = input.description ? plainTextToHtml(input.description) : undefined
+  const values = { userId, title: input.title, description, slug }
   const [podcast] = await db.insert(podcasts).values(values).onConflictDoNothing().returning(summaryColumns)
   if (podcast) return podcast
   // Someone took the slug in the meantime; fall back to a random suffix.
@@ -63,4 +67,23 @@ export async function createPodcast(userId: string, input: NewPodcastInput) {
     .values({ ...values, slug: `${slug}-${suffix}` })
     .returning(summaryColumns)
   return retry!
+}
+
+// Returns false unless the podcast belongs to the user. The slug (and so the
+// feed URL) stays the same when the title changes.
+export async function updatePodcast(userId: string, input: EditPodcastInput) {
+  const [podcast] = await db
+    .select({ id: podcasts.id, imageUrl: podcasts.imageUrl })
+    .from(podcasts)
+    .where(and(eq(podcasts.id, input.id), eq(podcasts.userId, userId)))
+    .limit(1)
+  if (!podcast) return false
+  const imageUrl =
+    input.imageId === undefined ? podcast.imageUrl : input.imageId ? await commitImage(userId, input.imageId) : null
+  await db
+    .update(podcasts)
+    .set({ title: input.title, description: sanitizeDescription(input.description), imageUrl })
+    .where(eq(podcasts.id, podcast.id))
+  if (imageUrl !== podcast.imageUrl) await deleteImage(podcast.imageUrl)
+  return true
 }

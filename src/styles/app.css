@@ -197,3 +197,28 @@
     @apply font-sans;
     }
 }
+/* Descriptions written in the rich text editor. */
+@layer components {
+  .rich-text {
+    @apply text-sm leading-relaxed;
+  }
+  .rich-text > * + * {
+    @apply mt-2;
+  }
+  .rich-text ul {
+    @apply list-disc pl-5;
+  }
+  .rich-text ol {
+    @apply list-decimal pl-5;
+  }
+  .rich-text blockquote {
+    @apply border-l-2 pl-3 text-muted-foreground;
+  }
+  .rich-text a {
+    @apply text-primary underline underline-offset-4;
+  }
+  .rich-text p.is-editor-empty:first-child::before {
+    @apply pointer-events-none float-left h-0 text-muted-foreground;
+    content: attr(data-placeholder);
+  }
+}

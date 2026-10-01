@@ -1,0 +1,172 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { saveMyPlaybackPosition } from '~/functions/podcasts'
+
+export type PlayerEpisode = {
+  id: string
+  title: string
+  audioUrl: string
+  imageUrl: string | null
+  podcastTitle: string
+  // Where the listener left off, as last loaded from the server.
+  positionSeconds: number | null
+}
+
+type PlayerContextValue = {
+  episode: PlayerEpisode | null
+  playing: boolean
+  currentTime: number
+  duration: number
+  rate: number
+  // Plays the episode, or toggles play/pause if it's already loaded.
+  play: (episode: PlayerEpisode) => void
+  toggle: () => void
+  seek: (seconds: number) => void
+  skip: (seconds: number) => void
+  setRate: (rate: number) => void
+  close: () => void
+  // Where the listener left off in an episode: what the player has saved this
+  // session, else the position loaded with the episode.
+  positionOf: (episodeId: string, loaded: number | null) => number
+}
+
+const PlayerContext = createContext<PlayerContextValue | null>(null)
+
+// One audio element for the whole app, so playback carries on while you move
+// between pages.
+export function PlayerProvider({ children }: { children: ReactNode }) {
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const [episode, setEpisode] = useState<PlayerEpisode | null>(null)
+  const [playing, setPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [rate, setRateState] = useState(1)
+  // Positions saved this session, which are newer than any loaded with a page.
+  const [positions, setPositions] = useState<Record<string, number>>({})
+  const lastSaved = useRef<Record<string, number>>({})
+
+  // Where each episode was left off is kept on the server, so playback resumes
+  // there on any device.
+  const savePosition = useCallback((id: string, seconds: number) => {
+    const position = Math.floor(seconds)
+    if (lastSaved.current[id] === position) return
+    lastSaved.current[id] = position
+    setPositions((current) => ({ ...current, [id]: position }))
+    saveMyPlaybackPosition({ data: { episodeId: id, seconds: position } }).catch(() => {
+      // Resuming is a nicety; try again next time rather than surface an error.
+      delete lastSaved.current[id]
+    })
+  }, [])
+
+  const positionOf = useCallback(
+    (episodeId: string, loaded: number | null) => positions[episodeId] ?? loaded ?? 0,
+    [positions],
+  )
+
+  const play = useCallback(
+    (next: PlayerEpisode) => {
+      const audio = audioRef.current
+      if (!audio) return
+      if (episode?.id === next.id) {
+        if (audio.paused) void audio.play()
+        else audio.pause()
+        return
+      }
+      if (episode) savePosition(episode.id, audio.currentTime)
+      setEpisode(next)
+      setCurrentTime(0)
+      setDuration(0)
+      audio.src = next.audioUrl
+      audio.playbackRate = rate
+      void audio.play()
+    },
+    [episode, rate, savePosition],
+  )
+
+  const value = useMemo<PlayerContextValue>(
+    () => ({
+      episode,
+      playing,
+      currentTime,
+      duration,
+      rate,
+      play,
+      positionOf,
+      toggle: () => {
+        const audio = audioRef.current
+        if (!audio || !episode) return
+        if (audio.paused) void audio.play()
+        else audio.pause()
+      },
+      seek: (seconds) => {
+        if (audioRef.current) audioRef.current.currentTime = seconds
+      },
+      skip: (seconds) => {
+        const audio = audioRef.current
+        if (audio) audio.currentTime = Math.min(Math.max(0, audio.currentTime + seconds), audio.duration || 0)
+      },
+      setRate: (next) => {
+        setRateState(next)
+        if (audioRef.current) audioRef.current.playbackRate = next
+      },
+      close: () => {
+        const audio = audioRef.current
+        if (audio && episode) {
+          savePosition(episode.id, audio.currentTime)
+          audio.pause()
+          audio.removeAttribute('src')
+          audio.load()
+        }
+        setEpisode(null)
+        setPlaying(false)
+      },
+    }),
+    [episode, playing, currentTime, duration, rate, play, positionOf, savePosition],
+  )
+
+  // Save the position every few seconds while playing.
+  useEffect(() => {
+    if (!playing || !episode) return
+    const timer = setInterval(() => {
+      if (audioRef.current) savePosition(episode.id, audioRef.current.currentTime)
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [playing, episode, savePosition])
+
+  return (
+    <PlayerContext.Provider value={value}>
+      {children}
+      <audio
+        ref={audioRef}
+        preload="metadata"
+        onPlay={() => setPlaying(true)}
+        onPause={(event) => {
+          setPlaying(false)
+          // Pauses also fire when a new episode loads (before its metadata) and just
+          // before it ends; those are handled elsewhere.
+          const audio = event.currentTarget
+          if (episode && !audio.ended && audio.readyState >= HTMLMediaElement.HAVE_METADATA) {
+            savePosition(episode.id, audio.currentTime)
+          }
+        }}
+        onEnded={() => {
+          setPlaying(false)
+          if (episode) savePosition(episode.id, 0)
+        }}
+        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+        onLoadedMetadata={(event) => {
+          const audio = event.currentTarget
+          setDuration(audio.duration)
+          // Resume where the listener left off, unless that was the very end.
+          const resumeAt = episode ? positionOf(episode.id, episode.positionSeconds) : 0
+          if (resumeAt > 0 && resumeAt < audio.duration - 10) audio.currentTime = resumeAt
+        }}
+      />
+    </PlayerContext.Provider>
+  )
+}
+
+export function usePlayer() {
+  const context = useContext(PlayerContext)
+  if (!context) throw new Error('usePlayer must be used within a PlayerProvider')
+  return context
+}

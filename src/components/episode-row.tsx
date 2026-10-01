@@ -1,0 +1,229 @@
+import { useState } from 'react'
+import { useRouter } from '@tanstack/react-router'
+import { EditDetailsDialog } from '~/components/edit-details-dialog'
+import { EpisodeProgress, stageLabels } from '~/components/episode-progress'
+import { Icons } from '~/components/icons'
+import { usePlayer } from '~/components/player/player-provider'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '~/components/ui/alert-dialog'
+import { Badge } from '~/components/ui/badge'
+import { Button } from '~/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu'
+import { Item, ItemActions, ItemContent, ItemDescription, ItemFooter, ItemMedia, ItemTitle } from '~/components/ui/item'
+import { Spinner } from '~/components/ui/spinner'
+import { deleteMyEpisode, retryMyEpisode, updateMyEpisode } from '~/functions/podcasts'
+import { formatClock, formatDate, hostname } from '~/lib/format'
+import { imageSrc } from '~/lib/images'
+import { htmlToText } from '~/lib/rich-text'
+import type { EpisodeStatus } from '~/server/db/schema'
+import type { EpisodeProgress as ProgressInfo } from '~/server/episode-processor.server'
+
+export type EpisodeRowData = {
+  id: string
+  title: string
+  description: string | null
+  sourceUrl: string | null
+  imageUrl: string | null
+  audioUrl: string | null
+  durationSeconds: number | null
+  status: EpisodeStatus
+  error: string | null
+  createdAt: Date
+  positionSeconds: number | null
+  progress: ProgressInfo | null
+}
+
+export function EpisodeRow({ episode, podcastTitle }: { episode: EpisodeRowData; podcastTitle: string }) {
+  const router = useRouter()
+  const player = usePlayer()
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const inProgress = episode.status === 'pending' || episode.status === 'processing'
+  const isCurrent = player.episode?.id === episode.id
+  const isPlaying = isCurrent && player.playing
+
+  const position = isCurrent ? player.currentTime : player.positionOf(episode.id, episode.positionSeconds)
+  const length = (isCurrent && player.duration) || episode.durationSeconds || 0
+  const played = length > 0 && position > 0 ? Math.min(position / length, 1) : 0
+
+  async function run(action: () => Promise<unknown>) {
+    setBusy(true)
+    try {
+      await action()
+      await router.invalidate()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function play() {
+    if (!episode.audioUrl) return
+    player.play({
+      id: episode.id,
+      title: episode.title,
+      audioUrl: episode.audioUrl,
+      imageUrl: episode.imageUrl,
+      podcastTitle,
+      positionSeconds: episode.positionSeconds,
+    })
+  }
+
+  // The source's title isn't known until it's fetched; show where it's from meanwhile.
+  const title = episode.title === episode.sourceUrl ? `Episode from ${hostname(episode.title)}` : episode.title
+  const meta = [
+    formatDate(episode.createdAt),
+    episode.durationSeconds != null ? formatClock(episode.durationSeconds) : null,
+    episode.sourceUrl ? hostname(episode.sourceUrl) : null,
+  ].filter(Boolean)
+
+  return (
+    <Item variant="outline" data-current={isCurrent || undefined} className="data-current:border-primary">
+      <ItemMedia variant="image" className="relative size-16 rounded-md">
+        {episode.imageUrl ? (
+          <img src={imageSrc(episode.imageUrl, 64)} alt="" />
+        ) : (
+          <div className="flex size-full items-center justify-center bg-muted">
+            <Icons.logo className="size-6 text-muted-foreground" />
+          </div>
+        )}
+        {played > 0 && (
+          <div
+            role="progressbar"
+            aria-label="Played"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(played * 100)}
+            className="absolute inset-x-0 bottom-0 h-1 bg-black/40"
+          >
+            <div className="h-full bg-primary" style={{ width: `${played * 100}%` }} />
+          </div>
+        )}
+      </ItemMedia>
+      <ItemContent className="min-w-0">
+        <ItemTitle className="line-clamp-1">{title}</ItemTitle>
+        <ItemDescription>{meta.join(' · ')}</ItemDescription>
+        {episode.description && episode.status === 'ready' && (
+          <ItemDescription className="line-clamp-2">{htmlToText(episode.description)}</ItemDescription>
+        )}
+      </ItemContent>
+      <ItemActions>
+        {episode.status === 'ready' && episode.audioUrl && (
+          <Button size="icon-lg" className="rounded-full" onClick={play}>
+            {isPlaying ? <Icons.pause /> : <Icons.play />}
+            <span className="sr-only">{isPlaying ? 'Pause' : 'Play'}</span>
+          </Button>
+        )}
+        {inProgress && (
+          <Badge variant="secondary">
+            <Spinner />
+            {episode.progress ? stageLabels[episode.progress.stage] : 'Processing'}
+          </Badge>
+        )}
+        {episode.status === 'failed' && (
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => run(() => retryMyEpisode({ data: { id: episode.id } }))}>
+            <Icons.retry />
+            Retry
+          </Button>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Icons.more />
+              <span className="sr-only">Episode actions</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem disabled={inProgress} onSelect={() => setEditing(true)}>
+              <Icons.edit />
+              Edit episode
+            </DropdownMenuItem>
+            {episode.status === 'ready' && episode.audioUrl && (
+              <DropdownMenuItem asChild>
+                <a href={episode.audioUrl} download={`${episode.title}.mp3`}>
+                  <Icons.download />
+                  Download MP3
+                </a>
+              </DropdownMenuItem>
+            )}
+            {episode.sourceUrl && (
+              <DropdownMenuItem asChild>
+                <a href={episode.sourceUrl} target="_blank" rel="noreferrer">
+                  <Icons.externalLink />
+                  Open source
+                </a>
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={episode.status === 'processing'}
+              onSelect={() => setConfirmDelete(true)}
+            >
+              <Icons.delete />
+              Delete episode
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </ItemActions>
+      {inProgress && (
+        <ItemFooter>
+          <EpisodeProgress progress={episode.progress} />
+        </ItemFooter>
+      )}
+      {episode.status === 'failed' && (
+        <ItemFooter>
+          <p className="text-sm text-destructive">{episode.error ?? 'Something went wrong downloading this episode.'}</p>
+        </ItemFooter>
+      )}
+      <EditDetailsDialog
+        open={editing}
+        onOpenChange={setEditing}
+        heading="Edit episode"
+        description={`An episode of ${podcastTitle}.`}
+        details={{ title: episode.title, description: episode.description, imageUrl: episode.imageUrl }}
+        maxTitleLength={200}
+        onSave={(change) => run(() => updateMyEpisode({ data: { id: episode.id, ...change } }))}
+      />
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this episode?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{title}” and its audio will be removed from {podcastTitle}. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() =>
+                run(async () => {
+                  if (isCurrent) player.close()
+                  await deleteMyEpisode({ data: { id: episode.id } })
+                })
+              }
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Item>
+  )
+}
