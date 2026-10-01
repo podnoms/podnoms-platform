@@ -1,5 +1,7 @@
 # PodNoms
 
+[![CI: tests, Docker build and publishing](https://github.com/podnoms/podnoms-platform/actions/workflows/docker.yml/badge.svg?event=push)](https://github.com/podnoms/podnoms-platform/actions/workflows/docker.yml)
+
 Turn YouTube videos, Mixcloud and SoundCloud uploads, or your own audio files into a podcast you can subscribe to in any podcast app.
 
 Paste a link or upload a file. PodNoms downloads or converts it to MP3 in the background and publishes it in the podcast's RSS feed.
