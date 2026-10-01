@@ -11,7 +11,7 @@ env.AUTH_SECRET = 'test-secret-that-is-at-least-32-characters-long'
 // Each test file gets its own media folder.
 const mediaDir = (env.MEDIA_DIR = mkdtempSync(join(tmpdir(), 'podnoms-test-')))
 afterAll(() => rmSync(mediaDir, { recursive: true, force: true }))
-env.YTDLP_PATH = resolve('test/fixtures/fake-yt-dlp.mjs')
+env.YTDLP_PATH = resolve(import.meta.dirname, 'fixtures/fake-yt-dlp.mjs')
 // Keep a developer's .env (which bun loads) out of the tests.
 for (const name of ['AUTH_URL', 'AUTH_GITHUB_ID', 'AUTH_GITHUB_SECRET', 'AUTH_GOOGLE_ID', 'AUTH_GOOGLE_SECRET', 'AUTH_FACEBOOK_ID', 'AUTH_FACEBOOK_SECRET', 'FFMPEG_PATH', 'FFPROBE_PATH']) {
   delete env[name]

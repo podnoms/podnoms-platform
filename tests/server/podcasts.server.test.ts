@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { podcasts } from '~/server/db/schema'
 import { createPodcast, getPodcastBySlug, listPodcasts, updatePodcast } from '~/server/podcasts.server'
 import { imagePath } from '~/server/storage.server'
-import { resetDb } from '../../test/db'
+import { resetDb } from '../db'
 import {
   createEpisode,
   createPodcast as insertPodcast,
@@ -12,7 +12,7 @@ import {
   exists,
   stageTestImage,
   storeTestImage,
-} from '../../test/helpers'
+} from '../helpers'
 
 beforeEach(() => resetDb(db))
 

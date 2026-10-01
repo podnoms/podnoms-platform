@@ -17,7 +17,7 @@ import {
   stageImage,
 } from '~/server/images.server'
 import { ensureImageVariantsDir, imagePath, imageVariantPath, stagedImagePath } from '~/server/storage.server'
-import { resetDb } from '../../test/db'
+import { resetDb } from '../db'
 import {
   createEpisode,
   createPodcast,
@@ -29,7 +29,7 @@ import {
   stageTestImage,
   storeTestImage,
   streamOf,
-} from '../../test/helpers'
+} from '../helpers'
 
 const dir = join(process.env.MEDIA_DIR!, 'images-test')
 

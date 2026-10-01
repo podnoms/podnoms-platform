@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { episodeSourcePath, stagedUploadPath, userUploadsDir } from '~/server/storage.server'
 import { findUpload, moveUploadToEpisode, receiveFile, saveUpload, UploadError } from '~/server/uploads.server'
-import { exists, hasFfmpeg, makeTone, streamOf } from '../../test/helpers'
+import { exists, hasFfmpeg, makeTone, streamOf } from '../helpers'
 
 const dir = join(process.env.MEDIA_DIR!, 'receive-test')
 

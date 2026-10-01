@@ -2,8 +2,8 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { users } from '~/server/db/schema'
 import { createUser, verifyUser } from '~/server/users.server'
-import { resetDb } from '../../test/db'
-import { createUser as insertUser, db } from '../../test/helpers'
+import { resetDb } from '../db'
+import { createUser as insertUser, db } from '../helpers'
 
 beforeEach(() => resetDb(db))
 

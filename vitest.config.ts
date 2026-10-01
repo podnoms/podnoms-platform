@@ -5,8 +5,8 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   resolve: { tsconfigPaths: true },
   test: {
-    include: ['src/**/*.test.{ts,tsx}', 'test/**/*.test.ts'],
-    setupFiles: ['test/setup.ts'],
+    include: ['tests/**/*.test.{ts,tsx}'],
+    setupFiles: ['tests/setup.ts'],
     // Database tests start an in-process Postgres and run the migrations.
     testTimeout: 30_000,
     hookTimeout: 60_000,

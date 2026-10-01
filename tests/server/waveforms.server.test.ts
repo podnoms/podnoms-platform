@@ -4,8 +4,8 @@ import { dirname, join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { episodeAudioPath, episodeWaveformPath } from '~/server/storage.server'
 import { backfillWaveforms, computeWaveform, deleteWaveform, readWaveform, saveWaveform } from '~/server/waveforms.server'
-import { resetDb } from '../../test/db'
-import { createEpisode, createPodcast, createUser, db, exists, hasFfmpeg, makeTone } from '../../test/helpers'
+import { resetDb } from '../db'
+import { createEpisode, createPodcast, createUser, db, exists, hasFfmpeg, makeTone } from '../helpers'
 
 const dir = join(process.env.MEDIA_DIR!, 'waveform-test')
 

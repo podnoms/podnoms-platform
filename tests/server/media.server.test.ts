@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import sharp from 'sharp'
 import { describe, expect, it, vi } from 'vitest'
 import { convertToMp3, decodeImageToPng, probeAudio } from '~/server/media.server'
-import { hasFfmpeg, makeImage, makeTone } from '../../test/helpers'
+import { hasFfmpeg, makeImage, makeTone } from '../helpers'
 
 const dir = join(process.env.MEDIA_DIR!, 'media-test')
 

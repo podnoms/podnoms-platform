@@ -16,7 +16,7 @@ import {
   updateEpisode,
 } from '~/server/episodes.server'
 import { episodeAudioPath, episodeSourcePath, episodeWaveformPath, stagedUploadPath } from '~/server/storage.server'
-import { resetDb } from '../../test/db'
+import { resetDb } from '../db'
 import {
   createEpisode as insertEpisode,
   createPodcast,
@@ -25,7 +25,7 @@ import {
   exists,
   stageTestImage,
   storeTestImage,
-} from '../../test/helpers'
+} from '../helpers'
 
 // Processing is tested in episode-processor.server.test.ts.
 vi.mock('~/server/episode-processor.server', () => ({ enqueueEpisode: vi.fn() }))

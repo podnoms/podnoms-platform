@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { authConfig, getSession, handleAuthRequest, oauthProviders, publicUrl } from '~/server/auth.server'
 import { createUser } from '~/server/users.server'
-import { resetDb } from '../../test/db'
-import { createUser as insertUser, db } from '../../test/helpers'
+import { resetDb } from '../db'
+import { createUser as insertUser, db } from '../helpers'
 
 const origin = 'http://localhost:5173'
 

@@ -5,8 +5,8 @@ import {
   temporaryEpisodeSlug,
   withRandomSuffix,
 } from '~/server/episode-slugs.server'
-import { resetDb } from '../../test/db'
-import { createEpisode, createPodcast, createUser, db } from '../../test/helpers'
+import { resetDb } from '../db'
+import { createEpisode, createPodcast, createUser, db } from '../helpers'
 
 beforeEach(() => resetDb(db))
 

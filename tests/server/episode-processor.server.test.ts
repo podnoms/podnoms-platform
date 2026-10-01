@@ -7,15 +7,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { episodes, type Episode } from '~/server/db/schema'
 import { enqueueEpisode, getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
 import { episodeAudioPath, episodeSourcePath, episodeWaveformPath } from '~/server/storage.server'
-import { resetDb } from '../../test/db'
-import { createEpisode, createPodcast, createUser, db, exists, hasFfmpeg, makeImage, makeTone } from '../../test/helpers'
+import { resetDb } from '../db'
+import { createEpisode, createPodcast, createUser, db, exists, hasFfmpeg, makeImage, makeTone } from '../helpers'
 
 const media = process.env.MEDIA_DIR!
 let server: Server
 let thumbnailUrl: string
 
 beforeAll(async () => {
-  // What the fake yt-dlp "downloads" (see test/fixtures/fake-yt-dlp.mjs).
+  // What the fake yt-dlp "downloads" (see tests/fixtures/fake-yt-dlp.mjs).
   process.env.FAKE_YTDLP_AUDIO = await makeTone(join(media, 'fixture.mp3'), 3)
   const png = await makeImage(64, 64)
   server = createServer((_request, response) => response.end(png))
