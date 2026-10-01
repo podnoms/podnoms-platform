@@ -13,8 +13,10 @@ import { env } from '~/env'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
 import { episodes, type Episode } from '~/server/db/schema'
+import { availableEpisodeSlug, isSlugConflict, withRandomSuffix } from '~/server/episode-slugs.server'
 import { downloadImage } from '~/server/images.server'
 import { convertToMp3, probeAudio } from '~/server/media.server'
+import { saveWaveform } from '~/server/waveforms.server'
 import { ensureAudioDir, episodeAudioPath, episodeAudioUrl, episodeSourcePath } from '~/server/storage.server'
 
 // Live progress of queued and running jobs, kept in memory: it changes many
@@ -167,6 +169,10 @@ async function processEpisode(episodeId: string) {
     await markReady(episode, audio)
     // The upload is only kept so a failed conversion can be retried.
     if (!episode.sourceUrl) await rm(episodeSourcePath(episodeId), { force: true })
+    // The episode can be played meanwhile; it just has no waveform if this fails.
+    await saveWaveform(episodeId).catch((error: unknown) =>
+      console.error(`Could not make a waveform for episode ${episodeId}:`, error),
+    )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     await db
@@ -183,21 +189,32 @@ async function markReady(episode: Episode, audio: ProcessedAudio) {
   const description = episode.description ?? (audio.description ? plainTextToHtml(audio.description) : null)
   // Store the source's artwork rather than linking to it, which can break.
   const imageUrl = episode.imageUrl ?? (audio.thumbnail ? await downloadImage(audio.thumbnail) : null)
-  await db
-    .update(episodes)
-    .set({
-      status: 'ready',
-      // Titles default to the link until the source's real title is known.
-      title: episode.title === episode.sourceUrl && audio.title ? audio.title : episode.title,
-      description,
-      imageUrl,
-      durationSeconds: audio.durationSeconds ?? episode.durationSeconds,
-      audioUrl: episodeAudioUrl(episode.id),
-      audioMimeType: 'audio/mpeg',
-      audioSizeBytes: size,
-      publishedAt: episode.publishedAt ?? new Date(),
-    })
-    .where(eq(episodes.id, episode.id))
+  // Titles default to the link, and slugs are temporary, until the source's
+  // real title is known.
+  const titled = episode.title === episode.sourceUrl && audio.title ? audio.title : null
+  const slug = titled ? await availableEpisodeSlug(episode.podcastId, titled, episode.id) : episode.slug
+  const update = (slug: string) =>
+    db
+      .update(episodes)
+      .set({
+        status: 'ready',
+        title: titled ?? episode.title,
+        slug,
+        description,
+        imageUrl,
+        durationSeconds: audio.durationSeconds ?? episode.durationSeconds,
+        audioUrl: episodeAudioUrl(episode.id),
+        audioMimeType: 'audio/mpeg',
+        audioSizeBytes: size,
+        publishedAt: episode.publishedAt ?? new Date(),
+      })
+      .where(eq(episodes.id, episode.id))
+  try {
+    await update(slug)
+  } catch (error) {
+    if (!isSlugConflict(error)) throw error
+    await update(withRandomSuffix(slug))
+  }
 }
 
 const queue: string[] = []

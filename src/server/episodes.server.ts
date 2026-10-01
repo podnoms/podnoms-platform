@@ -2,13 +2,20 @@ import '@tanstack/react-start/server-only'
 import { rm } from 'node:fs/promises'
 import { and, desc, eq } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
-import { episodes, playbackPositions, podcasts } from '~/server/db/schema'
+import { episodes, playbackPositions, podcasts, type NewEpisode } from '~/server/db/schema'
 import { enqueueEpisode } from '~/server/episode-processor.server'
+import {
+  availableEpisodeSlug,
+  isSlugConflict,
+  temporaryEpisodeSlug,
+  withRandomSuffix,
+} from '~/server/episode-slugs.server'
 import { episodeAudioPath, episodeSourcePath } from '~/server/storage.server'
 import { findUpload, moveUploadToEpisode } from '~/server/uploads.server'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { commitImage, deleteImage } from '~/server/images.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
+import { deleteWaveform } from '~/server/waveforms.server'
 import type { EditEpisodeInput, NewEpisodeInput } from '~/lib/episode-schema'
 
 // Includes where the user left off in each episode.
@@ -17,6 +24,7 @@ export function listEpisodes(userId: string, podcastId: string) {
     .select({
       id: episodes.id,
       title: episodes.title,
+      slug: episodes.slug,
       description: episodes.description,
       sourceUrl: episodes.sourceUrl,
       imageUrl: episodes.imageUrl,
@@ -36,6 +44,55 @@ export function listEpisodes(userId: string, podcastId: string) {
     .orderBy(desc(episodes.createdAt))
 }
 
+// One of the user's episodes, by podcast and episode slug, with its podcast
+// and where the user left off.
+export async function getEpisode(userId: string, podcastSlug: string, episodeSlug: string) {
+  const [row] = await db
+    .select({
+      episode: {
+        id: episodes.id,
+        title: episodes.title,
+        slug: episodes.slug,
+        description: episodes.description,
+        sourceUrl: episodes.sourceUrl,
+        imageUrl: episodes.imageUrl,
+        audioUrl: episodes.audioUrl,
+        durationSeconds: episodes.durationSeconds,
+        status: episodes.status,
+        error: episodes.error,
+        createdAt: episodes.createdAt,
+        publishedAt: episodes.publishedAt,
+        positionSeconds: playbackPositions.positionSeconds,
+      },
+      podcast: { id: podcasts.id, title: podcasts.title, slug: podcasts.slug, imageUrl: podcasts.imageUrl },
+    })
+    .from(episodes)
+    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .leftJoin(
+      playbackPositions,
+      and(eq(playbackPositions.episodeId, episodes.id), eq(playbackPositions.userId, userId)),
+    )
+    .where(and(eq(episodes.slug, episodeSlug), eq(podcasts.userId, userId), eq(podcasts.slug, podcastSlug)))
+    .limit(1)
+  return row ?? null
+}
+
+// Saves a new episode, choosing another slug if its was taken meanwhile.
+async function insertEpisode(values: NewEpisode & { slug: string }) {
+  const insert = (slug: string) =>
+    db
+      .insert(episodes)
+      .values({ ...values, slug })
+      .returning({ id: episodes.id, slug: episodes.slug })
+      .then(([episode]) => episode!)
+  try {
+    return await insert(values.slug)
+  } catch (error) {
+    if (!isSlugConflict(error)) throw error
+    return insert(withRandomSuffix(values.slug))
+  }
+}
+
 // Returns null unless the podcast belongs to the user. The episode starts as
 // "pending" and is downloaded or converted in the background.
 export async function createEpisode(userId: string, input: NewEpisodeInput) {
@@ -45,36 +102,35 @@ export async function createEpisode(userId: string, input: NewEpisodeInput) {
     .where(and(eq(podcasts.id, input.podcastId), eq(podcasts.userId, userId)))
     .limit(1)
   if (!podcast) return null
+  const description = input.description && plainTextToHtml(input.description)
 
   if ('uploadId' in input) {
     const upload = await findUpload(userId, input.uploadId)
     if (!upload) throw new Error('That upload has expired. Please choose the file again.')
-    const [episode] = await db
-      .insert(episodes)
-      .values({
-        podcastId: podcast.id,
-        title: input.title ?? upload.title,
-        description: input.description && plainTextToHtml(input.description),
-        durationSeconds: upload.durationSeconds,
-      })
-      .returning({ id: episodes.id })
-    await moveUploadToEpisode(userId, input.uploadId, episode!.id)
-    enqueueEpisode(episode!.id)
-    return episode!
+    const title = input.title ?? upload.title
+    const episode = await insertEpisode({
+      podcastId: podcast.id,
+      title,
+      slug: await availableEpisodeSlug(podcast.id, title),
+      description,
+      durationSeconds: upload.durationSeconds,
+    })
+    await moveUploadToEpisode(userId, input.uploadId, episode.id)
+    enqueueEpisode(episode.id)
+    return episode
   }
 
-  const [episode] = await db
-    .insert(episodes)
-    .values({
-      podcastId: podcast.id,
-      // Replaced by the source's own title once it's downloaded.
-      title: input.title ?? input.sourceUrl,
-      sourceUrl: input.sourceUrl,
-      description: input.description && plainTextToHtml(input.description),
-    })
-    .returning({ id: episodes.id })
-  enqueueEpisode(episode!.id)
-  return episode!
+  const episode = await insertEpisode({
+    podcastId: podcast.id,
+    // Without a title, the link stands in until the source's own title is
+    // fetched, and the slug is temporary until then.
+    title: input.title ?? input.sourceUrl,
+    slug: input.title ? await availableEpisodeSlug(podcast.id, input.title) : temporaryEpisodeSlug(),
+    sourceUrl: input.sourceUrl,
+    description,
+  })
+  enqueueEpisode(episode.id)
+  return episode
 }
 
 // Only ready episodes have audio to serve.
@@ -106,7 +162,20 @@ export async function deleteEpisode(userId: string, episodeId: string) {
   await rm(episodeAudioPath(episode.id), { force: true })
   await rm(episodeSourcePath(episode.id), { force: true })
   await deleteImage(episode.imageUrl)
+  await deleteWaveform(episode.id)
   return true
+}
+
+// The episode's current slug, for a page that's following an episode whose
+// temporary slug is replaced once it's processed.
+export async function getEpisodeSlug(userId: string, episodeId: string) {
+  const [row] = await db
+    .select({ slug: episodes.slug })
+    .from(episodes)
+    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .where(and(eq(episodes.id, episodeId), eq(podcasts.userId, userId)))
+    .limit(1)
+  return row?.slug ?? null
 }
 
 // Episodes can't be edited while they're being processed, which fills in their

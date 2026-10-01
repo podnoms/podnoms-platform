@@ -8,8 +8,10 @@ import { getSession, publicUrl } from '~/server/auth.server'
 import { getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
 import { feedPath } from '~/server/feed.server'
 import { localiseRemoteImages } from '~/server/images.server'
-import { createEpisode, deleteEpisode, listEpisodes, retryEpisode, savePlaybackPosition, updateEpisode } from '~/server/episodes.server'
+import { createEpisode, deleteEpisode, getEpisode, getEpisodeSlug, listEpisodes, retryEpisode, savePlaybackPosition, updateEpisode } from '~/server/episodes.server'
 import { createPodcast, getPodcastBySlug, listPodcasts, updatePodcast } from '~/server/podcasts.server'
+import { sanitizeDescription } from '~/server/rich-text.server'
+import { backfillWaveforms, readWaveform } from '~/server/waveforms.server'
 
 async function requireUserId() {
   const session = await getSession(getRequest())
@@ -30,12 +32,43 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
     if (!podcast) throw notFound()
     void resumeUnfinishedEpisodes()
     void localiseRemoteImages()
+    void backfillWaveforms()
     const episodes = await listEpisodes(userId, podcast.id)
     return {
       ...podcast,
       feedUrl: new URL(feedPath(podcast.slug), publicUrl(getRequest())).toString(),
       episodes: episodes.map((episode) => ({ ...episode, progress: getEpisodeProgress(episode.id) })),
     }
+  })
+
+// An episode's page: the episode, its podcast and its waveform (null until made).
+export const fetchMyEpisode = createServerFn({ method: 'GET' })
+  .validator(z.object({ slug: z.string(), episodeSlug: z.string() }))
+  .handler(async ({ data }) => {
+    const found = await getEpisode(await requireUserId(), data.slug, data.episodeSlug)
+    if (!found) throw notFound()
+    const { episode, podcast } = found
+    const waveform = episode.status === 'ready' ? await readWaveform(episode.id) : null
+    return {
+      podcast,
+      episode: {
+        ...episode,
+        // Sanitised when saved; again here, as it's rendered as HTML.
+        description: sanitizeDescription(episode.description),
+        progress: getEpisodeProgress(episode.id),
+      },
+      // The smoother of the two shapes, as Mixcloud draws them.
+      waveform: waveform?.rms ?? null,
+    }
+  })
+
+// An episode's current slug, which changes once when a link's title is fetched.
+export const fetchMyEpisodeSlug = createServerFn({ method: 'GET' })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    const slug = await getEpisodeSlug(await requireUserId(), data.id)
+    if (!slug) throw notFound()
+    return slug
   })
 
 export const createMyPodcast = createServerFn({ method: 'POST' })

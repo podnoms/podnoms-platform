@@ -55,11 +55,12 @@ Settings are read from `.env` and checked at startup by [`src/env.ts`](src/env.t
 
 Everything PodNoms stores on disk lives under `MEDIA_DIR`:
 
-```
+```text
 media/
   audio/            episode MP3s
   images/           artwork, as JPEGs
   images/variants/  resized copies, made on request (safe to delete)
+  waveforms/        episode waveforms, as JSON (remade if missing)
   sources/          uploaded files waiting to be converted
   uploads/          audio uploads not yet added as episodes (cleared after a day)
   staged-images/    image uploads not yet saved (cleared after a day)
@@ -80,6 +81,60 @@ Back it up along with the database.
 | `bun run db:studio` | Opens Drizzle Studio to browse the database |
 
 ## Deployment
+
+### Docker Compose
+
+The [Dockerfile](Dockerfile) builds the application and includes Node.js, yt-dlp,
+ffmpeg and ffprobe. On each push to `master`, [GitHub Actions](.github/workflows/docker.yml)
+publishes the image to `ghcr.io/podnoms/podnoms-platform` with `latest`, `master`
+and commit SHA tags. The workflow uses the repository's `GITHUB_TOKEN`; no
+registry secret is needed. For a fork, set `PODNOMS_IMAGE` to its GHCR image.
+
+Use Docker Compose 2.20 or later. Copy `.env.example` to `.env`, set `AUTH_SECRET`
+to the output of `openssl rand -base64 32`, and set `AUTH_URL` to the public URL
+(or `http://localhost:3000` locally). OAuth settings in `.env` are passed through.
+
+**With bundled Postgres:** leave `DATABASE_URL` empty and set `POSTGRES_PASSWORD`
+to the output of `openssl rand -hex 24`. Start the `postgres` profile:
+
+```sh
+docker compose --profile postgres up -d --pull always
+```
+
+Compose creates the database and waits for it to become healthy. Its port is
+available only inside the Compose network. Keep the password URL-safe (letters,
+digits, `-` or `_`), since it is also used in the generated connection string.
+
+**With external Postgres:** set `DATABASE_URL` to the full connection string,
+including any required SSL parameters, and run without the profile:
+
+```sh
+docker compose up -d --pull always
+```
+
+`POSTGRES_PASSWORD` is unnecessary in this mode. The database must already exist
+and the connection must allow schema migrations. Use a hostname reachable from
+the container; `localhost` refers to the container itself. Compose may warn that
+the optional `postgres` dependency is disabled.
+
+In both modes the container applies pending Drizzle migrations before starting
+the server. A failed migration prevents startup. The app is available on port
+3000; set `PORT` to change the host port. Media and bundled database data persist
+in named volumes across container updates. Back up both; `docker compose down -v`
+deletes these volumes. Run only one app instance, as described below.
+
+To build from your checkout instead of pulling the published image:
+
+```sh
+PODNOMS_IMAGE=podnoms:local docker compose --profile postgres up -d --build
+# Omit --profile postgres when using an external database.
+```
+
+To update, repeat the appropriate `up -d --pull always` command. If the GHCR
+package is private, authenticate with `docker login ghcr.io` using a token with
+`read:packages`, or make the package public for unauthenticated pulls.
+
+### Running directly
 
 `bun run build` produces a Node.js server in `.output/`. Run it with `bun run start`, or `node .output/server/index.mjs`. Set `NITRO_PRESET` at build time to target another platform.
 

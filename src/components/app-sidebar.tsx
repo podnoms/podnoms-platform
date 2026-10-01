@@ -14,6 +14,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '~/components/ui/sidebar'
+import { imageSrc } from '~/lib/images'
 import { navLinks } from '~/lib/nav-links'
 
 export function AppSidebar() {
@@ -49,7 +50,18 @@ export function AppSidebar() {
                       params={{ slug: podcast.slug }}
                       activeProps={{ 'data-active': '' }}
                     >
-                      {podcast.title}
+                      {podcast.imageUrl ? (
+                        <img
+                          src={imageSrc(podcast.imageUrl, 24)}
+                          alt=""
+                          className="size-6 shrink-0 rounded-sm object-cover"
+                        />
+                      ) : (
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-sm bg-muted">
+                          <Icons.logo className="size-3.5 text-muted-foreground" />
+                        </span>
+                      )}
+                      <span className="truncate">{podcast.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -64,22 +76,6 @@ export function AppSidebar() {
                   </NewPodcastDialog>
                 </SidebarMenuItem>
               )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navLinks.map(([to, label]) => (
-                <SidebarMenuItem key={to}>
-                  <SidebarMenuButton asChild>
-                    <Link to={to} activeProps={{ 'data-active': '' }} activeOptions={{ exact: true }}>
-                      {label}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

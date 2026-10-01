@@ -19,6 +19,7 @@ import { Route as ImagesFileRouteImport } from './routes/images/$file'
 import { Route as AuthedPodcastsSlugRouteImport } from './routes/_authed/podcasts/$slug'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiEpisodesIdAudioRouteImport } from './routes/api/episodes/$id/audio'
+import { Route as AuthedPodcastsSlugEpisodesEpisodeSlugRouteImport } from './routes/_authed/podcasts/$slug_.episodes.$episodeSlug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -69,6 +70,12 @@ const ApiEpisodesIdAudioRoute = ApiEpisodesIdAudioRouteImport.update({
   path: '/api/episodes/$id/audio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedPodcastsSlugEpisodesEpisodeSlugRoute =
+  AuthedPodcastsSlugEpisodesEpisodeSlugRouteImport.update({
+    id: '/podcasts/$slug_/episodes/$episodeSlug',
+    path: '/podcasts/$slug/episodes/$episodeSlug',
+    getParentRoute: () => AuthedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
+  '/podcasts/$slug/episodes/$episodeSlug': typeof AuthedPodcastsSlugEpisodesEpisodeSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -91,6 +99,7 @@ export interface FileRoutesByTo {
   '/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
+  '/podcasts/$slug/episodes/$episodeSlug': typeof AuthedPodcastsSlugEpisodesEpisodeSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,6 +113,7 @@ export interface FileRoutesById {
   '/_authed/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
+  '/_authed/podcasts/$slug_/episodes/$episodeSlug': typeof AuthedPodcastsSlugEpisodesEpisodeSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/podcasts/$slug'
     | '/api/auth/$'
     | '/api/episodes/$id/audio'
+    | '/podcasts/$slug/episodes/$episodeSlug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/podcasts/$slug'
     | '/api/auth/$'
     | '/api/episodes/$id/audio'
+    | '/podcasts/$slug/episodes/$episodeSlug'
   id:
     | '__root__'
     | '/'
@@ -140,6 +152,7 @@ export interface FileRouteTypes {
     | '/_authed/podcasts/$slug'
     | '/api/auth/$'
     | '/api/episodes/$id/audio'
+    | '/_authed/podcasts/$slug_/episodes/$episodeSlug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -226,15 +239,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiEpisodesIdAudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/podcasts/$slug_/episodes/$episodeSlug': {
+      id: '/_authed/podcasts/$slug_/episodes/$episodeSlug'
+      path: '/podcasts/$slug/episodes/$episodeSlug'
+      fullPath: '/podcasts/$slug/episodes/$episodeSlug'
+      preLoaderRoute: typeof AuthedPodcastsSlugEpisodesEpisodeSlugRouteImport
+      parentRoute: typeof AuthedRoute
+    }
   }
 }
 
 interface AuthedRouteChildren {
   AuthedPodcastsSlugRoute: typeof AuthedPodcastsSlugRoute
+  AuthedPodcastsSlugEpisodesEpisodeSlugRoute: typeof AuthedPodcastsSlugEpisodesEpisodeSlugRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedPodcastsSlugRoute: AuthedPodcastsSlugRoute,
+  AuthedPodcastsSlugEpisodesEpisodeSlugRoute:
+    AuthedPodcastsSlugEpisodesEpisodeSlugRoute,
 }
 
 const AuthedRouteWithChildren =

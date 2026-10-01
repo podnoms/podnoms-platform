@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useRouter } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import { EditDetailsDialog } from '~/components/edit-details-dialog'
 import { EpisodeProgress, stageLabels } from '~/components/episode-progress'
 import { Icons } from '~/components/icons'
@@ -35,6 +35,7 @@ import type { EpisodeProgress as ProgressInfo } from '~/server/episode-processor
 export type EpisodeRowData = {
   id: string
   title: string
+  slug: string
   description: string | null
   sourceUrl: string | null
   imageUrl: string | null
@@ -47,7 +48,15 @@ export type EpisodeRowData = {
   progress: ProgressInfo | null
 }
 
-export function EpisodeRow({ episode, podcastTitle }: { episode: EpisodeRowData; podcastTitle: string }) {
+export function EpisodeRow({
+  episode,
+  podcastSlug,
+  podcastTitle,
+}: {
+  episode: EpisodeRowData
+  podcastSlug: string
+  podcastTitle: string
+}) {
   const router = useRouter()
   const player = usePlayer()
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -93,7 +102,11 @@ export function EpisodeRow({ episode, podcastTitle }: { episode: EpisodeRowData;
   ].filter(Boolean)
 
   return (
-    <Item variant="outline" data-current={isCurrent || undefined} className="data-current:border-primary">
+    <Item
+      variant="outline"
+      data-current={isCurrent || undefined}
+      className="relative transition-colors hover:bg-muted/40 data-current:border-primary"
+    >
       <ItemMedia variant="image" className="relative size-16 rounded-md">
         {episode.imageUrl ? (
           <img src={imageSrc(episode.imageUrl, 64)} alt="" />
@@ -116,13 +129,23 @@ export function EpisodeRow({ episode, podcastTitle }: { episode: EpisodeRowData;
         )}
       </ItemMedia>
       <ItemContent className="min-w-0">
-        <ItemTitle className="line-clamp-1">{title}</ItemTitle>
+        <ItemTitle className="line-clamp-1">
+          {/* Stretched over the whole row, so clicking anywhere opens the episode;
+              the buttons sit above it. */}
+          <Link
+            to="/podcasts/$slug/episodes/$episodeSlug"
+            params={{ slug: podcastSlug, episodeSlug: episode.slug }}
+            className="outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
+          >
+            {title}
+          </Link>
+        </ItemTitle>
         <ItemDescription>{meta.join(' · ')}</ItemDescription>
         {episode.description && episode.status === 'ready' && (
           <ItemDescription className="line-clamp-2">{htmlToText(episode.description)}</ItemDescription>
         )}
       </ItemContent>
-      <ItemActions>
+      <ItemActions className="relative z-10">
         {episode.status === 'ready' && episode.audioUrl && (
           <Button size="icon-lg" className="rounded-full" onClick={play}>
             {isPlaying ? <Icons.pause /> : <Icons.play />}

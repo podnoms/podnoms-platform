@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import {
+  ArrowLeftIcon,
   BoldIcon,
   CheckIcon,
   ClockIcon,
@@ -69,6 +70,7 @@ function brandIcon(title: string, path: string): Icon {
 export const Icons = {
   logo: PodcastIcon,
   home: HouseIcon,
+  back: ArrowLeftIcon,
   list: ListIcon,
   broadcast: RadioIcon,
   database: DatabaseIcon,
