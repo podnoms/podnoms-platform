@@ -145,6 +145,44 @@ Things to know:
 - **Image library binaries:** sharp uses native binaries for the platform it was installed on. Build on the same OS and CPU architecture you deploy to, or run `bun install` there.
 - **Upload size:** audio uploads are sent as a single request of up to 1 GB, so allow request bodies that large in any reverse proxy in front of the app.
 
+## Releases
+
+Use [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`, with Git tags
+named `vX.Y.Z`. Use `patch` for fixes, `minor` for new functionality, and `major`
+for incompatible changes once the application reaches `1.0.0`. During `0.x`, use
+minor releases for potentially breaking changes. Existing `v0.1` and `v0.2` tags
+stay as they are; new releases use the three-part version in `package.json`.
+
+Install Git, Node.js, Bun and the [GitHub CLI](https://cli.github.com/), then sign
+in with `gh auth login`. Merge the work you want to release into GitHub's default
+branch (currently `develop`), check out that branch, and synchronize it with
+`origin`. All tracked and untracked changes must be committed or stashed.
+
+```sh
+./scripts/create-release.sh --dry-run  # preview the next patch (0.2.0 -> 0.2.1)
+./scripts/create-release.sh           # publish the next patch
+./scripts/create-release.sh minor     # e.g. 0.2.1 -> 0.3.0
+./scripts/create-release.sh major     # e.g. 0.3.0 -> 1.0.0
+```
+
+The script installs locked dependencies, type-checks, tests, and builds. It then
+uses [`bun pm version`](https://bun.sh/docs/pm/cli/pm#version) to bump
+`package.json`, create the commit and annotated tag, then pushes both together
+and publishes a GitHub release with
+[generated notes](https://cli.github.com/manual/gh_release_create). The pushed
+tag also starts the Docker image workflow; image publishing completes separately.
+The version-only change does not require a `bun.lock` update.
+
+Dry runs only preview the version and steps; they do not contact GitHub or run
+checks. Real releases require permission to push directly to the default branch
+and create tags and releases. If branch protection requires pull requests, submit
+the version bump through a PR, then tag its merged commit and create the release
+with `gh release create <tag> --verify-tag --generate-notes` after pushing the tag.
+
+If publishing fails, the script preserves the local commit/tag and prints retry
+commands. Inspect whether the push or GitHub release succeeded before retrying;
+do not rerun the normal bump command or move an already published tag.
+
 ## License
 
 [MIT](LICENSE) © 2026 Fergal Moran
