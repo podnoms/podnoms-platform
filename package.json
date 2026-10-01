@@ -1,6 +1,7 @@
 {
   "name": "podnoms",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "_dev": "vite dev",
