@@ -21,13 +21,20 @@ export function AppSidebar() {
   const { podcasts } = useLoaderData({ from: '__root__' })
 
   return (
-    // Ends above the player bar rather than running behind it.
-    <Sidebar className="bottom-(--player-height) h-auto">
+    // Ends above the player bar rather than running behind it, with no border
+    // between it and the page.
+    <Sidebar className="bottom-(--player-height) h-auto group-data-[side=left]:border-r-0">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link to="/">podnoms</Link>
+              <Link to="/" className="font-medium">
+                <img src="/logo.png" alt="" className="size-7 rounded-md" />
+                <div className="grid flex-1 text-start text-sm leading-tight">
+                  <span className="truncate font-semibold">Pod:Noms</span>
+                  <span className="truncate text-xs">Robot powered podcasts</span>
+                </div>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
