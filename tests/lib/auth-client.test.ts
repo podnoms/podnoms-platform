@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { signIn, signOut, updateSession } from '~/lib/auth-client'
+import { readLastEpisode, storeLastEpisode } from '~/lib/last-episode'
+import { readStoredVolume, storeVolume } from '~/lib/volume'
 
 let submitted: HTMLFormElement[]
 
@@ -49,6 +51,14 @@ describe('signOut', () => {
     await signOut()
     expect(new URL(submitted[0]!.action, 'http://x').pathname).toBe('/api/auth/signout')
     expect(fields(submitted[0]!)).toEqual({ csrfToken: 'token-123', callbackUrl: '/' })
+  })
+
+  it("forgets the player's episode but keeps the volume", async () => {
+    storeLastEpisode({ id: 'e', title: 'T', audioUrl: '/a', imageUrl: null, podcastTitle: 'P', positionSeconds: 3 })
+    storeVolume({ level: 0.4, muted: false })
+    await signOut()
+    expect(readLastEpisode()).toBeNull()
+    expect(readStoredVolume()).toEqual({ level: 0.4, muted: false })
   })
 })
 

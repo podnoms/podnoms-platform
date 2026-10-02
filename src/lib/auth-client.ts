@@ -1,5 +1,7 @@
 // Browser helpers for the Auth.js endpoints under /api/auth. Each one submits
 // a real form so Auth.js can answer with its normal redirects.
+import { storeLastEpisode } from '~/lib/last-episode'
+
 export type AuthProvider = 'credentials' | 'github' | 'google' | 'facebook'
 
 async function csrfToken() {
@@ -27,7 +29,10 @@ export function signIn(provider: AuthProvider, fields: Record<string, string> = 
   return postToAuth(provider === 'credentials' ? 'callback/credentials' : `signin/${provider}`, fields)
 }
 
+// Also forgets the episode queued in the player, so the next person to sign in
+// on this browser doesn't see it. The volume is left, as it's about the device.
 export function signOut() {
+  storeLastEpisode(null)
   return postToAuth('signout', {})
 }
 

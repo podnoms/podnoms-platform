@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { saveMyPlaybackPosition } from '~/functions/podcasts'
+import { readLastEpisode, storeLastEpisode } from '~/lib/last-episode'
 import { defaultVolume, readStoredVolume, storeVolume, type Volume } from '~/lib/volume'
 
 export type PlayerEpisode = {
@@ -83,6 +84,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   // Where to start the episode that's loading, instead of resuming.
   const startAt = useRef<number | null>(null)
+
+  // Queue up the episode from last visit, paused, once hydrated (the server
+  // can't see storage). Until then there's nothing to remember.
+  const [restored, setRestored] = useState(false)
+  // The episode queued up that way, until it's played or replaced.
+  const restoredId = useRef<string | null>(null)
+  useEffect(() => {
+    const last = readLastEpisode()
+    const audio = audioRef.current
+    if (last && audio) {
+      restoredId.current = last.id
+      setEpisode(last)
+      audio.src = last.audioUrl
+    }
+    setRestored(true)
+  }, [])
+
+  // Remember the loaded episode, with where it was left off.
+  useEffect(() => {
+    if (!restored) return
+    storeLastEpisode(episode && { ...episode, positionSeconds: positions[episode.id] ?? episode.positionSeconds })
+  }, [restored, episode, positions])
 
   const play = useCallback(
     (next: PlayerEpisode, options?: { startAt?: number }) => {
@@ -182,6 +205,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         onEnded={() => {
           setPlaying(false)
           if (episode) savePosition(episode.id, 0)
+        }}
+        onPlaying={() => {
+          restoredId.current = null
+        }}
+        // An episode queued up from last visit may have been deleted since, or
+        // belong to whoever was signed in before; drop it rather than show it broken.
+        onError={() => {
+          if (episode && episode.id === restoredId.current) {
+            restoredId.current = null
+            setEpisode(null)
+          }
         }}
         onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
         onLoadedMetadata={(event) => {
