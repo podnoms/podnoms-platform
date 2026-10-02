@@ -28,6 +28,12 @@ export const users = pgTable(
     image: text('image'),
     // Set only for users who registered with an email and password.
     passwordHash: text('passwordHash'),
+    // The authenticator app secret, encrypted (see two-factor.server.ts), once
+    // the user has set one up.
+    totpSecret: text('totpSecret'),
+    // The time step of the last accepted authenticator code, so a code can't
+    // be used twice.
+    totpLastStep: integer('totpLastStep'),
   },
   // Emails are unique regardless of case, across OAuth and password users.
   (table) => [uniqueIndex('user_email_lower_idx').on(sql`lower(${table.email})`)],
@@ -64,13 +70,49 @@ export const sessions = pgTable('session', {
 })
 
 export const verificationTokens = pgTable(
-  'verificationToken',
+  'verification_token',
   {
     identifier: text('identifier').notNull(),
     token: text('token').notNull(),
     expires: timestamp('expires', { mode: 'date' }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.identifier, table.token] })],
+)
+
+// --- Two-factor authentication ----------------------------------------------
+
+// A security key (such as a YubiKey) registered as a second factor via WebAuthn.
+export const securityKeys = pgTable(
+  'security_key',
+  {
+    // The WebAuthn credential ID, base64url-encoded.
+    id: text('id').primaryKey(),
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    // The COSE public key, base64url-encoded.
+    publicKey: text('publicKey').notNull(),
+    // The key's signature counter, which only goes up unless the key was cloned.
+    counter: bigint('counter', { mode: 'number' }).notNull().default(0),
+    transports: text('transports').array(),
+    createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+    lastUsedAt: timestamp('lastUsedAt', { mode: 'date', withTimezone: true }),
+  },
+  (table) => [index('security_key_userId_idx').on(table.userId)],
+)
+
+// Single-use codes for signing in without the second factor, stored hashed.
+export const recoveryCodes = pgTable(
+  'recovery_code',
+  {
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    codeHash: text('codeHash').notNull(),
+    usedAt: timestamp('usedAt', { mode: 'date', withTimezone: true }),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.codeHash] })],
 )
 
 // --- Podcasts ---------------------------------------------------------------

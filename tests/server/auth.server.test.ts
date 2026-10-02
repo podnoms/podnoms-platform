@@ -1,5 +1,15 @@
+import { Secret, TOTP } from 'otpauth'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { authConfig, getSession, handleAuthRequest, oauthProviders, publicUrl } from '~/server/auth.server'
+import {
+  authConfig,
+  getSession,
+  getTwoFactorPendingUserId,
+  handleAuthRequest,
+  oauthProviders,
+  publicUrl,
+  readSession,
+} from '~/server/auth.server'
+import { confirmTotpSetup, startTotpSetup, verifySecondFactor } from '~/server/two-factor.server'
 import { createUser } from '~/server/users.server'
 import { resetDb } from '../db'
 import { createUser as insertUser, db } from '../helpers'
@@ -30,7 +40,29 @@ async function signIn(email: string, password: string) {
   return { response, cookie: cookiesFrom(csrf, response) }
 }
 
-const sessionFor = (cookie: string) => getSession(new Request(`${origin}/podcasts`, { headers: { cookie } }))
+const pageRequest = (cookie: string) => new Request(`${origin}/podcasts`, { headers: { cookie } })
+const sessionFor = (cookie: string) => getSession(pageRequest(cookie))
+
+// Updates the session the way updateSession in auth-client.ts does, returning
+// the cookies the browser would then hold.
+async function updateSession(cookie: string, data: Record<string, unknown>) {
+  const csrf = await handleAuthRequest(new Request(`${origin}/api/auth/csrf`, { headers: { cookie } }))
+  const { csrfToken } = (await csrf.json()) as { csrfToken: string }
+  const withCsrf = [cookie, cookiesFrom(csrf)].filter(Boolean).join('; ')
+  const response = await handleAuthRequest(
+    new Request(`${origin}/api/auth/session`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: withCsrf },
+      body: JSON.stringify({ csrfToken, data }),
+    }),
+  )
+  // Later cookies win, as in a browser.
+  const jar = new Map([withCsrf, cookiesFrom(response)].join('; ').split('; ').filter(Boolean).map((c) => {
+    const at = c.indexOf('=')
+    return [c.slice(0, at), c.slice(at + 1)] as const
+  }))
+  return [...jar].filter(([, value]) => value).map(([name, value]) => `${name}=${value}`).join('; ')
+}
 
 describe('signing in with email and password', () => {
   it('gives a session carrying the database user ID', async () => {
@@ -67,6 +99,76 @@ describe('signing in with email and password', () => {
       }),
     )
     expect(cookiesFrom(response)).not.toContain('session-token')
+  })
+})
+
+describe('signing in with two-factor authentication on', () => {
+  async function userWithTotp() {
+    const user = (await createUser('me@example.com', 'password123'))!
+    const { secret } = await startTotpSetup(user.id)
+    const totp = new TOTP({ secret: Secret.fromBase32(secret) })
+    await confirmTotpSetup(user.id, totp.generate())
+    return { user, totp }
+  }
+
+  async function ticketFor(userId: string, totp: TOTP) {
+    // A fresh code: the one used for setup can't be used again.
+    const result = await verifySecondFactor(userId, { method: 'totp', code: totp.generate({ timestamp: Date.now() + 30_000 }) }, new URL(origin))
+    if (!result.ok) throw new Error(result.error)
+    return result.ticket
+  }
+
+  it('gives a session pending the second factor, which getSession treats as signed out', async () => {
+    const { user } = await userWithTotp()
+    const { cookie } = await signIn('me@example.com', 'password123')
+    expect(await sessionFor(cookie)).toBeNull()
+    expect(await readSession(pageRequest(cookie))).toMatchObject({ twoFactorPending: true, user: { id: user.id } })
+    expect(await getTwoFactorPendingUserId(pageRequest(cookie))).toBe(user.id)
+  })
+
+  it('completes when the session is updated with a ticket from verifySecondFactor', async () => {
+    const { user, totp } = await userWithTotp()
+    const { cookie } = await signIn('me@example.com', 'password123')
+    const signedIn = await updateSession(cookie, { twoFactorTicket: await ticketFor(user.id, totp) })
+    const session = await sessionFor(signedIn)
+    expect(session?.user).toMatchObject({ id: user.id })
+    expect(session).not.toHaveProperty('twoFactorPending')
+    expect(await getTwoFactorPendingUserId(pageRequest(signedIn))).toBeNull()
+  })
+
+  it("stays pending with a made-up ticket or another user's", async () => {
+    const { user } = await userWithTotp()
+    const other = (await createUser('other@example.com', 'password123'))!
+    const { cookie } = await signIn('me@example.com', 'password123')
+
+    expect(await sessionFor(await updateSession(cookie, { twoFactorTicket: 'made-up' }))).toBeNull()
+    const { secret } = await startTotpSetup(other.id)
+    const otherTotp = new TOTP({ secret: Secret.fromBase32(secret) })
+    await confirmTotpSetup(other.id, otherTotp.generate())
+    const othersTicket = await ticketFor(other.id, otherTotp)
+    const updated = await updateSession(cookie, { twoFactorTicket: othersTicket })
+    expect(await sessionFor(updated)).toBeNull()
+    expect(await getTwoFactorPendingUserId(pageRequest(updated))).toBe(user.id)
+  })
+
+  it('signs the user out if they take too long', async () => {
+    const { user, totp } = await userWithTotp()
+    const { cookie } = await signIn('me@example.com', 'password123')
+    const ticket = await ticketFor(user.id, totp)
+    vi.useFakeTimers({ toFake: ['Date'], now: Date.now() + 11 * 60_000 })
+    try {
+      const updated = await updateSession(cookie, { twoFactorTicket: ticket })
+      expect(updated).not.toContain('session-token')
+      expect(await readSession(pageRequest(cookie))).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("isn't asked of users without it", async () => {
+    await createUser('me@example.com', 'password123')
+    const { cookie } = await signIn('me@example.com', 'password123')
+    expect(await readSession(pageRequest(cookie))).not.toHaveProperty('twoFactorPending')
   })
 })
 
@@ -110,10 +212,7 @@ describe('publicUrl', () => {
     expect(publicUrl(new Request('http://internal:3000/feed/x?y=1')).toString()).toBe('http://internal:3000/feed/x?y=1')
   })
 
-  // BUG: assigning url.host without a port keeps the request's port, so behind
-  // a proxy on :3000 this gives https://podnoms.example:3000. Make this a plain
-  // `it` once publicUrl also copies the port.
-  it.fails("rewrites the protocol, host and port to AUTH_URL's", async () => {
+  it("rewrites the protocol, host and port to AUTH_URL's", async () => {
     vi.stubEnv('AUTH_URL', 'https://podnoms.example')
     vi.resetModules()
     try {

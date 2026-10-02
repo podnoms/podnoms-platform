@@ -8,6 +8,7 @@ import {
 } from '~/lib/episode-schema'
 import { loginSearchSchema } from '~/lib/login-search'
 import { editPodcastSchema, newPodcastSchema } from '~/lib/podcast-schema'
+import { recoveryCodeSchema, secondFactorSchema, securityKeyNameSchema, totpCodeSchema } from '~/lib/two-factor-schema'
 
 const uuid = '0b6f4a3e-7a3c-4d1e-9f2a-1c2b3d4e5f60'
 
@@ -131,5 +132,50 @@ describe('loginSearchSchema', () => {
       login: undefined,
       authError: undefined,
     })
+  })
+})
+
+describe('totpCodeSchema', () => {
+  it('accepts six digits, ignoring spaces', () => {
+    expect(totpCodeSchema.parse('123 456')).toBe('123456')
+  })
+
+  it('rejects anything else', () => {
+    for (const code of ['12345', '1234567', 'abcdef']) {
+      expect(firstError(totpCodeSchema.safeParse(code))).toBe('Enter the 6-digit code from your app')
+    }
+  })
+})
+
+describe('recoveryCodeSchema', () => {
+  it('accepts codes with or without the dash, in any case', () => {
+    expect(recoveryCodeSchema.parse(' abcde-fgh23 ')).toBe('abcde-fgh23')
+    expect(recoveryCodeSchema.safeParse('ABCDEFGH23').success).toBe(true)
+  })
+
+  it('rejects malformed codes', () => {
+    expect(recoveryCodeSchema.safeParse('abcde-fgh21').success).toBe(false)
+    expect(recoveryCodeSchema.safeParse('abcd').success).toBe(false)
+  })
+})
+
+describe('securityKeyNameSchema', () => {
+  it('needs a name of up to 60 characters', () => {
+    expect(securityKeyNameSchema.parse('  YubiKey ')).toBe('YubiKey')
+    expect(firstError(securityKeyNameSchema.safeParse(' '))).toBe('Give the key a name')
+    expect(securityKeyNameSchema.safeParse('x'.repeat(61)).success).toBe(false)
+  })
+})
+
+describe('secondFactorSchema', () => {
+  it('takes a code or a security key response', () => {
+    expect(secondFactorSchema.parse({ method: 'totp', code: '123456' })).toEqual({ method: 'totp', code: '123456' })
+    const response = { id: 'abc', rawId: 'abc', type: 'public-key', response: { signature: 'x' }, clientExtensionResults: {} }
+    expect(secondFactorSchema.parse({ method: 'securityKey', response })).toEqual({ method: 'securityKey', response })
+  })
+
+  it('rejects something that is not a credential', () => {
+    expect(secondFactorSchema.safeParse({ method: 'securityKey', response: { id: 'abc' } }).success).toBe(false)
+    expect(secondFactorSchema.safeParse({ method: 'password', code: 'x' }).success).toBe(false)
   })
 })

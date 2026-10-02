@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { signIn, signOut } from '~/lib/auth-client'
+import { signIn, signOut, updateSession } from '~/lib/auth-client'
 
 let submitted: HTMLFormElement[]
 
@@ -49,5 +49,24 @@ describe('signOut', () => {
     await signOut()
     expect(new URL(submitted[0]!.action, 'http://x').pathname).toBe('/api/auth/signout')
     expect(fields(submitted[0]!)).toEqual({ csrfToken: 'token-123', callbackUrl: '/' })
+  })
+})
+
+describe('updateSession', () => {
+  it('posts the data as JSON, with the CSRF token, without navigating', async () => {
+    await updateSession({ twoFactorTicket: 'ticket' })
+    expect(fetch).toHaveBeenLastCalledWith('/api/auth/session', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ csrfToken: 'token-123', data: { twoFactorTicket: 'ticket' } }),
+    })
+    expect(submitted).toEqual([])
+  })
+
+  it('throws if Auth.js refuses the update', async () => {
+    vi.mocked(fetch).mockImplementation(async (input) =>
+      input === '/api/auth/csrf' ? Response.json({ csrfToken: 'x' }) : new Response(null, { status: 500 }),
+    )
+    await expect(updateSession({})).rejects.toThrow('500')
   })
 })

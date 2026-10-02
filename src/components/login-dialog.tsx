@@ -39,11 +39,12 @@ function currentPageUrl() {
 }
 
 export function LoginDialog() {
-  const { session } = useRouteContext({ from: '__root__' })
+  const { session, twoFactor } = useRouteContext({ from: '__root__' })
   const { providers } = useLoaderData({ from: '__root__' })
   const search = useSearch({ from: '__root__' })
   const navigate = useNavigate()
-  const open = !session && Boolean(search.login)
+  // While a sign-in waits for its second factor, TwoFactorDialog shows instead.
+  const open = !session && !twoFactor && Boolean(search.login)
 
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn')
   const [pending, setPending] = useState(false)
