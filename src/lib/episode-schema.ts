@@ -19,22 +19,21 @@ const episodeDetails = {
   description: optionalText(4000, 'Keep the description under 4000 characters'),
 }
 
-// An episode made from a link, which is downloaded.
-export const linkEpisodeSchema = z.object({
-  ...episodeDetails,
-  // The video or audio to turn into an episode, e.g. a YouTube link.
-  sourceUrl: z
-    .string()
-    .trim()
-    .min(1, 'Paste a link to the video or audio')
-    .pipe(z.url('Enter a full link, starting with https://').max(2000)),
-})
+// The video or audio to turn into an episode, e.g. a YouTube link.
+const sourceUrl = z
+  .string()
+  .trim()
+  .min(1, 'Paste a link to the video or audio')
+  .pipe(z.url('Enter a full link, starting with https://').max(2000))
 
-// An episode made from a file the user has uploaded (see /api/uploads).
-export const uploadEpisodeSchema = z.object({
-  ...episodeDetails,
-  uploadId: z.uuid('Choose an audio file to upload'),
-})
+// A file the user has uploaded (see /api/uploads).
+const uploadId = z.uuid('Choose an audio file to upload')
+
+// An episode made from a link, which is downloaded.
+export const linkEpisodeSchema = z.object({ ...episodeDetails, sourceUrl })
+
+// An episode made from a file the user has uploaded.
+export const uploadEpisodeSchema = z.object({ ...episodeDetails, uploadId })
 
 export const newEpisodeSchema = z.union([linkEpisodeSchema, uploadEpisodeSchema])
 export type NewEpisodeInput = z.infer<typeof newEpisodeSchema>
@@ -46,3 +45,9 @@ export const editEpisodeSchema = z.object({
   imageId: imageChange,
 })
 export type EditEpisodeInput = z.infer<typeof editEpisodeSchema>
+
+// New audio for an episode, from a link or an uploaded file.
+export const replaceAudioLinkSchema = z.object({ id: z.string().min(1), sourceUrl })
+export const replaceAudioUploadSchema = z.object({ id: z.string().min(1), uploadId })
+export const replaceAudioSchema = z.union([replaceAudioLinkSchema, replaceAudioUploadSchema])
+export type ReplaceAudioInput = z.infer<typeof replaceAudioSchema>

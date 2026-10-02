@@ -1,12 +1,21 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { credentialsSchema } from '~/lib/auth-schema'
-import { getSession, oauthProviders } from '~/server/auth.server'
+import { oauthProviders, readSession } from '~/server/auth.server'
+import { getTwoFactorMethods } from '~/server/two-factor.server'
 import { createUser } from '~/server/users.server'
 
-export const fetchSession = createServerFn({ method: 'GET' }).handler(async () => {
-  const session = await getSession(getRequest())
-  return session?.user ? { user: { name: session.user.name ?? null, email: session.user.email ?? null } } : null
+// The signed-in user, or, for a user who still has to pass two-factor
+// authentication, the second factors they can use.
+export const fetchAuthState = createServerFn({ method: 'GET' }).handler(async () => {
+  const session = await readSession(getRequest())
+  if (session?.twoFactorPending && session.user?.id) {
+    return { session: null, twoFactor: await getTwoFactorMethods(session.user.id) }
+  }
+  return {
+    session: session?.user ? { user: { name: session.user.name ?? null, email: session.user.email ?? null } } : null,
+    twoFactor: null,
+  }
 })
 
 // Which OAuth providers have keys configured, so the login page can disable the rest.

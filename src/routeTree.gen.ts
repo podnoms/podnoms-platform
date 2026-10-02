@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthedSecurityRouteImport } from './routes/_authed/security'
 import { Route as ApiImagesRouteImport } from './routes/api/images'
 import { Route as ApiUploadsRouteImport } from './routes/api/uploads'
 import { Route as FeedSlugRouteImport } from './routes/feed/$slug'
@@ -34,6 +35,11 @@ const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedSecurityRoute = AuthedSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AuthedRoute,
 } as any)
 const ApiImagesRoute = ApiImagesRouteImport.update({
   id: '/api/images',
@@ -80,6 +86,7 @@ const AuthedPodcastsSlugEpisodesEpisodeSlugRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/security': typeof AuthedSecurityRoute
   '/api/images': typeof ApiImagesRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/feed/$slug': typeof FeedSlugRoute
@@ -92,6 +99,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/security': typeof AuthedSecurityRoute
   '/api/images': typeof ApiImagesRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/feed/$slug': typeof FeedSlugRoute
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
+  '/_authed/security': typeof AuthedSecurityRoute
   '/api/images': typeof ApiImagesRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/feed/$slug': typeof FeedSlugRoute
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/security'
     | '/api/images'
     | '/api/uploads'
     | '/feed/$slug'
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/security'
     | '/api/images'
     | '/api/uploads'
     | '/feed/$slug'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authed'
     | '/login'
+    | '/_authed/security'
     | '/api/images'
     | '/api/uploads'
     | '/feed/$slug'
@@ -189,6 +201,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authed/security': {
+      id: '/_authed/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof AuthedSecurityRouteImport
+      parentRoute: typeof AuthedRoute
     }
     '/api/images': {
       id: '/api/images'
@@ -250,11 +269,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedRouteChildren {
+  AuthedSecurityRoute: typeof AuthedSecurityRoute
   AuthedPodcastsSlugRoute: typeof AuthedPodcastsSlugRoute
   AuthedPodcastsSlugEpisodesEpisodeSlugRoute: typeof AuthedPodcastsSlugEpisodesEpisodeSlugRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedSecurityRoute: AuthedSecurityRoute,
   AuthedPodcastsSlugRoute: AuthedPodcastsSlugRoute,
   AuthedPodcastsSlugEpisodesEpisodeSlugRoute:
     AuthedPodcastsSlugEpisodesEpisodeSlugRoute,

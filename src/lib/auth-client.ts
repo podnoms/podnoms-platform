@@ -2,12 +2,17 @@
 // a real form so Auth.js can answer with its normal redirects.
 export type AuthProvider = 'credentials' | 'github' | 'google' | 'facebook'
 
-async function postToAuth(path: string, fields: Record<string, string>) {
+async function csrfToken() {
   const { csrfToken } = (await fetch('/api/auth/csrf').then((r) => r.json())) as { csrfToken: string }
+  return csrfToken
+}
+
+async function postToAuth(path: string, fields: Record<string, string>) {
+  const token = await csrfToken()
   const form = document.createElement('form')
   form.method = 'POST'
   form.action = `/api/auth/${path}`
-  for (const [name, value] of Object.entries({ csrfToken, callbackUrl: '/', ...fields })) {
+  for (const [name, value] of Object.entries({ csrfToken: token, callbackUrl: '/', ...fields })) {
     const input = document.createElement('input')
     input.type = 'hidden'
     input.name = name
@@ -24,4 +29,15 @@ export function signIn(provider: AuthProvider, fields: Record<string, string> = 
 
 export function signOut() {
   return postToAuth('signout', {})
+}
+
+// Updates the session in place, without navigating. Auth.js passes `data` to
+// the jwt callback in auth.server.ts.
+export async function updateSession(data: Record<string, unknown>) {
+  const response = await fetch('/api/auth/session', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ csrfToken: await csrfToken(), data }),
+  })
+  if (!response.ok) throw new Error(`Updating the session failed (${response.status})`)
 }

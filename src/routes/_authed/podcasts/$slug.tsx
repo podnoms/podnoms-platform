@@ -43,7 +43,7 @@ function PodcastPage() {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const { episodes } = podcast
-  usePollWhileProcessing(episodes.some((e) => e.status === 'pending' || e.status === 'processing'))
+  usePollWhileProcessing(episodes.some((e) => e.status === 'pending' || e.status === 'processing' || e.replacing))
 
   const ready = episodes.filter((e) => e.status === 'ready')
   const totalSeconds = ready.reduce((sum, e) => sum + (e.durationSeconds ?? 0), 0)

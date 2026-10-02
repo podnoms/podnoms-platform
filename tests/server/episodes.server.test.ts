@@ -7,10 +7,12 @@ import { enqueueEpisode } from '~/server/episode-processor.server'
 import {
   createEpisode,
   deleteEpisode,
+  dismissEpisodeError,
   getEpisode,
   getEpisodeAudio,
   getEpisodeSlug,
   listEpisodes,
+  replaceEpisodeAudio,
   retryEpisode,
   savePlaybackPosition,
   updateEpisode,
@@ -93,15 +95,15 @@ describe('createEpisode from a link', () => {
   })
 })
 
-describe('createEpisode from an upload', () => {
-  async function stageUpload(userId: string, upload: { title: string; durationSeconds: number | null }) {
-    const uploadId = crypto.randomUUID()
-    const path = stagedUploadPath(userId, uploadId)
-    await touch(path, 'audio')
-    await writeFile(`${path}.json`, JSON.stringify({ uploadId, ...upload }))
-    return uploadId
-  }
+async function stageUpload(userId: string, upload: { title: string; durationSeconds: number | null }) {
+  const uploadId = crypto.randomUUID()
+  const path = stagedUploadPath(userId, uploadId)
+  await touch(path, 'audio')
+  await writeFile(`${path}.json`, JSON.stringify({ uploadId, ...upload }))
+  return uploadId
+}
 
+describe('createEpisode from an upload', () => {
   it("uses the upload's title and duration and hands over its file", async () => {
     const { user, podcast } = await setup()
     const uploadId = await stageUpload(user.id, { title: 'Uploaded Title', durationSeconds: 61 })
@@ -202,6 +204,13 @@ describe('deleteEpisode', () => {
     expect(await getRow(episode.id)).toBeDefined()
   })
 
+  it("won't delete an episode while its audio is replaced", async () => {
+    const { user, podcast } = await setup()
+    const episode = await insertEpisode(podcast.id, { status: 'ready', replacement: { sourceUrl: null } })
+    expect(await deleteEpisode(user.id, episode.id)).toBe(false)
+    expect(await getRow(episode.id)).toBeDefined()
+  })
+
   it("won't delete another user's episode", async () => {
     const { podcast } = await setup()
     const episode = await insertEpisode(podcast.id, { status: 'ready' })
@@ -279,6 +288,140 @@ describe('retryEpisode', () => {
     const { podcast } = await setup()
     const episode = await insertEpisode(podcast.id, { status: 'failed' })
     expect(await retryEpisode((await createUser()).id, episode.id)).toBe(false)
+  })
+})
+
+describe('replaceEpisodeAudio', () => {
+  const sourceUrl = 'https://video.test/new'
+
+  it('queues new audio from a link, clearing an old error, and shows it as replacing', async () => {
+    const { user, podcast } = await setup()
+    const episode = await insertEpisode(podcast.id, { status: 'ready', error: 'Old error' })
+    expect(await replaceEpisodeAudio(user.id, { id: episode.id, sourceUrl })).toBe(true)
+    expect(await getRow(episode.id)).toMatchObject({ status: 'ready', replacement: { sourceUrl }, error: null })
+    expect(enqueueEpisode).toHaveBeenCalledWith(episode.id)
+    const [listed] = await listEpisodes(user.id, podcast.id)
+    expect(listed!.replacing).toBe(true)
+    expect((await getEpisode(user.id, 'show', episode.slug))!.episode.replacing).toBe(true)
+  })
+
+  it('queues new audio from an upload, handing over its file', async () => {
+    const { user, podcast } = await setup()
+    const episode = await insertEpisode(podcast.id, { status: 'ready', sourceUrl })
+    const uploadId = await stageUpload(user.id, { title: 'New', durationSeconds: 5 })
+    expect(await replaceEpisodeAudio(user.id, { id: episode.id, uploadId })).toBe(true)
+    expect((await getRow(episode.id))!.replacement).toEqual({ sourceUrl: null })
+    expect(await exists(episodeSourcePath(episode.id))).toBe(true)
+    expect(await exists(stagedUploadPath(user.id, uploadId))).toBe(false)
+    expect(enqueueEpisode).toHaveBeenCalledWith(episode.id)
+  })
+
+  it('fails when the upload has expired or is someone else’s, leaving the episode alone', async () => {
+    const { user, podcast } = await setup()
+    const episode = await insertEpisode(podcast.id, { status: 'ready' })
+    const theirs = await stageUpload((await createUser()).id, { title: 'Theirs', durationSeconds: 1 })
+    for (const uploadId of [crypto.randomUUID(), theirs]) {
+      await expect(replaceEpisodeAudio(user.id, { id: episode.id, uploadId })).rejects.toThrow('That upload has expired')
+    }
+    expect((await getRow(episode.id))!.replacement).toBeNull()
+    expect(enqueueEpisode).not.toHaveBeenCalled()
+  })
+
+  it("won't replace the audio of an episode that's being processed", async () => {
+    const { user, podcast } = await setup()
+    for (const status of ['pending', 'processing'] as const) {
+      const episode = await insertEpisode(podcast.id, { status })
+      expect(await replaceEpisodeAudio(user.id, { id: episode.id, sourceUrl })).toBe(false)
+    }
+    expect(enqueueEpisode).not.toHaveBeenCalled()
+  })
+
+  it.each(['ready', 'failed'] as const)('replaces a %s episode once, even if two requests race', async (status) => {
+    const { user, podcast } = await setup()
+    const episode = await insertEpisode(podcast.id, { status })
+    const results = await Promise.all([
+      replaceEpisodeAudio(user.id, { id: episode.id, sourceUrl }),
+      replaceEpisodeAudio(user.id, { id: episode.id, sourceUrl: `${sourceUrl}2` }),
+    ])
+    expect(results.filter(Boolean)).toHaveLength(1)
+    expect(enqueueEpisode).toHaveBeenCalledTimes(1)
+  })
+
+  describe('of a failed episode', () => {
+    const oldUrl = 'https://video.test/broken'
+
+    it('processes it again from a new link, titled from the link if the old one never was', async () => {
+      const { user, podcast } = await setup()
+      const episode = await insertEpisode(podcast.id, { status: 'failed', error: 'Gone', sourceUrl: oldUrl, title: oldUrl, slug: 'episode-temp' })
+      expect(await replaceEpisodeAudio(user.id, { id: episode.id, sourceUrl })).toBe(true)
+      expect(await getRow(episode.id)).toMatchObject({
+        status: 'pending',
+        error: null,
+        replacement: null,
+        sourceUrl,
+        // The processor fills in the real title and slug, as for a new link.
+        title: sourceUrl,
+        slug: 'episode-temp',
+      })
+      expect(enqueueEpisode).toHaveBeenCalledWith(episode.id)
+    })
+
+    it("takes an upload's title, slug and duration if it was never titled", async () => {
+      const { user, podcast } = await setup()
+      const episode = await insertEpisode(podcast.id, { status: 'failed', sourceUrl: oldUrl, title: oldUrl, slug: 'episode-temp' })
+      const uploadId = await stageUpload(user.id, { title: 'My Upload', durationSeconds: 61 })
+      expect(await replaceEpisodeAudio(user.id, { id: episode.id, uploadId })).toBe(true)
+      expect(await getRow(episode.id)).toMatchObject({
+        status: 'pending',
+        sourceUrl: null,
+        title: 'My Upload',
+        slug: 'my-upload',
+        durationSeconds: 61,
+      })
+      expect(await exists(episodeSourcePath(episode.id))).toBe(true)
+      expect(await exists(stagedUploadPath(user.id, uploadId))).toBe(false)
+    })
+
+    it('keeps the title and slug the user gave it', async () => {
+      const { user, podcast } = await setup()
+      const episode = await insertEpisode(podcast.id, { status: 'failed', sourceUrl: oldUrl, title: 'Mine', slug: 'mine' })
+      const uploadId = await stageUpload(user.id, { title: 'File Title', durationSeconds: 5 })
+      expect(await replaceEpisodeAudio(user.id, { id: episode.id, uploadId })).toBe(true)
+      expect(await getRow(episode.id)).toMatchObject({ title: 'Mine', slug: 'mine', sourceUrl: null })
+    })
+
+    it("removes a failed upload's file when given a link instead", async () => {
+      const { user, podcast } = await setup()
+      const episode = await insertEpisode(podcast.id, { status: 'failed', title: 'Mine' })
+      await touch(episodeSourcePath(episode.id))
+      expect(await replaceEpisodeAudio(user.id, { id: episode.id, sourceUrl })).toBe(true)
+      expect(await getRow(episode.id)).toMatchObject({ status: 'pending', sourceUrl, title: 'Mine' })
+      expect(await exists(episodeSourcePath(episode.id))).toBe(false)
+    })
+  })
+
+  it("won't replace another user's episode's audio", async () => {
+    const { podcast } = await setup()
+    const episode = await insertEpisode(podcast.id, { status: 'ready' })
+    expect(await replaceEpisodeAudio((await createUser()).id, { id: episode.id, sourceUrl })).toBe(false)
+    expect((await getRow(episode.id))!.replacement).toBeNull()
+  })
+})
+
+describe('dismissEpisodeError', () => {
+  it("clears a ready episode's error, for its owner only", async () => {
+    const { user, podcast } = await setup()
+    const episode = await insertEpisode(podcast.id, { status: 'ready', error: "Couldn't replace the audio: nope" })
+    expect(await dismissEpisodeError((await createUser()).id, episode.id)).toBe(false)
+    expect(await dismissEpisodeError(user.id, episode.id)).toBe(true)
+    expect((await getRow(episode.id))!.error).toBeNull()
+  })
+
+  it("leaves a failed episode's error alone", async () => {
+    const { user, podcast } = await setup()
+    const episode = await insertEpisode(podcast.id, { status: 'failed', error: 'Broken' })
+    expect(await dismissEpisodeError(user.id, episode.id)).toBe(false)
+    expect((await getRow(episode.id))!.error).toBe('Broken')
   })
 })
 

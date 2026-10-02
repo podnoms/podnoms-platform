@@ -43,5 +43,5 @@ export function migrationStatements() {
 
 // Empties every table between tests.
 export async function resetDb(db: TestDb) {
-  await db.execute(sql`truncate "user", "account", "session", "verificationToken", "podcast", "episode", "playback_position" cascade`)
+  await db.execute(sql`truncate "user", "account", "session", "verification_token", "podcast", "episode", "playback_position" cascade`)
 }

@@ -30,9 +30,11 @@ describe('migrations', () => {
       'episode',
       'playback_position',
       'podcast',
+      'recovery_code',
+      'security_key',
       'session',
       'user',
-      'verificationToken',
+      'verification_token',
     ])
   })
 
@@ -92,5 +94,25 @@ describe('migrations', () => {
     await expect(
       pg.query(`insert into episode (id, "podcastId", title, slug) values ('z', 'p1', 'Z', 'same-title')`),
     ).rejects.toThrow(/episode_podcastId_slug_idx/)
+  })
+
+  it('0006 adds two-factor auth to an existing database, keeping its data', async () => {
+    const pg = new PGlite()
+    await migrateUntil(pg, tagOf('0006'))
+    await pg.query(`insert into "user" (id, email, "passwordHash") values ('u1', 'u@example.com', 'hash')`)
+    await pg.query(`insert into "verificationToken" (identifier, token, expires) values ('u@example.com', 't1', now())`)
+
+    await runMigration(pg, tagOf('0006'))
+
+    const { rows: users } = await pg.query(`select id, "passwordHash", "totpSecret", "totpLastStep" from "user"`)
+    expect(users).toEqual([{ id: 'u1', passwordHash: 'hash', totpSecret: null, totpLastStep: null }])
+    const { rows: tokens } = await pg.query<{ token: string }>(`select token from verification_token`)
+    expect(tokens.map((r) => r.token)).toEqual(['t1'])
+    await pg.query(`insert into recovery_code ("userId", "codeHash") values ('u1', 'c1')`)
+    await pg.query(`insert into security_key (id, "userId", name, "publicKey") values ('k1', 'u1', 'Key', 'pk')`)
+    // The renamed primary key still holds.
+    await expect(
+      pg.query(`insert into verification_token (identifier, token, expires) values ('u@example.com', 't1', now())`),
+    ).rejects.toThrow(/verification_token_identifier_token_pk/)
   })
 })

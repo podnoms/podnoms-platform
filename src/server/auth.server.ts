@@ -14,7 +14,25 @@ import { env } from '~/env'
 import { credentialsSchema } from '~/lib/auth-schema'
 import { db } from '~/server/db/client.server'
 import { accounts, sessions, users, verificationTokens } from '~/server/db/schema'
+import { hasTwoFactor, redeemTwoFactorTicket } from '~/server/two-factor.server'
 import { verifyUser } from '~/server/users.server'
+
+declare module '@auth/core/types' {
+  interface Session {
+    // Signed in, but yet to pass two-factor authentication.
+    twoFactorPending?: boolean
+  }
+}
+
+declare module '@auth/core/jwt' {
+  interface JWT {
+    // When a user with two-factor authentication on passed their first factor.
+    twoFactorPendingSince?: number
+  }
+}
+
+// How long a user has to pass their second factor before they're signed out.
+const twoFactorTimeoutMs = 10 * 60_000
 
 export const oauthProviders = {
   github: Boolean(env.AUTH_GITHUB_ID && env.AUTH_GITHUB_SECRET),
@@ -67,9 +85,25 @@ export const authConfig: AuthConfig = {
   session: { strategy: 'jwt' },
   pages: { signIn: '/login', error: '/login' },
   callbacks: {
+    // Users with two-factor authentication on get a session marked as pending,
+    // whichever way they signed in. Updating the session (see updateSession in
+    // auth-client.ts) with a ticket from verifySecondFactor clears the mark.
+    async jwt({ token, user, trigger, session }) {
+      if (trigger === 'signIn' && user?.id && (await hasTwoFactor(user.id))) {
+        token.twoFactorPendingSince = Date.now()
+      }
+      if (token.twoFactorPendingSince) {
+        if (Date.now() - token.twoFactorPendingSince > twoFactorTimeoutMs) return null
+        if (trigger === 'update' && token.sub && redeemTwoFactorTicket(session?.twoFactorTicket, token.sub)) {
+          delete token.twoFactorPendingSince
+        }
+      }
+      return token
+    },
     // Expose the database user id on the session; the JWT keeps it in `sub`.
     session({ session, token }) {
       if (token.sub) session.user.id = token.sub
+      if (token.twoFactorPendingSince) session.twoFactorPending = true
       return session
     },
   },
@@ -104,6 +138,8 @@ export function publicUrl(request: Request) {
     const base = new URL(env.AUTH_URL)
     url.protocol = base.protocol
     url.host = base.host
+    // Setting `host` keeps the request's port when AUTH_URL has none.
+    url.port = base.port
   }
   return url
 }
@@ -118,7 +154,8 @@ export function handleAuthRequest(request: Request) {
   return Auth(new Request(publicUrl(request), init), authConfig)
 }
 
-export async function getSession(request: Request): Promise<Session | null> {
+// The session, including one still pending two-factor authentication.
+export async function readSession(request: Request): Promise<Session | null> {
   const url = new URL('/api/auth/session', publicUrl(request))
   const response = await Auth(
     new Request(url, { headers: { cookie: request.headers.get('cookie') ?? '' } }),
@@ -126,4 +163,17 @@ export async function getSession(request: Request): Promise<Session | null> {
   )
   const session = (await response.json()) as Session | null
   return session?.user ? session : null
+}
+
+// The session of a fully signed-in user: null while two-factor authentication
+// is pending.
+export async function getSession(request: Request): Promise<Session | null> {
+  const session = await readSession(request)
+  return session && !session.twoFactorPending ? session : null
+}
+
+// The user who has signed in but has yet to pass their second factor.
+export async function getTwoFactorPendingUserId(request: Request) {
+  const session = await readSession(request)
+  return session?.twoFactorPending ? (session.user?.id ?? null) : null
 }

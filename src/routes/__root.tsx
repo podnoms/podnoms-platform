@@ -9,7 +9,8 @@ import { LoginDialog } from '~/components/login-dialog'
 import { PlayerBar } from '~/components/player/player-bar'
 import { PlayerProvider } from '~/components/player/player-provider'
 import { PublicHeader } from '~/components/public-header'
-import { fetchOAuthProviders, fetchSession } from '~/functions/auth'
+import { TwoFactorDialog } from '~/components/two-factor-dialog'
+import { fetchOAuthProviders, fetchAuthState } from '~/functions/auth'
 import { fetchMyPodcasts } from '~/functions/podcasts'
 import { loginSearchSchema } from '~/lib/login-search'
 import appCss from '~/styles/app.css?url'
@@ -17,8 +18,9 @@ import appCss from '~/styles/app.css?url'
 // Full-document SSR: the root route renders <html> itself, so the server
 // streams the entire document and the client hydrates it.
 export const Route = createRootRoute({
-  // Makes the signed-in user available to every route as `context.session`.
-  beforeLoad: async () => ({ session: await fetchSession() }),
+  // Makes the signed-in user available to every route as `context.session`,
+  // and, while a sign-in waits for its second factor, `context.twoFactor`.
+  beforeLoad: () => fetchAuthState(),
   validateSearch: loginSearchSchema,
   // OAuth providers with keys (for the login dialog) and the user's podcasts
   // (for the sidebar). Loaded once; creating a podcast calls router.invalidate().
@@ -79,6 +81,7 @@ function RootDocument({ signedIn, children }: { signedIn: boolean; children: Rea
             </>
           )}
           <LoginDialog />
+          <TwoFactorDialog />
         </ThemeProvider>
         <Scripts />
       </body>

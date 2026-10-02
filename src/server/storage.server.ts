@@ -25,12 +25,25 @@ export function episodeAudioPath(episodeId: string) {
   return join(audioDir, `${episodeId}.mp3`)
 }
 
+// New audio for the episode, made alongside its current audio, which it
+// replaces once it's ready. Without the extension, as yt-dlp adds that.
+export function replacementAudioName(episodeId: string) {
+  return `${episodeId}.replacement`
+}
+
+export function replacementAudioPath(episodeId: string) {
+  return join(audioDir, `${replacementAudioName(episodeId)}.mp3`)
+}
+
 export function episodeWaveformPath(episodeId: string) {
   return join(waveformsDir, `${safeId(episodeId)}.json`)
 }
 
-export function episodeAudioUrl(episodeId: string) {
-  return `/api/episodes/${episodeId}/audio`
+// Replaced audio gets a version in its URL, so podcast apps and browsers that
+// already have the old audio fetch the new.
+export function episodeAudioUrl(episodeId: string, version?: string) {
+  const url = `/api/episodes/${episodeId}/audio`
+  return version ? `${url}?v=${version}` : url
 }
 
 export async function ensureUserUploadsDir(userId: string) {

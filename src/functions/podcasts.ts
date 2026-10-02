@@ -2,13 +2,24 @@ import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
-import { editEpisodeSchema, newEpisodeSchema } from '~/lib/episode-schema'
+import { editEpisodeSchema, newEpisodeSchema, replaceAudioSchema } from '~/lib/episode-schema'
 import { editPodcastSchema, newPodcastSchema } from '~/lib/podcast-schema'
 import { getSession, publicUrl } from '~/server/auth.server'
 import { getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
 import { feedPath } from '~/server/feed.server'
 import { localiseRemoteImages } from '~/server/images.server'
-import { createEpisode, deleteEpisode, getEpisode, getEpisodeSlug, listEpisodes, retryEpisode, savePlaybackPosition, updateEpisode } from '~/server/episodes.server'
+import {
+  createEpisode,
+  deleteEpisode,
+  dismissEpisodeError,
+  getEpisode,
+  getEpisodeSlug,
+  listEpisodes,
+  replaceEpisodeAudio,
+  retryEpisode,
+  savePlaybackPosition,
+  updateEpisode,
+} from '~/server/episodes.server'
 import { createPodcast, getPodcastBySlug, listPodcasts, updatePodcast } from '~/server/podcasts.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import { backfillWaveforms, readWaveform } from '~/server/waveforms.server'
@@ -105,6 +116,18 @@ export const retryMyEpisode = createServerFn({ method: 'POST' })
   .validator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
     if (!(await retryEpisode(await requireUserId(), data.id))) throw notFound()
+  })
+
+export const replaceMyEpisodeAudio = createServerFn({ method: 'POST' })
+  .validator(replaceAudioSchema)
+  .handler(async ({ data }) => {
+    if (!(await replaceEpisodeAudio(await requireUserId(), data))) throw notFound()
+  })
+
+export const dismissMyEpisodeError = createServerFn({ method: 'POST' })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }) => {
+    if (!(await dismissEpisodeError(await requireUserId(), data.id))) throw notFound()
   })
 
 export const saveMyPlaybackPosition = createServerFn({ method: 'POST' })

@@ -43,6 +43,20 @@
       "when": 1790878602691,
       "tag": "0005_episode_slugs",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790948027241,
+      "tag": "0006_two_factor",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790951132566,
+      "tag": "0007_episode_audio_replacement",
+      "breakpoints": true
     }
   ]
 }
