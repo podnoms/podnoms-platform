@@ -21,7 +21,8 @@ export function AppSidebar() {
   const { podcasts } = useLoaderData({ from: '__root__' })
 
   return (
-    <Sidebar>
+    // Ends above the player bar rather than running behind it.
+    <Sidebar className="bottom-(--player-height) h-auto">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>

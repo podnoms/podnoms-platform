@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { saveMyPlaybackPosition } from '~/functions/podcasts'
+import { defaultVolume, readStoredVolume, storeVolume, type Volume } from '~/lib/volume'
 
 export type PlayerEpisode = {
   id: string
@@ -17,6 +18,7 @@ type PlayerContextValue = {
   currentTime: number
   duration: number
   rate: number
+  volume: Volume
   // Plays the episode, or toggles play/pause if it's already loaded. With
   // `startAt`, plays from there instead of where the listener left off.
   play: (episode: PlayerEpisode, options?: { startAt?: number }) => void
@@ -24,6 +26,9 @@ type PlayerContextValue = {
   seek: (seconds: number) => void
   skip: (seconds: number) => void
   setRate: (rate: number) => void
+  // Sets the level (0 to 1), unmuting unless it's 0.
+  setVolume: (level: number) => void
+  toggleMute: () => void
   close: () => void
   // Where the listener left off in an episode: what the player has saved this
   // session, else the position loaded with the episode.
@@ -41,6 +46,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [rate, setRateState] = useState(1)
+  // Read from storage after hydration, as the server can't know it.
+  const [volume, setVolumeState] = useState<Volume>(defaultVolume)
+  useEffect(() => setVolumeState(readStoredVolume()), [])
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    audio.volume = volume.level
+    audio.muted = volume.muted
+  }, [volume])
+  const changeVolume = useCallback((next: Volume) => {
+    setVolumeState(next)
+    storeVolume(next)
+  }, [])
   // Positions saved this session, which are newer than any loaded with a page.
   const [positions, setPositions] = useState<Record<string, number>>({})
   const lastSaved = useRef<Record<string, number>>({})
@@ -97,6 +115,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       currentTime,
       duration,
       rate,
+      volume,
       play,
       positionOf,
       toggle: () => {
@@ -116,6 +135,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setRateState(next)
         if (audioRef.current) audioRef.current.playbackRate = next
       },
+      setVolume: (level) => changeVolume({ level, muted: level === 0 }),
+      // Unmuting at zero would still be silent, so it goes back to full.
+      toggleMute: () =>
+        changeVolume(volume.muted || volume.level === 0 ? { level: volume.level || 1, muted: false } : { ...volume, muted: true }),
       close: () => {
         const audio = audioRef.current
         if (audio && episode) {
@@ -128,7 +151,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setPlaying(false)
       },
     }),
-    [episode, playing, currentTime, duration, rate, play, positionOf, savePosition],
+    [episode, playing, currentTime, duration, rate, volume, play, positionOf, savePosition, changeVolume],
   )
 
   // Save the position every few seconds while playing.

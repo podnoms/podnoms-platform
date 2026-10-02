@@ -108,17 +108,20 @@ export async function createEpisode(userId: string, input: NewEpisodeInput) {
     .limit(1)
   if (!podcast) return null
   const description = input.description && plainTextToHtml(input.description)
+  const upload = 'uploadId' in input ? await findUpload(userId, input.uploadId) : null
+  if ('uploadId' in input && !upload) throw new Error('That upload has expired. Please choose the file again.')
+  // The image is kept only once nothing else can go wrong with the form.
+  const imageUrl = input.imageId ? await commitImage(userId, input.imageId) : null
 
   if ('uploadId' in input) {
-    const upload = await findUpload(userId, input.uploadId)
-    if (!upload) throw new Error('That upload has expired. Please choose the file again.')
-    const title = input.title ?? upload.title
+    const title = input.title ?? upload!.title
     const episode = await insertEpisode({
       podcastId: podcast.id,
       title,
       slug: await availableEpisodeSlug(podcast.id, title),
       description,
-      durationSeconds: upload.durationSeconds,
+      imageUrl,
+      durationSeconds: upload!.durationSeconds,
     })
     await moveUploadToEpisode(userId, input.uploadId, episode.id)
     enqueueEpisode(episode.id)
@@ -133,6 +136,7 @@ export async function createEpisode(userId: string, input: NewEpisodeInput) {
     slug: input.title ? await availableEpisodeSlug(podcast.id, input.title) : temporaryEpisodeSlug(),
     sourceUrl: input.sourceUrl,
     description,
+    imageUrl,
   })
   enqueueEpisode(episode.id)
   return episode

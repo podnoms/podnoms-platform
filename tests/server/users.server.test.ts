@@ -1,9 +1,10 @@
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { users } from '~/server/db/schema'
-import { createUser, verifyUser } from '~/server/users.server'
+import { imagePath } from '~/server/storage.server'
+import { createUser, getProfile, updateProfile, verifyUser } from '~/server/users.server'
 import { resetDb } from '../db'
-import { createUser as insertUser, db } from '../helpers'
+import { createUser as insertUser, db, exists, stageTestImage, storeTestImage } from '../helpers'
 
 beforeEach(() => resetDb(db))
 
@@ -56,5 +57,63 @@ describe('verifyUser', () => {
   it('rejects malformed stored hashes', async () => {
     await insertUser({ email: 'broken@example.com', passwordHash: 'not-a-hash' })
     expect(await verifyUser('broken@example.com', 'password123')).toBeNull()
+  })
+})
+
+describe('getProfile', () => {
+  it("returns the user's details", async () => {
+    const user = await insertUser({ name: 'Ann', email: 'ann@example.com', image: 'https://example.com/a.png' })
+    expect(await getProfile(user.id)).toEqual({
+      name: 'Ann',
+      email: 'ann@example.com',
+      description: null,
+      imageUrl: 'https://example.com/a.png',
+    })
+  })
+
+  it('returns null for an unknown user', async () => {
+    expect(await getProfile('nobody')).toBeNull()
+  })
+})
+
+describe('updateProfile', () => {
+  it('updates the name and sanitised description, keeping the image', async () => {
+    const user = await insertUser({ image: 'https://example.com/a.png' })
+    expect(await updateProfile(user.id, { name: 'Bob', description: '<p>Hi<script>x</script></p>' })).toBe(true)
+    expect(await getProfile(user.id)).toMatchObject({
+      name: 'Bob',
+      description: '<p>Hi</p>',
+      imageUrl: 'https://example.com/a.png',
+    })
+  })
+
+  it('clears the name and an empty description', async () => {
+    const user = await insertUser({ name: 'Ann', description: '<p>Old</p>' })
+    await updateProfile(user.id, { name: null, description: '<p></p>' })
+    expect(await getProfile(user.id)).toMatchObject({ name: null, description: null })
+  })
+
+  it('stores a new avatar and deletes the old one', async () => {
+    const user = await insertUser()
+    const old = await storeTestImage()
+    await db.update(users).set({ image: old.url }).where(eq(users.id, user.id))
+    const imageId = await stageTestImage(user.id)
+    await updateProfile(user.id, { name: null, imageId })
+    expect((await getProfile(user.id))!.imageUrl).toBe(`/images/${imageId}.jpg`)
+    expect(await exists(imagePath(imageId))).toBe(true)
+    expect(await exists(old.path)).toBe(false)
+  })
+
+  it('removes the avatar', async () => {
+    const user = await insertUser()
+    const old = await storeTestImage()
+    await db.update(users).set({ image: old.url }).where(eq(users.id, user.id))
+    await updateProfile(user.id, { name: null, imageId: null })
+    expect((await getProfile(user.id))!.imageUrl).toBeNull()
+    expect(await exists(old.path)).toBe(false)
+  })
+
+  it('returns false for an unknown user', async () => {
+    expect(await updateProfile('nobody', { name: 'X' })).toBe(false)
   })
 })

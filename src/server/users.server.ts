@@ -2,9 +2,12 @@
 import '@tanstack/react-start/server-only'
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto'
 import { promisify } from 'node:util'
-import { sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
+import type { EditProfileInput } from '~/lib/profile-schema'
 import { db } from '~/server/db/client.server'
 import { users } from '~/server/db/schema'
+import { commitImage, deleteImage } from '~/server/images.server'
+import { sanitizeDescription } from '~/server/rich-text.server'
 
 const scryptAsync = promisify(scrypt) as (password: string, salt: Buffer, keylen: number) => Promise<Buffer>
 
@@ -49,4 +52,29 @@ export async function verifyUser(email: string, password: string): Promise<User 
   if (!user?.email || !user.passwordHash) return null
   if (!(await checkPassword(password, user.passwordHash))) return null
   return { id: user.id, email: user.email }
+}
+
+// What the user shows as, and edits on the settings page. Read from the
+// database rather than the session, which only has what was true at sign-in.
+export async function getProfile(userId: string) {
+  const [profile] = await db
+    .select({ name: users.name, email: users.email, description: users.description, imageUrl: users.image })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+  return profile ?? null
+}
+
+// Returns false if the user doesn't exist.
+export async function updateProfile(userId: string, input: EditProfileInput) {
+  const profile = await getProfile(userId)
+  if (!profile) return false
+  const imageUrl =
+    input.imageId === undefined ? profile.imageUrl : input.imageId ? await commitImage(userId, input.imageId) : null
+  await db
+    .update(users)
+    .set({ name: input.name, description: sanitizeDescription(input.description), image: imageUrl })
+    .where(eq(users.id, userId))
+  if (imageUrl !== profile.imageUrl) await deleteImage(profile.imageUrl)
+  return true
 }

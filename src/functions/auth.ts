@@ -3,7 +3,7 @@ import { getRequest } from '@tanstack/react-start/server'
 import { credentialsSchema } from '~/lib/auth-schema'
 import { oauthProviders, readSession } from '~/server/auth.server'
 import { getTwoFactorMethods } from '~/server/two-factor.server'
-import { createUser } from '~/server/users.server'
+import { createUser, getProfile } from '~/server/users.server'
 
 // The signed-in user, or, for a user who still has to pass two-factor
 // authentication, the second factors they can use.
@@ -12,8 +12,10 @@ export const fetchAuthState = createServerFn({ method: 'GET' }).handler(async ()
   if (session?.twoFactorPending && session.user?.id) {
     return { session: null, twoFactor: await getTwoFactorMethods(session.user.id) }
   }
+  // From the database, so changes on the settings page show straight away.
+  const profile = session?.user?.id ? await getProfile(session.user.id) : null
   return {
-    session: session?.user ? { user: { name: session.user.name ?? null, email: session.user.email ?? null } } : null,
+    session: profile ? { user: { name: profile.name, email: profile.email, image: profile.imageUrl } } : null,
     twoFactor: null,
   }
 })

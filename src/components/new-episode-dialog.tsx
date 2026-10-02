@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import { AudioFileField, useAudioUpload } from '~/components/audio-file-field'
 import { Icons } from '~/components/icons'
+import { ImageField, imageIdToSave, type ImageValue } from '~/components/image-field'
 import { Button } from '~/components/ui/button'
 import {
   Dialog,
@@ -28,6 +29,7 @@ export function NewEpisodeDialog({ podcastId, children }: { podcastId: string; c
   const [open, setOpen] = useState(false)
   const [source, setSource] = useState<Source>('link')
   const [title, setTitle] = useState('')
+  const [image, setImage] = useState<ImageValue>({ kind: 'keep' })
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string>()
   // The title filled in from the last upload, replaced by the next one unless edited.
@@ -41,7 +43,7 @@ export function NewEpisodeDialog({ podcastId, children }: { podcastId: string; c
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const fields = { ...Object.fromEntries(new FormData(event.currentTarget)), podcastId }
+    const fields = { ...Object.fromEntries(new FormData(event.currentTarget)), podcastId, imageId: imageIdToSave(image) ?? undefined }
     const parsed =
       source === 'link'
         ? linkEpisodeSchema.safeParse(fields)
@@ -75,6 +77,7 @@ export function NewEpisodeDialog({ podcastId, children }: { podcastId: string; c
         if (next) {
           setError(undefined)
           setTitle('')
+          setImage({ kind: 'keep' })
           autoTitle.current = ''
         } else {
           uploadState.clear()
@@ -126,20 +129,27 @@ export function NewEpisodeDialog({ podcastId, children }: { podcastId: string; c
                 <AudioFileField id="episode-file" state={uploadState} />
               </TabsContent>
             </Tabs>
-            <Field>
-              <FieldLabel htmlFor="episode-title">Title</FieldLabel>
-              <Input
-                id="episode-title"
-                name="title"
-                autoComplete="off"
-                maxLength={200}
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-              />
-              <FieldDescription>
-                {source === 'link' ? "Leave blank to use the video's title." : "Leave blank to use the file's title or name."}
-              </FieldDescription>
-            </Field>
+            <div className="flex flex-col gap-6 sm:flex-row">
+              <Field className="w-auto shrink-0">
+                <FieldLabel htmlFor="episode-image">Artwork</FieldLabel>
+                <ImageField id="episode-image" imageUrl={null} value={image} onChange={setImage} />
+              </Field>
+              <Field className="min-w-0">
+                <FieldLabel htmlFor="episode-title">Title</FieldLabel>
+                <Input
+                  id="episode-title"
+                  name="title"
+                  autoComplete="off"
+                  maxLength={200}
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                />
+                <FieldDescription>
+                  {source === 'link' ? "Leave blank to use the video's title." : "Leave blank to use the file's title or name."}
+                </FieldDescription>
+                {source === 'link' && <FieldDescription>Leave the artwork empty to use the video's thumbnail.</FieldDescription>}
+              </Field>
+            </div>
             <Field>
               <FieldLabel htmlFor="episode-description">Description</FieldLabel>
               <Textarea id="episode-description" name="description" maxLength={4000} />
@@ -155,7 +165,7 @@ export function NewEpisodeDialog({ podcastId, children }: { podcastId: string; c
           <Button
             type="submit"
             form="new-episode"
-            disabled={pending || (source === 'file' && upload.status !== 'ready')}
+            disabled={pending || image.kind === 'uploading' || (source === 'file' && upload.status !== 'ready')}
           >
             Add episode
           </Button>

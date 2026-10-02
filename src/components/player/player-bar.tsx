@@ -1,25 +1,45 @@
+import { useEffect, useRef, type RefObject } from 'react'
 import { Icons } from '~/components/icons'
 import { usePlayer } from '~/components/player/player-provider'
 import { Button } from '~/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
 import { Slider } from '~/components/ui/slider'
 import { formatClock } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 
 const rates = [1, 1.25, 1.5, 1.75, 2]
 
-// The now-playing bar pinned to the bottom of the app while an episode is loaded.
+// Keeps --player-height (see app.css) set to the bar's height while it's shown.
+function usePlayerHeight(bar: RefObject<HTMLDivElement | null>, shown: boolean) {
+  useEffect(() => {
+    const element = bar.current
+    if (!shown || !element) return
+    const root = document.documentElement
+    const observer = new ResizeObserver(() => root.style.setProperty('--player-height', `${element.offsetHeight}px`))
+    observer.observe(element)
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty('--player-height')
+    }
+  }, [bar, shown])
+}
+
+// The now-playing bar pinned across the bottom of the app while an episode is loaded.
 export function PlayerBar() {
   const player = usePlayer()
   const { episode } = player
+  const bar = useRef<HTMLDivElement>(null)
+  usePlayerHeight(bar, Boolean(episode))
   if (!episode) return null
 
   const nextRate = rates[(rates.indexOf(player.rate) + 1) % rates.length] ?? 1
 
   return (
     <div
+      ref={bar}
       role="region"
       aria-label="Player"
-      className="sticky bottom-0 z-10 mt-auto flex flex-col gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur sm:flex-row sm:items-center sm:gap-4"
+      className="fixed inset-x-0 bottom-0 z-20 flex flex-col gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur sm:flex-row sm:items-center sm:gap-4"
     >
       <div className="flex min-w-0 items-center gap-3 sm:w-64">
         {episode.imageUrl ? (
@@ -66,6 +86,7 @@ export function PlayerBar() {
         <span className="w-14 text-xs text-muted-foreground tabular-nums">
           {player.duration ? formatClock(player.duration) : '--:--'}
         </span>
+        <VolumeControl />
         <Button
           variant="ghost"
           size="sm"
@@ -82,5 +103,40 @@ export function PlayerBar() {
         </Button>
       </div>
     </div>
+  )
+}
+
+// A speaker button that opens a vertical volume slider, with mute below it.
+function VolumeControl() {
+  const { volume, setVolume, toggleMute } = usePlayer()
+  const silent = volume.muted || volume.level === 0
+  const Icon = silent ? Icons.volumeMuted : volume.level < 0.5 ? Icons.volumeLow : Icons.volumeHigh
+  const percent = silent ? 0 : Math.round(volume.level * 100)
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" title="Volume" aria-label={`Volume ${percent}%`}>
+          <Icon />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent side="top" className="flex w-auto flex-col items-center gap-3 p-3">
+        <span className="text-xs text-muted-foreground tabular-nums">{percent}%</span>
+        <Slider
+          aria-label="Volume"
+          orientation="vertical"
+          className="min-h-32"
+          min={0}
+          max={100}
+          step={1}
+          value={[percent]}
+          onValueChange={([level]) => level !== undefined && setVolume(level / 100)}
+        />
+        <Button variant="ghost" size="icon-sm" onClick={toggleMute} title={silent ? 'Unmute' : 'Mute'}>
+          {silent ? <Icons.volumeHigh /> : <Icons.volumeMuted />}
+          <span className="sr-only">{silent ? 'Unmute' : 'Mute'}</span>
+        </Button>
+      </PopoverContent>
+    </Popover>
   )
 }

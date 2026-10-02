@@ -67,12 +67,13 @@ function RootDocument({ signedIn, children }: { signedIn: boolean; children: Rea
             <PlayerProvider>
               <SidebarProvider>
                 <AppSidebar />
-                <SidebarInset>
+                <SidebarInset className="pb-(--player-height)">
                   <TopNav />
                   {children}
-                  <PlayerBar />
                 </SidebarInset>
               </SidebarProvider>
+              {/* Outside the sidebar layout, so it spans the full width below the sidebar. */}
+              <PlayerBar />
             </PlayerProvider>
           ) : (
             <>

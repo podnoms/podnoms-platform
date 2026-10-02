@@ -75,6 +75,9 @@
 }
 
 :root {
+    /* The height of the player bar while it's open (see player-bar.tsx), which
+       the sidebar and page content stop above. */
+    --player-height: 0px;
     --background: oklch(0.9809 0.0025 228.7836);
     --foreground: oklch(0.3211 0 0);
     --card: oklch(1.0000 0 0);

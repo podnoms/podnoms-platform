@@ -27,6 +27,8 @@ export const users = pgTable(
     email: text('email').unique(),
     emailVerified: timestamp('emailVerified', { mode: 'date' }),
     image: text('image'),
+    // About the user, as sanitised HTML (see rich-text.server.ts).
+    description: text('description'),
     // Set only for users who registered with an email and password.
     passwordHash: text('passwordHash'),
     // The authenticator app secret, encrypted (see two-factor.server.ts), once

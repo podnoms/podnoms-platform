@@ -20,7 +20,13 @@ export function imageIdToSave(value: ImageValue) {
   return undefined
 }
 
-// Square artwork with buttons to upload a replacement or remove it.
+// The image on the clipboard, e.g. one copied from a web page, or a screenshot.
+export function imageFromClipboard(data: DataTransfer | null) {
+  return Array.from(data?.files ?? []).find((file) => file.type.startsWith('image/')) ?? null
+}
+
+// Square artwork with buttons to upload a replacement or remove it. Pasting an
+// image anywhere on the page, while it's shown, replaces it too.
 export function ImageField({
   id,
   imageUrl,
@@ -46,6 +52,22 @@ export function ImageField({
   useEffect(() => () => (latest.current.kind === 'uploading' ? latest.current.abort() : undefined), [])
 
   const shown = value.kind === 'keep' ? imageUrl : value.kind === 'remove' ? null : value.previewUrl
+
+  // Caught before it reaches the field being pasted into, such as the
+  // description, which would otherwise try to paste the image as well.
+  const uploadLatest = useRef(upload)
+  uploadLatest.current = upload
+  useEffect(() => {
+    function onPaste(event: ClipboardEvent) {
+      const file = imageFromClipboard(event.clipboardData)
+      if (!file) return
+      event.preventDefault()
+      event.stopPropagation()
+      void uploadLatest.current(file)
+    }
+    document.addEventListener('paste', onPaste, { capture: true })
+    return () => document.removeEventListener('paste', onPaste, { capture: true })
+  }, [])
 
   async function upload(file: File) {
     if (latest.current.kind === 'uploading') latest.current.abort()
@@ -113,6 +135,7 @@ export function ImageField({
           </Button>
         )}
       </div>
+      <p className="w-32 text-xs text-muted-foreground">Or paste an image.</p>
       {error && <p className="w-32 text-xs text-destructive">{error}</p>}
     </div>
   )

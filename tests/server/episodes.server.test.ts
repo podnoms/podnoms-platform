@@ -17,7 +17,7 @@ import {
   savePlaybackPosition,
   updateEpisode,
 } from '~/server/episodes.server'
-import { episodeAudioPath, episodeSourcePath, episodeWaveformPath, stagedUploadPath } from '~/server/storage.server'
+import { episodeAudioPath, episodeSourcePath, episodeWaveformPath, imagePath, stagedUploadPath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import {
   createEpisode as insertEpisode,
@@ -86,6 +86,14 @@ describe('createEpisode from a link', () => {
     expect((await createEpisode(user.id, input))!.slug).toBe('same-2')
   })
 
+  it('keeps artwork uploaded with the form', async () => {
+    const { user, podcast } = await setup()
+    const imageId = await stageTestImage(user.id)
+    const episode = await createEpisode(user.id, { podcastId: podcast.id, sourceUrl: 'https://video.test/watch', imageId })
+    expect((await getRow(episode!.id))!.imageUrl).toBe(`/images/${imageId}.jpg`)
+    expect(await exists(imagePath(imageId))).toBe(true)
+  })
+
   it("returns null for another user's podcast", async () => {
     const { podcast } = await setup()
     const stranger = await createUser()
@@ -115,6 +123,14 @@ describe('createEpisode from an upload', () => {
     expect(enqueueEpisode).toHaveBeenCalledWith(episode!.id)
   })
 
+  it('keeps artwork uploaded with the form', async () => {
+    const { user, podcast } = await setup()
+    const uploadId = await stageUpload(user.id, { title: 'Uploaded', durationSeconds: 1 })
+    const imageId = await stageTestImage(user.id)
+    const episode = await createEpisode(user.id, { podcastId: podcast.id, uploadId, imageId })
+    expect((await getRow(episode!.id))!.imageUrl).toBe(`/images/${imageId}.jpg`)
+  })
+
   it('prefers a title given in the form', async () => {
     const { user, podcast } = await setup()
     const uploadId = await stageUpload(user.id, { title: 'File Title', durationSeconds: null })
@@ -122,11 +138,13 @@ describe('createEpisode from an upload', () => {
     expect((await getRow(episode!.id))!.title).toBe('Form Title')
   })
 
-  it('fails when the upload has expired', async () => {
+  it('fails when the upload has expired, leaving any artwork staged', async () => {
     const { user, podcast } = await setup()
-    await expect(createEpisode(user.id, { podcastId: podcast.id, uploadId: crypto.randomUUID() })).rejects.toThrow(
+    const imageId = await stageTestImage(user.id)
+    await expect(createEpisode(user.id, { podcastId: podcast.id, uploadId: crypto.randomUUID(), imageId })).rejects.toThrow(
       'That upload has expired',
     )
+    expect(await exists(imagePath(imageId))).toBe(false)
   })
 
   it("can't use another user's upload", async () => {
