@@ -18,6 +18,17 @@ export default defineConfig(({ mode }) => {
       allowedHosts: ["podnoms.dev.fergl.ie"],
     },
     resolve: { tsconfigPaths: true },
-    plugins: [tailwindcss(), tanstackStart(), nitro(), viteReact()],
+    plugins: [
+      tailwindcss(),
+      tanstackStart(),
+      nitro({
+        // Shipped as plain node_modules rather than bundled. Bundling splits
+        // @peculiar/x509 (and tsyringe) into a chunk that runs before the
+        // `import 'reflect-metadata'` that @simplewebauthn/server puts ahead of
+        // it, and tsyringe then throws on startup for want of the polyfill.
+        traceDeps: ['@simplewebauthn/server'],
+      }),
+      viteReact(),
+    ],
   }
 })
