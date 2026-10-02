@@ -7,7 +7,7 @@ import { drizzle, type PgliteDatabase } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
 import * as schema from '~/server/db/schema'
 
-export type TestDb = PgliteDatabase<typeof schema>
+export type TestDb = PgliteDatabase<typeof schema> & { $client: PGlite }
 
 // PGlite reports a violated constraint as `constraint`; postgres.js, which the
 // app uses, as `constraint_name` (see isSlugConflict). Errors are given both.
@@ -41,7 +41,11 @@ export function migrationStatements() {
   }))
 }
 
-// Empties every table between tests.
+// Empties every table between tests. Refuses to touch anything but the
+// in-process database, in case the tests are run without tests/setup.ts.
 export async function resetDb(db: TestDb) {
+  if (!(db.$client instanceof PGlite)) {
+    throw new Error('resetDb was given a real database; run the tests with `bun run test`')
+  }
   await db.execute(sql`truncate "user", "account", "session", "verification_token", "podcast", "episode", "playback_position" cascade`)
 }

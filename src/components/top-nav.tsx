@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ModeToggle } from '~/components/mode-toggle'
+import { SearchCommand } from '~/components/search-command'
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -28,6 +29,7 @@ export function TopNav() {
         </NavigationMenuList>
       </NavigationMenu>
       <div className="ml-auto flex items-center gap-1">
+        <SearchCommand />
         <ModeToggle />
         <UserMenu />
       </div>

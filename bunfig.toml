@@ -1,0 +1,5 @@
+# `bun test` runs bun's own test runner, which skips vitest's setup
+# (tests/setup.ts) and so would run the tests against the real database in
+# .env. Refuse; the tests run with `bun run test`.
+[test]
+preload = ["./tests/bun-test-guard.ts"]
