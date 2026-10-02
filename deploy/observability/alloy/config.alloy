@@ -1,0 +1,54 @@
+// Ships the logs of containers labelled logging=alloy to Loki. PodNoms writes
+// one JSON object per line; its level becomes a label so it can be filtered
+// and alerted on cheaply. Everything else stays in the line, to be pulled out
+// at query time with `| json` (labels with many values make Loki slow).
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+  filter {
+    name   = "label"
+    values = ["logging=alloy"]
+  }
+}
+
+discovery.relabel "containers" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+}
+
+loki.source.docker "containers" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  relabel_rules = discovery.relabel.containers.rules
+  forward_to    = [loki.process.json.receiver]
+}
+
+loki.process "json" {
+  // Lines that aren't JSON (e.g. startup messages) pass through unlabelled.
+  stage.json {
+    expressions = { level = "level", app = "app", time = "time" }
+  }
+  stage.labels {
+    values = { level = "", app = "" }
+  }
+  stage.timestamp {
+    source = "time"
+    format = "RFC3339"
+  }
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

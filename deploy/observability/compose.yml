@@ -1,0 +1,122 @@
+# Example observability stack for PodNoms: Loki + Alloy for logs (viewed in an
+# existing Grafana), and GlitchTip for error tracking. Copy the parts you need
+# into the compose file that runs alongside PodNoms; see README.md here.
+#
+# Needs in .env: GLITCHTIP_SECRET_KEY, GLITCHTIP_POSTGRES_PASSWORD,
+# GLITCHTIP_DOMAIN (its public URL) and, for alert emails, GLITCHTIP_EMAIL_URL.
+
+services:
+  # --- Logs ------------------------------------------------------------------
+
+  loki:
+    image: grafana/loki:3.5.0
+    restart: unless-stopped
+    command: -config.file=/etc/loki/config.yaml
+    volumes:
+      - ./loki/config.yaml:/etc/loki/config.yaml:ro
+      - loki:/loki
+    # Not published: Grafana and Alloy reach it on the shared network.
+    networks: [observability]
+
+  # Reads the logs of containers labelled logging=alloy straight from Docker
+  # and pushes them to Loki.
+  alloy:
+    image: grafana/alloy:v1.10.0
+    restart: unless-stopped
+    command: run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy:/var/lib/alloy/data
+    networks: [observability]
+    depends_on: [loki]
+
+  # Your existing Grafana needs to join the observability network and mount
+  # the provisioning files, e.g.:
+  #
+  # grafana:
+  #   volumes:
+  #     - ./grafana/provisioning/datasources/loki.yaml:/etc/grafana/provisioning/datasources/loki.yaml:ro
+  #     - ./grafana/provisioning/dashboards/podnoms.yaml:/etc/grafana/provisioning/dashboards/podnoms.yaml:ro
+  #     - ./grafana/provisioning/alerting/podnoms.yaml:/etc/grafana/provisioning/alerting/podnoms.yaml:ro
+  #     - ./grafana/dashboards:/var/lib/grafana/dashboards/podnoms:ro
+  #   networks: [observability]
+
+  # --- Errors (GlitchTip) ------------------------------------------------------
+
+  glitchtip-postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: glitchtip
+      POSTGRES_DB: glitchtip
+      POSTGRES_PASSWORD: ${GLITCHTIP_POSTGRES_PASSWORD:?Set GLITCHTIP_POSTGRES_PASSWORD}
+    volumes:
+      - glitchtip-postgres:/var/lib/postgresql/data
+    networks: [observability]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glitchtip -d glitchtip"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  glitchtip-valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    networks: [observability]
+
+  glitchtip-web:
+    image: glitchtip/glitchtip:latest # pin to a release once running
+    restart: unless-stopped
+    depends_on:
+      glitchtip-postgres:
+        condition: service_healthy
+      glitchtip-valkey:
+        condition: service_started
+    environment: &glitchtip-env
+      DATABASE_URL: postgres://glitchtip:${GLITCHTIP_POSTGRES_PASSWORD}@glitchtip-postgres:5432/glitchtip
+      REDIS_URL: redis://glitchtip-valkey:6379/0
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:?Set GLITCHTIP_SECRET_KEY (e.g. openssl rand -hex 32)}
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:-http://localhost:8000}
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL:-glitchtip@localhost}
+      # e.g. smtp+tls://user:app-password@smtp.gmail.com:587. Unset prints
+      # emails to the log instead.
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL:-consolemail://}
+      # Turn on to create the first account, then off again.
+      ENABLE_USER_REGISTRATION: ${GLITCHTIP_REGISTRATION:-false}
+      GLITCHTIP_MAX_EVENT_LIFE_DAYS: 90
+      PORT: 8000
+    ports:
+      - "${GLITCHTIP_PORT:-8000}:8000"
+    volumes:
+      - glitchtip-uploads:/code/uploads
+    networks: [observability]
+
+  glitchtip-worker:
+    image: glitchtip/glitchtip:latest # pin to a release once running
+    restart: unless-stopped
+    command: ./bin/run-celery-with-beat.sh
+    depends_on: [glitchtip-web]
+    environment: *glitchtip-env
+    volumes:
+      - glitchtip-uploads:/code/uploads
+    networks: [observability]
+
+  glitchtip-migrate:
+    image: glitchtip/glitchtip:latest # pin to a release once running
+    command: ./bin/run-migrate.sh
+    depends_on:
+      glitchtip-postgres:
+        condition: service_healthy
+    environment: *glitchtip-env
+    networks: [observability]
+
+networks:
+  observability:
+    name: observability
+
+volumes:
+  loki:
+  alloy:
+  glitchtip-postgres:
+  glitchtip-uploads:

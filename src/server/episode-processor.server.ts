@@ -17,6 +17,7 @@ import { episodes, type Episode, type EpisodeReplacement } from '~/server/db/sch
 import { availableEpisodeSlug, isSlugConflict, withRandomSuffix } from '~/server/episode-slugs.server'
 import { downloadImage } from '~/server/images.server'
 import { convertToMp3, probeAudio } from '~/server/media.server'
+import { logger, reportError } from '~/server/logger.server'
 import { saveWaveform } from '~/server/waveforms.server'
 import {
   ensureAudioDir,
@@ -173,16 +174,19 @@ async function processEpisode(episodeId: string) {
   if (episode.replacement) return replaceAudio(episode, episode.replacement)
   await db.update(episodes).set({ status: 'processing', error: null }).where(eq(episodes.id, episodeId))
 
+  const job = { episodeId, podcastId: episode.podcastId, sourceUrl: episode.sourceUrl }
+  const started = Date.now()
+  logger.info(job, 'Episode processing started')
   try {
     const audio = episode.sourceUrl ? await downloadSource(episodeId, episode.sourceUrl) : await convertUpload(episodeId)
     await markReady(episode, audio)
     // The upload is only kept so a failed conversion can be retried.
     if (!episode.sourceUrl) await rm(episodeSourcePath(episodeId), { force: true })
     // The episode can be played meanwhile; it just has no waveform if this fails.
-    await saveWaveform(episodeId).catch((error: unknown) =>
-      console.error(`Could not make a waveform for episode ${episodeId}:`, error),
-    )
+    await saveWaveform(episodeId).catch((error: unknown) => logWaveformFailure(episodeId, error))
+    logger.info({ ...job, durationMs: Date.now() - started }, 'Episode processing finished')
   } catch (error) {
+    reportError(error, { ...job, stage: progress.get(episodeId)?.stage, durationMs: Date.now() - started, msg: 'Episode processing failed' })
     const message = error instanceof Error ? error.message : String(error)
     await db
       .update(episodes)
@@ -249,8 +253,10 @@ async function replaceAudio(episode: Episode, { sourceUrl }: EpisodeReplacement)
         audioSizeBytes: size,
       })
       .where(eq(episodes.id, id))
-    await saveWaveform(id).catch((error: unknown) => console.error(`Could not make a waveform for episode ${id}:`, error))
+    await saveWaveform(id).catch((error: unknown) => logWaveformFailure(id, error))
+    logger.info({ episodeId: id, sourceUrl }, 'Episode audio replaced')
   } catch (error) {
+    reportError(error, { episodeId: id, podcastId: episode.podcastId, sourceUrl, stage: progress.get(id)?.stage, msg: 'Episode audio replacement failed' })
     const message = error instanceof Error ? error.message : String(error)
     await rm(replacementAudioPath(id), { force: true })
     await db
@@ -262,6 +268,10 @@ async function replaceAudio(episode: Episode, { sourceUrl }: EpisodeReplacement)
     if (!sourceUrl) await rm(episodeSourcePath(id), { force: true })
     progress.delete(id)
   }
+}
+
+function logWaveformFailure(episodeId: string, error: unknown) {
+  logger.warn({ episodeId, err: error }, 'Could not make a waveform for the episode')
 }
 
 const queue: string[] = []

@@ -8,6 +8,7 @@ import { dirname } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { env } from '~/env'
 import { db } from '~/server/db/client.server'
+import { logger } from '~/server/logger.server'
 import { episodes } from '~/server/db/schema'
 import { episodeAudioPath, episodeWaveformPath } from '~/server/storage.server'
 
@@ -132,6 +133,8 @@ export async function backfillWaveforms() {
   const ready = await db.select({ id: episodes.id }).from(episodes).where(eq(episodes.status, 'ready'))
   for (const { id } of ready) {
     if (await stat(episodeWaveformPath(id)).catch(() => null)) continue
-    await saveWaveform(id).catch((error: unknown) => console.error(`Could not make a waveform for episode ${id}:`, error))
+    await saveWaveform(id).catch((error: unknown) =>
+      logger.warn({ episodeId: id, err: error }, 'Could not make a waveform for the episode'),
+    )
   }
 }

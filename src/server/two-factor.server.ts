@@ -15,6 +15,7 @@ import { env } from '~/env'
 import { db } from '~/server/db/client.server'
 import { recoveryCodes, securityKeys, users } from '~/server/db/schema'
 import { ExpiringStore } from '~/server/expiring-store.server'
+import { logger } from '~/server/logger.server'
 import { verifyKeyAuthentication } from '~/server/webauthn.server'
 
 // --- Authenticator app secrets ----------------------------------------------
@@ -231,6 +232,8 @@ export async function verifySecondFactor(userId: string, factor: SecondFactor, u
         : await verifyKeyAuthentication(userId, factor.response, url)
   if (!passed) {
     failedAttempts.set(userId, failures + 1)
+    logger.warn({ userId, method: factor.method, failures: failures + 1 }, 'Second factor failed')
+    if (failures + 1 === maxFailedAttempts) logger.warn({ userId }, 'Second factor locked out after too many failures')
     const errors = {
       totp: "That code isn't right. Check your app and try again.",
       recovery: "That recovery code isn't right, or has already been used.",

@@ -6,9 +6,15 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { episodes, type Episode } from '~/server/db/schema'
 import { enqueueEpisode, getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
+import { reportError } from '~/server/logger.server'
 import { episodeAudioPath, episodeSourcePath, episodeWaveformPath, replacementAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import { createEpisode, createPodcast, createUser, db, exists, hasFfmpeg, makeImage, makeTone } from '../helpers'
+
+vi.mock('~/server/logger.server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('~/server/logger.server')>()),
+  reportError: vi.fn(),
+}))
 
 const media = process.env.MEDIA_DIR!
 let server: Server
@@ -24,7 +30,10 @@ beforeAll(async () => {
 })
 
 afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())))
-beforeEach(() => resetDb(db))
+beforeEach(async () => {
+  vi.mocked(reportError).mockClear()
+  await resetDb(db)
+})
 
 async function getRow(id: string) {
   const [row] = await db.select().from(episodes).where(eq(episodes.id, id))
@@ -74,6 +83,7 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     expect(row.publishedAt).toBeInstanceOf(Date)
     expect(row.imageUrl).toMatch(/^\/images\/[0-9a-f-]{36}\.jpg$/)
     expect(await exists(episodeWaveformPath(episode.id))).toBe(true)
+    expect(reportError).not.toHaveBeenCalled()
 
     const args = JSON.parse(await readFile(join(media, 'yt-dlp-args.json'), 'utf8')) as string[]
     expect(args).toContain('--no-playlist')
@@ -116,6 +126,10 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     const episode = await linkEpisode({ sourceUrl: link('/fail') })
     enqueueEpisode(episode.id)
     expect(await processed(episode.id)).toMatchObject({ status: 'failed', error: 'This video is unavailable', audioUrl: null })
+    expect(reportError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'This video is unavailable' }),
+      expect.objectContaining({ episodeId: episode.id, podcastId: episode.podcastId, msg: 'Episode processing failed' }),
+    )
   })
 
   it('fails when yt-dlp reports nothing about the download', async () => {
@@ -265,6 +279,10 @@ describe.skipIf(!hasFfmpeg)('replacing audio', () => {
       durationSeconds: 999,
     })
     expect(await readFile(episodeAudioPath(episode.id), 'utf8')).toBe('old')
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ episodeId: episode.id, msg: 'Episode audio replacement failed' }),
+    )
   })
 
   it('removes a failed upload rather than keeping it to retry', async () => {

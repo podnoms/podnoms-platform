@@ -52,6 +52,8 @@ Settings are read from `.env` and checked at startup by [`src/env.ts`](src/env.t
 | `MEDIA_DIR` | No | Where all media is stored (default `./media`) |
 | `YTDLP_PATH`, `FFMPEG_PATH`, `FFPROBE_PATH` | No | Paths to the binaries (default: found on `PATH`) |
 | `AUTH_GITHUB_ID` / `_SECRET`, `AUTH_GOOGLE_ID` / `_SECRET`, `AUTH_FACEBOOK_ID` / `_SECRET` | No | Each sign-in provider is enabled when both of its values are set. The OAuth callback URL is `<AUTH_URL>/api/auth/callback/<provider>`. |
+| `LOG_LEVEL` | No | `trace`, `debug`, `info` (default), `warn`, `error`, `fatal` or `silent` |
+| `SENTRY_DSN` | No | Sentry-compatible DSN (e.g. a GlitchTip project) that server and browser errors are reported to. See [Logs and errors](#logs-and-errors). |
 
 ### Media folder
 
@@ -146,6 +148,14 @@ Things to know:
 - **Media folder:** the server needs `yt-dlp` and `ffmpeg`, and a `MEDIA_DIR` that survives restarts and redeploys.
 - **Image library binaries:** sharp uses native binaries for the platform it was installed on. Build on the same OS and CPU architecture you deploy to, or run `bun install` there.
 - **Upload size:** audio uploads are sent as a single request of up to 1 GB, so allow request bodies that large in any reverse proxy in front of the app.
+
+### Logs and errors
+
+The server logs one JSON object per line to stdout (readable, coloured lines under `bun run _dev`). Each line has `level`, `msg`, `time`, `app: "podnoms"` and `version`, plus fields such as `episodeId`, `path`, `status` and `durationMs`. Every request is logged at `info`, except images, episode audio and static assets, which are logged at `debug`. Episode jobs log when they start, finish and fail.
+
+Unexpected errors from routes, server functions, episode jobs, and the process itself are logged at `error`. When `SENTRY_DSN` is set, they are also sent to a Sentry-compatible error tracker. Browser errors are sent there too, using the same DSN, which the server passes to the page at runtime.
+
+[`deploy/observability/`](deploy/observability/) has example configuration for a free, self-hosted setup: Loki and Grafana Alloy to collect the logs for Grafana (with a dashboard and an alert rule), and GlitchTip to track errors. See its [README](deploy/observability/README.md).
 
 ## Releases
 

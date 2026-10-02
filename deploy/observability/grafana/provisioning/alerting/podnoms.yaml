@@ -1,0 +1,48 @@
+# Alerts when PodNoms logs any error. Change `receiver` to one of your
+# existing contact points (Alerting → Contact points).
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: podnoms
+    folder: PodNoms
+    interval: 1m
+    rules:
+      - uid: podnoms-errors
+        title: PodNoms errors
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: 'PodNoms logged {{ $values.B.Value }} error(s) in the last 5 minutes'
+          description: 'See the PodNoms logs dashboard, or GlitchTip for the grouped issues.'
+        labels:
+          app: podnoms
+        notification_settings:
+          receiver: CHANGE-ME
+        data:
+          - refId: A
+            datasourceUid: podnoms-loki
+            queryType: range
+            relativeTimeRange: { from: 300, to: 0 }
+            model:
+              refId: A
+              editorMode: code
+              queryType: range
+              expr: sum(count_over_time({app="podnoms", level=~"error|fatal"}[5m]))
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+              settings: { mode: replaceNN, replaceWithValue: 0 }
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: { type: gt, params: [0] }

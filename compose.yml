@@ -17,8 +17,20 @@ services:
       AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET:-}
       AUTH_FACEBOOK_ID: ${AUTH_FACEBOOK_ID:-}
       AUTH_FACEBOOK_SECRET: ${AUTH_FACEBOOK_SECRET:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # A Sentry-compatible DSN (e.g. GlitchTip) for server and browser errors.
+      SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
       - media:/app/media
+    # Picked up by Grafana Alloy (see deploy/observability). Docker keeps a
+    # rotated copy of the logs too.
+    labels:
+      logging: alloy
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
     depends_on:
       postgres:
         condition: service_healthy

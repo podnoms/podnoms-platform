@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { HeadContent, Outlet, Scripts, createRootRoute } from '@tanstack/react-router'
 import { AppSidebar } from '~/components/app-sidebar'
 import { ThemeProvider } from '~/components/theme-provider'
@@ -11,7 +11,9 @@ import { PlayerProvider } from '~/components/player/player-provider'
 import { PublicHeader } from '~/components/public-header'
 import { TwoFactorDialog } from '~/components/two-factor-dialog'
 import { fetchOAuthProviders, fetchAuthState } from '~/functions/auth'
+import { fetchErrorReportingDsn } from '~/functions/error-reporting'
 import { fetchMyPodcasts } from '~/functions/podcasts'
+import { startClientErrorReporting } from '~/lib/client-errors'
 import { loginSearchSchema } from '~/lib/login-search'
 import appCss from '~/styles/app.css?url'
 
@@ -22,14 +24,16 @@ export const Route = createRootRoute({
   // and, while a sign-in waits for its second factor, `context.twoFactor`.
   beforeLoad: () => fetchAuthState(),
   validateSearch: loginSearchSchema,
-  // OAuth providers with keys (for the login dialog) and the user's podcasts
-  // (for the sidebar). Loaded once; creating a podcast calls router.invalidate().
+  // OAuth providers with keys (for the login dialog), the user's podcasts
+  // (for the sidebar) and where to report browser errors. Loaded once;
+  // creating a podcast calls router.invalidate().
   loader: async ({ context }) => {
-    const [providers, podcasts] = await Promise.all([
+    const [providers, podcasts, errorReportingDsn] = await Promise.all([
       fetchOAuthProviders(),
       context.session ? fetchMyPodcasts() : [],
+      fetchErrorReportingDsn(),
     ])
-    return { providers, podcasts }
+    return { providers, podcasts, errorReportingDsn }
   },
   staleTime: Infinity,
   head: () => ({
@@ -45,6 +49,8 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   const { session } = Route.useRouteContext()
+  const { errorReportingDsn } = Route.useLoaderData()
+  useEffect(() => startClientErrorReporting(errorReportingDsn), [errorReportingDsn])
   return (
     <RootDocument signedIn={Boolean(session)}>
       <Outlet />
@@ -58,6 +64,7 @@ function RootDocument({ signedIn, children }: { signedIn: boolean; children: Rea
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script defer src="https://analytics.ferg.al/script.js" data-website-id="96e2c096-bf04-41b8-993e-5f7912b29878" />
       </head>
       {/* Browser extensions add attributes to <body> before React hydrates. */}
       <body suppressHydrationWarning>
