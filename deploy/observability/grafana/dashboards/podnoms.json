@@ -15,6 +15,14 @@
   "templating": {
     "list": [
       {
+        "name": "datasource",
+        "label": "Loki",
+        "type": "datasource",
+        "query": "loki",
+        "current": {},
+        "hide": 0
+      },
+      {
         "name": "level",
         "label": "Level",
         "type": "custom",
@@ -50,7 +58,7 @@
       "title": "Errors",
       "datasource": {
         "type": "loki",
-        "uid": "podnoms-loki"
+        "uid": "${datasource}"
       },
       "gridPos": {
         "x": 0,
@@ -81,7 +89,7 @@
           "refId": "A",
           "datasource": {
             "type": "loki",
-            "uid": "podnoms-loki"
+            "uid": "${datasource}"
           },
           "expr": "sum(count_over_time({app=\"podnoms\", level=~\"error|fatal\"}[$__auto]))",
           "legendFormat": "",
@@ -96,7 +104,7 @@
       "title": "Warnings",
       "datasource": {
         "type": "loki",
-        "uid": "podnoms-loki"
+        "uid": "${datasource}"
       },
       "gridPos": {
         "x": 6,
@@ -127,7 +135,7 @@
           "refId": "A",
           "datasource": {
             "type": "loki",
-            "uid": "podnoms-loki"
+            "uid": "${datasource}"
           },
           "expr": "sum(count_over_time({app=\"podnoms\", level=\"warn\"}[$__auto]))",
           "legendFormat": "",
@@ -142,7 +150,7 @@
       "title": "Episode jobs failed",
       "datasource": {
         "type": "loki",
-        "uid": "podnoms-loki"
+        "uid": "${datasource}"
       },
       "gridPos": {
         "x": 12,
@@ -173,7 +181,7 @@
           "refId": "A",
           "datasource": {
             "type": "loki",
-            "uid": "podnoms-loki"
+            "uid": "${datasource}"
           },
           "expr": "sum(count_over_time({app=\"podnoms\"} | json | msg=~\"Episode (processing|audio replacement) failed\" [$__auto]))",
           "legendFormat": "",
@@ -188,7 +196,7 @@
       "title": "Episode jobs finished",
       "datasource": {
         "type": "loki",
-        "uid": "podnoms-loki"
+        "uid": "${datasource}"
       },
       "gridPos": {
         "x": 18,
@@ -219,7 +227,7 @@
           "refId": "A",
           "datasource": {
             "type": "loki",
-            "uid": "podnoms-loki"
+            "uid": "${datasource}"
           },
           "expr": "sum(count_over_time({app=\"podnoms\"} | json | msg=\"Episode processing finished\" [$__auto]))",
           "legendFormat": "",
@@ -234,7 +242,7 @@
       "title": "Log lines by level",
       "datasource": {
         "type": "loki",
-        "uid": "podnoms-loki"
+        "uid": "${datasource}"
       },
       "gridPos": {
         "x": 0,
@@ -345,7 +353,7 @@
           "refId": "A",
           "datasource": {
             "type": "loki",
-            "uid": "podnoms-loki"
+            "uid": "${datasource}"
           },
           "expr": "sum by (level) (count_over_time({app=\"podnoms\"}[$__auto]))",
           "legendFormat": "{{level}}",
@@ -360,7 +368,7 @@
       "title": "Request duration",
       "datasource": {
         "type": "loki",
-        "uid": "podnoms-loki"
+        "uid": "${datasource}"
       },
       "gridPos": {
         "x": 12,
@@ -471,7 +479,7 @@
           "refId": "A",
           "datasource": {
             "type": "loki",
-            "uid": "podnoms-loki"
+            "uid": "${datasource}"
           },
           "expr": "quantile_over_time(0.5, {app=\"podnoms\"} | json | msg=\"Request\" | unwrap durationMs [$__auto]) by (app)",
           "legendFormat": "p50",
@@ -482,7 +490,7 @@
           "refId": "B",
           "datasource": {
             "type": "loki",
-            "uid": "podnoms-loki"
+            "uid": "${datasource}"
           },
           "expr": "quantile_over_time(0.95, {app=\"podnoms\"} | json | msg=\"Request\" | unwrap durationMs [$__auto]) by (app)",
           "legendFormat": "p95",
@@ -497,7 +505,7 @@
       "title": "Errors and warnings",
       "datasource": {
         "type": "loki",
-        "uid": "podnoms-loki"
+        "uid": "${datasource}"
       },
       "gridPos": {
         "x": 0,
@@ -518,7 +526,7 @@
           "refId": "A",
           "datasource": {
             "type": "loki",
-            "uid": "podnoms-loki"
+            "uid": "${datasource}"
           },
           "expr": "{app=\"podnoms\", level=~\"error|fatal|warn\"} | json",
           "legendFormat": "",
@@ -533,7 +541,7 @@
       "title": "Episode jobs",
       "datasource": {
         "type": "loki",
-        "uid": "podnoms-loki"
+        "uid": "${datasource}"
       },
       "gridPos": {
         "x": 0,
@@ -554,7 +562,7 @@
           "refId": "A",
           "datasource": {
             "type": "loki",
-            "uid": "podnoms-loki"
+            "uid": "${datasource}"
           },
           "expr": "{app=\"podnoms\"} |~ \"Episode \" | json | line_format \"{{.msg}}  episode={{.episodeId}} {{if .durationMs}}{{.durationMs}}ms{{end}} {{.err_message}}\"",
           "legendFormat": "",
@@ -569,7 +577,7 @@
       "title": "All logs",
       "datasource": {
         "type": "loki",
-        "uid": "podnoms-loki"
+        "uid": "${datasource}"
       },
       "gridPos": {
         "x": 0,
@@ -590,7 +598,7 @@
           "refId": "A",
           "datasource": {
             "type": "loki",
-            "uid": "podnoms-loki"
+            "uid": "${datasource}"
           },
           "expr": "{app=\"podnoms\", level=~\"$level\"} |~ \"(?i)$search\"",
           "legendFormat": "",

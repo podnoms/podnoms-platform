@@ -9,7 +9,7 @@ services:
   # --- Logs ------------------------------------------------------------------
 
   loki:
-    image: grafana/loki:3.5.0
+    image: grafana/loki:3.7.8
     restart: unless-stopped
     command: -config.file=/etc/loki/config.yaml
     volumes:
@@ -21,7 +21,7 @@ services:
   # Reads the logs of containers labelled logging=alloy straight from Docker
   # and pushes them to Loki.
   alloy:
-    image: grafana/alloy:v1.10.0
+    image: grafana/alloy:v1.20.1
     restart: unless-stopped
     command: run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
     volumes:
@@ -45,14 +45,14 @@ services:
   # --- Errors (GlitchTip) ------------------------------------------------------
 
   glitchtip-postgres:
-    image: postgres:17-bookworm
+    image: postgres:18
     restart: unless-stopped
     environment:
       POSTGRES_USER: glitchtip
       POSTGRES_DB: glitchtip
       POSTGRES_PASSWORD: ${GLITCHTIP_POSTGRES_PASSWORD:?Set GLITCHTIP_POSTGRES_PASSWORD}
     volumes:
-      - glitchtip-postgres:/var/lib/postgresql/data
+      - glitchtip-postgres:/var/lib/postgresql
     networks: [observability]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U glitchtip -d glitchtip"]
@@ -60,22 +60,18 @@ services:
       timeout: 5s
       retries: 12
 
-  glitchtip-valkey:
-    image: valkey/valkey:8-alpine
-    restart: unless-stopped
-    networks: [observability]
-
-  glitchtip-web:
-    image: glitchtip/glitchtip:latest # pin to a release once running
+  # Web server and background worker in one container; Postgres doubles as
+  # the task queue and cache, so no Valkey is needed at this size.
+  glitchtip:
+    image: glitchtip/glitchtip:6.2.6
     restart: unless-stopped
     depends_on:
       glitchtip-postgres:
         condition: service_healthy
-      glitchtip-valkey:
-        condition: service_started
-    environment: &glitchtip-env
+    environment:
+      SERVER_ROLE: all_in_one
       DATABASE_URL: postgres://glitchtip:${GLITCHTIP_POSTGRES_PASSWORD}@glitchtip-postgres:5432/glitchtip
-      REDIS_URL: redis://glitchtip-valkey:6379/0
+      VALKEY_URL: ""
       SECRET_KEY: ${GLITCHTIP_SECRET_KEY:?Set GLITCHTIP_SECRET_KEY (e.g. openssl rand -hex 32)}
       GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:-http://localhost:8000}
       DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL:-glitchtip@localhost}
@@ -84,31 +80,14 @@ services:
       EMAIL_URL: ${GLITCHTIP_EMAIL_URL:-consolemail://}
       # Turn on to create the first account, then off again.
       ENABLE_USER_REGISTRATION: ${GLITCHTIP_REGISTRATION:-false}
-      GLITCHTIP_MAX_EVENT_LIFE_DAYS: 90
-      PORT: 8000
+      ENABLE_ORGANIZATION_CREATION: ${GLITCHTIP_REGISTRATION:-false}
+      GLITCHTIP_MAX_EVENT_LIFE_DAYS: "90"
+      GLITCHTIP_ENABLE_LOGS: "False"
+      GLITCHTIP_ENABLE_UPTIME: "False"
     ports:
       - "${GLITCHTIP_PORT:-8000}:8000"
     volumes:
       - glitchtip-uploads:/code/uploads
-    networks: [observability]
-
-  glitchtip-worker:
-    image: glitchtip/glitchtip:latest # pin to a release once running
-    restart: unless-stopped
-    command: ./bin/run-celery-with-beat.sh
-    depends_on: [glitchtip-web]
-    environment: *glitchtip-env
-    volumes:
-      - glitchtip-uploads:/code/uploads
-    networks: [observability]
-
-  glitchtip-migrate:
-    image: glitchtip/glitchtip:latest # pin to a release once running
-    command: ./bin/run-migrate.sh
-    depends_on:
-      glitchtip-postgres:
-        condition: service_healthy
-    environment: *glitchtip-env
     networks: [observability]
 
 networks:

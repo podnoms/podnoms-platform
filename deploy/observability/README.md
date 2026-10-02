@@ -19,7 +19,7 @@ podnoms (Sentry SDK) ───────────────────�
 
 | File | What it is |
 | --- | --- |
-| `compose.yml` | Loki, Alloy and GlitchTip (web, worker, migrations, Postgres, Valkey) |
+| `compose.yml` | Loki, Alloy and GlitchTip (one all-in-one container plus Postgres) |
 | `loki/config.yaml` | Single-process Loki on local disk, keeping 30 days of logs |
 | `alloy/config.alloy` | Docker log collection; makes `level` and `app` labels |
 | `grafana/provisioning/datasources/loki.yaml` | The Loki data source (uid `podnoms-loki`) |
@@ -32,9 +32,11 @@ podnoms (Sentry SDK) ───────────────────�
    has `labels: { logging: alloy }` on `app`. Copy that to your own compose file.
 2. **Run Loki and Alloy** from `compose.yml` here. Alloy needs read access to
    `/var/run/docker.sock` on the host that runs PodNoms.
-3. **Connect Grafana.** Put Grafana on the `observability` network (or point the
-   data source URL at wherever Loki is reachable) and mount the provisioning
-   files, as shown in the comment in `compose.yml`. In
+3. **Connect Grafana.** Grafana must be able to reach Loki, e.g. by sharing a
+   network with it. Then either add a Loki data source and import the
+   dashboard JSON in the UI (it asks which Loki data source to use), or
+   provision both by mounting the files as shown in the comment in
+   `compose.yml`. In
    `provisioning/alerting/podnoms.yaml`, change `receiver: CHANGE-ME` to one of
    your contact points. Restart Grafana.
 4. **Run GlitchTip.** Set `GLITCHTIP_SECRET_KEY` (`openssl rand -hex 32`),
