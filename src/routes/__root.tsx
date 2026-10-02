@@ -64,7 +64,7 @@ function RootDocument({ signedIn, children }: { signedIn: boolean; children: Rea
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
-        <script defer src="https://analytics.ferg.al/script.js" data-website-id="96e2c096-bf04-41b8-993e-5f7912b29878" />
+        <script defer src="https://a.ferg.al/script.js" data-website-id="96e2c096-bf04-41b8-993e-5f7912b29878" />
       </head>
       {/* Browser extensions add attributes to <body> before React hydrates. */}
       <body suppressHydrationWarning>
