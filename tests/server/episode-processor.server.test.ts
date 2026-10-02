@@ -1,12 +1,12 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { readFile, stat } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { episodes, type Episode } from '~/server/db/schema'
 import { enqueueEpisode, getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
-import { episodeAudioPath, episodeSourcePath, episodeWaveformPath } from '~/server/storage.server'
+import { episodeAudioPath, episodeSourcePath, episodeWaveformPath, replacementAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import { createEpisode, createPodcast, createUser, db, exists, hasFfmpeg, makeImage, makeTone } from '../helpers'
 
@@ -170,6 +170,117 @@ describe.skipIf(!hasFfmpeg)('episodes from uploads', () => {
   })
 })
 
+describe.skipIf(!hasFfmpeg)('replacing audio', () => {
+  // Waits for the queue to finish replacing the episode's audio.
+  async function replaced(id: string): Promise<Episode> {
+    return vi.waitFor(
+      async () => {
+        const row = await getRow(id)
+        if (row.replacement || getEpisodeProgress(id)) throw new Error('Still replacing')
+        return row
+      },
+      { timeout: 20_000, interval: 50 },
+    )
+  }
+
+  // A ready episode with some old audio and waveform.
+  async function readyEpisode(values: Partial<Episode> = {}) {
+    const podcast = await createPodcast((await createUser()).id)
+    const episode = await createEpisode(podcast.id, {
+      title: 'Mine',
+      slug: 'mine',
+      description: '<p>Mine</p>',
+      imageUrl: '/images/mine.jpg',
+      status: 'ready',
+      sourceUrl: link('/watch', { title: 'Old' }),
+      audioUrl: `/api/episodes/x/audio`,
+      audioMimeType: 'audio/mpeg',
+      audioSizeBytes: 3,
+      durationSeconds: 999,
+      publishedAt: new Date('2026-01-01'),
+      ...values,
+    })
+    for (const path of [episodeAudioPath(episode.id), episodeWaveformPath(episode.id)]) {
+      await mkdir(dirname(path), { recursive: true })
+      await writeFile(path, 'old')
+    }
+    return episode
+  }
+
+  it('downloads a new link and swaps it in, keeping the episode live and its details', async () => {
+    const episode = await readyEpisode()
+    const sourceUrl = link('/watch', { title: 'New Title', description: 'New', duration: '2.6', thumbnail: thumbnailUrl, hold: '200' })
+    await db.update(episodes).set({ replacement: { sourceUrl }, error: 'An old error' }).where(eq(episodes.id, episode.id))
+    enqueueEpisode(episode.id)
+
+    // Meanwhile it's still ready, with its old audio.
+    await vi.waitFor(() => expect(getEpisodeProgress(episode.id)).not.toBeNull())
+    expect((await getRow(episode.id)).status).toBe('ready')
+    expect(await readFile(episodeAudioPath(episode.id), 'utf8')).toBe('old')
+
+    const row = await replaced(episode.id)
+    expect(row).toMatchObject({
+      status: 'ready',
+      replacement: null,
+      error: null,
+      title: 'Mine',
+      slug: 'mine',
+      description: '<p>Mine</p>',
+      imageUrl: '/images/mine.jpg',
+      sourceUrl,
+      durationSeconds: 3,
+      audioMimeType: 'audio/mpeg',
+      audioSizeBytes: (await stat(episodeAudioPath(episode.id))).size,
+      publishedAt: new Date('2026-01-01'),
+    })
+    // A new URL, so apps that have the old audio fetch the new.
+    expect(row.audioUrl).toMatch(new RegExp(`^/api/episodes/${episode.id}/audio\\?v=\\w+$`))
+    expect(await readFile(episodeAudioPath(episode.id), 'utf8')).not.toBe('old')
+    expect(await readFile(episodeWaveformPath(episode.id), 'utf8')).not.toBe('old')
+    expect(await exists(replacementAudioPath(episode.id))).toBe(false)
+  })
+
+  it('converts an uploaded file, removing it afterwards', async () => {
+    const episode = await readyEpisode()
+    await makeTone(episodeSourcePath(episode.id), 2, ['-f', 'wav'])
+    await db.update(episodes).set({ replacement: { sourceUrl: null } }).where(eq(episodes.id, episode.id))
+    enqueueEpisode(episode.id)
+
+    expect(await replaced(episode.id)).toMatchObject({ status: 'ready', sourceUrl: null, durationSeconds: 2, title: 'Mine' })
+    expect(await exists(episodeSourcePath(episode.id))).toBe(false)
+    expect(await readFile(episodeAudioPath(episode.id), 'utf8')).not.toBe('old')
+  })
+
+  it('keeps the old audio and notes the error when it fails', async () => {
+    const episode = await readyEpisode()
+    await db.update(episodes).set({ replacement: { sourceUrl: link('/fail') } }).where(eq(episodes.id, episode.id))
+    enqueueEpisode(episode.id)
+
+    expect(await replaced(episode.id)).toMatchObject({
+      status: 'ready',
+      replacement: null,
+      error: "Couldn't replace the audio: This video is unavailable",
+      sourceUrl: episode.sourceUrl,
+      audioUrl: episode.audioUrl,
+      durationSeconds: 999,
+    })
+    expect(await readFile(episodeAudioPath(episode.id), 'utf8')).toBe('old')
+  })
+
+  it('removes a failed upload rather than keeping it to retry', async () => {
+    const episode = await readyEpisode()
+    await mkdir(dirname(episodeSourcePath(episode.id)), { recursive: true })
+    await writeFile(episodeSourcePath(episode.id), 'not audio')
+    await db.update(episodes).set({ replacement: { sourceUrl: null } }).where(eq(episodes.id, episode.id))
+    enqueueEpisode(episode.id)
+
+    expect((await replaced(episode.id)).error).toMatch(/^Couldn't replace the audio: /)
+    expect(await exists(episodeSourcePath(episode.id))).toBe(false)
+    expect(await exists(replacementAudioPath(episode.id))).toBe(false)
+    expect(await readFile(episodeAudioPath(episode.id), 'utf8')).toBe('old')
+  })
+})
+
 describe.skipIf(!hasFfmpeg)('the queue', () => {
   it('runs one job at a time, reporting how many are ahead', async () => {
     const podcast = await createPodcast((await createUser()).id)
@@ -201,10 +312,13 @@ describe.skipIf(!hasFfmpeg)('resumeUnfinishedEpisodes', () => {
     const pending = await createEpisode(podcast.id, { status: 'pending', sourceUrl: link('/watch'), title: 'p' })
     const processing = await createEpisode(podcast.id, { status: 'processing', sourceUrl: link('/watch'), title: 'q' })
     const failed = await createEpisode(podcast.id, { status: 'failed', sourceUrl: link('/watch'), title: 'f' })
+    const replacing = await createEpisode(podcast.id, { status: 'ready', title: 'r', replacement: { sourceUrl: link('/watch') } })
 
     await resumeUnfinishedEpisodes()
     expect((await processed(pending.id)).status).toBe('ready')
     expect((await processed(processing.id)).status).toBe('ready')
+    await vi.waitFor(async () => expect((await getRow(replacing.id)).replacement).toBeNull(), { timeout: 20_000 })
+    expect(await exists(episodeAudioPath(replacing.id))).toBe(true)
     expect((await getRow(failed.id)).status).toBe('failed')
 
     const later = await createEpisode(podcast.id, { status: 'pending', sourceUrl: link('/watch'), title: 'l' })

@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 import { rm } from 'node:fs/promises'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
 import { episodes, playbackPositions, podcasts, type NewEpisode } from '~/server/db/schema'
 import { enqueueEpisode } from '~/server/episode-processor.server'
@@ -11,12 +11,15 @@ import {
   withRandomSuffix,
 } from '~/server/episode-slugs.server'
 import { episodeAudioPath, episodeSourcePath } from '~/server/storage.server'
-import { findUpload, moveUploadToEpisode } from '~/server/uploads.server'
+import { findUpload, moveUploadToEpisode, type UploadedAudio } from '~/server/uploads.server'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { commitImage, deleteImage } from '~/server/images.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import { deleteWaveform } from '~/server/waveforms.server'
-import type { EditEpisodeInput, NewEpisodeInput } from '~/lib/episode-schema'
+import type { EditEpisodeInput, NewEpisodeInput, ReplaceAudioInput } from '~/lib/episode-schema'
+
+// Whether the episode's audio is being replaced.
+const replacing = sql<boolean>`${episodes.replacement} is not null`
 
 // Includes where the user left off in each episode.
 export function listEpisodes(userId: string, podcastId: string) {
@@ -32,6 +35,7 @@ export function listEpisodes(userId: string, podcastId: string) {
       durationSeconds: episodes.durationSeconds,
       status: episodes.status,
       error: episodes.error,
+      replacing,
       createdAt: episodes.createdAt,
       positionSeconds: playbackPositions.positionSeconds,
     })
@@ -60,6 +64,7 @@ export async function getEpisode(userId: string, podcastSlug: string, episodeSlu
         durationSeconds: episodes.durationSeconds,
         status: episodes.status,
         error: episodes.error,
+        replacing,
         createdAt: episodes.createdAt,
         publishedAt: episodes.publishedAt,
         positionSeconds: playbackPositions.positionSeconds,
@@ -146,7 +151,15 @@ export async function getEpisodeAudio(episodeId: string) {
 // The episode, if it belongs to one of the user's podcasts.
 async function findOwnedEpisode(userId: string, episodeId: string) {
   const [episode] = await db
-    .select({ id: episodes.id, status: episodes.status, imageUrl: episodes.imageUrl })
+    .select({
+      id: episodes.id,
+      podcastId: episodes.podcastId,
+      title: episodes.title,
+      sourceUrl: episodes.sourceUrl,
+      status: episodes.status,
+      imageUrl: episodes.imageUrl,
+      replacement: episodes.replacement,
+    })
     .from(episodes)
     .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
     .where(and(eq(episodes.id, episodeId), eq(podcasts.userId, userId)))
@@ -154,10 +167,11 @@ async function findOwnedEpisode(userId: string, episodeId: string) {
   return episode ?? null
 }
 
-// Episodes that are mid-download can't be deleted until they finish or fail.
+// Episodes that are mid-download, or having their audio replaced, can't be
+// deleted until that finishes or fails.
 export async function deleteEpisode(userId: string, episodeId: string) {
   const episode = await findOwnedEpisode(userId, episodeId)
-  if (!episode || episode.status === 'processing') return false
+  if (!episode || episode.status === 'processing' || episode.replacement) return false
   await db.delete(episodes).where(eq(episodes.id, episode.id))
   await rm(episodeAudioPath(episode.id), { force: true })
   await rm(episodeSourcePath(episode.id), { force: true })
@@ -199,6 +213,88 @@ export async function retryEpisode(userId: string, episodeId: string) {
   if (!episode || episode.status !== 'failed') return false
   await db.update(episodes).set({ status: 'pending', error: null }).where(eq(episodes.id, episode.id))
   enqueueEpisode(episode.id)
+  return true
+}
+
+// Gives an episode new audio from a link or upload, made in the background.
+// A ready episode keeps its title, description and artwork, and its current
+// audio stays in the feed until the new audio is ready. A failed episode has
+// no audio to keep, so it's processed again from the new source.
+export async function replaceEpisodeAudio(userId: string, input: ReplaceAudioInput) {
+  const episode = await findOwnedEpisode(userId, input.id)
+  if (!episode) return false
+  const upload = 'uploadId' in input ? await findUpload(userId, input.uploadId) : null
+  if ('uploadId' in input && !upload) throw new Error('That upload has expired. Please choose the file again.')
+  const sourceUrl = 'sourceUrl' in input ? input.sourceUrl : null
+
+  const claimed =
+    episode.status === 'failed'
+      ? await claimFailedEpisode(episode, sourceUrl, upload)
+      : // Only one replacement at a time, even if two requests race.
+        await db
+          .update(episodes)
+          .set({ replacement: { sourceUrl }, error: null })
+          .where(and(eq(episodes.id, episode.id), eq(episodes.status, 'ready'), isNull(episodes.replacement)))
+          .returning({ id: episodes.id })
+          .then(([row]) => row)
+  if (!claimed) return false
+
+  if ('uploadId' in input) {
+    try {
+      await moveUploadToEpisode(userId, input.uploadId, episode.id)
+    } catch (error) {
+      await db
+        .update(episodes)
+        .set(episode.status === 'failed' ? { status: 'failed', error: 'The uploaded file went missing' } : { replacement: null })
+        .where(eq(episodes.id, episode.id))
+      throw error
+    }
+  } else if (episode.status === 'failed') {
+    // A failed upload's file, kept for retrying, isn't needed any more.
+    await rm(episodeSourcePath(episode.id), { force: true })
+  }
+  enqueueEpisode(episode.id)
+  return true
+}
+
+// Points a failed episode at its new source and queues it again. One still
+// titled by its old link (whose title was never fetched) is titled from the
+// new source instead: from an upload now, from a link once it's fetched.
+async function claimFailedEpisode(
+  episode: { id: string; podcastId: string; title: string; sourceUrl: string | null },
+  sourceUrl: string | null,
+  upload: UploadedAudio | null,
+) {
+  const untitled = episode.title === episode.sourceUrl
+  const title = untitled ? (upload?.title ?? sourceUrl!) : episode.title
+  const slug = untitled && upload ? await availableEpisodeSlug(episode.podcastId, upload.title, episode.id) : undefined
+  const update = (slug: string | undefined) =>
+    db
+      .update(episodes)
+      .set({
+        status: 'pending',
+        error: null,
+        sourceUrl,
+        title,
+        slug,
+        ...(upload && { durationSeconds: upload.durationSeconds }),
+      })
+      .where(and(eq(episodes.id, episode.id), eq(episodes.status, 'failed')))
+      .returning({ id: episodes.id })
+      .then(([row]) => row)
+  try {
+    return await update(slug)
+  } catch (error) {
+    if (!slug || !isSlugConflict(error)) throw error
+    return update(withRandomSuffix(slug))
+  }
+}
+
+// Clears the note left on a ready episode when replacing its audio failed.
+export async function dismissEpisodeError(userId: string, episodeId: string) {
+  const episode = await findOwnedEpisode(userId, episodeId)
+  if (!episode || episode.status !== 'ready') return false
+  await db.update(episodes).set({ error: null }).where(eq(episodes.id, episode.id))
   return true
 }
 

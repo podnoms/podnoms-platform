@@ -7,6 +7,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -178,8 +179,13 @@ export const episodes = pgTable(
     audioSizeBytes: bigint('audioSizeBytes', { mode: 'number' }),
     durationSeconds: integer('durationSeconds'),
     status: episodeStatus('status').notNull().default('pending'),
-    // Why processing failed, when status is 'failed'.
+    // Why processing failed, when status is 'failed'; on a ready episode, why
+    // replacing its audio failed.
     error: text('error'),
+    // New audio for a ready episode, while it's being made: from a link, or
+    // from an uploaded file (in sources/) when sourceUrl is null. The current
+    // audio stays live until the new audio is ready.
+    replacement: jsonb('replacement').$type<EpisodeReplacement>(),
     explicit: boolean('explicit').notNull().default(false),
     publishedAt: timestamp('publishedAt', { mode: 'date', withTimezone: true }),
     ...timestamps,
@@ -223,4 +229,5 @@ export type Podcast = typeof podcasts.$inferSelect
 export type NewPodcast = typeof podcasts.$inferInsert
 export type Episode = typeof episodes.$inferSelect
 export type NewEpisode = typeof episodes.$inferInsert
+export type EpisodeReplacement = { sourceUrl: string | null }
 export type EpisodeStatus = (typeof episodeStatus.enumValues)[number]

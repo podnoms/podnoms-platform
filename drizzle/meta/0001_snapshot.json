@@ -1,6 +1,6 @@
 {
-  "id": "7d36e243-86a3-4776-b33d-2c47f7a9fbf4",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "6ccd912c-fee4-4615-92c3-4a63e2759b73",
+  "prevId": "7d36e243-86a3-4776-b33d-2c47f7a9fbf4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -184,12 +184,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "username": {
-          "name": "username",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "passwordHash": {
           "name": "passwordHash",
           "type": "text",
@@ -198,11 +192,11 @@
         }
       },
       "indexes": {
-        "user_username_lower_idx": {
-          "name": "user_username_lower_idx",
+        "user_email_lower_idx": {
+          "name": "user_email_lower_idx",
           "columns": [
             {
-              "expression": "lower(\"username\")",
+              "expression": "lower(\"email\")",
               "asc": true,
               "isExpression": true,
               "nulls": "last"

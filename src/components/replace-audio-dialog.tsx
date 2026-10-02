@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import { AudioFileField, useAudioUpload } from '~/components/audio-file-field'
 import { Icons } from '~/components/icons'
@@ -11,42 +11,43 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '~/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
-import { Textarea } from '~/components/ui/textarea'
-import { createMyEpisode } from '~/functions/podcasts'
-import { linkEpisodeSchema, uploadEpisodeSchema } from '~/lib/episode-schema'
+import { replaceMyEpisodeAudio } from '~/functions/podcasts'
+import { replaceAudioLinkSchema, replaceAudioUploadSchema } from '~/lib/episode-schema'
 
 type Source = 'link' | 'file'
 
-// Wraps a trigger (a button) that opens the "New episode" form for a podcast.
-export function NewEpisodeDialog({ podcastId, children }: { podcastId: string; children: ReactNode }) {
+// Gives an episode new audio, from a link or an uploaded file: a ready
+// episode keeps its current audio until the new audio is ready; a failed one
+// is tried again from the new source.
+export function ReplaceAudioDialog({
+  episodeId,
+  failed,
+  open,
+  onOpenChange,
+}: {
+  episodeId: string
+  failed: boolean
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const router = useRouter()
-  const [open, setOpen] = useState(false)
   const [source, setSource] = useState<Source>('link')
-  const [title, setTitle] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string>()
-  // The title filled in from the last upload, replaced by the next one unless edited.
-  const autoTitle = useRef('')
-  const uploadState = useAudioUpload((result) => {
-    setError(undefined)
-    setTitle((current) => (current === '' || current === autoTitle.current ? result.title : current))
-    autoTitle.current = result.title
-  })
+  const uploadState = useAudioUpload(() => setError(undefined))
   const { upload } = uploadState
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const fields = { ...Object.fromEntries(new FormData(event.currentTarget)), podcastId }
     const parsed =
       source === 'link'
-        ? linkEpisodeSchema.safeParse(fields)
-        : uploadEpisodeSchema.safeParse({
-            ...fields,
+        ? replaceAudioLinkSchema.safeParse({ ...Object.fromEntries(new FormData(event.currentTarget)), id: episodeId })
+        : replaceAudioUploadSchema.safeParse({
+            id: episodeId,
             uploadId: upload.status === 'ready' ? upload.result.uploadId : undefined,
           })
     if (!parsed.success) {
@@ -56,12 +57,11 @@ export function NewEpisodeDialog({ podcastId, children }: { podcastId: string; c
     setError(undefined)
     setPending(true)
     try {
-      await createMyEpisode({ data: parsed.data })
-      setOpen(false)
-      // Reload the podcast page so the new episode is listed.
+      await replaceMyEpisodeAudio({ data: parsed.data })
+      onOpenChange(false)
       await router.invalidate()
     } catch {
-      setError('Something went wrong adding the episode. Please try again.')
+      setError('Something went wrong replacing the audio. Please try again.')
     } finally {
       setPending(false)
     }
@@ -71,26 +71,25 @@ export function NewEpisodeDialog({ podcastId, children }: { podcastId: string; c
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        setOpen(next)
+        onOpenChange(next)
         if (next) {
           setError(undefined)
-          setTitle('')
-          autoTitle.current = ''
+          setSource('link')
         } else {
           uploadState.clear()
         }
       }}
     >
-      <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New episode</DialogTitle>
+          <DialogTitle>Replace audio</DialogTitle>
           <DialogDescription>
-            Paste a link to a video or audio track, e.g. on YouTube, or upload an audio file. It's turned into an
-            episode in the background.
+            {failed
+              ? "Paste a different link, or upload the audio yourself, to try this episode again. It keeps the details you've given it."
+              : 'Paste a link or upload a new file. The episode keeps its title, description and artwork, and its current audio stays in the feed until the new audio is ready.'}
           </DialogDescription>
         </DialogHeader>
-        <form id="new-episode" onSubmit={onSubmit}>
+        <form id="replace-audio" onSubmit={onSubmit}>
           <FieldGroup>
             <Tabs
               value={source}
@@ -111,40 +110,22 @@ export function NewEpisodeDialog({ podcastId, children }: { podcastId: string; c
               </TabsList>
               <TabsContent value="link">
                 <Field>
-                  <FieldLabel htmlFor="episode-source">Link</FieldLabel>
+                  <FieldLabel htmlFor="replace-audio-source">Link</FieldLabel>
                   <Input
-                    id="episode-source"
+                    id="replace-audio-source"
                     name="sourceUrl"
                     type="url"
                     placeholder="https://www.youtube.com/watch?v=…"
                     autoComplete="off"
                     required
                   />
+                  <FieldDescription>A YouTube, Mixcloud or SoundCloud link, or anything else with audio or video.</FieldDescription>
                 </Field>
               </TabsContent>
               <TabsContent value="file">
-                <AudioFileField id="episode-file" state={uploadState} />
+                <AudioFileField id="replace-audio-file" state={uploadState} />
               </TabsContent>
             </Tabs>
-            <Field>
-              <FieldLabel htmlFor="episode-title">Title</FieldLabel>
-              <Input
-                id="episode-title"
-                name="title"
-                autoComplete="off"
-                maxLength={200}
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-              />
-              <FieldDescription>
-                {source === 'link' ? "Leave blank to use the video's title." : "Leave blank to use the file's title or name."}
-              </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="episode-description">Description</FieldLabel>
-              <Textarea id="episode-description" name="description" maxLength={4000} />
-              {source === 'link' && <FieldDescription>Leave blank to use the video's description.</FieldDescription>}
-            </Field>
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
         </form>
@@ -152,12 +133,8 @@ export function NewEpisodeDialog({ podcastId, children }: { podcastId: string; c
           <DialogClose asChild>
             <Button variant="outline">Cancel</Button>
           </DialogClose>
-          <Button
-            type="submit"
-            form="new-episode"
-            disabled={pending || (source === 'file' && upload.status !== 'ready')}
-          >
-            Add episode
+          <Button type="submit" form="replace-audio" disabled={pending || (source === 'file' && upload.status !== 'ready')}>
+            Replace audio
           </Button>
         </DialogFooter>
       </DialogContent>

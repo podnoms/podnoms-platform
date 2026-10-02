@@ -4,6 +4,7 @@ import { EditDetailsDialog } from '~/components/edit-details-dialog'
 import { EpisodeProgress, stageLabels } from '~/components/episode-progress'
 import { Icons } from '~/components/icons'
 import { usePlayer } from '~/components/player/player-provider'
+import { ReplaceAudioDialog } from '~/components/replace-audio-dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +26,7 @@ import {
 } from '~/components/ui/dropdown-menu'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemFooter, ItemMedia, ItemTitle } from '~/components/ui/item'
 import { Spinner } from '~/components/ui/spinner'
-import { deleteMyEpisode, retryMyEpisode, updateMyEpisode } from '~/functions/podcasts'
+import { deleteMyEpisode, dismissMyEpisodeError, retryMyEpisode, updateMyEpisode } from '~/functions/podcasts'
 import { formatClock, formatDate, hostname } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { htmlToText } from '~/lib/rich-text'
@@ -43,6 +44,7 @@ export type EpisodeRowData = {
   durationSeconds: number | null
   status: EpisodeStatus
   error: string | null
+  replacing: boolean
   createdAt: Date
   positionSeconds: number | null
   progress: ProgressInfo | null
@@ -61,6 +63,7 @@ export function EpisodeRow({
   const player = usePlayer()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [replacingAudio, setReplacingAudio] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const inProgress = episode.status === 'pending' || episode.status === 'processing'
@@ -152,17 +155,23 @@ export function EpisodeRow({
             <span className="sr-only">{isPlaying ? 'Pause' : 'Play'}</span>
           </Button>
         )}
-        {inProgress && (
+        {(inProgress || episode.replacing) && (
           <Badge variant="secondary">
             <Spinner />
-            {episode.progress ? stageLabels[episode.progress.stage] : 'Processing'}
+            {episode.replacing ? 'Replacing audio' : episode.progress ? stageLabels[episode.progress.stage] : 'Processing'}
           </Badge>
         )}
         {episode.status === 'failed' && (
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => run(() => retryMyEpisode({ data: { id: episode.id } }))}>
-            <Icons.retry />
-            Retry
-          </Button>
+          <>
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => setReplacingAudio(true)}>
+              <Icons.replaceAudio />
+              Replace audio
+            </Button>
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => run(() => retryMyEpisode({ data: { id: episode.id } }))}>
+              <Icons.retry />
+              Retry
+            </Button>
+          </>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -176,6 +185,12 @@ export function EpisodeRow({
               <Icons.edit />
               Edit episode
             </DropdownMenuItem>
+            {(episode.status === 'ready' || episode.status === 'failed') && (
+              <DropdownMenuItem disabled={episode.replacing} onSelect={() => setReplacingAudio(true)}>
+                <Icons.replaceAudio />
+                Replace audio
+              </DropdownMenuItem>
+            )}
             {episode.status === 'ready' && episode.audioUrl && (
               <DropdownMenuItem asChild>
                 <a href={episode.audioUrl} download={`${episode.title}.mp3`}>
@@ -195,7 +210,7 @@ export function EpisodeRow({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
-              disabled={episode.status === 'processing'}
+              disabled={episode.status === 'processing' || episode.replacing}
               onSelect={() => setConfirmDelete(true)}
             >
               <Icons.delete />
@@ -204,9 +219,24 @@ export function EpisodeRow({
           </DropdownMenuContent>
         </DropdownMenu>
       </ItemActions>
-      {inProgress && (
+      {(inProgress || episode.replacing) && (
         <ItemFooter>
           <EpisodeProgress progress={episode.progress} />
+        </ItemFooter>
+      )}
+      {/* Replacing the audio failed; the episode kept its old audio. */}
+      {episode.status === 'ready' && episode.error && (
+        <ItemFooter className="relative z-10">
+          <p className="text-sm text-destructive">{episode.error}</p>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            disabled={busy}
+            onClick={() => run(() => dismissMyEpisodeError({ data: { id: episode.id } }))}
+          >
+            <Icons.close />
+            <span className="sr-only">Dismiss</span>
+          </Button>
         </ItemFooter>
       )}
       {episode.status === 'failed' && (
@@ -222,6 +252,12 @@ export function EpisodeRow({
         details={{ title: episode.title, description: episode.description, imageUrl: episode.imageUrl }}
         maxTitleLength={200}
         onSave={(change) => run(() => updateMyEpisode({ data: { id: episode.id, ...change } }))}
+      />
+      <ReplaceAudioDialog
+        episodeId={episode.id}
+        failed={episode.status === 'failed'}
+        open={replacingAudio}
+        onOpenChange={setReplacingAudio}
       />
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>

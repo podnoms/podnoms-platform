@@ -1,23 +1,31 @@
 // Turns an episode's source into audio, then marks it ready (or failed). A
 // source link is downloaded by yt-dlp, which extracts an MP3 and reports the
-// metadata; an uploaded file is converted to MP3 by ffmpeg.
+// metadata; an uploaded file is converted to MP3 by ffmpeg. A ready episode's
+// audio can be replaced the same way, without taking it offline meanwhile.
 //
 // Jobs run in this server process, one at a time. That's fine for a single
 // server; move to a real job queue before running several.
 import '@tanstack/react-start/server-only'
 import { spawn } from 'node:child_process'
-import { rm, stat } from 'node:fs/promises'
+import { rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, isNotNull, or } from 'drizzle-orm'
 import { env } from '~/env'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
-import { episodes, type Episode } from '~/server/db/schema'
+import { episodes, type Episode, type EpisodeReplacement } from '~/server/db/schema'
 import { availableEpisodeSlug, isSlugConflict, withRandomSuffix } from '~/server/episode-slugs.server'
 import { downloadImage } from '~/server/images.server'
 import { convertToMp3, probeAudio } from '~/server/media.server'
 import { saveWaveform } from '~/server/waveforms.server'
-import { ensureAudioDir, episodeAudioPath, episodeAudioUrl, episodeSourcePath } from '~/server/storage.server'
+import {
+  ensureAudioDir,
+  episodeAudioPath,
+  episodeAudioUrl,
+  episodeSourcePath,
+  replacementAudioName,
+  replacementAudioPath,
+} from '~/server/storage.server'
 
 // Live progress of queued and running jobs, kept in memory: it changes many
 // times a second and is only interesting while a job is running.
@@ -113,7 +121,8 @@ type ProcessedAudio = Pick<SourceInfo, 'title' | 'description' | 'thumbnail'> & 
   durationSeconds: number | null
 }
 
-async function downloadSource(episodeId: string, sourceUrl: string): Promise<ProcessedAudio> {
+// Saved in the audio folder as `<name>.mp3`.
+async function downloadSource(episodeId: string, sourceUrl: string, name = episodeId): Promise<ProcessedAudio> {
   progress.set(episodeId, { stage: 'fetching' })
   const onLine = (line: string) => {
     if (line.startsWith('PROGRESS ')) {
@@ -133,21 +142,20 @@ async function downloadSource(episodeId: string, sourceUrl: string): Promise<Pro
     }
   }
   const dir = await ensureAudioDir()
-  const info = await runYtDlp(sourceUrl, join(dir, `${episodeId}.%(ext)s`), onLine)
+  const info = await runYtDlp(sourceUrl, join(dir, `${name}.%(ext)s`), onLine)
   return {
     ...info,
-    path: info.filepath ?? episodeAudioPath(episodeId),
+    path: info.filepath ?? join(dir, `${name}.mp3`),
     durationSeconds: info.duration ? Math.round(info.duration) : null,
   }
 }
 
-async function convertUpload(episodeId: string): Promise<ProcessedAudio> {
+async function convertUpload(episodeId: string, path = episodeAudioPath(episodeId)): Promise<ProcessedAudio> {
   progress.set(episodeId, { stage: 'converting', percent: 0 })
   const source = episodeSourcePath(episodeId)
   const info = await probeAudio(source)
   if (!info) throw new Error("The uploaded file is missing or doesn't contain any audio")
   await ensureAudioDir()
-  const path = episodeAudioPath(episodeId)
   try {
     await convertToMp3(source, path, info, (fraction) => {
       progress.set(episodeId, { stage: 'converting', percent: Math.floor(fraction * 100) })
@@ -162,6 +170,7 @@ async function convertUpload(episodeId: string): Promise<ProcessedAudio> {
 async function processEpisode(episodeId: string) {
   const [episode] = await db.select().from(episodes).where(eq(episodes.id, episodeId)).limit(1)
   if (!episode) return
+  if (episode.replacement) return replaceAudio(episode, episode.replacement)
   await db.update(episodes).set({ status: 'processing', error: null }).where(eq(episodes.id, episodeId))
 
   try {
@@ -217,6 +226,44 @@ async function markReady(episode: Episode, audio: ProcessedAudio) {
   }
 }
 
+// Makes the episode's new audio alongside its current audio, which stays live
+// until the new audio takes its place. If that fails, the episode keeps its
+// current audio and the error is noted. Its details are kept either way.
+async function replaceAudio(episode: Episode, { sourceUrl }: EpisodeReplacement) {
+  const id = episode.id
+  try {
+    const audio = sourceUrl
+      ? await downloadSource(id, sourceUrl, replacementAudioName(id))
+      : await convertUpload(id, replacementAudioPath(id))
+    const { size } = await stat(audio.path)
+    await rename(audio.path, episodeAudioPath(id))
+    await db
+      .update(episodes)
+      .set({
+        replacement: null,
+        error: null,
+        sourceUrl,
+        durationSeconds: audio.durationSeconds,
+        audioUrl: episodeAudioUrl(id, Date.now().toString(36)),
+        audioMimeType: 'audio/mpeg',
+        audioSizeBytes: size,
+      })
+      .where(eq(episodes.id, id))
+    await saveWaveform(id).catch((error: unknown) => console.error(`Could not make a waveform for episode ${id}:`, error))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    await rm(replacementAudioPath(id), { force: true })
+    await db
+      .update(episodes)
+      .set({ replacement: null, error: `Couldn't replace the audio: ${message}`.slice(0, 1000) })
+      .where(eq(episodes.id, id))
+  } finally {
+    // Unlike a new episode's, a replacement upload isn't kept for retrying.
+    if (!sourceUrl) await rm(episodeSourcePath(id), { force: true })
+    progress.delete(id)
+  }
+}
+
 const queue: string[] = []
 const queued = new Set<string>()
 let draining = false
@@ -249,7 +296,8 @@ export function getEpisodeProgress(episodeId: string): EpisodeProgress | null {
   return index === -1 ? null : { stage: 'queued', ahead: index + (draining ? 1 : 0) }
 }
 
-// Episodes left pending or mid-download when the server last stopped. Picked
+// Episodes left pending or mid-download, or with audio waiting to be
+// replaced, when the server last stopped. Picked
 // up the first time the app handles a podcast request after starting.
 let resumed = false
 export async function resumeUnfinishedEpisodes() {
@@ -258,6 +306,6 @@ export async function resumeUnfinishedEpisodes() {
   const unfinished = await db
     .select({ id: episodes.id })
     .from(episodes)
-    .where(inArray(episodes.status, ['pending', 'processing']))
+    .where(or(inArray(episodes.status, ['pending', 'processing']), isNotNull(episodes.replacement)))
   for (const { id } of unfinished) enqueueEpisode(id)
 }

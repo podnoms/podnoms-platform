@@ -5,6 +5,7 @@ import { EpisodeProgress } from '~/components/episode-progress'
 import { Icons } from '~/components/icons'
 import { usePlayer } from '~/components/player/player-provider'
 import { Waveform } from '~/components/player/waveform'
+import { ReplaceAudioDialog } from '~/components/replace-audio-dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +18,14 @@ import {
 } from '~/components/ui/alert-dialog'
 import { Button } from '~/components/ui/button'
 import { Slider } from '~/components/ui/slider'
-import { deleteMyEpisode, fetchMyEpisode, fetchMyEpisodeSlug, retryMyEpisode, updateMyEpisode } from '~/functions/podcasts'
+import {
+  deleteMyEpisode,
+  dismissMyEpisodeError,
+  fetchMyEpisode,
+  fetchMyEpisodeSlug,
+  retryMyEpisode,
+  updateMyEpisode,
+} from '~/functions/podcasts'
 import { formatClock, formatDate, hostname } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 
@@ -35,15 +43,17 @@ function EpisodePage() {
   const player = usePlayer()
   const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
+  const [replacingAudio, setReplacingAudio] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   const inProgress = episode.status === 'pending' || episode.status === 'processing'
-  // Refresh every second while the episode is being processed. A link's
+  const polling = inProgress || episode.replacing
+  // Refresh every second while the episode is being processed or its audio replaced. A link's
   // temporary slug is replaced when its title is fetched, so follow it to the
   // new URL rather than reloading the old one.
   useEffect(() => {
-    if (!inProgress) return
+    if (!polling) return
     const timer = setInterval(async () => {
       const slug = await fetchMyEpisodeSlug({ data: { id: episode.id } }).catch(() => null)
       if (slug && slug !== episode.slug) {
@@ -57,7 +67,7 @@ function EpisodePage() {
       }
     }, 1000)
     return () => clearInterval(timer)
-  }, [inProgress, router, navigate, episode.id, episode.slug, podcast.slug])
+  }, [polling, router, navigate, episode.id, episode.slug, podcast.slug])
 
   const ready = episode.status === 'ready' && episode.audioUrl !== null
   const isCurrent = player.episode?.id === episode.id
@@ -166,6 +176,18 @@ function EpisodePage() {
                 <Icons.edit />
                 Edit
               </Button>
+              {(episode.status === 'ready' || episode.status === 'failed') && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={episode.replacing}
+                  onClick={() => setReplacingAudio(true)}
+                  title="Replace audio"
+                >
+                  <Icons.replaceAudio />
+                  <span className="sr-only">Replace audio</span>
+                </Button>
+              )}
               {ready && (
                 <Button variant="ghost" size="icon" asChild title="Download MP3">
                   <a href={episode.audioUrl!} download={`${episode.title}.mp3`}>
@@ -182,12 +204,12 @@ function EpisodePage() {
                   </a>
                 </Button>
               )}
-              {/* Episodes can't be deleted mid-download. */}
+              {/* Episodes can't be deleted mid-download or while their audio is replaced. */}
               <Button
                 variant="ghost"
                 size="icon"
                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                disabled={episode.status === 'processing'}
+                disabled={episode.status === 'processing' || episode.replacing}
                 onClick={() => setConfirmDelete(true)}
                 title="Delete episode"
               >
@@ -226,23 +248,52 @@ function EpisodePage() {
           <EpisodeProgress progress={episode.progress} />
         </section>
       )}
+      {episode.replacing && (
+        <section className="flex flex-col gap-2 rounded-xl border bg-card p-4">
+          <p className="text-sm font-medium">Replacing the audio</p>
+          <EpisodeProgress progress={episode.progress} />
+        </section>
+      )}
+      {/* Replacing the audio failed; the episode kept its old audio. */}
+      {episode.status === 'ready' && episode.error && (
+        <section className="flex items-center gap-4 rounded-xl border border-destructive/40 bg-card p-4">
+          <p className="text-sm text-destructive">{episode.error}</p>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="ml-auto"
+            onClick={async () => {
+              await dismissMyEpisodeError({ data: { id: episode.id } })
+              await router.invalidate()
+            }}
+          >
+            <Icons.close />
+            <span className="sr-only">Dismiss</span>
+          </Button>
+        </section>
+      )}
       {episode.status === 'failed' && (
         <section className="flex items-center gap-4 rounded-xl border border-destructive/40 bg-card p-4">
           <p className="text-sm text-destructive">
             {episode.error ?? 'Something went wrong downloading this episode.'}
           </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="ml-auto"
-            onClick={async () => {
-              await retryMyEpisode({ data: { id: episode.id } })
-              await router.invalidate()
-            }}
-          >
-            <Icons.retry />
-            Retry
-          </Button>
+          <div className="ml-auto flex shrink-0 gap-2">
+            <Button variant="outline" size="sm" onClick={() => setReplacingAudio(true)}>
+              <Icons.replaceAudio />
+              Replace audio
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                await retryMyEpisode({ data: { id: episode.id } })
+                await router.invalidate()
+              }}
+            >
+              <Icons.retry />
+              Retry
+            </Button>
+          </div>
         </section>
       )}
 
@@ -270,6 +321,12 @@ function EpisodePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <ReplaceAudioDialog
+        episodeId={episode.id}
+        failed={episode.status === 'failed'}
+        open={replacingAudio}
+        onOpenChange={setReplacingAudio}
+      />
       <EditDetailsDialog
         open={editing}
         onOpenChange={setEditing}
