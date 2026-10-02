@@ -138,6 +138,38 @@ To update, repeat the appropriate `up -d --pull always` command. If the GHCR
 package is private, authenticate with `docker login ghcr.io` using a token with
 `read:packages`, or make the package public for unauthenticated pulls.
 
+### Manually publishing a Docker image
+
+Use [`scripts/create-manual-docker.sh`](scripts/create-manual-docker.sh) to build
+your current checkout and push directly to GHCR without waiting for GitHub Actions.
+Install Docker with Buildx and sign in once:
+
+```sh
+docker login ghcr.io -u YOUR_GITHUB_USERNAME
+```
+
+At the password prompt, use a [personal access token (classic) with
+`write:packages`](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic)
+from an account with write access to the package.
+
+```sh
+./scripts/create-manual-docker.sh --dry-run  # preview without building or pushing
+./scripts/create-manual-docker.sh           # build and push :latest
+./scripts/create-manual-docker.sh hotfix    # push only :hotfix; leaves :latest alone
+```
+
+The default image is `ghcr.io/podnoms/podnoms-platform:latest`, matching Compose.
+The script builds `linux/amd64`, matching the GitHub Actions runner, and reuses
+the local builder's cache. Override `IMAGE_NAME` (without a tag) or `PLATFORM`
+if needed, for example `PLATFORM=linux/arm64 ./scripts/create-manual-docker.sh hotfix`.
+Building for a different architecture requires a builder that supports it.
+
+Local changes are included subject to `.dockerignore`. This shortcut skips
+type-checks and tests and does not bump the version, create Git tags, or trigger
+Actions. It publishes only the requested image tag; use the release workflow for
+version and commit SHA tags. After pushing `latest`, run the appropriate Compose
+`up -d --pull always` command on your server to deploy it.
+
 ### Running directly
 
 `bun run build` produces a Node.js server in `.output/`. Run it with `bun run start`, or `node .output/server/index.mjs`. Set `NITRO_PRESET` at build time to target another platform.

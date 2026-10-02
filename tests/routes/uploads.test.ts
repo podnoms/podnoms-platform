@@ -59,6 +59,30 @@ describe('POST /api/uploads', () => {
     expect(upload).toEqual({ uploadId: expect.any(String), title: 'Morning Show', durationSeconds: 1 })
     expect(await findUpload('user-1', upload.uploadId)).toEqual(upload)
   })
+
+  it.skipIf(!hasFfmpeg)('takes the file in parts when given its size', async () => {
+    signedIn()
+    const audio = await readFile(await makeTone(join(process.env.MEDIA_DIR!, 'route-parts.wav'), 1))
+    const middle = Math.floor(audio.length / 2)
+    const query = `filename=Parts.wav&size=${audio.length}`
+    const first = await callRoute(UploadsRoute, 'POST', post(`/api/uploads?${query}&offset=0`, audio.subarray(0, middle)))
+    expect(first.status).toBe(200)
+    const { uploadId } = (await first.json()) as { uploadId: string }
+    const last = await callRoute(
+      UploadsRoute,
+      'POST',
+      post(`/api/uploads?${query}&offset=${middle}&uploadId=${uploadId}`, audio.subarray(middle)),
+    )
+    expect(last.status).toBe(200)
+    expect(await last.json()).toEqual({ uploadId, title: 'Parts', durationSeconds: 1 })
+  })
+
+  it('explains parts it refuses', async () => {
+    signedIn()
+    const response = await callRoute(UploadsRoute, 'POST', post('/api/uploads?size=10&offset=3&uploadId=nope', 'x'))
+    expect(response.status).toBe(404)
+    expect(await response.text()).toBe('That upload has expired. Please try again.')
+  })
 })
 
 describe('POST /api/images', () => {

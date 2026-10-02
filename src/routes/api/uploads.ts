@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { maxUploadBytes } from '~/lib/episode-schema'
 import { getSession } from '~/server/auth.server'
-import { saveUpload, UploadError } from '~/server/uploads.server'
+import { saveUpload, saveUploadPart, UploadError } from '~/server/uploads.server'
 
-// Receives an audio file to turn into an episode. The body is the raw file,
-// streamed to disk rather than parsed as a form, so large files aren't held in
-// memory; its name comes in the `filename` query parameter.
+// Receives an audio file to turn into an episode. The body is the raw file, or
+// one part of it, streamed to disk rather than parsed as a form, so large files
+// aren't held in memory; its name comes in the `filename` query parameter.
 export const Route = createFileRoute('/api/uploads')({
   server: {
     handlers: {
@@ -17,8 +17,20 @@ export const Route = createFileRoute('/api/uploads')({
           return new Response('That file is too big to upload', { status: 413 })
         }
 
-        const filename = new URL(request.url).searchParams.get('filename') ?? ''
+        const params = new URL(request.url).searchParams
+        const filename = params.get('filename') ?? ''
         try {
+          // With `size`, the body is one part of the file (see saveUploadPart);
+          // without, it's the whole file.
+          if (params.has('size')) {
+            const part = {
+              uploadId: params.get('uploadId') || undefined,
+              offset: Number(params.get('offset') ?? 0),
+              size: Number(params.get('size')),
+              filename,
+            }
+            return Response.json(await saveUploadPart(session.user.id, request.body, part))
+          }
           return Response.json(await saveUpload(session.user.id, request.body, filename))
         } catch (error) {
           if (error instanceof UploadError) return new Response(error.message, { status: error.status })

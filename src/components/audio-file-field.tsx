@@ -5,7 +5,7 @@ import { Field, FieldDescription, FieldLabel } from '~/components/ui/field'
 import { Progress } from '~/components/ui/progress'
 import { maxUploadBytes } from '~/lib/episode-schema'
 import { formatBytes, formatClock } from '~/lib/format'
-import { isAbort, uploadFile } from '~/lib/upload'
+import { isAbort, uploadFileInParts } from '~/lib/upload'
 import type { UploadedAudio } from '~/server/uploads.server'
 
 export type AudioUpload =
@@ -34,8 +34,7 @@ export function useAudioUpload(onUploaded?: (result: UploadedAudio) => void) {
       setUpload({ status: 'failed', file, message: `That file is too big. The limit is ${formatBytes(maxUploadBytes)}.` })
       return
     }
-    const url = `/api/uploads?filename=${encodeURIComponent(file.name)}`
-    const { done, abort } = uploadFile<UploadedAudio>(url, file, (percent) =>
+    const { done, abort } = uploadFileInParts<UploadedAudio>(file, (percent) =>
       setUpload((current) => (current.status === 'uploading' && current.file === file ? { ...current, percent } : current)),
     )
     setUpload({ status: 'uploading', file, percent: 0, abort })
