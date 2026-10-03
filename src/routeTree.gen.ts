@@ -24,6 +24,7 @@ import { Route as AuthedSettingsSecurityRouteImport } from './routes/_authed/set
 import { Route as AdminQueuesSplatRouteImport } from './routes/admin/queues/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiEpisodesIdAudioRouteImport } from './routes/api/episodes/$id/audio'
+import { Route as ApiPodcastsSlugEventsRouteImport } from './routes/api/podcasts/$slug/events'
 import { Route as AuthedPodcastsSlugEpisodesEpisodeSlugRouteImport } from './routes/_authed/podcasts/$slug_.episodes.$episodeSlug'
 
 const IndexRoute = IndexRouteImport.update({
@@ -100,6 +101,11 @@ const ApiEpisodesIdAudioRoute = ApiEpisodesIdAudioRouteImport.update({
   path: '/api/episodes/$id/audio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPodcastsSlugEventsRoute = ApiPodcastsSlugEventsRouteImport.update({
+  id: '/api/podcasts/$slug/events',
+  path: '/api/podcasts/$slug/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthedPodcastsSlugEpisodesEpisodeSlugRoute =
   AuthedPodcastsSlugEpisodesEpisodeSlugRouteImport.update({
     id: '/podcasts/$slug_/episodes/$episodeSlug',
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/settings/': typeof AuthedSettingsIndexRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
+  '/api/podcasts/$slug/events': typeof ApiPodcastsSlugEventsRoute
   '/podcasts/$slug/episodes/$episodeSlug': typeof AuthedPodcastsSlugEpisodesEpisodeSlugRoute
 }
 export interface FileRoutesByTo {
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/settings': typeof AuthedSettingsIndexRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
+  '/api/podcasts/$slug/events': typeof ApiPodcastsSlugEventsRoute
   '/podcasts/$slug/episodes/$episodeSlug': typeof AuthedPodcastsSlugEpisodesEpisodeSlugRoute
 }
 export interface FileRoutesById {
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/_authed/settings/': typeof AuthedSettingsIndexRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
+  '/api/podcasts/$slug/events': typeof ApiPodcastsSlugEventsRoute
   '/_authed/podcasts/$slug_/episodes/$episodeSlug': typeof AuthedPodcastsSlugEpisodesEpisodeSlugRoute
 }
 export interface FileRouteTypes {
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/settings/'
     | '/api/episodes/$id/audio'
+    | '/api/podcasts/$slug/events'
     | '/podcasts/$slug/episodes/$episodeSlug'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/settings'
     | '/api/episodes/$id/audio'
+    | '/api/podcasts/$slug/events'
     | '/podcasts/$slug/episodes/$episodeSlug'
   id:
     | '__root__'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/_authed/settings/'
     | '/api/episodes/$id/audio'
+    | '/api/podcasts/$slug/events'
     | '/_authed/podcasts/$slug_/episodes/$episodeSlug'
   fileRoutesById: FileRoutesById
 }
@@ -224,6 +236,7 @@ export interface RootRouteChildren {
   AdminQueuesSplatRoute: typeof AdminQueuesSplatRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiEpisodesIdAudioRoute: typeof ApiEpisodesIdAudioRoute
+  ApiPodcastsSlugEventsRoute: typeof ApiPodcastsSlugEventsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -333,6 +346,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiEpisodesIdAudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/podcasts/$slug/events': {
+      id: '/api/podcasts/$slug/events'
+      path: '/api/podcasts/$slug/events'
+      fullPath: '/api/podcasts/$slug/events'
+      preLoaderRoute: typeof ApiPodcastsSlugEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authed/podcasts/$slug_/episodes/$episodeSlug': {
       id: '/_authed/podcasts/$slug_/episodes/$episodeSlug'
       path: '/podcasts/$slug/episodes/$episodeSlug'
@@ -386,6 +406,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminQueuesSplatRoute: AdminQueuesSplatRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiEpisodesIdAudioRoute: ApiEpisodesIdAudioRoute,
+  ApiPodcastsSlugEventsRoute: ApiPodcastsSlugEventsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

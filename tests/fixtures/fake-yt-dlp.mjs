@@ -5,7 +5,7 @@
 //   ?title=…&description=…&duration=…&thumbnail=…  what it reports about the source
 //   /fail                                          fails as an unavailable video
 //   /no-info                                       exits without reporting anything
-//   ?hold=ms                                       pauses after reporting download and conversion progress
+//   ?hold=ms                                       pauses after reporting download progress
 // The audio it "downloads" is a copy of FAKE_YTDLP_AUDIO.
 import { copyFileSync, writeFileSync } from 'node:fs'
 
@@ -26,8 +26,6 @@ for (const downloaded of [1000, 2000, total]) {
   const progress = { status: 'downloading', downloaded_bytes: downloaded, total_bytes: total, total_bytes_estimate: null, speed: 1000, eta: (total - downloaded) / 1000 }
   console.log(`PROGRESS ${JSON.stringify(progress)}`)
 }
-await hold()
-console.log(`POSTPROCESS ${JSON.stringify({ status: 'started', postprocessor: 'ExtractAudio' })}`)
 await hold()
 
 const filepath = output.replace('%(ext)s', 'mp3')

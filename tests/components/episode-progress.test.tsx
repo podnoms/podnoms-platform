@@ -29,7 +29,7 @@ describe('EpisodeProgress', () => {
 
   it('shows fetching', () => {
     render(<EpisodeProgress progress={{ stage: 'fetching' }} />)
-    expect(screen.getByText('Fetching video details…')).toBeTruthy()
+    expect(screen.getByText('Fetching details…')).toBeTruthy()
   })
 
   it('shows download percentage, size, speed and time left', () => {
@@ -51,13 +51,13 @@ describe('EpisodeProgress', () => {
 
   it('shows conversion percentage for uploads', () => {
     render(<EpisodeProgress progress={{ stage: 'converting', percent: 40 }} />)
-    expect(screen.getByText('Converting to MP3 · 40%')).toBeTruthy()
+    expect(screen.getByText('Converting audio · 40%')).toBeTruthy()
     expect(filled()).toBe(40)
   })
 
   it('shows conversion without a percentage for downloads', () => {
     render(<EpisodeProgress progress={{ stage: 'converting', percent: null }} />)
-    expect(screen.getByText('Downloaded · converting to MP3…')).toBeTruthy()
+    expect(screen.getByText('Converting audio…')).toBeTruthy()
     expect(filled()).toBe(100)
   })
 })

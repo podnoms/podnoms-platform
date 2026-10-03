@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createFileRoute, Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { EditDetailsDialog } from '~/components/edit-details-dialog'
 import { EpisodeProgress } from '~/components/episode-progress'
@@ -26,6 +26,7 @@ import {
   retryMyEpisode,
   updateMyEpisode,
 } from '~/functions/podcasts'
+import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
 import { formatClock, formatDate, hostname } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 
@@ -38,7 +39,8 @@ export const Route = createFileRoute('/_authed/podcasts/$slug_/episodes/$episode
 })
 
 function EpisodePage() {
-  const { podcast, episode, waveform } = Route.useLoaderData()
+  const loaded = Route.useLoaderData()
+  const { podcast, episode, waveform } = loaded
   const router = useRouter()
   const player = usePlayer()
   const navigate = useNavigate()
@@ -48,26 +50,24 @@ function EpisodePage() {
   const [deleting, setDeleting] = useState(false)
 
   const inProgress = episode.status === 'pending' || episode.status === 'processing'
-  const polling = inProgress || episode.replacing
-  // Refresh every second while the episode is being processed or its audio replaced. A link's
+  // While the episode is being processed or its audio replaced, follow it live
+  // rather than polling. When its details change, reload them; a link's
   // temporary slug is replaced when its title is fetched, so follow it to the
   // new URL rather than reloading the old one.
-  useEffect(() => {
-    if (!polling) return
-    const timer = setInterval(async () => {
-      const slug = await fetchMyEpisodeSlug({ data: { id: episode.id } }).catch(() => null)
-      if (slug && slug !== episode.slug) {
-        await navigate({
-          to: '/podcasts/$slug/episodes/$episodeSlug',
-          params: { slug: podcast.slug, episodeSlug: slug },
-          replace: true,
-        })
-      } else {
-        await router.invalidate({ filter: (match) => match.routeId === Route.id })
-      }
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [polling, router, navigate, episode.id, episode.slug, podcast.slug])
+  const live = useLiveProgress(podcast.slug, inProgress || episode.replacing, loaded, async (changed) => {
+    if (changed.size > 0 && !changed.has(episode.id)) return
+    const slug = await fetchMyEpisodeSlug({ data: { id: episode.id } }).catch(() => null)
+    if (slug && slug !== episode.slug) {
+      await navigate({
+        to: '/podcasts/$slug/episodes/$episodeSlug',
+        params: { slug: podcast.slug, episodeSlug: slug },
+        replace: true,
+      })
+    } else {
+      await router.invalidate({ filter: (match) => match.routeId === Route.id })
+    }
+  })
+  const progress = withLiveProgress(episode, live).progress
 
   const ready = episode.status === 'ready' && episode.audioUrl !== null
   const isCurrent = player.episode?.id === episode.id
@@ -245,13 +245,13 @@ function EpisodePage() {
       )}
       {inProgress && (
         <section className="rounded-xl border bg-card p-4">
-          <EpisodeProgress progress={episode.progress} />
+          <EpisodeProgress progress={progress} />
         </section>
       )}
       {episode.replacing && (
         <section className="flex flex-col gap-2 rounded-xl border bg-card p-4">
           <p className="text-sm font-medium">Replacing the audio</p>
-          <EpisodeProgress progress={episode.progress} />
+          <EpisodeProgress progress={progress} />
         </section>
       )}
       {/* Replacing the audio failed; the episode kept its old audio. */}

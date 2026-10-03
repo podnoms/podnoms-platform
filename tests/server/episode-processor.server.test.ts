@@ -1,10 +1,11 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { episodes, type Episode } from '~/server/db/schema'
+import { subscribeToEpisodeEvents, type EpisodeEvent } from '~/server/episode-events.server'
 import { enqueueEpisode, getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
 import { reportError } from '~/server/logger.server'
 import { episodeAudioPath, episodeSourcePath, episodeWaveformPath, replacementAudioPath } from '~/server/storage.server'
@@ -115,11 +116,12 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     expect((await processed(episode.id)).slug).toBe('taken-2')
   })
 
-  it('keeps the link as the title when the source has none', async () => {
+  it("keeps the link as the title when the source has none, and takes the file's length", async () => {
     const sourceUrl = link('/watch')
     const episode = await linkEpisode({ sourceUrl })
     enqueueEpisode(episode.id)
-    expect(await processed(episode.id)).toMatchObject({ status: 'ready', title: sourceUrl, slug: 'episode-temp', durationSeconds: null })
+    // The fixture's audio is a 3 second tone.
+    expect(await processed(episode.id)).toMatchObject({ status: 'ready', title: sourceUrl, slug: 'episode-temp', durationSeconds: 3 })
   })
 
   it("fails with yt-dlp's error, without its prefix", async () => {
@@ -139,21 +141,49 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
   })
 
   it('reports download and conversion progress while running', async () => {
-    const episode = await linkEpisode({ sourceUrl: link('/watch', { hold: '400' }) })
-    enqueueEpisode(episode.id)
-    await vi.waitFor(() =>
-      expect(getEpisodeProgress(episode.id)).toEqual({
-        stage: 'downloading',
-        downloadedBytes: 3000,
-        totalBytes: 3000,
-        bytesPerSecond: 1000,
-        secondsLeft: 0,
-      }),
-    )
-    await vi.waitFor(() => expect(getEpisodeProgress(episode.id)).toEqual({ stage: 'converting', percent: null }))
-    expect((await getRow(episode.id)).status).toBe('processing')
-    await processed(episode.id)
+    const episode = await linkEpisode({ sourceUrl: link('/watch', { hold: '400', duration: '3' }) })
+    const stages: unknown[] = []
+    const unsubscribe = subscribeToEpisodeEvents((event) => {
+      if (event.episodeId === episode.id && event.type === 'progress') stages.push(event.progress)
+    })
+    try {
+      enqueueEpisode(episode.id)
+      await vi.waitFor(() =>
+        expect(getEpisodeProgress(episode.id)).toEqual({
+          stage: 'downloading',
+          downloadedBytes: 3000,
+          totalBytes: 3000,
+          bytesPerSecond: 1000,
+          secondsLeft: 0,
+        }),
+      )
+      expect((await getRow(episode.id)).status).toBe('processing')
+      await processed(episode.id)
+    } finally {
+      unsubscribe()
+    }
     expect(getEpisodeProgress(episode.id)).toBeNull()
+    // Converted here, so how far along it is is known, ending at 100%.
+    const converting = stages.filter((p) => (p as { stage?: string } | null)?.stage === 'converting')
+    expect(converting[0]).toEqual({ stage: 'converting', percent: 0 })
+    expect(converting.at(-1)).toEqual({ stage: 'converting', percent: 100 })
+  })
+
+  it('removes the download once it has been converted', async () => {
+    const episode = await linkEpisode({ sourceUrl: link('/watch') })
+    enqueueEpisode(episode.id)
+    await processed(episode.id)
+    const leftovers = (await readdir(join(media, 'audio'))).filter((name) => name.startsWith(`${episode.id}.download`))
+    expect(leftovers).toEqual([])
+  })
+
+  it('asks yt-dlp for the audio alone, to convert itself', async () => {
+    const episode = await linkEpisode({ sourceUrl: link('/watch') })
+    enqueueEpisode(episode.id)
+    await processed(episode.id)
+    const args = JSON.parse(await readFile(join(media, 'yt-dlp-args.json'), 'utf8')) as string[]
+    expect(args[args.indexOf('--format') + 1]).toBe('bestaudio/best')
+    expect(args).not.toContain('--extract-audio')
   })
 })
 
@@ -170,6 +200,27 @@ describe.skipIf(!hasFfmpeg)('episodes from uploads', () => {
     expect(await exists(episodeAudioPath(episode.id))).toBe(true)
     expect(await exists(episodeSourcePath(episode.id))).toBe(false)
     expect(await exists(episodeWaveformPath(episode.id))).toBe(true)
+  })
+
+  it('tells open pages how it is going, and when it is done', async () => {
+    const podcast = await createPodcast((await createUser()).id)
+    const episode = await createEpisode(podcast.id)
+    await makeTone(episodeSourcePath(episode.id), 2, ['-f', 'wav'])
+    const events: EpisodeEvent[] = []
+    const unsubscribe = subscribeToEpisodeEvents((event) => {
+      if (event.episodeId === episode.id) events.push(event)
+    })
+    try {
+      enqueueEpisode(episode.id)
+      await processed(episode.id)
+    } finally {
+      unsubscribe()
+    }
+    expect(events).toContainEqual({ type: 'progress', episodeId: episode.id, progress: { stage: 'converting', percent: 0 } })
+    // Once processing starts, and once it's over, after the last progress.
+    expect(events.filter((e) => e.type === 'changed')).toHaveLength(2)
+    expect(events.at(-2)).toEqual({ type: 'progress', episodeId: episode.id, progress: null })
+    expect(events.at(-1)).toEqual({ type: 'changed', episodeId: episode.id })
   })
 
   it('fails, keeping nothing, when the upload is missing', async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { EditDetailsDialog } from '~/components/edit-details-dialog'
 import { EpisodeRow } from '~/components/episode-row'
@@ -16,6 +16,7 @@ import {
 } from '~/components/ui/empty'
 import { ItemGroup } from '~/components/ui/item'
 import { fetchMyPodcast, updateMyPodcast } from '~/functions/podcasts'
+import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
 import { formatLength } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { htmlToText } from '~/lib/rich-text'
@@ -26,24 +27,17 @@ export const Route = createFileRoute('/_authed/podcasts/$slug')({
   component: PodcastPage,
 })
 
-// While episodes are being processed, refresh this page every second.
-function usePollWhileProcessing(active: boolean) {
-  const router = useRouter()
-  useEffect(() => {
-    if (!active) return
-    const timer = setInterval(() => {
-      void router.invalidate({ filter: (match) => match.routeId === Route.id })
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [active, router])
-}
-
 function PodcastPage() {
   const podcast = Route.useLoaderData()
   const router = useRouter()
   const [editing, setEditing] = useState(false)
-  const { episodes } = podcast
-  usePollWhileProcessing(episodes.some((e) => e.status === 'pending' || e.status === 'processing' || e.replacing))
+  // While episodes are being processed, follow them live (rather than polling)
+  // and reload the page when one's details change.
+  const processing = podcast.episodes.some((e) => e.status === 'pending' || e.status === 'processing' || e.replacing)
+  const live = useLiveProgress(podcast.slug, processing, podcast, () =>
+    router.invalidate({ filter: (match) => match.routeId === Route.id }),
+  )
+  const episodes = podcast.episodes.map((episode) => withLiveProgress(episode, live))
 
   const ready = episodes.filter((e) => e.status === 'ready')
   const totalSeconds = ready.reduce((sum, e) => sum + (e.durationSeconds ?? 0), 0)

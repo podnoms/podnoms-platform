@@ -35,7 +35,7 @@ export function EpisodeProgress({ progress }: { progress: ProgressInfo | null })
   if (progress.stage === 'converting' && progress.percent != null) {
     return (
       <div className="flex w-full flex-col gap-1.5">
-        <p className="text-sm text-muted-foreground">Converting to MP3 · {progress.percent}%</p>
+        <p className="text-sm text-muted-foreground">Converting audio · {progress.percent}%</p>
         <Progress value={progress.percent} />
       </div>
     )
@@ -45,8 +45,8 @@ export function EpisodeProgress({ progress }: { progress: ProgressInfo | null })
       progress.stage === 'queued' && progress.ahead > 0
         ? `Waiting to start · ${progress.ahead} ahead in the queue`
         : 'Starting…',
-    fetching: 'Fetching video details…',
-    converting: 'Downloaded · converting to MP3…',
+    fetching: 'Fetching details…',
+    converting: 'Converting audio…',
   }[progress.stage]
   return (
     <div className="flex w-full flex-col gap-1.5">

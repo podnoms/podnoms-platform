@@ -14,6 +14,7 @@ import { env } from '~/env'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
 import { episodes, type Episode, type EpisodeReplacement } from '~/server/db/schema'
+import { publishEpisodeEvent } from '~/server/episode-events.server'
 import { availableEpisodeSlug, isSlugConflict, withRandomSuffix } from '~/server/episode-slugs.server'
 import { downloadImage } from '~/server/images.server'
 import { convertToMp3, probeAudio } from '~/server/media.server'
@@ -45,6 +46,19 @@ export type EpisodeProgress =
 
 const progress = new Map<string, Exclude<EpisodeProgress, { stage: 'queued' }>>()
 
+// Every change of progress goes out to open pages (see episode-events.server.ts).
+function setProgress(episodeId: string, value: Exclude<EpisodeProgress, { stage: 'queued' }>) {
+  progress.set(episodeId, value)
+  publishEpisodeEvent({ type: 'progress', episodeId, progress: value })
+}
+
+// The job is over, so its stored details have changed too.
+function endProgress(episodeId: string) {
+  progress.delete(episodeId)
+  publishEpisodeEvent({ type: 'progress', episodeId, progress: null })
+  publishEpisodeEvent({ type: 'changed', episodeId })
+}
+
 type SourceInfo = {
   title?: string
   description?: string
@@ -62,8 +76,6 @@ type DownloadProgress = {
   eta?: number | null
 }
 
-type PostprocessProgress = { status?: string; postprocessor?: string }
-
 function runYtDlp(sourceUrl: string, outputTemplate: string, onLine: (line: string) => void) {
   const args = [
     '--no-playlist',
@@ -73,13 +85,11 @@ function runYtDlp(sourceUrl: string, outputTemplate: string, onLine: (line: stri
     '--newline',
     '--progress-template',
     'download:PROGRESS %(progress.{status,downloaded_bytes,total_bytes,total_bytes_estimate,speed,eta})j',
-    '--progress-template',
-    'postprocess:POSTPROCESS %(progress.{status,postprocessor})j',
     // --print would otherwise skip the download.
     '--no-simulate',
-    '--extract-audio',
-    '--audio-format',
-    'mp3',
+    // Just the audio, as the site has it; it's converted afterwards.
+    '--format',
+    'bestaudio/best',
     '--output',
     outputTemplate,
     '--print',
@@ -122,44 +132,54 @@ type ProcessedAudio = Pick<SourceInfo, 'title' | 'description' | 'thumbnail'> & 
   durationSeconds: number | null
 }
 
-// Saved in the audio folder as `<name>.mp3`.
+// Saved in the audio folder as `<name>.mp3`. yt-dlp downloads the audio as
+// the site has it (`<name>.download.<ext>`), and it's converted here rather
+// than by yt-dlp, which doesn't report how its conversion is going.
 async function downloadSource(episodeId: string, sourceUrl: string, name = episodeId): Promise<ProcessedAudio> {
-  progress.set(episodeId, { stage: 'fetching' })
+  setProgress(episodeId, { stage: 'fetching' })
   const onLine = (line: string) => {
-    if (line.startsWith('PROGRESS ')) {
-      const p = JSON.parse(line.slice(9)) as DownloadProgress
-      progress.set(episodeId, {
-        stage: 'downloading',
-        downloadedBytes: p.downloaded_bytes ?? 0,
-        totalBytes: p.total_bytes ?? p.total_bytes_estimate ?? null,
-        bytesPerSecond: p.speed ?? null,
-        secondsLeft: p.eta ?? null,
-      })
-    } else if (line.startsWith('POSTPROCESS ')) {
-      const p = JSON.parse(line.slice(12)) as PostprocessProgress
-      if (p.postprocessor === 'ExtractAudio' && p.status === 'started') {
-        progress.set(episodeId, { stage: 'converting', percent: null })
-      }
-    }
+    if (!line.startsWith('PROGRESS ')) return
+    const p = JSON.parse(line.slice(9)) as DownloadProgress
+    setProgress(episodeId, {
+      stage: 'downloading',
+      downloadedBytes: p.downloaded_bytes ?? 0,
+      totalBytes: p.total_bytes ?? p.total_bytes_estimate ?? null,
+      bytesPerSecond: p.speed ?? null,
+      secondsLeft: p.eta ?? null,
+    })
   }
   const dir = await ensureAudioDir()
-  const info = await runYtDlp(sourceUrl, join(dir, `${name}.%(ext)s`), onLine)
-  return {
-    ...info,
-    path: info.filepath ?? join(dir, `${name}.mp3`),
-    durationSeconds: info.duration ? Math.round(info.duration) : null,
+  const info = await runYtDlp(sourceUrl, join(dir, `${name}.download.%(ext)s`), onLine)
+  if (!info.filepath) throw new Error("yt-dlp didn't say where it saved the download")
+  const downloaded = info.filepath
+  const path = join(dir, `${name}.mp3`)
+  try {
+    const audio = await probeAudio(downloaded)
+    if (!audio) throw new Error("The download doesn't contain any audio")
+    // The site's length, where it gives one, else the file's.
+    const durationSeconds = info.duration ? Math.round(info.duration) : audio.durationSeconds
+    setProgress(episodeId, { stage: 'converting', percent: 0 })
+    await convertToMp3(downloaded, path, { ...audio, durationSeconds }, (fraction) => {
+      setProgress(episodeId, { stage: 'converting', percent: Math.floor(fraction * 100) })
+    })
+    return { ...info, path, durationSeconds }
+  } catch (error) {
+    await rm(path, { force: true })
+    throw error
+  } finally {
+    await rm(downloaded, { force: true })
   }
 }
 
 async function convertUpload(episodeId: string, path = episodeAudioPath(episodeId)): Promise<ProcessedAudio> {
-  progress.set(episodeId, { stage: 'converting', percent: 0 })
+  setProgress(episodeId, { stage: 'converting', percent: 0 })
   const source = episodeSourcePath(episodeId)
   const info = await probeAudio(source)
   if (!info) throw new Error("The uploaded file is missing or doesn't contain any audio")
   await ensureAudioDir()
   try {
     await convertToMp3(source, path, info, (fraction) => {
-      progress.set(episodeId, { stage: 'converting', percent: Math.floor(fraction * 100) })
+      setProgress(episodeId, { stage: 'converting', percent: Math.floor(fraction * 100) })
     })
   } catch (error) {
     await rm(path, { force: true })
@@ -173,6 +193,7 @@ async function processEpisode(episodeId: string) {
   if (!episode) return
   if (episode.replacement) return replaceAudio(episode, episode.replacement)
   await db.update(episodes).set({ status: 'processing', error: null }).where(eq(episodes.id, episodeId))
+  publishEpisodeEvent({ type: 'changed', episodeId })
 
   const job = { episodeId, podcastId: episode.podcastId, sourceUrl: episode.sourceUrl }
   const started = Date.now()
@@ -193,7 +214,7 @@ async function processEpisode(episodeId: string) {
       .set({ status: 'failed', error: message.slice(0, 1000) })
       .where(eq(episodes.id, episodeId))
   } finally {
-    progress.delete(episodeId)
+    endProgress(episodeId)
   }
 }
 
@@ -266,7 +287,7 @@ async function replaceAudio(episode: Episode, { sourceUrl }: EpisodeReplacement)
   } finally {
     // Unlike a new episode's, a replacement upload isn't kept for retrying.
     if (!sourceUrl) await rm(episodeSourcePath(id), { force: true })
-    progress.delete(id)
+    endProgress(id)
   }
 }
 
@@ -283,6 +304,7 @@ async function drain() {
   draining = true
   try {
     for (let id = queue.shift(); id; id = queue.shift()) {
+      publishQueuePositions()
       await processEpisode(id)
       queued.delete(id)
     }
@@ -295,7 +317,13 @@ export function enqueueEpisode(episodeId: string) {
   if (queued.has(episodeId)) return
   queued.add(episodeId)
   queue.push(episodeId)
+  publishQueuePositions()
   void drain()
+}
+
+// Each queued episode's place changes whenever the queue moves.
+function publishQueuePositions() {
+  for (const id of queue) publishEpisodeEvent({ type: 'progress', episodeId: id, progress: getEpisodeProgress(id) })
 }
 
 export function getEpisodeProgress(episodeId: string): EpisodeProgress | null {
