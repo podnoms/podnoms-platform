@@ -199,6 +199,27 @@
   html {
     @apply font-sans;
     }
+  /* Clickable things get the pointer cursor, which Tailwind v4 no longer
+     gives buttons. Being in the base layer, cursor utilities still win. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  summary,
+  label[for],
+  select:not(:disabled),
+  input:is([type='checkbox'], [type='radio'], [type='file'], [type='submit'], [type='button']):not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* The same for menu items, list options and tabs, which the shadcn components
+   give cursor-default. Outside any layer so it wins over that utility. Radix
+   marks disabled items data-disabled=""; cmdk uses "true"/"false". */
+:is([role='menuitem'], [role='menuitemcheckbox'], [role='menuitemradio'], [role='option'], [role='tab']):not(
+    [aria-disabled='true'],
+    [data-disabled=''],
+    [data-disabled='true']
+  ) {
+  cursor: pointer;
 }
 /* Descriptions written in the rich text editor. */
 @layer components {
