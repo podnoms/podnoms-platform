@@ -27,12 +27,6 @@ async function visitor() {
   }
 }
 
-type PublicEpisodeRows = Awaited<ReturnType<typeof listPublishedEpisodes>>
-
-// Sanitised when saved; again here, as they're rendered as HTML.
-const sanitizeEpisodes = (episodes: PublicEpisodeRows) =>
-  episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) }))
-
 // A podcast's public page, with its first page of episodes; the rest are
 // fetched with fetchPodcastEpisodes as the list is scrolled.
 export const fetchPodcastPage = createServerFn({ method: 'GET' })
@@ -54,7 +48,8 @@ export const fetchPodcastPage = createServerFn({ method: 'GET' })
       pageUrl: absolute(podcastPath(podcast.slug)),
       feedUrl: absolute(feedPath(podcast.slug)),
       previewImageUrl: podcast.imageUrl && absolute(imageSrc(podcast.imageUrl, previewImageWidth)),
-      episodes: sanitizeEpisodes(episodes),
+      // Sanitised when saved; again here, as they're rendered as HTML.
+      episodes: episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) })),
       summary,
     }
   })
@@ -66,7 +61,9 @@ export const fetchPodcastEpisodes = createServerFn({ method: 'GET' })
     const { userId } = await visitor()
     const podcast = await getPublicPodcast(data.slug)
     if (!podcast) throw notFound()
-    return sanitizeEpisodes(await listPublishedEpisodes(podcast.id, userId, data))
+    const episodes = await listPublishedEpisodes(podcast.id, userId, data)
+    // Sanitised when saved; again here, as they're rendered as HTML.
+    return episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) }))
   })
 
 export const fetchEpisodePage = createServerFn({ method: 'GET' })
