@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, type CSSProperties, type ReactNode } from 'react'
 import { HeadContent, Outlet, Scripts, createRootRoute } from '@tanstack/react-router'
 import { AppSidebar } from '~/components/app-sidebar'
 import { ThemeProvider } from '~/components/theme-provider'
@@ -72,7 +72,7 @@ function RootDocument({ signedIn, children }: { signedIn: boolean; children: Rea
           {/* The app shell (sidebar and top nav) is only for signed-in users. */}
           {signedIn ? (
             <PlayerProvider>
-              <SidebarProvider>
+              <SidebarProvider style={{ '--sidebar-width': '18rem' } as CSSProperties}>
                 <AppSidebar />
                 <SidebarInset className="pb-(--player-height)">
                   <TopNav />

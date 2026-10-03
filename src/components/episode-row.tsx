@@ -105,10 +105,12 @@ export function EpisodeRow({
   ].filter(Boolean)
 
   return (
+    // A row of the podcast page's episode list, which draws the border around
+    // the rows and the lines between them. The playing episode gets an accent bar.
     <Item
-      variant="outline"
+      role="listitem"
       data-current={isCurrent || undefined}
-      className="relative transition-colors hover:bg-muted/40 data-current:border-primary"
+      className="relative gap-4 rounded-none px-4 py-3 transition-colors before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-primary before:opacity-0 hover:bg-muted/50 data-current:bg-primary/5 data-current:before:opacity-100"
     >
       <ItemMedia variant="image" className="relative size-16 rounded-md">
         {episode.imageUrl ? (

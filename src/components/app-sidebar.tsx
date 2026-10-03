@@ -49,10 +49,10 @@ export function AppSidebar() {
             </SidebarGroupAction>
           </NewPodcastDialog>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-0.5">
               {podcasts.map((podcast) => (
                 <SidebarMenuItem key={podcast.id}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild className="h-10 gap-3 px-1.5">
                     <Link
                       to="/podcasts/$slug"
                       params={{ slug: podcast.slug }}
@@ -60,13 +60,13 @@ export function AppSidebar() {
                     >
                       {podcast.imageUrl ? (
                         <img
-                          src={imageSrc(podcast.imageUrl, 24)}
+                          src={imageSrc(podcast.imageUrl, 28)}
                           alt=""
-                          className="size-6 shrink-0 rounded-sm object-cover"
+                          className="size-7 shrink-0 rounded-md object-cover"
                         />
                       ) : (
-                        <span className="flex size-6 shrink-0 items-center justify-center rounded-sm bg-muted">
-                          <Icons.logo className="size-3.5 text-muted-foreground" />
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted">
+                          <Icons.logo className="size-4 text-muted-foreground" />
                         </span>
                       )}
                       <span className="truncate">{podcast.title}</span>

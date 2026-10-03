@@ -47,6 +47,8 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
     const episodes = await listEpisodes(userId, podcast.id)
     return {
       ...podcast,
+      // Sanitised when saved; again here, as it's rendered as HTML.
+      description: sanitizeDescription(podcast.description),
       feedUrl: new URL(feedPath(podcast.slug), publicUrl(getRequest())).toString(),
       episodes: episodes.map((episode) => ({ ...episode, progress: getEpisodeProgress(episode.id) })),
     }
