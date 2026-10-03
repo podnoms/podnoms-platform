@@ -24,7 +24,16 @@ import { linkEpisodeSchema, uploadEpisodeSchema } from '~/lib/episode-schema'
 type Source = 'link' | 'file'
 
 // Wraps a trigger (a button) that opens the "New episode" form for a podcast.
-export function NewEpisodeDialog({ podcastId, children }: { podcastId: string; children: ReactNode }) {
+export function NewEpisodeDialog({
+  podcastId,
+  podcastTitle,
+  children,
+}: {
+  podcastId: string
+  podcastTitle: string
+  children: ReactNode
+}) {
+  const descriptionInput = useRef<HTMLTextAreaElement>(null)
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [source, setSource] = useState<Source>('link')
@@ -132,7 +141,13 @@ export function NewEpisodeDialog({ podcastId, children }: { podcastId: string; c
             <div className="flex flex-col gap-6 sm:flex-row">
               <Field className="w-auto shrink-0">
                 <FieldLabel htmlFor="episode-image">Artwork</FieldLabel>
-                <ImageField id="episode-image" imageUrl={null} value={image} onChange={setImage} />
+                <ImageField
+                  id="episode-image"
+                  imageUrl={null}
+                  value={image}
+                  onChange={setImage}
+                  suggest={() => ({ title, description: descriptionInput.current?.value, context: podcastTitle })}
+                />
               </Field>
               <Field className="min-w-0">
                 <FieldLabel htmlFor="episode-title">Title</FieldLabel>
@@ -152,7 +167,7 @@ export function NewEpisodeDialog({ podcastId, children }: { podcastId: string; c
             </div>
             <Field>
               <FieldLabel htmlFor="episode-description">Description</FieldLabel>
-              <Textarea id="episode-description" name="description" maxLength={4000} />
+              <Textarea ref={descriptionInput} id="episode-description" name="description" maxLength={4000} />
               {source === 'link' && <FieldDescription>Leave blank to use the video's description.</FieldDescription>}
             </Field>
             {error && <FieldError>{error}</FieldError>}

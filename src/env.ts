@@ -29,6 +29,9 @@ export const env = createEnv({
     // Redis for the job queue (see jobs.server.ts). Without it, scheduled jobs
     // such as the media clean-up don't run.
     REDIS_URL: z.url().optional(),
+    // Pexels API key (free, from pexels.com/api) for the "Random image"
+    // button on artwork. Without it, photos come from Openverse, which needs no key.
+    PEXELS_API_KEY: z.string().optional(),
   },
   clientPrefix: 'VITE_',
   client: {},

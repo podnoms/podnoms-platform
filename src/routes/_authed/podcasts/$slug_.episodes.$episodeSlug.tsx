@@ -332,6 +332,7 @@ function EpisodePage() {
         onOpenChange={setEditing}
         heading="Edit episode"
         description={`An episode of ${podcast.title}.`}
+        imageContext={podcast.title}
         details={{ title: episode.title, description: episode.description, imageUrl: episode.imageUrl }}
         maxTitleLength={200}
         onSave={async (change) => {

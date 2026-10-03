@@ -35,6 +35,7 @@ export function EditDetailsDialog({
   description,
   details,
   maxTitleLength,
+  imageContext,
   onSave,
 }: {
   open: boolean
@@ -43,6 +44,8 @@ export function EditDetailsDialog({
   description: string
   details: Details
   maxTitleLength: number
+  // More for a random image to go on, e.g. an episode's podcast title.
+  imageContext?: string
   // Resolves once saved; the form shows an error if it throws.
   onSave: (change: DetailsChange) => Promise<void>
 }) {
@@ -54,7 +57,13 @@ export function EditDetailsDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         {/* Mounted only while open, so each opening starts from the saved details. */}
-        <DetailsForm details={details} maxTitleLength={maxTitleLength} onSave={onSave} onSaved={() => onOpenChange(false)} />
+        <DetailsForm
+          details={details}
+          maxTitleLength={maxTitleLength}
+          imageContext={imageContext}
+          onSave={onSave}
+          onSaved={() => onOpenChange(false)}
+        />
       </DialogContent>
     </Dialog>
   )
@@ -63,11 +72,13 @@ export function EditDetailsDialog({
 function DetailsForm({
   details,
   maxTitleLength,
+  imageContext,
   onSave,
   onSaved,
 }: {
   details: Details
   maxTitleLength: number
+  imageContext?: string
   onSave: (change: DetailsChange) => Promise<void>
   onSaved: () => void
 }) {
@@ -102,7 +113,13 @@ function DetailsForm({
           <div className="flex flex-col gap-6 sm:flex-row">
             <Field className="w-auto shrink-0">
               <FieldLabel htmlFor="details-image">Artwork</FieldLabel>
-              <ImageField id="details-image" imageUrl={details.imageUrl} value={image} onChange={setImage} />
+              <ImageField
+                id="details-image"
+                imageUrl={details.imageUrl}
+                value={image}
+                onChange={setImage}
+                suggest={() => ({ title, description: descriptionHtml, context: imageContext })}
+              />
             </Field>
             <Field className="min-w-0">
               <FieldLabel htmlFor="details-title">Title</FieldLabel>

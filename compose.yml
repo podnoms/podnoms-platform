@@ -23,6 +23,9 @@ services:
       # Redis for background jobs. Set to redis://redis:6379 with the bundled
       # Redis (the redis profile), or to your own; empty, scheduled jobs don't run.
       REDIS_URL: ${REDIS_URL:-}
+      # Optional Pexels API key for the "Random image" button on artwork;
+      # without it, photos come from Openverse, which needs no key.
+      PEXELS_API_KEY: ${PEXELS_API_KEY:-}
     volumes:
       - media:/app/media
     # Picked up by Grafana Alloy (see deploy/observability). Docker keeps a

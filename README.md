@@ -54,6 +54,7 @@ Settings are read from `.env` and checked at startup by [`src/env.ts`](src/env.t
 | `AUTH_GITHUB_ID` / `_SECRET`, `AUTH_GOOGLE_ID` / `_SECRET`, `AUTH_FACEBOOK_ID` / `_SECRET` | No | Each sign-in provider is enabled when both of its values are set. The OAuth callback URL is `<AUTH_URL>/api/auth/callback/<provider>`. |
 | `LOG_LEVEL` | No | `trace`, `debug`, `info` (default), `warn`, `error`, `fatal` or `silent` |
 | `REDIS_URL` | No | Redis for background jobs, e.g. `redis://localhost:6379`. Without it, scheduled jobs (such as the media clean-up) don't run. See [Background jobs](#background-jobs). |
+| `PEXELS_API_KEY` | No | A free [Pexels API key](https://www.pexels.com/api/). The **Random image** button on podcast and episode artwork searches for a photo using the title, description and podcast title: on Pexels with this key, otherwise on [Openverse](https://openverse.org) (public-domain and CC0 photos only, no key needed, up to 200 searches a day). |
 | `SENTRY_DSN` | No | Sentry-compatible DSN (e.g. a GlitchTip project) that server and browser errors are reported to. See [Logs and errors](#logs-and-errors). |
 
 ### Media folder

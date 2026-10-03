@@ -48,7 +48,7 @@ function PodcastPage() {
   ].filter(Boolean)
 
   const newEpisodeButton = (
-    <NewEpisodeDialog podcastId={podcast.id}>
+    <NewEpisodeDialog podcastId={podcast.id} podcastTitle={podcast.title}>
       <Button>
         <Icons.add />
         New episode
