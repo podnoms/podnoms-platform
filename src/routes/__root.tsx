@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { useEffect, type CSSProperties, type ReactNode } from 'react'
-import { HeadContent, Outlet, Scripts, createRootRoute } from '@tanstack/react-router'
+import { HeadContent, Outlet, Scripts, createRootRoute, useMatches } from '@tanstack/react-router'
 import { AppSidebar } from '~/components/app-sidebar'
 import { ThemeProvider } from '~/components/theme-provider'
 import { TopNav } from '~/components/top-nav'
@@ -16,6 +16,14 @@ import { fetchMyPodcasts } from '~/functions/podcasts'
 import { startClientErrorReporting } from '~/lib/client-errors'
 import { loginSearchSchema } from '~/lib/login-search'
 import appCss from '~/styles/app.css?url'
+
+declare module '@tanstack/react-router' {
+  interface StaticDataRouteOption {
+    // Renders the page on its own, without the app's shell, header, player or
+    // dialogs, as for the embeddable player.
+    bare?: boolean
+  }
+}
 
 // Full-document SSR: the root route renders <html> itself, so the server
 // streams the entire document and the client hydrates it.
@@ -51,14 +59,15 @@ function RootComponent() {
   const { session } = Route.useRouteContext()
   const { errorReportingDsn } = Route.useLoaderData()
   useEffect(() => startClientErrorReporting(errorReportingDsn), [errorReportingDsn])
+  const bare = useMatches({ select: (matches) => matches.some((match) => match.staticData.bare) })
   return (
-    <RootDocument signedIn={Boolean(session)}>
+    <RootDocument signedIn={Boolean(session)} bare={bare}>
       <Outlet />
     </RootDocument>
   )
 }
 
-function RootDocument({ signedIn, children }: { signedIn: boolean; children: ReactNode }) {
+function RootDocument({ signedIn, bare, children }: { signedIn: boolean; bare: boolean; children: ReactNode }) {
   return (
     // ThemeProvider's inline script sets the theme class on <html> before hydration.
     <html lang="en" suppressHydrationWarning>
@@ -69,9 +78,12 @@ function RootDocument({ signedIn, children }: { signedIn: boolean; children: Rea
       {/* Browser extensions add attributes to <body> before React hydrates. */}
       <body suppressHydrationWarning>
         <ThemeProvider>
-          {/* The app shell (sidebar and top nav) is only for signed-in users. */}
-          {signedIn ? (
-            <PlayerProvider>
+          {/* The app shell (sidebar and top nav) is only for signed-in users.
+              Everyone gets the player, so public pages can play episodes. */}
+          {bare ? (
+            children
+          ) : signedIn ? (
+            <PlayerProvider signedIn>
               <SidebarProvider style={{ '--sidebar-width': '18rem' } as CSSProperties}>
                 <AppSidebar />
                 <SidebarInset className="pb-(--player-height)">
@@ -83,13 +95,18 @@ function RootDocument({ signedIn, children }: { signedIn: boolean; children: Rea
               <PlayerBar />
             </PlayerProvider>
           ) : (
-            <>
+            <PlayerProvider signedIn={false}>
               <PublicHeader />
-              {children}
+              <div className="pb-(--player-height)">{children}</div>
+              <PlayerBar />
+            </PlayerProvider>
+          )}
+          {!bare && (
+            <>
+              <LoginDialog />
+              <TwoFactorDialog />
             </>
           )}
-          <LoginDialog />
-          <TwoFactorDialog />
         </ThemeProvider>
         <Scripts />
       </body>

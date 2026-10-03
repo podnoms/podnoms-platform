@@ -1,10 +1,12 @@
 // A podcast's RSS feed, with the iTunes tags podcast apps expect. Descriptions
 // are HTML, which RSS carries escaped; the iTunes summaries are plain text.
 import '@tanstack/react-start/server-only'
-import { and, desc, eq, isNotNull, sql } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
+import { episodePath, podcastPath } from '~/lib/paths'
 import { htmlToText } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
 import { episodes, podcasts, users } from '~/server/db/schema'
+import { isPublished, newestPublishedFirst } from '~/server/episodes.server'
 
 export function feedPath(slug: string) {
   return `/feed/${slug}`
@@ -54,11 +56,12 @@ export async function buildPodcastFeed(slug: string, origin: string) {
   const items = await db
     .select()
     .from(episodes)
-    .where(and(eq(episodes.podcastId, podcast.id), eq(episodes.status, 'ready'), isNotNull(episodes.audioUrl)))
-    .orderBy(desc(sql`coalesce(${episodes.publishedAt}, ${episodes.createdAt})`))
+    .where(and(eq(episodes.podcastId, podcast.id), isPublished))
+    .orderBy(newestPublishedFirst)
 
   const absolute = (url: string) => new URL(url, origin).toString()
   const feedUrl = absolute(feedPath(podcast.slug))
+  const pageUrl = absolute(podcastPath(podcast.slug))
   const artwork = podcast.imageUrl ?? items.find((item) => item.imageUrl)?.imageUrl ?? null
   const description = podcast.description || podcast.title
   const latest = items[0] ? (items[0].publishedAt ?? items[0].createdAt) : podcast.updatedAt
@@ -68,6 +71,7 @@ export async function buildPodcastFeed(slug: string, origin: string) {
     return [
       '<item>',
       tag('title', item.title),
+      tag('link', absolute(episodePath(podcast.slug, item.slug))),
       tag('description', item.description),
       tag('itunes:summary', item.description && htmlToText(item.description)),
       `<guid isPermaLink="false">${escapeXml(item.id)}</guid>`,
@@ -89,14 +93,14 @@ export async function buildPodcastFeed(slug: string, origin: string) {
   <channel>
     ${[
       tag('title', podcast.title),
-      `<link>${escapeXml(origin)}</link>`,
+      tag('link', pageUrl),
       `<atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml"/>`,
       tag('description', description),
       tag('itunes:summary', htmlToText(description)),
       tag('language', podcast.language),
       tag('itunes:author', podcast.author),
       artwork ? `<itunes:image href="${escapeXml(absolute(artwork))}"/>` : '',
-      artwork ? `<image><url>${escapeXml(absolute(artwork))}</url>${tag('title', podcast.title)}<link>${escapeXml(origin)}</link></image>` : '',
+      artwork ? `<image><url>${escapeXml(absolute(artwork))}</url>${tag('title', podcast.title)}${tag('link', pageUrl)}</image>` : '',
       podcast.category ? `<itunes:category text="${escapeXml(podcast.category)}"/>` : '',
       `<itunes:explicit>${itunesExplicit(podcast.explicit)}</itunes:explicit>`,
       // Keeps unlisted podcasts out of directories that honour it.

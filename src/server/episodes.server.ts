@@ -1,8 +1,8 @@
 import '@tanstack/react-start/server-only'
 import { rm } from 'node:fs/promises'
-import { and, desc, eq, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
-import { episodes, playbackPositions, podcasts, type NewEpisode } from '~/server/db/schema'
+import { episodes, playbackPositions, podcasts, users, type NewEpisode } from '~/server/db/schema'
 import { enqueueEpisode } from '~/server/episode-processor.server'
 import {
   availableEpisodeSlug,
@@ -20,6 +20,70 @@ import type { EditEpisodeInput, NewEpisodeInput, ReplaceAudioInput } from '~/lib
 
 // Whether the episode's audio is being replaced.
 const replacing = sql<boolean>`${episodes.replacement} is not null`
+
+// Episodes listeners can hear: ready, with audio. The feed and the public
+// pages list these, newest first.
+export const isPublished = and(eq(episodes.status, 'ready'), isNotNull(episodes.audioUrl))
+export const newestPublishedFirst = desc(sql`coalesce(${episodes.publishedAt}, ${episodes.createdAt})`)
+
+// What public pages may show of an episode: never its source, errors or
+// replacement state.
+const publicEpisodeColumns = {
+  id: episodes.id,
+  title: episodes.title,
+  slug: episodes.slug,
+  description: episodes.description,
+  imageUrl: episodes.imageUrl,
+  audioUrl: episodes.audioUrl,
+  durationSeconds: episodes.durationSeconds,
+  explicit: episodes.explicit,
+  createdAt: episodes.createdAt,
+  publishedAt: episodes.publishedAt,
+}
+
+// Where the listener (if signed in) left off in an episode.
+function listenerPosition(listenerId: string | null) {
+  return and(
+    eq(playbackPositions.episodeId, episodes.id),
+    listenerId ? eq(playbackPositions.userId, listenerId) : sql`false`,
+  )
+}
+
+// A podcast's published episodes, for its public page.
+export function listPublishedEpisodes(podcastId: string, listenerId: string | null) {
+  return db
+    .select({ ...publicEpisodeColumns, positionSeconds: playbackPositions.positionSeconds })
+    .from(episodes)
+    .leftJoin(playbackPositions, listenerPosition(listenerId))
+    .where(and(eq(episodes.podcastId, podcastId), isPublished))
+    .orderBy(newestPublishedFirst)
+}
+
+// A published episode, by podcast and episode slug, with its podcast; null if
+// there's no such episode or it isn't ready. Private podcasts are included:
+// they're unlisted, not secret.
+export async function getPublicEpisode(podcastSlug: string, episodeSlug: string, listenerId: string | null) {
+  const [row] = await db
+    .select({
+      episode: { ...publicEpisodeColumns, positionSeconds: playbackPositions.positionSeconds },
+      podcast: {
+        id: podcasts.id,
+        title: podcasts.title,
+        slug: podcasts.slug,
+        imageUrl: podcasts.imageUrl,
+        private: podcasts.private,
+        userId: podcasts.userId,
+        author: users.name,
+      },
+    })
+    .from(episodes)
+    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .innerJoin(users, eq(users.id, podcasts.userId))
+    .leftJoin(playbackPositions, listenerPosition(listenerId))
+    .where(and(eq(podcasts.slug, podcastSlug), eq(episodes.slug, episodeSlug), isPublished))
+    .limit(1)
+  return row ?? null
+}
 
 // Includes where the user left off in each episode.
 export function listEpisodes(userId: string, podcastId: string) {
@@ -303,8 +367,15 @@ export async function dismissEpisodeError(userId: string, episodeId: string) {
 }
 
 // Records where the user left off; a position of 0 (e.g. they finished it) clears it.
+// Listeners can keep their place in their own episodes and in anyone's
+// published ones.
 export async function savePlaybackPosition(userId: string, episodeId: string, seconds: number) {
-  const episode = await findOwnedEpisode(userId, episodeId)
+  const [episode] = await db
+    .select({ id: episodes.id })
+    .from(episodes)
+    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .where(and(eq(episodes.id, episodeId), or(eq(podcasts.userId, userId), isPublished)))
+    .limit(1)
   if (!episode) return false
   const positionSeconds = Math.floor(seconds)
   if (positionSeconds > 0) {

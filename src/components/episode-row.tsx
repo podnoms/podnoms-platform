@@ -138,7 +138,7 @@ export function EpisodeRow({
           {/* Stretched over the whole row, so clicking anywhere opens the episode;
               the buttons sit above it. */}
           <Link
-            to="/podcasts/$slug/episodes/$episodeSlug"
+            to="/podcasts/$slug/episodes/$episodeSlug/manage"
             params={{ slug: podcastSlug, episodeSlug: episode.slug }}
             className="outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
           >

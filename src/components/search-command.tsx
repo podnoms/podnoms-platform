@@ -93,9 +93,9 @@ function SearchPalette({ close }: { close: () => void }) {
     close()
     void to()
   }
-  const openPodcast = (slug: string) => go(() => navigate({ to: '/podcasts/$slug', params: { slug } }))
+  const openPodcast = (slug: string) => go(() => navigate({ to: '/podcasts/$slug/manage', params: { slug } }))
   const openEpisode = (slug: string, episodeSlug: string) =>
-    go(() => navigate({ to: '/podcasts/$slug/episodes/$episodeSlug', params: { slug, episodeSlug } }))
+    go(() => navigate({ to: '/podcasts/$slug/episodes/$episodeSlug/manage', params: { slug, episodeSlug } }))
 
   // Results for an earlier query stay up until the new ones arrive.
   const found = trimmed ? results?.found : null

@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { editEpisodeSchema, newEpisodeSchema, replaceAudioSchema } from '~/lib/episode-schema'
+import { listenPath } from '~/lib/paths'
 import { editPodcastSchema, newPodcastSchema } from '~/lib/podcast-schema'
 import { getSession, publicUrl } from '~/server/auth.server'
 import { getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
@@ -72,6 +73,8 @@ export const fetchMyEpisode = createServerFn({ method: 'GET' })
       },
       // The smoother of the two shapes, as Mixcloud draws them.
       waveform: waveform?.rms ?? null,
+      // The standalone page listeners are sent to; only reachable once the episode's ready.
+      shareUrl: new URL(listenPath(podcast.slug, episode.slug), publicUrl(getRequest())).toString(),
     }
   })
 

@@ -18,14 +18,18 @@ import { Route as ApiImagesRouteImport } from './routes/api/images'
 import { Route as ApiUploadsRouteImport } from './routes/api/uploads'
 import { Route as FeedSlugRouteImport } from './routes/feed/$slug'
 import { Route as ImagesFileRouteImport } from './routes/images/$file'
-import { Route as AuthedPodcastsSlugRouteImport } from './routes/_authed/podcasts/$slug'
+import { Route as PodcastsSlugRouteImport } from './routes/podcasts/$slug'
 import { Route as AuthedSettingsIndexRouteImport } from './routes/_authed/settings/index'
 import { Route as AuthedSettingsSecurityRouteImport } from './routes/_authed/settings/security'
 import { Route as AdminQueuesSplatRouteImport } from './routes/admin/queues/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as EmbedSlugEpisodeSlugRouteImport } from './routes/embed/$slug.$episodeSlug'
+import { Route as ListenSlugEpisodeSlugRouteImport } from './routes/listen/$slug.$episodeSlug'
+import { Route as AuthedPodcastsSlugManageRouteImport } from './routes/_authed/podcasts/$slug.manage'
 import { Route as ApiEpisodesIdAudioRouteImport } from './routes/api/episodes/$id/audio'
 import { Route as ApiPodcastsSlugEventsRouteImport } from './routes/api/podcasts/$slug/events'
-import { Route as AuthedPodcastsSlugEpisodesEpisodeSlugRouteImport } from './routes/_authed/podcasts/$slug_.episodes.$episodeSlug'
+import { Route as PodcastsSlugEpisodesEpisodeSlugRouteImport } from './routes/podcasts/$slug_.episodes.$episodeSlug'
+import { Route as AuthedPodcastsSlugEpisodesEpisodeSlugManageRouteImport } from './routes/_authed/podcasts/$slug_.episodes.$episodeSlug.manage'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -71,10 +75,10 @@ const ImagesFileRoute = ImagesFileRouteImport.update({
   path: '/images/$file',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthedPodcastsSlugRoute = AuthedPodcastsSlugRouteImport.update({
+const PodcastsSlugRoute = PodcastsSlugRouteImport.update({
   id: '/podcasts/$slug',
   path: '/podcasts/$slug',
-  getParentRoute: () => AuthedRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedSettingsIndexRoute = AuthedSettingsIndexRouteImport.update({
   id: '/',
@@ -96,6 +100,22 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmbedSlugEpisodeSlugRoute = EmbedSlugEpisodeSlugRouteImport.update({
+  id: '/embed/$slug/$episodeSlug',
+  path: '/embed/$slug/$episodeSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ListenSlugEpisodeSlugRoute = ListenSlugEpisodeSlugRouteImport.update({
+  id: '/listen/$slug/$episodeSlug',
+  path: '/listen/$slug/$episodeSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedPodcastsSlugManageRoute =
+  AuthedPodcastsSlugManageRouteImport.update({
+    id: '/podcasts/$slug/manage',
+    path: '/podcasts/$slug/manage',
+    getParentRoute: () => AuthedRoute,
+  } as any)
 const ApiEpisodesIdAudioRoute = ApiEpisodesIdAudioRouteImport.update({
   id: '/api/episodes/$id/audio',
   path: '/api/episodes/$id/audio',
@@ -106,10 +126,16 @@ const ApiPodcastsSlugEventsRoute = ApiPodcastsSlugEventsRouteImport.update({
   path: '/api/podcasts/$slug/events',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthedPodcastsSlugEpisodesEpisodeSlugRoute =
-  AuthedPodcastsSlugEpisodesEpisodeSlugRouteImport.update({
+const PodcastsSlugEpisodesEpisodeSlugRoute =
+  PodcastsSlugEpisodesEpisodeSlugRouteImport.update({
     id: '/podcasts/$slug_/episodes/$episodeSlug',
     path: '/podcasts/$slug/episodes/$episodeSlug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthedPodcastsSlugEpisodesEpisodeSlugManageRoute =
+  AuthedPodcastsSlugEpisodesEpisodeSlugManageRouteImport.update({
+    id: '/podcasts/$slug_/episodes/$episodeSlug/manage',
+    path: '/podcasts/$slug/episodes/$episodeSlug/manage',
     getParentRoute: () => AuthedRoute,
   } as any)
 
@@ -122,14 +148,18 @@ export interface FileRoutesByFullPath {
   '/api/uploads': typeof ApiUploadsRoute
   '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
-  '/podcasts/$slug': typeof AuthedPodcastsSlugRoute
+  '/podcasts/$slug': typeof PodcastsSlugRoute
   '/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
+  '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/settings/': typeof AuthedSettingsIndexRoute
+  '/podcasts/$slug/manage': typeof AuthedPodcastsSlugManageRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/podcasts/$slug/events': typeof ApiPodcastsSlugEventsRoute
-  '/podcasts/$slug/episodes/$episodeSlug': typeof AuthedPodcastsSlugEpisodesEpisodeSlugRoute
+  '/podcasts/$slug/episodes/$episodeSlug': typeof PodcastsSlugEpisodesEpisodeSlugRoute
+  '/podcasts/$slug/episodes/$episodeSlug/manage': typeof AuthedPodcastsSlugEpisodesEpisodeSlugManageRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -139,14 +169,18 @@ export interface FileRoutesByTo {
   '/api/uploads': typeof ApiUploadsRoute
   '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
-  '/podcasts/$slug': typeof AuthedPodcastsSlugRoute
+  '/podcasts/$slug': typeof PodcastsSlugRoute
   '/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
+  '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/settings': typeof AuthedSettingsIndexRoute
+  '/podcasts/$slug/manage': typeof AuthedPodcastsSlugManageRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/podcasts/$slug/events': typeof ApiPodcastsSlugEventsRoute
-  '/podcasts/$slug/episodes/$episodeSlug': typeof AuthedPodcastsSlugEpisodesEpisodeSlugRoute
+  '/podcasts/$slug/episodes/$episodeSlug': typeof PodcastsSlugEpisodesEpisodeSlugRoute
+  '/podcasts/$slug/episodes/$episodeSlug/manage': typeof AuthedPodcastsSlugEpisodesEpisodeSlugManageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -159,14 +193,18 @@ export interface FileRoutesById {
   '/api/uploads': typeof ApiUploadsRoute
   '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
-  '/_authed/podcasts/$slug': typeof AuthedPodcastsSlugRoute
+  '/podcasts/$slug': typeof PodcastsSlugRoute
   '/_authed/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
+  '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/_authed/settings/': typeof AuthedSettingsIndexRoute
+  '/_authed/podcasts/$slug/manage': typeof AuthedPodcastsSlugManageRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/podcasts/$slug/events': typeof ApiPodcastsSlugEventsRoute
-  '/_authed/podcasts/$slug_/episodes/$episodeSlug': typeof AuthedPodcastsSlugEpisodesEpisodeSlugRoute
+  '/podcasts/$slug_/episodes/$episodeSlug': typeof PodcastsSlugEpisodesEpisodeSlugRoute
+  '/_authed/podcasts/$slug_/episodes/$episodeSlug/manage': typeof AuthedPodcastsSlugEpisodesEpisodeSlugManageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -183,10 +221,14 @@ export interface FileRouteTypes {
     | '/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
+    | '/embed/$slug/$episodeSlug'
+    | '/listen/$slug/$episodeSlug'
     | '/settings/'
+    | '/podcasts/$slug/manage'
     | '/api/episodes/$id/audio'
     | '/api/podcasts/$slug/events'
     | '/podcasts/$slug/episodes/$episodeSlug'
+    | '/podcasts/$slug/episodes/$episodeSlug/manage'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -200,10 +242,14 @@ export interface FileRouteTypes {
     | '/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
+    | '/embed/$slug/$episodeSlug'
+    | '/listen/$slug/$episodeSlug'
     | '/settings'
+    | '/podcasts/$slug/manage'
     | '/api/episodes/$id/audio'
     | '/api/podcasts/$slug/events'
     | '/podcasts/$slug/episodes/$episodeSlug'
+    | '/podcasts/$slug/episodes/$episodeSlug/manage'
   id:
     | '__root__'
     | '/'
@@ -215,14 +261,18 @@ export interface FileRouteTypes {
     | '/api/uploads'
     | '/feed/$slug'
     | '/images/$file'
-    | '/_authed/podcasts/$slug'
+    | '/podcasts/$slug'
     | '/_authed/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
+    | '/embed/$slug/$episodeSlug'
+    | '/listen/$slug/$episodeSlug'
     | '/_authed/settings/'
+    | '/_authed/podcasts/$slug/manage'
     | '/api/episodes/$id/audio'
     | '/api/podcasts/$slug/events'
-    | '/_authed/podcasts/$slug_/episodes/$episodeSlug'
+    | '/podcasts/$slug_/episodes/$episodeSlug'
+    | '/_authed/podcasts/$slug_/episodes/$episodeSlug/manage'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -233,10 +283,14 @@ export interface RootRouteChildren {
   ApiUploadsRoute: typeof ApiUploadsRoute
   FeedSlugRoute: typeof FeedSlugRoute
   ImagesFileRoute: typeof ImagesFileRoute
+  PodcastsSlugRoute: typeof PodcastsSlugRoute
   AdminQueuesSplatRoute: typeof AdminQueuesSplatRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  EmbedSlugEpisodeSlugRoute: typeof EmbedSlugEpisodeSlugRoute
+  ListenSlugEpisodeSlugRoute: typeof ListenSlugEpisodeSlugRoute
   ApiEpisodesIdAudioRoute: typeof ApiEpisodesIdAudioRoute
   ApiPodcastsSlugEventsRoute: typeof ApiPodcastsSlugEventsRoute
+  PodcastsSlugEpisodesEpisodeSlugRoute: typeof PodcastsSlugEpisodesEpisodeSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -304,12 +358,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ImagesFileRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authed/podcasts/$slug': {
-      id: '/_authed/podcasts/$slug'
+    '/podcasts/$slug': {
+      id: '/podcasts/$slug'
       path: '/podcasts/$slug'
       fullPath: '/podcasts/$slug'
-      preLoaderRoute: typeof AuthedPodcastsSlugRouteImport
-      parentRoute: typeof AuthedRoute
+      preLoaderRoute: typeof PodcastsSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authed/settings/': {
       id: '/_authed/settings/'
@@ -339,6 +393,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/embed/$slug/$episodeSlug': {
+      id: '/embed/$slug/$episodeSlug'
+      path: '/embed/$slug/$episodeSlug'
+      fullPath: '/embed/$slug/$episodeSlug'
+      preLoaderRoute: typeof EmbedSlugEpisodeSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/listen/$slug/$episodeSlug': {
+      id: '/listen/$slug/$episodeSlug'
+      path: '/listen/$slug/$episodeSlug'
+      fullPath: '/listen/$slug/$episodeSlug'
+      preLoaderRoute: typeof ListenSlugEpisodeSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed/podcasts/$slug/manage': {
+      id: '/_authed/podcasts/$slug/manage'
+      path: '/podcasts/$slug/manage'
+      fullPath: '/podcasts/$slug/manage'
+      preLoaderRoute: typeof AuthedPodcastsSlugManageRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/api/episodes/$id/audio': {
       id: '/api/episodes/$id/audio'
       path: '/api/episodes/$id/audio'
@@ -353,11 +428,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPodcastsSlugEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authed/podcasts/$slug_/episodes/$episodeSlug': {
-      id: '/_authed/podcasts/$slug_/episodes/$episodeSlug'
+    '/podcasts/$slug_/episodes/$episodeSlug': {
+      id: '/podcasts/$slug_/episodes/$episodeSlug'
       path: '/podcasts/$slug/episodes/$episodeSlug'
       fullPath: '/podcasts/$slug/episodes/$episodeSlug'
-      preLoaderRoute: typeof AuthedPodcastsSlugEpisodesEpisodeSlugRouteImport
+      preLoaderRoute: typeof PodcastsSlugEpisodesEpisodeSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed/podcasts/$slug_/episodes/$episodeSlug/manage': {
+      id: '/_authed/podcasts/$slug_/episodes/$episodeSlug/manage'
+      path: '/podcasts/$slug/episodes/$episodeSlug/manage'
+      fullPath: '/podcasts/$slug/episodes/$episodeSlug/manage'
+      preLoaderRoute: typeof AuthedPodcastsSlugEpisodesEpisodeSlugManageRouteImport
       parentRoute: typeof AuthedRoute
     }
   }
@@ -380,16 +462,16 @@ const AuthedSettingsRouteWithChildren = AuthedSettingsRoute._addFileChildren(
 interface AuthedRouteChildren {
   AuthedSecurityRoute: typeof AuthedSecurityRoute
   AuthedSettingsRoute: typeof AuthedSettingsRouteWithChildren
-  AuthedPodcastsSlugRoute: typeof AuthedPodcastsSlugRoute
-  AuthedPodcastsSlugEpisodesEpisodeSlugRoute: typeof AuthedPodcastsSlugEpisodesEpisodeSlugRoute
+  AuthedPodcastsSlugManageRoute: typeof AuthedPodcastsSlugManageRoute
+  AuthedPodcastsSlugEpisodesEpisodeSlugManageRoute: typeof AuthedPodcastsSlugEpisodesEpisodeSlugManageRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedSecurityRoute: AuthedSecurityRoute,
   AuthedSettingsRoute: AuthedSettingsRouteWithChildren,
-  AuthedPodcastsSlugRoute: AuthedPodcastsSlugRoute,
-  AuthedPodcastsSlugEpisodesEpisodeSlugRoute:
-    AuthedPodcastsSlugEpisodesEpisodeSlugRoute,
+  AuthedPodcastsSlugManageRoute: AuthedPodcastsSlugManageRoute,
+  AuthedPodcastsSlugEpisodesEpisodeSlugManageRoute:
+    AuthedPodcastsSlugEpisodesEpisodeSlugManageRoute,
 }
 
 const AuthedRouteWithChildren =
@@ -403,10 +485,14 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUploadsRoute: ApiUploadsRoute,
   FeedSlugRoute: FeedSlugRoute,
   ImagesFileRoute: ImagesFileRoute,
+  PodcastsSlugRoute: PodcastsSlugRoute,
   AdminQueuesSplatRoute: AdminQueuesSplatRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  EmbedSlugEpisodeSlugRoute: EmbedSlugEpisodeSlugRoute,
+  ListenSlugEpisodeSlugRoute: ListenSlugEpisodeSlugRoute,
   ApiEpisodesIdAudioRoute: ApiEpisodesIdAudioRoute,
   ApiPodcastsSlugEventsRoute: ApiPodcastsSlugEventsRoute,
+  PodcastsSlugEpisodesEpisodeSlugRoute: PodcastsSlugEpisodesEpisodeSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -6,6 +6,7 @@ import { Icons } from '~/components/icons'
 import { usePlayer } from '~/components/player/player-provider'
 import { Waveform } from '~/components/player/waveform'
 import { ReplaceAudioDialog } from '~/components/replace-audio-dialog'
+import { ShareButton } from '~/components/share-buttons'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,9 +31,9 @@ import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
 import { formatClock, formatDate, hostname } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 
-// An episode's own page, at /podcasts/:slug/episodes/:episodeSlug. The trailing
+// An episode's management page, at /podcasts/:slug/episodes/:episodeSlug/manage. The trailing
 // underscore on $slug_ keeps it from nesting inside the podcast page's route.
-export const Route = createFileRoute('/_authed/podcasts/$slug_/episodes/$episodeSlug')({
+export const Route = createFileRoute('/_authed/podcasts/$slug_/episodes/$episodeSlug/manage')({
   loader: ({ params }) => fetchMyEpisode({ data: { slug: params.slug, episodeSlug: params.episodeSlug } }),
   head: ({ loaderData }) => ({ meta: loaderData ? [{ title: `${loaderData.episode.title} · podnoms` }] : [] }),
   component: EpisodePage,
@@ -59,7 +60,7 @@ function EpisodePage() {
     const slug = await fetchMyEpisodeSlug({ data: { id: episode.id } }).catch(() => null)
     if (slug && slug !== episode.slug) {
       await navigate({
-        to: '/podcasts/$slug/episodes/$episodeSlug',
+        to: '/podcasts/$slug/episodes/$episodeSlug/manage',
         params: { slug: podcast.slug, episodeSlug: slug },
         replace: true,
       })
@@ -104,7 +105,7 @@ function EpisodePage() {
     try {
       if (isCurrent) player.close()
       await deleteMyEpisode({ data: { id: episode.id } })
-      await navigate({ to: '/podcasts/$slug', params: { slug: podcast.slug } })
+      await navigate({ to: '/podcasts/$slug/manage', params: { slug: podcast.slug } })
     } finally {
       setDeleting(false)
     }
@@ -118,7 +119,7 @@ function EpisodePage() {
   return (
     <div className="flex w-full max-w-5xl flex-col gap-8 p-4 md:p-6">
       <Link
-        to="/podcasts/$slug"
+        to="/podcasts/$slug/manage"
         params={{ slug: podcast.slug }}
         className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
@@ -172,6 +173,7 @@ function EpisodePage() {
               </>
             )}
             <div className="flex gap-1 sm:ml-auto">
+              {ready && <ShareButton url={loaded.shareUrl} />}
               <Button variant="outline" disabled={inProgress} onClick={() => setEditing(true)}>
                 <Icons.edit />
                 Edit

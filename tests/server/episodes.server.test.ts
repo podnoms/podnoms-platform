@@ -11,7 +11,9 @@ import {
   getEpisode,
   getEpisodeAudio,
   getEpisodeSlug,
+  getPublicEpisode,
   listEpisodes,
+  listPublishedEpisodes,
   replaceEpisodeAudio,
   retryEpisode,
   savePlaybackPosition,
@@ -457,10 +459,95 @@ describe('savePlaybackPosition', () => {
     expect(await position()).toBeUndefined()
   })
 
-  it("won't save positions on another user's episode", async () => {
+  it("won't save positions on another user's unpublished episode", async () => {
     const { podcast } = await setup()
     const episode = await insertEpisode(podcast.id, { status: 'ready' })
     expect(await savePlaybackPosition((await createUser()).id, episode.id, 10)).toBe(false)
     expect(await db.select().from(playbackPositions)).toEqual([])
+  })
+
+  it("saves listeners' positions on another user's published episode", async () => {
+    const { podcast } = await setup()
+    const episode = await insertEpisode(podcast.id, { status: 'ready', audioUrl: '/api/episodes/x/audio' })
+    const listener = await createUser()
+    expect(await savePlaybackPosition(listener.id, episode.id, 10)).toBe(true)
+    expect(await db.select().from(playbackPositions)).toMatchObject([{ userId: listener.id, positionSeconds: 10 }])
+  })
+})
+
+describe('public episode reads', () => {
+  const ready = { status: 'ready' as const, audioUrl: '/api/episodes/x/audio' }
+
+  async function showWithEpisodes() {
+    const owner = await createUser({ name: 'Ada' })
+    const podcast = await createPodcast(owner.id, { slug: 'show', private: true })
+    const older = await insertEpisode(podcast.id, {
+      ...ready,
+      slug: 'older',
+      sourceUrl: 'https://youtube.example/watch?v=1',
+      publishedAt: new Date('2026-01-01T00:00:00Z'),
+    })
+    const newer = await insertEpisode(podcast.id, { ...ready, slug: 'newer', publishedAt: new Date('2026-02-01T00:00:00Z') })
+    await insertEpisode(podcast.id, { slug: 'pending', status: 'pending' })
+    await insertEpisode(podcast.id, { slug: 'processing', status: 'processing' })
+    await insertEpisode(podcast.id, { slug: 'failed', status: 'failed', error: 'Boom' })
+    await insertEpisode(podcast.id, { slug: 'no-audio', status: 'ready' })
+    return { owner, podcast, older, newer }
+  }
+
+  describe('listPublishedEpisodes', () => {
+    it('lists only ready episodes with audio, newest first', async () => {
+      const { podcast } = await showWithEpisodes()
+      const list = await listPublishedEpisodes(podcast.id, null)
+      expect(list.map((e) => e.slug)).toEqual(['newer', 'older'])
+    })
+
+    it("doesn't expose sources, errors or replacement state", async () => {
+      const { podcast } = await showWithEpisodes()
+      const [episode] = await listPublishedEpisodes(podcast.id, null)
+      expect(episode).not.toHaveProperty('sourceUrl')
+      expect(episode).not.toHaveProperty('error')
+      expect(episode).not.toHaveProperty('replacing')
+      expect(episode).not.toHaveProperty('status')
+    })
+
+    it("includes only the listener's own position", async () => {
+      const { podcast, older } = await showWithEpisodes()
+      const listener = await createUser()
+      const other = await createUser()
+      await savePlaybackPosition(listener.id, older.id, 42)
+      await savePlaybackPosition(other.id, older.id, 99)
+      const position = async (listenerId: string | null) =>
+        (await listPublishedEpisodes(podcast.id, listenerId)).find((e) => e.id === older.id)!.positionSeconds
+      expect(await position(listener.id)).toBe(42)
+      expect(await position(null)).toBeNull()
+      expect(await position((await createUser()).id)).toBeNull()
+    })
+  })
+
+  describe('getPublicEpisode', () => {
+    it('finds a ready episode of any podcast, private ones included', async () => {
+      const { owner, older } = await showWithEpisodes()
+      const found = await getPublicEpisode('show', 'older', null)
+      expect(found!.episode.id).toBe(older.id)
+      expect(found!.episode).not.toHaveProperty('sourceUrl')
+      expect(found!.podcast).toMatchObject({ slug: 'show', private: true, userId: owner.id, author: 'Ada' })
+    })
+
+    it("returns null for episodes that aren't ready, and unknown slugs", async () => {
+      await showWithEpisodes()
+      for (const slug of ['pending', 'processing', 'failed', 'no-audio', 'nope']) {
+        expect(await getPublicEpisode('show', slug, null)).toBeNull()
+      }
+      expect(await getPublicEpisode('nope', 'older', null)).toBeNull()
+    })
+
+    it("includes where the listener left off", async () => {
+      const { older } = await showWithEpisodes()
+      const listener = await createUser()
+      await savePlaybackPosition(listener.id, older.id, 42)
+      expect((await getPublicEpisode('show', 'older', listener.id))!.episode.positionSeconds).toBe(42)
+      expect((await getPublicEpisode('show', 'older', null))!.episode.positionSeconds).toBeNull()
+    })
   })
 })

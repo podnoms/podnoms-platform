@@ -51,7 +51,7 @@ describe('buildPodcastFeed', () => {
     const channel = doc.querySelector('channel')!
     const text = (name: string) => channel.getElementsByTagName(name)[0]?.textContent
     expect(text('title')).toBe('The <Show>')
-    expect(text('link')).toBe(origin)
+    expect(text('link')).toBe(`${origin}/podcasts/show`)
     expect(text('description')).toBe('<p>About &amp; more</p>')
     expect(text('itunes:summary')).toBe('About & more')
     expect(text('language')).toBe('en-ie')
@@ -107,6 +107,7 @@ describe('buildPodcastFeed', () => {
     expect(text('title')).toBe('Ep "1"')
     expect(text('description')).toBe('<p>Line<br>two</p>')
     expect(text('itunes:summary')).toBe('Line\ntwo')
+    expect(text('link')).toBe(`${origin}/podcasts/show/episodes/${episode.slug}`)
     expect(text('guid')).toBe(episode.id)
     expect(item.getElementsByTagName('guid')[0]!.getAttribute('isPermaLink')).toBe('false')
     expect(text('pubDate')).toBe('Wed, 04 Mar 2026 05:06:07 GMT')

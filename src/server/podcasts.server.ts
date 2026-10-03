@@ -1,7 +1,7 @@
 import '@tanstack/react-start/server-only'
 import { and, asc, eq, like, or, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
-import { episodes, podcasts } from '~/server/db/schema'
+import { episodes, podcasts, users } from '~/server/db/schema'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { firstFreeSlug, slugify } from '~/lib/slug'
 import { commitImage, deleteImage } from '~/server/images.server'
@@ -36,6 +36,29 @@ export async function getPodcastBySlug(userId: string, slug: string) {
     .select()
     .from(podcasts)
     .where(and(eq(podcasts.userId, userId), eq(podcasts.slug, slug)))
+    .limit(1)
+  return podcast ?? null
+}
+
+// Any podcast, by slug, for its public page: null if there's no such podcast.
+// Private podcasts are included, as they're unlisted rather than secret.
+export async function getPublicPodcast(slug: string) {
+  const [podcast] = await db
+    .select({
+      id: podcasts.id,
+      userId: podcasts.userId,
+      title: podcasts.title,
+      slug: podcasts.slug,
+      description: podcasts.description,
+      imageUrl: artwork,
+      category: podcasts.category,
+      explicit: podcasts.explicit,
+      private: podcasts.private,
+      author: users.name,
+    })
+    .from(podcasts)
+    .innerJoin(users, eq(users.id, podcasts.userId))
+    .where(eq(podcasts.slug, slug))
     .limit(1)
   return podcast ?? null
 }

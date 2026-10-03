@@ -75,7 +75,7 @@ describe('SearchCommand', () => {
     await userEvent.click(await screen.findByText('Late Night Mix'))
 
     expect(navigate).toHaveBeenCalledWith({
-      to: '/podcasts/$slug/episodes/$episodeSlug',
+      to: '/podcasts/$slug/episodes/$episodeSlug/manage',
       params: { slug: 'deep-house', episodeSlug: 'late-night' },
     })
     await waitFor(() => expect(screen.queryByPlaceholderText('Search podcasts and episodes…')).toBeNull())
@@ -87,7 +87,7 @@ describe('SearchCommand', () => {
     await screen.findByText('Late Night Mix')
     await userEvent.click(screen.getAllByText('Deep House Sessions')[0]!)
 
-    expect(navigate).toHaveBeenCalledWith({ to: '/podcasts/$slug', params: { slug: 'deep-house' } })
+    expect(navigate).toHaveBeenCalledWith({ to: '/podcasts/$slug/manage', params: { slug: 'deep-house' } })
   })
 
   it('says when nothing matches', async () => {

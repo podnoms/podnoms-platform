@@ -39,8 +39,8 @@ type PlayerContextValue = {
 const PlayerContext = createContext<PlayerContextValue | null>(null)
 
 // One audio element for the whole app, so playback carries on while you move
-// between pages.
-export function PlayerProvider({ children }: { children: ReactNode }) {
+// between pages. Signed-out listeners' positions are only kept in this browser.
+export function PlayerProvider({ signedIn, children }: { signedIn: boolean; children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [episode, setEpisode] = useState<PlayerEpisode | null>(null)
   const [playing, setPlaying] = useState(false)
@@ -71,11 +71,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (lastSaved.current[id] === position) return
     lastSaved.current[id] = position
     setPositions((current) => ({ ...current, [id]: position }))
+    if (!signedIn) return
     saveMyPlaybackPosition({ data: { episodeId: id, seconds: position } }).catch(() => {
       // Resuming is a nicety; try again next time rather than surface an error.
       delete lastSaved.current[id]
     })
-  }, [])
+  }, [signedIn])
 
   const positionOf = useCallback(
     (episodeId: string, loaded: number | null) => positions[episodeId] ?? loaded ?? 0,

@@ -1,4 +1,4 @@
-import { Link, useLoaderData } from '@tanstack/react-router'
+import { Link, useLoaderData, useLocation } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { NewPodcastDialog } from '~/components/new-podcast-dialog'
 import {
@@ -19,6 +19,9 @@ import { navLinks } from '~/lib/nav-links'
 
 export function AppSidebar() {
   const { podcasts } = useLoaderData({ from: '__root__' })
+  const pathname = useLocation({ select: (location) => location.pathname })
+  // A podcast's public and management pages, and its episodes', all count as its.
+  const isActive = (slug: string) => pathname === `/podcasts/${slug}` || pathname.startsWith(`/podcasts/${slug}/`)
 
   return (
     // Ends above the player bar rather than running behind it, with no border
@@ -54,9 +57,10 @@ export function AppSidebar() {
                 <SidebarMenuItem key={podcast.id}>
                   <SidebarMenuButton asChild className="h-10 gap-3 px-1.5">
                     <Link
-                      to="/podcasts/$slug"
+                      to="/podcasts/$slug/manage"
                       params={{ slug: podcast.slug }}
-                      activeProps={{ 'data-active': '' }}
+                      // The attribute's presence is what styles it, so leave it off otherwise.
+                      {...(isActive(podcast.slug) && { 'data-active': '' })}
                     >
                       {podcast.imageUrl ? (
                         <img

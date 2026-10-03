@@ -125,7 +125,7 @@ describe('GET /feed/:slug', () => {
     expect(response.headers.get('cache-control')).toBe('public, max-age=300')
     const xml = await response.text()
     expect(xml).toContain('<atom:link href="https://pods.example/feed/show"')
-    expect(xml).toContain('<link>https://pods.example</link>')
+    expect(xml).toContain('<link>https://pods.example/podcasts/show</link>')
   })
 
   it('is 404 for unknown podcasts', async () => {

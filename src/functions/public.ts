@@ -1,0 +1,76 @@
+// Server functions for the public pages, which anyone can see. A signed-in
+// visitor also gets where they left off, and whether the podcast is theirs.
+import { notFound } from '@tanstack/react-router'
+import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
+import { z } from 'zod'
+import { imageSrc } from '~/lib/images'
+import { embedPath, episodePath, listenPath, podcastPath } from '~/lib/paths'
+import { getSession, publicUrl } from '~/server/auth.server'
+import { getPublicEpisode, listPublishedEpisodes } from '~/server/episodes.server'
+import { feedPath } from '~/server/feed.server'
+import { getPublicPodcast } from '~/server/podcasts.server'
+import { sanitizeDescription } from '~/server/rich-text.server'
+import { readWaveform } from '~/server/waveforms.server'
+
+// Link previews ask for images about this wide.
+const previewImageWidth = 600
+
+async function visitor() {
+  const request = getRequest()
+  const session = await getSession(request)
+  const origin = publicUrl(request).origin
+  return {
+    userId: session?.user?.id ?? null,
+    absolute: (path: string) => new URL(path, origin).toString(),
+  }
+}
+
+export const fetchPodcastPage = createServerFn({ method: 'GET' })
+  .validator(z.object({ slug: z.string() }))
+  .handler(async ({ data }) => {
+    const { userId, absolute } = await visitor()
+    const podcast = await getPublicPodcast(data.slug)
+    if (!podcast) throw notFound()
+    const episodes = await listPublishedEpisodes(podcast.id, userId)
+    const { userId: ownerId, ...rest } = podcast
+    return {
+      ...rest,
+      // Sanitised when saved; again here, as it's rendered as HTML.
+      description: sanitizeDescription(podcast.description),
+      isOwner: userId === ownerId,
+      pageUrl: absolute(podcastPath(podcast.slug)),
+      feedUrl: absolute(feedPath(podcast.slug)),
+      previewImageUrl: podcast.imageUrl && absolute(imageSrc(podcast.imageUrl, previewImageWidth)),
+      episodes: episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) })),
+    }
+  })
+
+export const fetchEpisodePage = createServerFn({ method: 'GET' })
+  .validator(z.object({ slug: z.string(), episodeSlug: z.string() }))
+  .handler(async ({ data }) => {
+    const { userId, absolute } = await visitor()
+    const found = await getPublicEpisode(data.slug, data.episodeSlug, userId)
+    if (!found) throw notFound()
+    const { userId: ownerId, ...podcast } = found.podcast
+    const { episode } = found
+    const artwork = episode.imageUrl ?? podcast.imageUrl
+    const waveform = await readWaveform(episode.id)
+    return {
+      podcast,
+      episode: {
+        ...episode,
+        // Sanitised when saved; again here, as it's rendered as HTML.
+        description: sanitizeDescription(episode.description),
+      },
+      isOwner: userId === ownerId,
+      pageUrl: absolute(episodePath(podcast.slug, episode.slug)),
+      shareUrl: absolute(listenPath(podcast.slug, episode.slug)),
+      embedUrl: absolute(embedPath(podcast.slug, episode.slug)),
+      feedUrl: absolute(feedPath(podcast.slug)),
+      audioUrl: absolute(episode.audioUrl!),
+      previewImageUrl: artwork && absolute(imageSrc(artwork, previewImageWidth)),
+      // The smoother of the two shapes, as Mixcloud draws them.
+      waveform: waveform?.rms ?? null,
+    }
+  })

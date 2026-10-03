@@ -65,7 +65,7 @@ function Home() {
       </header>
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {podcasts.map((podcast) => (
-          <Link key={podcast.id} to="/podcasts/$slug" params={{ slug: podcast.slug }}>
+          <Link key={podcast.id} to="/podcasts/$slug/manage" params={{ slug: podcast.slug }}>
             <Card>
               <CardHeader>
                 <CardTitle>{podcast.title}</CardTitle>

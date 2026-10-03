@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { podcasts } from '~/server/db/schema'
-import { createPodcast, getPodcastBySlug, listPodcasts, updatePodcast } from '~/server/podcasts.server'
+import { createPodcast, getPodcastBySlug, getPublicPodcast, listPodcasts, updatePodcast } from '~/server/podcasts.server'
 import { imagePath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import {
@@ -142,5 +142,39 @@ describe('updatePodcast', () => {
       updatePodcast(user.id, { id: podcast.id, title: 'After', imageId: crypto.randomUUID() }),
     ).rejects.toThrow('That image has expired')
     expect((await getRow(podcast.id)).title).toBe('Before')
+  })
+})
+
+describe('getPublicPodcast', () => {
+  it('finds any podcast by slug, with its author', async () => {
+    const user = await createUser({ name: 'Ada' })
+    const podcast = await insertPodcast(user.id, { slug: 'show', title: 'Show', category: 'Music' })
+    expect(await getPublicPodcast('show')).toEqual({
+      id: podcast.id,
+      userId: user.id,
+      title: 'Show',
+      slug: 'show',
+      description: null,
+      imageUrl: null,
+      category: 'Music',
+      explicit: false,
+      private: false,
+      author: 'Ada',
+    })
+  })
+
+  it('includes private podcasts, which are unlisted rather than secret', async () => {
+    await insertPodcast((await createUser()).id, { slug: 'secret', private: true })
+    expect(await getPublicPodcast('secret')).toMatchObject({ slug: 'secret', private: true })
+  })
+
+  it("falls back to a ready episode's artwork", async () => {
+    const podcast = await insertPodcast((await createUser()).id, { slug: 'show' })
+    await createEpisode(podcast.id, { status: 'ready', imageUrl: '/images/ep.jpg' })
+    expect((await getPublicPodcast('show'))!.imageUrl).toBe('/images/ep.jpg')
+  })
+
+  it('returns null for an unknown slug', async () => {
+    expect(await getPublicPodcast('nope')).toBeNull()
   })
 })
