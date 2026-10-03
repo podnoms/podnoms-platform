@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { EditDetailsDialog } from '~/components/edit-details-dialog'
+import { EpisodeListEnd } from '~/components/episode-list-end'
 import { EpisodeRow } from '~/components/episode-row'
 import { FeedUrlButton } from '~/components/feed-url-button'
 import { Icons } from '~/components/icons'
@@ -15,7 +16,8 @@ import {
   EmptyTitle,
 } from '~/components/ui/empty'
 import { ItemGroup } from '~/components/ui/item'
-import { fetchMyPodcast, updateMyPodcast } from '~/functions/podcasts'
+import { fetchMyPodcast, fetchMyPodcastEpisodes, updateMyPodcast } from '~/functions/podcasts'
+import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
 import { formatDate, formatLength } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
@@ -31,20 +33,25 @@ function PodcastPage() {
   const podcast = Route.useLoaderData()
   const router = useRouter()
   const [editing, setEditing] = useState(false)
+  const { summary } = podcast
+  const { totalSeconds, latestAt } = summary
+  const { episodes: loaded, ...more } = useEpisodePages({
+    podcastSlug: podcast.slug,
+    first: podcast.episodes,
+    total: summary.count,
+    fetchMore: (offset, limit) => fetchMyPodcastEpisodes({ data: { slug: podcast.slug, offset, limit } }),
+  })
   // While episodes are being processed, follow them live (rather than polling)
   // and reload the page when one's details change.
-  const processing = podcast.episodes.some((e) => e.status === 'pending' || e.status === 'processing' || e.replacing)
+  const processing = loaded.some((e) => e.status === 'pending' || e.status === 'processing' || e.replacing)
   const live = useLiveProgress(podcast.slug, processing, podcast, () =>
     router.invalidate({ filter: (match) => match.routeId === Route.id }),
   )
-  const episodes = podcast.episodes.map((episode) => withLiveProgress(episode, live))
+  const episodes = loaded.map((episode) => withLiveProgress(episode, live))
 
-  const ready = episodes.filter((e) => e.status === 'ready')
-  const totalSeconds = ready.reduce((sum, e) => sum + (e.durationSeconds ?? 0), 0)
-  const artwork = podcast.imageUrl ?? ready.find((e) => e.imageUrl)?.imageUrl ?? null
-  const latest = episodes[0]
+  const artwork = podcast.imageUrl ?? episodes.find((e) => e.status === 'ready' && e.imageUrl)?.imageUrl ?? null
   const stats = [
-    `${episodes.length} ${episodes.length === 1 ? 'episode' : 'episodes'}`,
+    `${summary.count} ${summary.count === 1 ? 'episode' : 'episodes'}`,
     totalSeconds ? formatLength(totalSeconds) : null,
   ].filter(Boolean)
 
@@ -97,7 +104,7 @@ function PodcastPage() {
                   Edit
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link to="/podcasts/$slug" params={{ slug: podcast.slug }}>
+                  <Link to="/podcasts/$slug" target='_blank' params={{ slug: podcast.slug }} >
                     <Icons.externalLink />
                     Public page
                   </Link>
@@ -115,7 +122,7 @@ function PodcastPage() {
             <h2 id="episodes-heading" className="text-lg font-semibold">
               Episodes
             </h2>
-            {episodes.length > 0 && <span className="text-sm text-muted-foreground">{episodes.length}</span>}
+            {summary.count > 0 && <span className="text-sm text-muted-foreground">{summary.count}</span>}
           </div>
           {episodes.length === 0 ? (
             <Empty className="border border-dashed">
@@ -131,12 +138,13 @@ function PodcastPage() {
               <EmptyContent>{newEpisodeButton}</EmptyContent>
             </Empty>
           ) : (
-            <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border bg-card">
+            <ItemGroup className="gap-3">
               {episodes.map((episode) => (
                 <EpisodeRow key={episode.id} episode={episode} podcastSlug={podcast.slug} podcastTitle={podcast.title} />
               ))}
             </ItemGroup>
           )}
+          <EpisodeListEnd {...more} />
         </section>
         <aside className="sticky top-4 hidden flex-col gap-6 rounded-xl border bg-card p-5 xl:flex">
           {podcast.description && (
@@ -151,17 +159,17 @@ function PodcastPage() {
           )}
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
             <dt className="text-muted-foreground">Episodes</dt>
-            <dd className="text-end">{episodes.length}</dd>
+            <dd className="text-end">{summary.count}</dd>
             {totalSeconds > 0 && (
               <>
                 <dt className="text-muted-foreground">Total length</dt>
                 <dd className="text-end">{formatLength(totalSeconds)}</dd>
               </>
             )}
-            {latest && (
+            {latestAt && (
               <>
                 <dt className="text-muted-foreground">Latest episode</dt>
-                <dd className="text-end">{formatDate(latest.createdAt)}</dd>
+                <dd className="text-end">{formatDate(latestAt)}</dd>
               </>
             )}
           </dl>

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useLoaderData, useLocation } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { NewPodcastDialog } from '~/components/new-podcast-dialog'
@@ -9,6 +10,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
+  SidebarInput,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -22,6 +24,11 @@ export function AppSidebar() {
   const pathname = useLocation({ select: (location) => location.pathname })
   // A podcast's public and management pages, and its episodes', all count as its.
   const isActive = (slug: string) => pathname === `/podcasts/${slug}` || pathname.startsWith(`/podcasts/${slug}/`)
+  // A long list gets a filter box.
+  const filterable = podcasts.length > 8
+  const [query, setQuery] = useState('')
+  const needle = query.trim().toLowerCase()
+  const shown = filterable && needle ? podcasts.filter((p) => p.title.toLowerCase().includes(needle)) : podcasts
 
   return (
     // Ends above the player bar rather than running behind it, with no border
@@ -51,11 +58,21 @@ export function AppSidebar() {
               <span className="sr-only">New podcast</span>
             </SidebarGroupAction>
           </NewPodcastDialog>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-0.5">
-              {podcasts.map((podcast) => (
+          <SidebarGroupContent className="flex flex-col gap-2">
+            {filterable && (
+              <SidebarInput
+                type="search"
+                placeholder="Filter podcasts"
+                aria-label="Filter podcasts"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => event.key === 'Escape' && setQuery('')}
+              />
+            )}
+            <SidebarMenu className="gap-1">
+              {shown.map((podcast) => (
                 <SidebarMenuItem key={podcast.id}>
-                  <SidebarMenuButton asChild className="h-10 gap-3 px-1.5">
+                  <SidebarMenuButton asChild className="h-12 gap-3 px-2">
                     <Link
                       to="/podcasts/$slug/manage"
                       params={{ slug: podcast.slug }}
@@ -64,12 +81,12 @@ export function AppSidebar() {
                     >
                       {podcast.imageUrl ? (
                         <img
-                          src={imageSrc(podcast.imageUrl, 28)}
+                          src={imageSrc(podcast.imageUrl, 32)}
                           alt=""
-                          className="size-7 shrink-0 rounded-md object-cover"
+                          className="size-8 shrink-0 rounded-md object-cover"
                         />
                       ) : (
-                        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted">
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
                           <Icons.logo className="size-4 text-muted-foreground" />
                         </span>
                       )}
@@ -78,6 +95,11 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {shown.length === 0 && podcasts.length > 0 && (
+                <SidebarMenuItem>
+                  <p className="px-2 py-1.5 text-sm text-muted-foreground">No podcasts match</p>
+                </SidebarMenuItem>
+              )}
               {podcasts.length === 0 && (
                 <SidebarMenuItem>
                   <NewPodcastDialog>

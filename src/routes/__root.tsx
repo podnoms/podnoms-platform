@@ -4,7 +4,7 @@ import { HeadContent, Outlet, Scripts, createRootRoute, useMatches } from '@tans
 import { AppSidebar } from '~/components/app-sidebar'
 import { ThemeProvider } from '~/components/theme-provider'
 import { TopNav } from '~/components/top-nav'
-import { SidebarInset, SidebarProvider } from '~/components/ui/sidebar'
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '~/components/ui/sidebar'
 import { LoginDialog } from '~/components/login-dialog'
 import { PlayerBar } from '~/components/player/player-bar'
 import { PlayerProvider } from '~/components/player/player-provider'
@@ -22,6 +22,9 @@ declare module '@tanstack/react-router' {
     // Renders the page on its own, without the app's shell, header, player or
     // dialogs, as for the embeddable player.
     bare?: boolean
+    // Keeps the sidebar and player but leaves out the header across the top
+    // (the top nav, or the public header when signed out), as for public pages.
+    headerless?: boolean
   }
 }
 
@@ -60,14 +63,25 @@ function RootComponent() {
   const { errorReportingDsn } = Route.useLoaderData()
   useEffect(() => startClientErrorReporting(errorReportingDsn), [errorReportingDsn])
   const bare = useMatches({ select: (matches) => matches.some((match) => match.staticData.bare) })
+  const headerless = useMatches({ select: (matches) => matches.some((match) => match.staticData.headerless) })
   return (
-    <RootDocument signedIn={Boolean(session)} bare={bare}>
+    <RootDocument signedIn={Boolean(session)} bare={bare} headerless={headerless}>
       <Outlet />
     </RootDocument>
   )
 }
 
-function RootDocument({ signedIn, bare, children }: { signedIn: boolean; bare: boolean; children: ReactNode }) {
+function RootDocument({
+  signedIn,
+  bare,
+  headerless,
+  children,
+}: {
+  signedIn: boolean
+  bare: boolean
+  headerless: boolean
+  children: ReactNode
+}) {
   return (
     // ThemeProvider's inline script sets the theme class on <html> before hydration.
     <html lang="en" suppressHydrationWarning>
@@ -87,7 +101,12 @@ function RootDocument({ signedIn, bare, children }: { signedIn: boolean; bare: b
               <SidebarProvider style={{ '--sidebar-width': '18rem' } as CSSProperties}>
                 <AppSidebar />
                 <SidebarInset className="pb-(--player-height)">
-                  <TopNav />
+                  {headerless ? (
+                    // Without the top nav, phones still need a way to open the sidebar.
+                    <SidebarTrigger className="absolute top-3 left-3 z-10 md:hidden" />
+                  ) : (
+                    <TopNav />
+                  )}
                   {children}
                 </SidebarInset>
               </SidebarProvider>
@@ -96,7 +115,7 @@ function RootDocument({ signedIn, bare, children }: { signedIn: boolean; bare: b
             </PlayerProvider>
           ) : (
             <PlayerProvider signedIn={false}>
-              <PublicHeader />
+              {!headerless && <PublicHeader />}
               <div className="pb-(--player-height)">{children}</div>
               <PlayerBar />
             </PlayerProvider>

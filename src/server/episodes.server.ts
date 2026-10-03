@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 import { rm } from 'node:fs/promises'
-import { and, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, isNotNull, isNull, max, or, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
 import { episodes, playbackPositions, podcasts, users, type NewEpisode } from '~/server/db/schema'
 import { enqueueEpisode } from '~/server/episode-processor.server'
@@ -49,14 +49,33 @@ function listenerPosition(listenerId: string | null) {
   )
 }
 
-// A podcast's published episodes, for its public page.
-export function listPublishedEpisodes(podcastId: string, listenerId: string | null) {
-  return db
+// A slice of a list, for pages that load episodes as they're scrolled to.
+export type Page = { offset: number; limit: number }
+
+// A podcast's published episodes, for its public page: all of them, or a page.
+export function listPublishedEpisodes(podcastId: string, listenerId: string | null, page?: Page) {
+  const query = db
     .select({ ...publicEpisodeColumns, positionSeconds: playbackPositions.positionSeconds })
     .from(episodes)
     .leftJoin(playbackPositions, listenerPosition(listenerId))
     .where(and(eq(episodes.podcastId, podcastId), isPublished))
-    .orderBy(newestPublishedFirst)
+    // By id too, so pages split ties the same way each time.
+    .orderBy(newestPublishedFirst, desc(episodes.id))
+  return page ? query.offset(page.offset).limit(page.limit) : query
+}
+
+// How many episodes the public page has, their total length and when the
+// latest came out, as it only loads some of them.
+export async function summarisePublishedEpisodes(podcastId: string) {
+  const [summary] = await db
+    .select({
+      count: count(),
+      totalSeconds: sql`coalesce(sum(${episodes.durationSeconds}), 0)`.mapWith(Number),
+      latestAt: sql`max(coalesce(${episodes.publishedAt}, ${episodes.createdAt}))`.mapWith(episodes.createdAt),
+    })
+    .from(episodes)
+    .where(and(eq(episodes.podcastId, podcastId), isPublished))
+  return { count: summary!.count, totalSeconds: summary!.totalSeconds, latestAt: summary!.latestAt as Date | null }
 }
 
 // A published episode, by podcast and episode slug, with its podcast; null if
@@ -85,9 +104,9 @@ export async function getPublicEpisode(podcastSlug: string, episodeSlug: string,
   return row ?? null
 }
 
-// Includes where the user left off in each episode.
-export function listEpisodes(userId: string, podcastId: string) {
-  return db
+// Includes where the user left off in each episode. All of them, or a page.
+export function listEpisodes(userId: string, podcastId: string, page?: Page) {
+  const query = db
     .select({
       id: episodes.id,
       title: episodes.title,
@@ -109,7 +128,24 @@ export function listEpisodes(userId: string, podcastId: string) {
       and(eq(playbackPositions.episodeId, episodes.id), eq(playbackPositions.userId, userId)),
     )
     .where(eq(episodes.podcastId, podcastId))
-    .orderBy(desc(episodes.createdAt))
+    .orderBy(desc(episodes.createdAt), desc(episodes.id))
+  return page ? query.offset(page.offset).limit(page.limit) : query
+}
+
+// How many episodes a podcast has (in any state), the total length of the
+// ready ones and when the latest was added, for its management page.
+export async function summariseEpisodes(podcastId: string) {
+  const [summary] = await db
+    .select({
+      count: count(),
+      totalSeconds: sql`coalesce(sum(${episodes.durationSeconds}) filter (where ${episodes.status} = 'ready'), 0)`.mapWith(
+        Number,
+      ),
+      latestAt: max(episodes.createdAt),
+    })
+    .from(episodes)
+    .where(eq(episodes.podcastId, podcastId))
+  return summary!
 }
 
 // One of the user's episodes, by podcast and episode slug, with its podcast

@@ -4,10 +4,11 @@ import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
+import { episodePageSchema, episodePageSize } from '~/lib/episode-pages'
 import { imageSrc } from '~/lib/images'
 import { embedPath, episodePath, listenPath, podcastPath } from '~/lib/paths'
 import { getSession, publicUrl } from '~/server/auth.server'
-import { getPublicEpisode, listPublishedEpisodes } from '~/server/episodes.server'
+import { getPublicEpisode, listPublishedEpisodes, summarisePublishedEpisodes } from '~/server/episodes.server'
 import { feedPath } from '~/server/feed.server'
 import { getPublicPodcast } from '~/server/podcasts.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
@@ -26,13 +27,24 @@ async function visitor() {
   }
 }
 
+type PublicEpisodeRows = Awaited<ReturnType<typeof listPublishedEpisodes>>
+
+// Sanitised when saved; again here, as they're rendered as HTML.
+const sanitizeEpisodes = (episodes: PublicEpisodeRows) =>
+  episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) }))
+
+// A podcast's public page, with its first page of episodes; the rest are
+// fetched with fetchPodcastEpisodes as the list is scrolled.
 export const fetchPodcastPage = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: z.string() }))
   .handler(async ({ data }) => {
     const { userId, absolute } = await visitor()
     const podcast = await getPublicPodcast(data.slug)
     if (!podcast) throw notFound()
-    const episodes = await listPublishedEpisodes(podcast.id, userId)
+    const [episodes, summary] = await Promise.all([
+      listPublishedEpisodes(podcast.id, userId, { offset: 0, limit: episodePageSize }),
+      summarisePublishedEpisodes(podcast.id),
+    ])
     const { userId: ownerId, ...rest } = podcast
     return {
       ...rest,
@@ -42,8 +54,19 @@ export const fetchPodcastPage = createServerFn({ method: 'GET' })
       pageUrl: absolute(podcastPath(podcast.slug)),
       feedUrl: absolute(feedPath(podcast.slug)),
       previewImageUrl: podcast.imageUrl && absolute(imageSrc(podcast.imageUrl, previewImageWidth)),
-      episodes: episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) })),
+      episodes: sanitizeEpisodes(episodes),
+      summary,
     }
+  })
+
+// More of a podcast's published episodes, for its public page.
+export const fetchPodcastEpisodes = createServerFn({ method: 'GET' })
+  .validator(episodePageSchema)
+  .handler(async ({ data }) => {
+    const { userId } = await visitor()
+    const podcast = await getPublicPodcast(data.slug)
+    if (!podcast) throw notFound()
+    return sanitizeEpisodes(await listPublishedEpisodes(podcast.id, userId, data))
   })
 
 export const fetchEpisodePage = createServerFn({ method: 'GET' })

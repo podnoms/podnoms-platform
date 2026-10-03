@@ -17,6 +17,8 @@ import {
   replaceEpisodeAudio,
   retryEpisode,
   savePlaybackPosition,
+  summariseEpisodes,
+  summarisePublishedEpisodes,
   updateEpisode,
 } from '~/server/episodes.server'
 import { episodeAudioPath, episodeSourcePath, episodeWaveformPath, imagePath, stagedUploadPath } from '~/server/storage.server'
@@ -171,6 +173,32 @@ describe('listEpisodes / getEpisode / getEpisodeSlug', () => {
       ['New', null],
       ['Old', 42],
     ])
+  })
+
+  it('lists a page of episodes', async () => {
+    const { user, podcast } = await setup()
+    for (const month of [1, 2, 3]) {
+      await insertEpisode(podcast.id, { title: `Month ${month}`, createdAt: new Date(`2026-0${month}-01`) })
+    }
+    const page = await listEpisodes(user.id, podcast.id, { offset: 1, limit: 1 })
+    expect(page.map((e) => e.title)).toEqual(['Month 2'])
+  })
+
+  it('summarises all episodes, counting the length of ready ones only', async () => {
+    const { podcast } = await setup()
+    await insertEpisode(podcast.id, { status: 'ready', durationSeconds: 60, createdAt: new Date('2026-01-01') })
+    await insertEpisode(podcast.id, { status: 'failed', durationSeconds: 600, createdAt: new Date('2026-03-01') })
+    await insertEpisode(podcast.id, { status: 'ready', durationSeconds: 30, createdAt: new Date('2026-02-01') })
+    expect(await summariseEpisodes(podcast.id)).toEqual({
+      count: 3,
+      totalSeconds: 90,
+      latestAt: new Date('2026-03-01'),
+    })
+  })
+
+  it('summarises a podcast with no episodes', async () => {
+    const { podcast } = await setup()
+    expect(await summariseEpisodes(podcast.id)).toEqual({ count: 0, totalSeconds: 0, latestAt: null })
   })
 
   it('finds an episode by podcast and episode slug, for its owner only', async () => {
@@ -500,6 +528,29 @@ describe('public episode reads', () => {
       const { podcast } = await showWithEpisodes()
       const list = await listPublishedEpisodes(podcast.id, null)
       expect(list.map((e) => e.slug)).toEqual(['newer', 'older'])
+    })
+
+    it('lists a page of them', async () => {
+      const { podcast } = await showWithEpisodes()
+      expect((await listPublishedEpisodes(podcast.id, null, { offset: 1, limit: 10 })).map((e) => e.slug)).toEqual([
+        'older',
+      ])
+      expect(await listPublishedEpisodes(podcast.id, null, { offset: 2, limit: 10 })).toEqual([])
+    })
+
+    it('summarises only published episodes', async () => {
+      const { podcast } = await showWithEpisodes()
+      await db.update(episodes).set({ durationSeconds: 100 })
+      expect(await summarisePublishedEpisodes(podcast.id)).toEqual({
+        count: 2,
+        totalSeconds: 200,
+        latestAt: new Date('2026-02-01T00:00:00Z'),
+      })
+    })
+
+    it('summarises a podcast with nothing published', async () => {
+      const podcast = await createPodcast((await createUser()).id)
+      expect(await summarisePublishedEpisodes(podcast.id)).toEqual({ count: 0, totalSeconds: 0, latestAt: null })
     })
 
     it("doesn't expose sources, errors or replacement state", async () => {

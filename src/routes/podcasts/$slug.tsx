@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { EpisodeListEnd } from '~/components/episode-list-end'
 import { FeedUrlButton } from '~/components/feed-url-button'
 import { Icons } from '~/components/icons'
 import { PublicEpisodeRow } from '~/components/public-episode-row'
 import { Button } from '~/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '~/components/ui/empty'
 import { ItemGroup } from '~/components/ui/item'
-import { fetchPodcastPage } from '~/functions/public'
+import { fetchPodcastEpisodes, fetchPodcastPage } from '~/functions/public'
+import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { formatDate, formatLength } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { publicPageHead } from '~/lib/page-meta'
@@ -14,6 +16,7 @@ import { htmlToText } from '~/lib/rich-text'
 // A podcast's public page, which anyone can visit. Its owner manages it at
 // /podcasts/:slug/manage.
 export const Route = createFileRoute('/podcasts/$slug')({
+  staticData: { headerless: true },
   loader: ({ params }) => fetchPodcastPage({ data: { slug: params.slug } }),
   head: ({ loaderData: podcast }) =>
     podcast
@@ -33,12 +36,17 @@ export const Route = createFileRoute('/podcasts/$slug')({
 
 function PodcastPage() {
   const podcast = Route.useLoaderData()
-  const { episodes } = podcast
-  const totalSeconds = episodes.reduce((sum, e) => sum + (e.durationSeconds ?? 0), 0)
-  const latest = episodes[0]
+  const { summary } = podcast
+  const { totalSeconds, latestAt } = summary
+  const { episodes, ...more } = useEpisodePages({
+    podcastSlug: podcast.slug,
+    first: podcast.episodes,
+    total: summary.count,
+    fetchMore: (offset, limit) => fetchPodcastEpisodes({ data: { slug: podcast.slug, offset, limit } }),
+  })
   const stats = [
     podcast.author ? `by ${podcast.author}` : null,
-    `${episodes.length} ${episodes.length === 1 ? 'episode' : 'episodes'}`,
+    `${summary.count} ${summary.count === 1 ? 'episode' : 'episodes'}`,
     totalSeconds ? formatLength(totalSeconds) : null,
   ].filter(Boolean)
 
@@ -97,7 +105,7 @@ function PodcastPage() {
             <h2 id="episodes-heading" className="text-lg font-semibold">
               Episodes
             </h2>
-            {episodes.length > 0 && <span className="text-sm text-muted-foreground">{episodes.length}</span>}
+            {summary.count > 0 && <span className="text-sm text-muted-foreground">{summary.count}</span>}
           </div>
           {episodes.length === 0 ? (
             <Empty className="border border-dashed">
@@ -110,7 +118,7 @@ function PodcastPage() {
               </EmptyHeader>
             </Empty>
           ) : (
-            <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border bg-card">
+            <ItemGroup className="gap-3">
               {episodes.map((episode) => (
                 <PublicEpisodeRow
                   key={episode.id}
@@ -122,6 +130,7 @@ function PodcastPage() {
               ))}
             </ItemGroup>
           )}
+          <EpisodeListEnd {...more} />
         </section>
         <aside className="sticky top-4 hidden flex-col gap-6 rounded-xl border bg-card p-5 xl:flex">
           {podcast.description && (
@@ -142,17 +151,17 @@ function PodcastPage() {
               </>
             )}
             <dt className="text-muted-foreground">Episodes</dt>
-            <dd className="text-end">{episodes.length}</dd>
+            <dd className="text-end">{summary.count}</dd>
             {totalSeconds > 0 && (
               <>
                 <dt className="text-muted-foreground">Total length</dt>
                 <dd className="text-end">{formatLength(totalSeconds)}</dd>
               </>
             )}
-            {latest && (
+            {latestAt && (
               <>
                 <dt className="text-muted-foreground">Latest episode</dt>
-                <dd className="text-end">{formatDate(latest.publishedAt ?? latest.createdAt)}</dd>
+                <dd className="text-end">{formatDate(latestAt)}</dd>
               </>
             )}
           </dl>

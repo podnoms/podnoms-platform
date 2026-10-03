@@ -63,14 +63,14 @@ export function PublicEpisodeRow({
     <Item
       role="listitem"
       data-current={isCurrent || undefined}
-      className="relative gap-4 rounded-none px-4 py-3 transition-colors before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-primary before:opacity-0 hover:bg-muted/50 data-current:bg-primary/5 data-current:before:opacity-100"
+      className="relative gap-5 overflow-hidden rounded-xl border bg-card p-4 transition-colors before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-primary before:opacity-0 hover:bg-muted/50 data-current:border-primary/40 data-current:bg-primary/5 data-current:before:opacity-100 sm:p-5"
     >
-      <ItemMedia variant="image" className="relative size-16 rounded-md">
+      <ItemMedia variant="image" className="relative size-20 rounded-lg">
         {artwork ? (
-          <img src={imageSrc(artwork, 64)} alt="" />
+          <img src={imageSrc(artwork, 80)} alt="" />
         ) : (
           <div className="flex size-full items-center justify-center bg-muted">
-            <Icons.logo className="size-6 text-muted-foreground" />
+            <Icons.logo className="size-7 text-muted-foreground" />
           </div>
         )}
         {played > 0 && (
@@ -87,7 +87,7 @@ export function PublicEpisodeRow({
         )}
       </ItemMedia>
       <ItemContent className="min-w-0">
-        <ItemTitle className="line-clamp-1">
+        <ItemTitle className="line-clamp-1 text-base font-semibold">
           {/* Stretched over the whole row, so clicking anywhere opens the episode;
               the play button sits above it. */}
           <Link
@@ -98,9 +98,9 @@ export function PublicEpisodeRow({
             {episode.title}
           </Link>
         </ItemTitle>
-        <ItemDescription>{meta.join(' · ')}</ItemDescription>
+        <ItemDescription className="text-xs">{meta.join(' · ')}</ItemDescription>
         {episode.description && (
-          <ItemDescription className="line-clamp-2">{htmlToText(episode.description)}</ItemDescription>
+          <ItemDescription className="mt-1 line-clamp-2">{htmlToText(episode.description)}</ItemDescription>
         )}
       </ItemContent>
       <ItemActions className="relative z-10">

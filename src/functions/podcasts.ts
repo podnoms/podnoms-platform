@@ -2,6 +2,7 @@ import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
+import { episodePageSchema, episodePageSize } from '~/lib/episode-pages'
 import { editEpisodeSchema, newEpisodeSchema, replaceAudioSchema } from '~/lib/episode-schema'
 import { listenPath } from '~/lib/paths'
 import { editPodcastSchema, newPodcastSchema } from '~/lib/podcast-schema'
@@ -19,6 +20,7 @@ import {
   replaceEpisodeAudio,
   retryEpisode,
   savePlaybackPosition,
+  summariseEpisodes,
   updateEpisode,
 } from '~/server/episodes.server'
 import { createPodcast, getPodcastBySlug, listPodcasts, updatePodcast } from '~/server/podcasts.server'
@@ -45,14 +47,29 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
     void resumeUnfinishedEpisodes()
     void localiseRemoteImages()
     void backfillWaveforms()
-    const episodes = await listEpisodes(userId, podcast.id)
+    const [episodes, summary] = await Promise.all([
+      listEpisodes(userId, podcast.id, { offset: 0, limit: episodePageSize }),
+      summariseEpisodes(podcast.id),
+    ])
     return {
       ...podcast,
       // Sanitised when saved; again here, as it's rendered as HTML.
       description: sanitizeDescription(podcast.description),
       feedUrl: new URL(feedPath(podcast.slug), publicUrl(getRequest())).toString(),
       episodes: episodes.map((episode) => ({ ...episode, progress: getEpisodeProgress(episode.id) })),
+      summary,
     }
+  })
+
+// More of one of the user's podcast's episodes, for its management page.
+export const fetchMyPodcastEpisodes = createServerFn({ method: 'GET' })
+  .validator(episodePageSchema)
+  .handler(async ({ data }) => {
+    const userId = await requireUserId()
+    const podcast = await getPodcastBySlug(userId, data.slug)
+    if (!podcast) throw notFound()
+    const episodes = await listEpisodes(userId, podcast.id, data)
+    return episodes.map((episode) => ({ ...episode, progress: getEpisodeProgress(episode.id) }))
   })
 
 // An episode's page: the episode, its podcast and its waveform (null until made).

@@ -8,6 +8,7 @@ import { publicPageHead } from '~/lib/page-meta'
 // route. Its owner manages it at .../manage; /listen has it without the site
 // around it, for sharing.
 export const Route = createFileRoute('/podcasts/$slug_/episodes/$episodeSlug')({
+  staticData: { headerless: true },
   loader: ({ params }) => fetchEpisodePage({ data: { slug: params.slug, episodeSlug: params.episodeSlug } }),
   head: ({ loaderData: page }) => (page ? publicPageHead(episodeHeadOptions(page)) : {}),
   component: EpisodePage,
