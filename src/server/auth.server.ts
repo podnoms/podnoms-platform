@@ -13,6 +13,7 @@ import type { Session } from '@auth/core/types'
 import { env } from '~/env'
 import { credentialsSchema } from '~/lib/auth-schema'
 import { db } from '~/server/db/client.server'
+import { logger, reportError } from '~/server/logger.server'
 import { accounts, sessions, users, verificationTokens } from '~/server/db/schema'
 import { hasTwoFactor, redeemTwoFactorTicket } from '~/server/two-factor.server'
 import { firstUserIsAdmin, verifyUser } from '~/server/users.server'
@@ -84,6 +85,16 @@ export const authConfig: AuthConfig = {
   basePath: '/api/auth',
   secret: env.AUTH_SECRET,
   trustHost: true,
+  // Through our logger rather than the console. A wrong password isn't worth
+  // anyone's attention; anything else (a broken OAuth provider, say) is.
+  logger: {
+    error: (error) =>
+      error.name === 'CredentialsSignin'
+        ? logger.info({ type: error.name }, 'Sign-in refused')
+        : reportError(error, { msg: 'Auth.js error' }),
+    warn: (code) => logger.warn({ code }, 'Auth.js warning'),
+    debug: (message, metadata) => logger.debug({ metadata }, message),
+  },
   // Stores OAuth users and their linked provider accounts.
   adapter,
   // The credentials provider only works with JWT sessions.
