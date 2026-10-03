@@ -39,7 +39,7 @@ const results = {
 
 function openPalette() {
   render(<SearchCommand />)
-  fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
+  fireEvent.keyDown(document, { key: '/' })
   return screen.getByPlaceholderText('Search podcasts and episodes…')
 }
 
@@ -52,8 +52,25 @@ describe('SearchCommand', () => {
     expect(searchMyLibrary).not.toHaveBeenCalled()
   })
 
-  it('opens with Ctrl+K', () => {
+  it('opens with /', () => {
     expect(openPalette()).toBeTruthy()
+  })
+
+  it("doesn't open with / while typing in a field or editor, or with a modifier", () => {
+    render(
+      <>
+        <SearchCommand />
+        <input aria-label="Title" />
+        <textarea aria-label="Notes" />
+        <div aria-label="Editor" contentEditable suppressContentEditableWarning />
+      </>,
+    )
+    fireEvent.keyDown(screen.getByLabelText('Title'), { key: '/' })
+    fireEvent.keyDown(screen.getByLabelText('Notes'), { key: '/' })
+    fireEvent.keyDown(screen.getByLabelText('Editor'), { key: '/' })
+    fireEvent.keyDown(document, { key: '/', ctrlKey: true })
+    fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
+    expect(screen.queryByPlaceholderText('Search podcasts and episodes…')).toBeNull()
   })
 
   it('searches once typing pauses and groups the results by type', async () => {

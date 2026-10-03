@@ -8,6 +8,7 @@ import '@tanstack/react-start/server-only'
 import { Queue, Worker } from 'bullmq'
 import { Redis } from 'ioredis'
 import { env } from '~/env'
+import { updateGeoipDatabase } from '~/server/geoip.server'
 import { cleanUpMedia } from '~/server/media-cleanup.server'
 import { logger, reportError } from '~/server/logger.server'
 
@@ -17,12 +18,18 @@ const prefix = 'podnoms'
 
 const jobs = {
   'media-cleanup': () => cleanUpMedia(),
+  // Does nothing without a MaxMind account.
+  'geoip-update': () => updateGeoipDatabase(),
 } satisfies Record<string, () => Promise<unknown>>
 
 export type JobName = keyof typeof jobs
 
 // Cron patterns, in the server's time zone.
-const schedules: { name: JobName; pattern: string }[] = [{ name: 'media-cleanup', pattern: '30 3 * * *' }]
+const schedules: { name: JobName; pattern: string }[] = [
+  { name: 'media-cleanup', pattern: '30 3 * * *' },
+  // MaxMind publishes updates on Tuesdays and Fridays.
+  { name: 'geoip-update', pattern: '0 4 * * 3' },
+]
 
 type Running = { queue: Queue; worker: Worker }
 // Kept across dev server reloads, which re-run this module.

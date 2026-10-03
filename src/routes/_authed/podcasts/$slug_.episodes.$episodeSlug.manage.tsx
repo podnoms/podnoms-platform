@@ -7,6 +7,7 @@ import { usePlayer } from '~/components/player/player-provider'
 import { Waveform } from '~/components/player/waveform'
 import { ReplaceAudioDialog } from '~/components/replace-audio-dialog'
 import { ShareButton } from '~/components/share-buttons'
+import { ActivityPanel } from '~/components/activity-panel'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -173,7 +174,7 @@ function EpisodePage() {
               </>
             )}
             <div className="flex gap-1 sm:ml-auto">
-              {ready && <ShareButton url={loaded.shareUrl} />}
+              {ready && <ShareButton url={loaded.shareUrl} episodeId={loaded.episode.id} source="web" />}
               <Button variant="outline" disabled={inProgress} onClick={() => setEditing(true)}>
                 <Icons.edit />
                 Edit
@@ -306,6 +307,8 @@ function EpisodePage() {
           <div className="rich-text max-w-prose" dangerouslySetInnerHTML={{ __html: episode.description }} />
         </section>
       )}
+
+      {ready && <ActivityPanel slug={podcast.slug} episodeSlug={episode.slug} />}
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>

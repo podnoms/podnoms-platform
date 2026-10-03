@@ -18,7 +18,7 @@ export const Route = createFileRoute('/listen/$slug/$episodeSlug')({
 function ListenPage() {
   const { session } = Route.useRouteContext()
   return (
-    <PlayerProvider signedIn={Boolean(session)}>
+    <PlayerProvider signedIn={Boolean(session)} source="listen">
       <main className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col justify-center gap-8 p-4 md:p-8">
         <PublicEpisode page={Route.useLoaderData()} standalone />
         <a href="/" className="flex w-fit items-center gap-2 self-center text-sm text-muted-foreground hover:text-foreground">

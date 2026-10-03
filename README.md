@@ -54,6 +54,7 @@ Settings are read from `.env` and checked at startup by [`src/env.ts`](src/env.t
 | `AUTH_GITHUB_ID` / `_SECRET`, `AUTH_GOOGLE_ID` / `_SECRET`, `AUTH_FACEBOOK_ID` / `_SECRET` | No | Each sign-in provider is enabled when both of its values are set. The OAuth callback URL is `<AUTH_URL>/api/auth/callback/<provider>`. |
 | `LOG_LEVEL` | No | `trace`, `debug`, `info` (default), `warn`, `error`, `fatal` or `silent` |
 | `REDIS_URL` | No | Redis for background jobs, e.g. `redis://localhost:6379`. Without it, scheduled jobs (such as the media clean-up) don't run. See [Background jobs](#background-jobs). |
+| `MAXMIND_ACCOUNT_ID`, `MAXMIND_LICENSE_KEY` | No | A free [MaxMind GeoLite2](https://www.maxmind.com/en/geolite2/signup) account, for listeners' country, region and city in the activity stats. The database is downloaded into `MEDIA_DIR/geoip` on first use and refreshed weekly. See [Activity](#activity). |
 | `PEXELS_API_KEY` | No | A free [Pexels API key](https://www.pexels.com/api/). The **Random image** button on podcast and episode artwork searches for a photo using the title, description and podcast title: on Pexels with this key, otherwise on [Openverse](https://openverse.org) (public-domain and CC0 photos only, no key needed, up to 200 searches a day). |
 | `SENTRY_DSN` | No | Sentry-compatible DSN (e.g. a GlitchTip project) that server and browser errors are reported to. See [Logs and errors](#logs-and-errors). |
 
@@ -189,9 +190,22 @@ Jobs are queued in Redis with [BullMQ](https://docs.bullmq.io/) and run by a wor
 
 | Job | When | What it does |
 | --- | --- | --- |
+| `geoip-update` | Wednesdays, 04:00 | Downloads the latest GeoLite2 database, if a MaxMind account is configured |
 | `media-cleanup` | Daily, 03:30 | Removes files in `MEDIA_DIR` that no podcast, episode or user refers to (once they're a day old), uploads and images that were never saved (after a day), and the kept upload of an episode that has been failed for a week, telling its owner to upload it again |
 
 Admins can watch, retry and clean up jobs at `/admin/queues` ([Bull Board](https://github.com/felixmosh/bull-board)), linked from the account menu as **Jobs**.
+
+### Activity
+
+Podcast owners see plays, downloads and shares on the **Activity** tab of a podcast's page, and on each episode's page: totals, a count per day, and the top countries, apps and referring sites.
+
+- **Plays** are reported by the site's own players (the episode page, `/listen` and embeds).
+- **Downloads** are counted when anything else fetches the audio, usually a podcast app. The checks apps make before downloading (requests for the first few bytes) aren't counted.
+- **Shares** are counted when someone copies an episode's link or embed code.
+
+Nothing recorded identifies a listener. The IP address is used to look up the country, region and city, and then dropped. Visitors are told apart by a hash of the address and user agent, salted with a random value that changes daily and is deleted afterwards. Each visitor counts once a day for each episode and kind of activity. Crawlers aren't counted.
+
+Behind a reverse proxy, the listener's address is taken from `X-Forwarded-For` (or `X-Real-IP`). Make sure the proxy sets it.
 
 ### Admins
 

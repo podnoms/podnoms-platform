@@ -124,8 +124,13 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
                   </Link>
                 </Button>
               )}
-              <ShareButton url={shareUrl} />
-              <EmbedButton embedUrl={embedUrl} title={episode.title} />
+              <ShareButton url={shareUrl} episodeId={episode.id} source={standalone ? 'listen' : 'web'} />
+              <EmbedButton
+                embedUrl={embedUrl}
+                title={episode.title}
+                episodeId={episode.id}
+                source={standalone ? 'listen' : 'web'}
+              />
               <Button variant="ghost" size="icon" asChild title="Download MP3">
                 <a href={episode.audioUrl!} download={`${episode.title}.mp3`}>
                   <Icons.download />

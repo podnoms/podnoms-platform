@@ -28,6 +28,7 @@ describe('migrations', () => {
     expect(rows.map((r) => r.tablename)).toEqual([
       'account',
       'episode',
+      'episode_activity',
       'playback_position',
       'podcast',
       'recovery_code',
@@ -35,6 +36,7 @@ describe('migrations', () => {
       'session',
       'user',
       'verification_token',
+      'visitor_salt',
     ])
   })
 

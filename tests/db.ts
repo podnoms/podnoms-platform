@@ -47,5 +47,5 @@ export async function resetDb(db: TestDb) {
   if (!(db.$client instanceof PGlite)) {
     throw new Error('resetDb was given a real database; run the tests with `bun run test`')
   }
-  await db.execute(sql`truncate "user", "account", "session", "verification_token", "podcast", "episode", "playback_position" cascade`)
+  await db.execute(sql`truncate "user", "account", "session", "verification_token", "podcast", "episode", "playback_position", "visitor_salt" cascade`)
 }

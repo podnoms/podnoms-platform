@@ -5,6 +5,7 @@ import { relations, sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -217,6 +218,65 @@ export const playbackPositions = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.episodeId] })],
 )
 
+// What listeners do with episodes, for podcast owners' stats (see
+// activity.server.ts). Nothing here identifies a person: there's no IP or
+// account, only a hash that changes daily and where they roughly were.
+export const activityType = pgEnum('activity_type', ['play', 'download', 'share'])
+// Where it happened: the site's own pages, the shareable /listen page, a
+// player embedded on another site, or a podcast app (or anything else)
+// fetching the audio directly.
+export const activitySource = pgEnum('activity_source', ['web', 'listen', 'embed', 'app'])
+
+export const episodeActivity = pgTable(
+  'episode_activity',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    episodeId: text('episodeId')
+      .notNull()
+      .references(() => episodes.id, { onDelete: 'cascade' }),
+    podcastId: text('podcastId')
+      .notNull()
+      .references(() => podcasts.id, { onDelete: 'cascade' }),
+    type: activityType('type').notNull(),
+    source: activitySource('source').notNull(),
+    // For a share, what was shared: 'link' or 'embed'.
+    detail: text('detail'),
+    // The IP address and user agent, hashed with that day's salt (see
+    // visitorSalts), so a visitor can be counted once a day but not followed
+    // from one day to the next.
+    visitorHash: text('visitorHash').notNull(),
+    // From the IP address, which isn't kept. ISO 3166 codes for the country
+    // and region.
+    country: text('country'),
+    region: text('region'),
+    city: text('city'),
+    // From the user agent: the app or browser, its OS and the kind of device.
+    client: text('client'),
+    os: text('os'),
+    device: text('device'),
+    userAgent: text('userAgent'),
+    // The site that linked or embedded it, if any.
+    referrerHost: text('referrerHost'),
+    occurredAt: timestamp('occurredAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('episode_activity_podcastId_occurredAt_idx').on(table.podcastId, table.occurredAt),
+    index('episode_activity_episodeId_occurredAt_idx').on(table.episodeId, table.occurredAt),
+    // Each visitor counts once a day for each episode and kind of activity;
+    // hashes change daily, so this is per day.
+    uniqueIndex('episode_activity_once_a_day_idx').on(table.episodeId, table.type, table.visitorHash),
+  ],
+)
+
+// A random salt for each day's visitor hashes. Old ones are deleted, after
+// which nobody (us included) can tell which hashes came from which address.
+export const visitorSalts = pgTable('visitor_salt', {
+  day: date('day', { mode: 'string' }).primaryKey(),
+  salt: text('salt').notNull(),
+})
+
 export const usersRelations = relations(users, ({ many }) => ({
   podcasts: many(podcasts),
 }))
@@ -236,3 +296,5 @@ export type Episode = typeof episodes.$inferSelect
 export type NewEpisode = typeof episodes.$inferInsert
 export type EpisodeReplacement = { sourceUrl: string | null }
 export type EpisodeStatus = (typeof episodeStatus.enumValues)[number]
+export type ActivityType = (typeof activityType.enumValues)[number]
+export type ActivitySource = (typeof activitySource.enumValues)[number]

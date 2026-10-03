@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { saveMyPlaybackPosition } from '~/functions/podcasts'
+import { reportActivity } from '~/lib/activity'
 import { readLastEpisode, storeLastEpisode } from '~/lib/last-episode'
 import { defaultVolume, readStoredVolume, storeVolume, type Volume } from '~/lib/volume'
 
@@ -40,7 +41,16 @@ const PlayerContext = createContext<PlayerContextValue | null>(null)
 
 // One audio element for the whole app, so playback carries on while you move
 // between pages. Signed-out listeners' positions are only kept in this browser.
-export function PlayerProvider({ signedIn, children }: { signedIn: boolean; children: ReactNode }) {
+// `source` is where plays are reported as coming from, for the podcast's stats.
+export function PlayerProvider({
+  signedIn,
+  source = 'web',
+  children,
+}: {
+  signedIn: boolean
+  source?: 'web' | 'listen'
+  children: ReactNode
+}) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [episode, setEpisode] = useState<PlayerEpisode | null>(null)
   const [playing, setPlaying] = useState(false)
@@ -177,6 +187,14 @@ export function PlayerProvider({ signedIn, children }: { signedIn: boolean; chil
     }),
     [episode, playing, currentTime, duration, rate, volume, play, positionOf, savePosition, changeVolume],
   )
+
+  // Report each episode's first play on this page, for the podcast's stats.
+  const reported = useRef(new Set<string>())
+  useEffect(() => {
+    if (!playing || !episode || reported.current.has(episode.id)) return
+    reported.current.add(episode.id)
+    reportActivity(episode.id, { type: 'play', source })
+  }, [playing, episode, source])
 
   // Save the position every few seconds while playing.
   useEffect(() => {

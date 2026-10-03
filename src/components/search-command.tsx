@@ -1,5 +1,6 @@
 // The search box in the top nav: opens a command palette that searches the
-// user's podcasts and episodes as they type. Also opened with ⌘K / Ctrl+K.
+// user's podcasts and episodes as they type. Also opened by pressing / (as in
+// Lotus 1-2-3, and GitHub and YouTube since), unless you're typing somewhere.
 import { useEffect, useState } from 'react'
 import { useLoaderData, useNavigate } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
@@ -24,15 +25,14 @@ const debounceMs = 200
 
 export function SearchCommand() {
   const [open, setOpen] = useState(false)
-  const [modifier, setModifier] = useState('⌘')
 
   useEffect(() => {
-    if (!/Mac|iPhone|iPad/.test(navigator.platform)) setModifier('Ctrl')
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault()
-        setOpen((open) => !open)
-      }
+      if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey || event.defaultPrevented) return
+      if (isTyping(event.target)) return
+      // Otherwise the / would land in the search box as it opens.
+      event.preventDefault()
+      setOpen(true)
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
@@ -49,7 +49,7 @@ export function SearchCommand() {
         <span className="hidden sm:inline">Search</span>
         <span className="sr-only sm:hidden">Search</span>
         <Kbd className="absolute top-1/2 right-1.5 hidden -translate-y-1/2 border bg-muted sm:inline-flex">
-          {modifier === '⌘' ? <span className="text-xs">⌘</span> : 'Ctrl'}K
+          /
         </Kbd>
       </Button>
       <CommandDialog
@@ -64,6 +64,18 @@ export function SearchCommand() {
       </CommandDialog>
     </>
   )
+}
+
+// Whether a key press is going into a text field or editor (such as the
+// description editor), where / is just a slash.
+function isTyping(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+  if (target.isContentEditable) return true
+  if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true
+  if (target instanceof HTMLInputElement) {
+    return !['button', 'checkbox', 'radio', 'range', 'reset', 'submit', 'color', 'file', 'image'].includes(target.type)
+  }
+  return false
 }
 
 function SearchPalette({ close }: { close: () => void }) {

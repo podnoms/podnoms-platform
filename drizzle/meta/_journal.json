@@ -71,6 +71,13 @@
       "when": 1790988579822,
       "tag": "0009_user_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791041900848,
+      "tag": "0010_episode_activity",
+      "breakpoints": true
     }
   ]
 }

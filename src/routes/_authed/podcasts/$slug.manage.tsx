@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { ActivityPanel } from '~/components/activity-panel'
 import { EditDetailsDialog } from '~/components/edit-details-dialog'
 import { EpisodeListEnd } from '~/components/episode-list-end'
 import { EpisodeRow } from '~/components/episode-row'
@@ -16,6 +17,7 @@ import {
   EmptyTitle,
 } from '~/components/ui/empty'
 import { ItemGroup } from '~/components/ui/item'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { fetchMyPodcast, fetchMyPodcastEpisodes, updateMyPodcast } from '~/functions/podcasts'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
@@ -117,35 +119,42 @@ function PodcastPage() {
         </div>
       </header>
       <div className="mx-auto grid w-full max-w-7xl items-start gap-8 p-4 md:p-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <section aria-labelledby="episodes-heading" className="flex min-w-0 flex-col gap-3">
-          <div className="flex items-baseline gap-2">
-            <h2 id="episodes-heading" className="text-lg font-semibold">
+        {/* Activity is a tab away, so the episodes stay the focus. */}
+        <Tabs defaultValue="episodes" className="min-w-0 gap-3">
+          <TabsList>
+            <TabsTrigger value="episodes">
               Episodes
-            </h2>
-            {summary.count > 0 && <span className="text-sm text-muted-foreground">{summary.count}</span>}
-          </div>
-          {episodes.length === 0 ? (
-            <Empty className="border border-dashed">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Icons.logo />
-                </EmptyMedia>
-                <EmptyTitle>No episodes yet</EmptyTitle>
-                <EmptyDescription>
-                  Paste a YouTube link or upload an audio file, and podnoms will turn it into an episode.
-                </EmptyDescription>
-              </EmptyHeader>
-              <EmptyContent>{newEpisodeButton}</EmptyContent>
-            </Empty>
-          ) : (
-            <ItemGroup className="gap-3">
-              {episodes.map((episode) => (
-                <EpisodeRow key={episode.id} episode={episode} podcastSlug={podcast.slug} podcastTitle={podcast.title} />
-              ))}
-            </ItemGroup>
-          )}
-          <EpisodeListEnd {...more} />
-        </section>
+              {summary.count > 0 && <span className="text-muted-foreground tabular-nums">{summary.count}</span>}
+            </TabsTrigger>
+            <TabsTrigger value="activity">Activity</TabsTrigger>
+          </TabsList>
+          <TabsContent value="episodes" className="flex flex-col gap-3">
+            {episodes.length === 0 ? (
+              <Empty className="border border-dashed">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Icons.logo />
+                  </EmptyMedia>
+                  <EmptyTitle>No episodes yet</EmptyTitle>
+                  <EmptyDescription>
+                    Paste a YouTube link or upload an audio file, and podnoms will turn it into an episode.
+                  </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>{newEpisodeButton}</EmptyContent>
+              </Empty>
+            ) : (
+              <ItemGroup className="gap-3">
+                {episodes.map((episode) => (
+                  <EpisodeRow key={episode.id} episode={episode} podcastSlug={podcast.slug} podcastTitle={podcast.title} />
+                ))}
+              </ItemGroup>
+            )}
+            <EpisodeListEnd {...more} />
+          </TabsContent>
+          <TabsContent value="activity">
+            <ActivityPanel slug={podcast.slug} />
+          </TabsContent>
+        </Tabs>
         <aside className="sticky top-4 hidden flex-col gap-6 rounded-xl border bg-card p-5 xl:flex">
           {podcast.description && (
             <div className="flex flex-col gap-2">

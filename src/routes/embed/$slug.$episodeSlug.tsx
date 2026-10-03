@@ -4,6 +4,7 @@ import { Icons } from '~/components/icons'
 import { Button } from '~/components/ui/button'
 import { Slider } from '~/components/ui/slider'
 import { fetchEpisodePage } from '~/functions/public'
+import { reportActivity } from '~/lib/activity'
 import { formatClock } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 
@@ -36,7 +37,14 @@ function EmbedPlayer() {
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
+    // Its first play, for the podcast's stats; the site it's embedded on
+    // is the referrer.
+    let reported = false
     const update = () => {
+      if (!audio.paused && !reported) {
+        reported = true
+        reportActivity(episode.id, { type: 'play', source: 'embed' })
+      }
       setPlaying(!audio.paused)
       setPosition(audio.currentTime)
       if (Number.isFinite(audio.duration)) setDuration(audio.duration)
@@ -46,7 +54,7 @@ function EmbedPlayer() {
     return () => {
       for (const event of events) audio.removeEventListener(event, update)
     }
-  }, [])
+  }, [episode.id])
 
   function toggle() {
     const audio = audioRef.current

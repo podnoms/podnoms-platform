@@ -9,7 +9,9 @@ if (!databaseUrl) {
   throw new Error('DATABASE_URL is required to run database migrations')
 }
 
-const client = postgres(databaseUrl, { max: 1 })
+// Without onnotice, every run prints Postgres's notices that the migrator's
+// own schema and table (created "if not exists") already exist.
+const client = postgres(databaseUrl, { max: 1, onnotice: () => {} })
 
 try {
   await migrate(drizzle(client), {

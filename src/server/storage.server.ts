@@ -15,6 +15,8 @@ const imagesDir = resolve(env.MEDIA_DIR, 'images')
 const stagedImagesDir = resolve(env.MEDIA_DIR, 'staged-images')
 // Episode waveforms, as JSON (see waveforms.server.ts).
 const waveformsDir = resolve(env.MEDIA_DIR, 'waveforms')
+// MaxMind's GeoLite2 database, downloaded by geoip.server.ts.
+const geoipDir = resolve(env.MEDIA_DIR, 'geoip')
 
 // Every folder above, for the media clean-up job (see media-cleanup.server.ts).
 export const mediaDirs = {
@@ -25,6 +27,13 @@ export const mediaDirs = {
   imageVariants: join(imagesDir, 'variants'),
   stagedImages: stagedImagesDir,
   waveforms: waveformsDir,
+}
+
+export const geoipDatabasePath = join(geoipDir, 'GeoLite2-City.mmdb')
+
+export async function ensureGeoipDir() {
+  await mkdir(geoipDir, { recursive: true })
+  return geoipDir
 }
 
 export async function ensureAudioDir() {

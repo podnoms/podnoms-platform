@@ -32,6 +32,11 @@ export const env = createEnv({
     // Pexels API key (free, from pexels.com/api) for the "Random image"
     // button on artwork. Without it, photos come from Openverse, which needs no key.
     PEXELS_API_KEY: z.string().optional(),
+    // A MaxMind account (free, from maxmind.com/en/geolite2/signup) for the
+    // GeoLite2 database that places listeners by country, region and city.
+    // Without them, activity is recorded without a location.
+    MAXMIND_ACCOUNT_ID: z.string().optional(),
+    MAXMIND_LICENSE_KEY: z.string().optional(),
   },
   clientPrefix: 'VITE_',
   client: {},
