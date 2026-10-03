@@ -37,6 +37,9 @@ export const users = pgTable(
     // The time step of the last accepted authenticator code, so a code can't
     // be used twice.
     totpLastStep: integer('totpLastStep'),
+    // Admins can manage the whole site (e.g. the job queues). The first user
+    // to sign up becomes one (see firstUserIsAdmin in users.server.ts).
+    isAdmin: boolean('isAdmin').notNull().default(false),
   },
   // Emails are unique regardless of case, across OAuth and password users.
   (table) => [uniqueIndex('user_email_lower_idx').on(sql`lower(${table.email})`)],

@@ -26,6 +26,9 @@ export const env = createEnv({
     // Errors are sent to this Sentry-compatible DSN (e.g. a self-hosted
     // GlitchTip project) when it is set.
     SENTRY_DSN: z.url().optional(),
+    // Redis for the job queue (see jobs.server.ts). Without it, scheduled jobs
+    // such as the media clean-up don't run.
+    REDIS_URL: z.url().optional(),
   },
   clientPrefix: 'VITE_',
   client: {},

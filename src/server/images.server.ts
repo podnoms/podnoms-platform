@@ -24,7 +24,8 @@ import { receiveFile, UploadError } from '~/server/uploads.server'
 
 export const maxImageBytes = 20 * 1024 * 1024
 
-const localImageUrl = /^\/images\/([0-9a-f-]{36})\.jpg$/
+// A stored image's URL, capturing its ID.
+export const localImageUrl = /^\/images\/([0-9a-f-]{36})\.jpg$/
 
 // Podcast apps want square artwork, 1400 to 3000px a side, as JPEG or PNG.
 const minSide = 1400

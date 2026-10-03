@@ -30,13 +30,17 @@ async function checkPassword(password: string, stored: string) {
 
 const byEmail = (email: string) => sql`lower(${users.email}) = ${email.toLowerCase()}`
 
+// For the isAdmin column of a new user: the first user to sign up becomes an
+// admin, however they sign up (see also the OAuth adapter in auth.server.ts).
+export const firstUserIsAdmin = sql<boolean>`not exists (select 1 from ${users})`
+
 // Returns null if the email is already registered, including by an OAuth sign-in.
 export async function createUser(email: string, password: string): Promise<User | null> {
   const passwordHash = await hashPassword(password)
   // The unique index on lower(email) turns a taken address into a no-op.
   const [user] = await db
     .insert(users)
-    .values({ email, passwordHash })
+    .values({ email, passwordHash, isAdmin: firstUserIsAdmin })
     .onConflictDoNothing()
     .returning({ id: users.id, email: users.email })
   return user?.email ? { id: user.id, email: user.email } : null
@@ -58,7 +62,13 @@ export async function verifyUser(email: string, password: string): Promise<User 
 // database rather than the session, which only has what was true at sign-in.
 export async function getProfile(userId: string) {
   const [profile] = await db
-    .select({ name: users.name, email: users.email, description: users.description, imageUrl: users.image })
+    .select({
+      name: users.name,
+      email: users.email,
+      description: users.description,
+      imageUrl: users.image,
+      isAdmin: users.isAdmin,
+    })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1)
@@ -77,4 +87,9 @@ export async function updateProfile(userId: string, input: EditProfileInput) {
     .where(eq(users.id, userId))
   if (imageUrl !== profile.imageUrl) await deleteImage(profile.imageUrl)
   return true
+}
+
+export async function isAdmin(userId: string) {
+  const [user] = await db.select({ isAdmin: users.isAdmin }).from(users).where(eq(users.id, userId)).limit(1)
+  return user?.isAdmin ?? false
 }

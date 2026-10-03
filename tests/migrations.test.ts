@@ -115,4 +115,29 @@ describe('migrations', () => {
       pg.query(`insert into verification_token (identifier, token, expires) values ('u@example.com', 't1', now())`),
     ).rejects.toThrow(/verification_token_identifier_token_pk/)
   })
+
+  it('0009 makes the only user of an existing site an admin', async () => {
+    const pg = new PGlite()
+    await migrateUntil(pg, tagOf('0009'))
+    await pg.query(`insert into "user" (id, email) values ('u1', 'u@example.com')`)
+
+    await runMigration(pg, tagOf('0009'))
+
+    const { rows } = await pg.query(`select id, "isAdmin" from "user"`)
+    expect(rows).toEqual([{ id: 'u1', isAdmin: true }])
+  })
+
+  it("0009 makes nobody an admin when there's no telling who signed up first", async () => {
+    const pg = new PGlite()
+    await migrateUntil(pg, tagOf('0009'))
+    await pg.query(`insert into "user" (id, email) values ('u1', 'a@example.com'), ('u2', 'b@example.com')`)
+
+    await runMigration(pg, tagOf('0009'))
+
+    const { rows } = await pg.query(`select id, "isAdmin" from "user" order by id`)
+    expect(rows).toEqual([
+      { id: 'u1', isAdmin: false },
+      { id: 'u2', isAdmin: false },
+    ])
+  })
 })

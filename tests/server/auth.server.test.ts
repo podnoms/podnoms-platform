@@ -1,5 +1,7 @@
+import { eq } from 'drizzle-orm'
 import { Secret, TOTP } from 'otpauth'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { users } from '~/server/db/schema'
 import {
   authConfig,
   getSession,
@@ -193,6 +195,17 @@ describe('the OAuth adapter', () => {
       emailVerified: null,
     })
     expect(user.email).toBe('new@example.com')
+  })
+
+  it('makes the first user an admin, and nobody after', async () => {
+    const create = (email: string) =>
+      authConfig.adapter!.createUser!({ id: crypto.randomUUID(), email, emailVerified: null })
+    const first = await create('first@example.com')
+    const second = await create('second@example.com')
+    const admin = async (id: string) =>
+      (await db.select({ isAdmin: users.isAdmin }).from(users).where(eq(users.id, id)))[0]!.isAdmin
+    expect(await admin(first.id)).toBe(true)
+    expect(await admin(second.id)).toBe(false)
   })
 })
 

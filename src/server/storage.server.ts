@@ -16,6 +16,17 @@ const stagedImagesDir = resolve(env.MEDIA_DIR, 'staged-images')
 // Episode waveforms, as JSON (see waveforms.server.ts).
 const waveformsDir = resolve(env.MEDIA_DIR, 'waveforms')
 
+// Every folder above, for the media clean-up job (see media-cleanup.server.ts).
+export const mediaDirs = {
+  audio: audioDir,
+  uploads: uploadsDir,
+  sources: sourcesDir,
+  images: imagesDir,
+  imageVariants: join(imagesDir, 'variants'),
+  stagedImages: stagedImagesDir,
+  waveforms: waveformsDir,
+}
+
 export async function ensureAudioDir() {
   await mkdir(audioDir, { recursive: true })
   return audioDir

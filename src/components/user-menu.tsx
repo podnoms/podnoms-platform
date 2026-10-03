@@ -33,7 +33,7 @@ export function UserMenu() {
     )
   }
 
-  const { name, email, image } = session.user
+  const { name, email, image, isAdmin } = session.user
 
   return (
     <DropdownMenu>
@@ -57,6 +57,15 @@ export function UserMenu() {
             Settings
           </Link>
         </DropdownMenuItem>
+        {isAdmin && (
+          <DropdownMenuItem asChild>
+            {/* The job queue UI is a separate page, not one of the app's routes. */}
+            <a href="/admin/queues">
+              <Icons.jobs />
+              Jobs
+            </a>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => signOut()}>
           <Icons.signOut />

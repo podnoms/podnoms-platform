@@ -53,6 +53,7 @@ Settings are read from `.env` and checked at startup by [`src/env.ts`](src/env.t
 | `YTDLP_PATH`, `FFMPEG_PATH`, `FFPROBE_PATH` | No | Paths to the binaries (default: found on `PATH`) |
 | `AUTH_GITHUB_ID` / `_SECRET`, `AUTH_GOOGLE_ID` / `_SECRET`, `AUTH_FACEBOOK_ID` / `_SECRET` | No | Each sign-in provider is enabled when both of its values are set. The OAuth callback URL is `<AUTH_URL>/api/auth/callback/<provider>`. |
 | `LOG_LEVEL` | No | `trace`, `debug`, `info` (default), `warn`, `error`, `fatal` or `silent` |
+| `REDIS_URL` | No | Redis for background jobs, e.g. `redis://localhost:6379`. Without it, scheduled jobs (such as the media clean-up) don't run. See [Background jobs](#background-jobs). |
 | `SENTRY_DSN` | No | Sentry-compatible DSN (e.g. a GlitchTip project) that server and browser errors are reported to. See [Logs and errors](#logs-and-errors). |
 
 ### Media folder
@@ -180,6 +181,24 @@ Things to know:
 - **Media folder:** the server needs `yt-dlp` and `ffmpeg`, and a `MEDIA_DIR` that survives restarts and redeploys.
 - **Image library binaries:** sharp uses native binaries for the platform it was installed on. Build on the same OS and CPU architecture you deploy to, or run `bun install` there.
 - **Upload size:** audio uploads are sent as a single request of up to 1 GB, so allow request bodies that large in any reverse proxy in front of the app.
+
+### Background jobs
+
+Jobs are queued in Redis with [BullMQ](https://docs.bullmq.io/) and run by a worker in the app, which starts with the first request. Keys are prefixed `podnoms:`, so the Redis can be shared. With Docker Compose, start the bundled Redis with `--profile redis` and set `REDIS_URL=redis://redis:6379`; it keeps its data on disk so jobs survive restarts.
+
+| Job | When | What it does |
+| --- | --- | --- |
+| `media-cleanup` | Daily, 03:30 | Removes files in `MEDIA_DIR` that no podcast, episode or user refers to (once they're a day old), uploads and images that were never saved (after a day), and the kept upload of an episode that has been failed for a week, telling its owner to upload it again |
+
+Admins can watch, retry and clean up jobs at `/admin/queues` ([Bull Board](https://github.com/felixmosh/bull-board)), linked from the account menu as **Jobs**.
+
+### Admins
+
+The first user to sign up becomes an admin. On a site that already had users before admins existed, the migration makes the only user an admin; with several, choose one by hand:
+
+```sql
+UPDATE "user" SET "isAdmin" = true WHERE email = 'you@example.com';
+```
 
 ### Logs and errors
 

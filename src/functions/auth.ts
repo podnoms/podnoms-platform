@@ -15,7 +15,9 @@ export const fetchAuthState = createServerFn({ method: 'GET' }).handler(async ()
   // From the database, so changes on the settings page show straight away.
   const profile = session?.user?.id ? await getProfile(session.user.id) : null
   return {
-    session: profile ? { user: { name: profile.name, email: profile.email, image: profile.imageUrl } } : null,
+    session: profile
+      ? { user: { name: profile.name, email: profile.email, image: profile.imageUrl, isAdmin: profile.isAdmin } }
+      : null,
     twoFactor: null,
   }
 })

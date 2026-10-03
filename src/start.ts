@@ -12,6 +12,8 @@ const expected = (error: unknown) =>
 
 const loggingMiddleware = createMiddleware().server(async ({ request, pathname, next, handlerType, serverFnMeta }) => {
   const { logger, reportError } = await import('~/server/logger.server')
+  // Background jobs start with the first request; later calls do nothing.
+  void import('~/server/jobs.server').then(({ startJobs }) => startJobs())
   const started = Date.now()
   const fields = {
     method: request.method,

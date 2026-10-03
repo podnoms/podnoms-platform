@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { users } from '~/server/db/schema'
 import { imagePath } from '~/server/storage.server'
-import { createUser, getProfile, updateProfile, verifyUser } from '~/server/users.server'
+import { createUser, getProfile, isAdmin, updateProfile, verifyUser } from '~/server/users.server'
 import { resetDb } from '../db'
 import { createUser as insertUser, db, exists, stageTestImage, storeTestImage } from '../helpers'
 
@@ -15,6 +15,18 @@ describe('createUser', () => {
     const [row] = await db.select().from(users).where(eq(users.id, user!.id))
     expect(row!.passwordHash).toMatch(/^[0-9a-f]{32}:[0-9a-f]{128}$/)
     expect(row!.passwordHash).not.toContain('password123')
+  })
+
+  it('makes the first user an admin, and nobody after', async () => {
+    const first = await createUser('a@example.com', 'password123')
+    const second = await createUser('b@example.com', 'password123')
+    expect(await isAdmin(first!.id)).toBe(true)
+    expect(await isAdmin(second!.id)).toBe(false)
+  })
+
+  it("doesn't make a new user an admin when someone has already signed up with OAuth", async () => {
+    await insertUser()
+    expect(await isAdmin((await createUser('a@example.com', 'password123'))!.id)).toBe(false)
   })
 
   it('salts each hash differently', async () => {
@@ -68,6 +80,7 @@ describe('getProfile', () => {
       email: 'ann@example.com',
       description: null,
       imageUrl: 'https://example.com/a.png',
+      isAdmin: false,
     })
   })
 

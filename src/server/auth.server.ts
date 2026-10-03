@@ -15,7 +15,7 @@ import { credentialsSchema } from '~/lib/auth-schema'
 import { db } from '~/server/db/client.server'
 import { accounts, sessions, users, verificationTokens } from '~/server/db/schema'
 import { hasTwoFactor, redeemTwoFactorTicket } from '~/server/two-factor.server'
-import { verifyUser } from '~/server/users.server'
+import { firstUserIsAdmin, verifyUser } from '~/server/users.server'
 
 declare module '@auth/core/types' {
   interface Session {
@@ -53,7 +53,12 @@ const drizzleAdapter = DrizzleAdapter(db, {
 // of linking.
 const adapter: Adapter = {
   ...drizzleAdapter,
-  createUser: (user) => drizzleAdapter.createUser!({ ...user, email: user.email.toLowerCase() }),
+  createUser: (user) =>
+    drizzleAdapter.createUser!({
+      ...user,
+      email: user.email.toLowerCase(),
+      ...({ isAdmin: firstUserIsAdmin } as object),
+    }),
   async getUserByEmail(email) {
     const [user] = await db
       .select({

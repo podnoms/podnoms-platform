@@ -20,6 +20,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # A Sentry-compatible DSN (e.g. GlitchTip) for server and browser errors.
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # Redis for background jobs. Set to redis://redis:6379 with the bundled
+      # Redis (the redis profile), or to your own; empty, scheduled jobs don't run.
+      REDIS_URL: ${REDIS_URL:-}
     volumes:
       - media:/app/media
     # Picked up by Grafana Alloy (see deploy/observability). Docker keeps a
@@ -33,6 +36,9 @@ services:
         max-file: "3"
     depends_on:
       postgres:
+        condition: service_healthy
+        required: false
+      redis:
         condition: service_healthy
         required: false
 
@@ -53,6 +59,21 @@ services:
       retries: 12
       start_period: 10s
 
+  redis:
+    image: redis:8-alpine
+    profiles: [redis]
+    restart: unless-stopped
+    # Jobs are kept on disk, so queued and scheduled jobs survive a restart.
+    command: redis-server --appendonly yes
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
 volumes:
   media:
   postgres:
+  redis:

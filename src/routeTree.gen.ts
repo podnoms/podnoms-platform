@@ -21,6 +21,7 @@ import { Route as ImagesFileRouteImport } from './routes/images/$file'
 import { Route as AuthedPodcastsSlugRouteImport } from './routes/_authed/podcasts/$slug'
 import { Route as AuthedSettingsIndexRouteImport } from './routes/_authed/settings/index'
 import { Route as AuthedSettingsSecurityRouteImport } from './routes/_authed/settings/security'
+import { Route as AdminQueuesSplatRouteImport } from './routes/admin/queues/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiEpisodesIdAudioRouteImport } from './routes/api/episodes/$id/audio'
 import { Route as AuthedPodcastsSlugEpisodesEpisodeSlugRouteImport } from './routes/_authed/podcasts/$slug_.episodes.$episodeSlug'
@@ -84,6 +85,11 @@ const AuthedSettingsSecurityRoute = AuthedSettingsSecurityRouteImport.update({
   path: '/security',
   getParentRoute: () => AuthedSettingsRoute,
 } as any)
+const AdminQueuesSplatRoute = AdminQueuesSplatRouteImport.update({
+  id: '/admin/queues/$',
+  path: '/admin/queues/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/images/$file': typeof ImagesFileRoute
   '/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/settings/security': typeof AuthedSettingsSecurityRoute
+  '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/settings/': typeof AuthedSettingsIndexRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
@@ -127,6 +134,7 @@ export interface FileRoutesByTo {
   '/images/$file': typeof ImagesFileRoute
   '/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/settings/security': typeof AuthedSettingsSecurityRoute
+  '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/settings': typeof AuthedSettingsIndexRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
@@ -145,6 +153,7 @@ export interface FileRoutesById {
   '/images/$file': typeof ImagesFileRoute
   '/_authed/podcasts/$slug': typeof AuthedPodcastsSlugRoute
   '/_authed/settings/security': typeof AuthedSettingsSecurityRoute
+  '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/_authed/settings/': typeof AuthedSettingsIndexRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
@@ -163,6 +172,7 @@ export interface FileRouteTypes {
     | '/images/$file'
     | '/podcasts/$slug'
     | '/settings/security'
+    | '/admin/queues/$'
     | '/api/auth/$'
     | '/settings/'
     | '/api/episodes/$id/audio'
@@ -178,6 +188,7 @@ export interface FileRouteTypes {
     | '/images/$file'
     | '/podcasts/$slug'
     | '/settings/security'
+    | '/admin/queues/$'
     | '/api/auth/$'
     | '/settings'
     | '/api/episodes/$id/audio'
@@ -195,6 +206,7 @@ export interface FileRouteTypes {
     | '/images/$file'
     | '/_authed/podcasts/$slug'
     | '/_authed/settings/security'
+    | '/admin/queues/$'
     | '/api/auth/$'
     | '/_authed/settings/'
     | '/api/episodes/$id/audio'
@@ -209,6 +221,7 @@ export interface RootRouteChildren {
   ApiUploadsRoute: typeof ApiUploadsRoute
   FeedSlugRoute: typeof FeedSlugRoute
   ImagesFileRoute: typeof ImagesFileRoute
+  AdminQueuesSplatRoute: typeof AdminQueuesSplatRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiEpisodesIdAudioRoute: typeof ApiEpisodesIdAudioRoute
 }
@@ -299,6 +312,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedSettingsSecurityRouteImport
       parentRoute: typeof AuthedSettingsRoute
     }
+    '/admin/queues/$': {
+      id: '/admin/queues/$'
+      path: '/admin/queues/$'
+      fullPath: '/admin/queues/$'
+      preLoaderRoute: typeof AdminQueuesSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -363,6 +383,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUploadsRoute: ApiUploadsRoute,
   FeedSlugRoute: FeedSlugRoute,
   ImagesFileRoute: ImagesFileRoute,
+  AdminQueuesSplatRoute: AdminQueuesSplatRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiEpisodesIdAudioRoute: ApiEpisodesIdAudioRoute,
 }
@@ -371,10 +392,11 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }
