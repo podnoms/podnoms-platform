@@ -1,29 +1,37 @@
 // Fills the database in .env with fake podcasts and episodes for development:
 // 50 podcasts with 20–100 episodes each, owned by the first user (or the user
-// with the email given as an argument). Episodes have no audio, so they show
-// as ready but can't be played and are left out of feeds.
+// with the email given as an argument). Every episode plays the same minute
+// of generated audio, with the same waveform: one MP3 and one waveform file in
+// MEDIA_DIR/seed, hard-linked to each episode's paths, so they take no extra
+// space and deleting an episode leaves the others alone.
 //
 //   bun run db:seed [email]
+//   bun run db:seed --audio-only    gives the sample audio to every ready
+//                                   episode that has none, and adds nothing
 //
 // Images are remote URLs; the app downloads them into MEDIA_DIR the first
 // time a podcast page is opened (see localiseRemoteImages).
+import { execFileSync } from 'node:child_process'
+import { copyFile, link, mkdir, rm, stat, writeFile } from 'node:fs/promises'
+import { dirname, resolve } from 'node:path'
 import { faker } from '@faker-js/faker'
-import { asc, eq, sql } from 'drizzle-orm'
-import { drizzle } from 'drizzle-orm/postgres-js'
-import postgres from 'postgres'
+import { and, asc, eq, isNull, sql } from 'drizzle-orm'
+import { env } from '~/env'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { firstFreeSlug, slugify } from '~/lib/slug'
+import { db } from '~/server/db/client.server'
 import { episodes, podcasts, users, type NewEpisode } from '~/server/db/schema'
+import { ensureAudioDir, episodeAudioPath, episodeAudioUrl, episodeWaveformPath } from '~/server/storage.server'
+import { computeWaveform } from '~/server/waveforms.server'
 
 const podcastCount = 50
 const minEpisodes = 20
 const maxEpisodes = 100
 
-const databaseUrl = process.env.DATABASE_URL
-if (!databaseUrl) throw new Error('DATABASE_URL is required (bun loads it from .env)')
-
-const client = postgres(databaseUrl, { max: 1 })
-const db = drizzle(client)
+const sampleSeconds = 60
+const sampleDir = resolve(env.MEDIA_DIR, 'seed')
+const sampleAudio = resolve(sampleDir, 'sample.mp3')
+const sampleWaveform = resolve(sampleDir, 'sample-waveform.json')
 
 const image = () => faker.image.urlPicsumPhotos({ width: 600, height: 600, grayscale: false, blur: 0 })
 const paragraphs = (count: number) => plainTextToHtml(faker.lorem.paragraphs(count, '\n\n'))
@@ -38,6 +46,44 @@ function podcastTitle() {
     .replace(/(^|\s)(\w)/g, (_, space: string, letter: string) => space + letter.toUpperCase())
 }
 
+// Makes the sample audio and its waveform, once: a tone that swells and fades
+// every few seconds, so the waveform has some shape.
+async function ensureSample() {
+  if (await stat(sampleWaveform).catch(() => null)) return (await stat(sampleAudio)).size
+  await mkdir(sampleDir, { recursive: true })
+  const tone = `0.5*sin(2*PI*220*t)*(0.55+0.45*sin(2*PI*t/6))+0.2*sin(2*PI*330*t)*(0.5+0.5*sin(2*PI*t/11))`
+  execFileSync(env.FFMPEG_PATH, [
+    '-hide_banner', '-loglevel', 'error', '-y',
+    '-f', 'lavfi', '-i', `aevalsrc=${tone}:s=44100:d=${sampleSeconds}`,
+    '-ac', '1', '-codec:a', 'libmp3lame', '-b:a', '96k', sampleAudio,
+  ])
+  await writeFile(sampleWaveform, JSON.stringify(await computeWaveform(sampleAudio)))
+  return (await stat(sampleAudio)).size
+}
+
+// Gives the episode its own path to the shared file: a hard link, or a copy
+// where linking isn't possible (e.g. across filesystems).
+async function share(source: string, target: string) {
+  await mkdir(dirname(target), { recursive: true })
+  await rm(target, { force: true })
+  await link(source, target).catch(() => copyFile(source, target))
+}
+
+async function addSampleAudio(episodeIds: string[]) {
+  await ensureAudioDir()
+  for (const id of episodeIds) {
+    await share(sampleAudio, episodeAudioPath(id))
+    await share(sampleWaveform, episodeWaveformPath(id))
+  }
+}
+
+const sampleAudioColumns = (id: string, size: number) => ({
+  audioUrl: episodeAudioUrl(id),
+  audioMimeType: 'audio/mpeg',
+  audioSizeBytes: size,
+  durationSeconds: sampleSeconds,
+})
+
 function episodeTitle(number: number) {
   return faker.helpers.arrayElement([
     () => `#${number} ${faker.music.songName()}`,
@@ -47,8 +93,26 @@ function episodeTitle(number: number) {
   ])()
 }
 
+async function backfillAudio(size: number) {
+  const missing = await db
+    .select({ id: episodes.id })
+    .from(episodes)
+    .where(and(eq(episodes.status, 'ready'), isNull(episodes.audioUrl)))
+  const ids = missing.map((row) => row.id)
+  await addSampleAudio(ids)
+  for (const id of ids) await db.update(episodes).set(sampleAudioColumns(id, size)).where(eq(episodes.id, id))
+  console.log(`Gave ${ids.length} episodes the sample audio.`)
+}
+
 try {
-  const email = process.argv[2]
+  const args = process.argv.slice(2)
+  const size = await ensureSample()
+  if (args.includes('--audio-only')) {
+    await backfillAudio(size)
+    process.exit(0)
+  }
+
+  const email = args.find((arg) => !arg.startsWith('--'))
   const [owner] = email
     ? await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.email, email)).limit(1)
     : // No sign-up time is stored; table order is the closest to "first".
@@ -83,25 +147,31 @@ try {
       const title = episodeTitle(n + 1)
       const slug = firstFreeSlug(slugify(title, 'episode'), takenEpisodeSlugs)
       takenEpisodeSlugs.add(slug)
+      const id = crypto.randomUUID()
       return {
+        id,
         podcastId: podcast!.id,
         title,
         slug,
         description: paragraphs(faker.number.int({ min: 1, max: 4 })),
         // Some episodes use the podcast's artwork.
         imageUrl: faker.datatype.boolean(0.7) ? image() : null,
-        durationSeconds: faker.number.int({ min: 15 * 60, max: 3 * 60 * 60 }),
+        ...sampleAudioColumns(id, size),
         status: 'ready',
         publishedAt,
         createdAt: publishedAt,
       }
     })
+    await addSampleAudio(rows.map((row) => row.id!))
     await db.insert(episodes).values(rows)
     episodeTotal += rows.length
     console.log(`${String(i + 1).padStart(2)}/${podcastCount} ${title} (${rows.length} episodes)`)
   }
 
   console.log(`\nAdded ${podcastCount} podcasts and ${episodeTotal} episodes for ${owner.email ?? owner.id}.`)
-} finally {
-  await client.end()
+} catch (error) {
+  console.error(error)
+  process.exit(1)
 }
+// The app's database client keeps the process alive.
+process.exit(0)
