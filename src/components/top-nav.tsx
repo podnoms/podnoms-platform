@@ -13,7 +13,7 @@ import { navLinks } from '~/lib/nav-links'
 
 export function TopNav() {
   return (
-    <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-background px-4">
+    <header className="sticky top-0 z-10 flex h-(--top-nav-height) shrink-0 items-center gap-2 bg-background px-4">
       <SidebarTrigger className="-ml-1" />
       <NavigationMenu viewport={false}>
         <NavigationMenuList>

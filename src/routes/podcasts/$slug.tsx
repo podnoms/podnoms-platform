@@ -132,7 +132,7 @@ function PodcastPage() {
           )}
           <EpisodeListEnd {...more} />
         </section>
-        <aside className="sticky top-4 hidden flex-col gap-6 rounded-xl border bg-card p-5 xl:flex">
+        <aside className="sticky top-[calc(var(--top-nav-height,0px)+1rem)] hidden flex-col gap-6 rounded-xl border bg-card p-5 xl:flex">
           {podcast.description && (
             <div className="flex flex-col gap-2">
               <h2 className="text-sm font-semibold">About</h2>

@@ -101,7 +101,11 @@ function RootDocument({
             <PlayerProvider signedIn>
               <SidebarProvider style={{ '--sidebar-width': '18rem' } as CSSProperties}>
                 <AppSidebar />
-                <SidebarInset className="pb-(--player-height)">
+                {/* --top-nav-height lets sticky content sit below the sticky top nav. */}
+                <SidebarInset
+                  className="pb-(--player-height)"
+                  style={headerless ? undefined : ({ '--top-nav-height': '3.5rem' } as CSSProperties)}
+                >
                   {headerless ? (
                     // Without the top nav, phones still need a way to open the sidebar.
                     <SidebarTrigger className="absolute top-3 left-3 z-10 md:hidden" />
