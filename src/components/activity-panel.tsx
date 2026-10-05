@@ -107,7 +107,7 @@ function Stat({ label, value }: { label: string; value: number }) {
 }
 
 // Plays and downloads per day, stacked. Shares are too few to chart.
-function DailyChart({ daily }: { daily: ActivitySummary['daily'] }) {
+export function DailyChart({ daily }: { daily: ActivitySummary['daily'] }) {
   return (
     <figure className="flex flex-col gap-2">
       <figcaption className="sr-only">Plays and downloads per day</figcaption>
@@ -172,7 +172,7 @@ function DailyChart({ daily }: { daily: ActivitySummary['daily'] }) {
   )
 }
 
-function TopList({
+export function TopList({
   title,
   rows,
   footnote,
@@ -201,7 +201,7 @@ function TopList({
   )
 }
 
-function countryName(code: string) {
+export function countryName(code: string) {
   try {
     return countryNames.of(code) ?? code
   } catch {

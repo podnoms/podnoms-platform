@@ -1,9 +1,9 @@
-import { Link, createFileRoute, getRouteApi } from '@tanstack/react-router'
+import { createFileRoute, getRouteApi } from '@tanstack/react-router'
+import { Dashboard } from '~/components/dashboard'
 import { Icons } from '~/components/icons'
 import { LandingPage } from '~/components/landing-page'
 import { NewPodcastDialog } from '~/components/new-podcast-dialog'
 import { Button } from '~/components/ui/button'
-import { Card, CardHeader, CardTitle } from '~/components/ui/card'
 import {
   Empty,
   EmptyContent,
@@ -12,8 +12,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '~/components/ui/empty'
+import { fetchDashboard } from '~/functions/dashboard'
 
 export const Route = createFileRoute('/')({
+  // The dashboard, for signed-in users, starting with the last 30 days.
+  loader: ({ context }) => (context.session ? fetchDashboard({ data: { days: 30 } }) : null),
   component: Index,
 })
 
@@ -27,8 +30,9 @@ function Index() {
 
 function Home() {
   const { podcasts } = rootRoute.useLoaderData()
+  const dashboard = Route.useLoaderData()
 
-  if (podcasts.length === 0) {
+  if (podcasts.length === 0 || !dashboard) {
     return (
       <div className="p-4">
         <Empty>
@@ -52,28 +56,5 @@ function Home() {
     )
   }
 
-  return (
-    <div className="flex flex-col gap-6 p-4">
-      <header className="flex items-center gap-2">
-        <h1 className="text-2xl font-semibold">Your podcasts</h1>
-        <NewPodcastDialog>
-          <Button className="ml-auto">
-            <Icons.add />
-            New podcast
-          </Button>
-        </NewPodcastDialog>
-      </header>
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {podcasts.map((podcast) => (
-          <Link key={podcast.id} to="/podcasts/$slug/manage" params={{ slug: podcast.slug }}>
-            <Card>
-              <CardHeader>
-                <CardTitle>{podcast.title}</CardTitle>
-              </CardHeader>
-            </Card>
-          </Link>
-        ))}
-      </section>
-    </div>
-  )
+  return <Dashboard initial={dashboard} />
 }

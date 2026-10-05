@@ -11,10 +11,10 @@
 import '@tanstack/react-start/server-only'
 import { createHash, randomBytes } from 'node:crypto'
 import { getRequestIP } from '@tanstack/react-start/server'
-import { and, count, desc, eq, gte, isNotNull, lt, sql, type SQL } from 'drizzle-orm'
+import { and, count, desc, eq, gte, inArray, isNotNull, lt, sql, type SQL } from 'drizzle-orm'
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 import { db } from '~/server/db/client.server'
-import { episodeActivity, episodes, visitorSalts, type ActivitySource, type ActivityType } from '~/server/db/schema'
+import { episodeActivity, episodes, podcasts, visitorSalts, type ActivitySource, type ActivityType } from '~/server/db/schema'
 import { lookupLocation } from '~/server/geoip.server'
 import { describeUserAgent, isBot } from '~/server/user-agent.server'
 
@@ -132,28 +132,38 @@ function referrerHost(referrer: string | null, request: Request) {
 
 export type ActivitySummary = Awaited<ReturnType<typeof summariseActivity>>
 
-// A podcast's activity (or one episode's) over the last `days` days: totals
-// by kind, a count per day, and the top countries, apps and referring sites.
+// Whose activity to summarise: one podcast, one of its episodes, or all of
+// a user's podcasts.
+export type ActivityScope = { podcastId: string; episodeId?: string } | { userId: string }
+
+export function activityInScope(scope: ActivityScope) {
+  if ('userId' in scope) {
+    return inArray(
+      episodeActivity.podcastId,
+      db.select({ id: podcasts.id }).from(podcasts).where(eq(podcasts.userId, scope.userId)),
+    )
+  }
+  return and(
+    eq(episodeActivity.podcastId, scope.podcastId),
+    scope.episodeId ? eq(episodeActivity.episodeId, scope.episodeId) : undefined,
+  )
+}
+
+// The last `days` whole UTC days, ending today: [start, end).
+export function activityPeriod(days: number, now = new Date()) {
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
+  return { start: new Date(end.getTime() - days * 86_400_000), end }
+}
+
+// Activity in scope over the last `days` days: totals by kind, a count per
+// day, and the top countries, apps and referring sites.
 export async function summariseActivity({
-  podcastId,
-  episodeId,
   days,
   now = new Date(),
-}: {
-  podcastId: string
-  episodeId?: string
-  days: number
-  now?: Date
-}) {
-  // Whole UTC days, ending today.
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
-  const start = new Date(end.getTime() - days * 86_400_000)
-  const where = and(
-    eq(episodeActivity.podcastId, podcastId),
-    episodeId ? eq(episodeActivity.episodeId, episodeId) : undefined,
-    gte(episodeActivity.occurredAt, start),
-    lt(episodeActivity.occurredAt, end),
-  )
+  ...scope
+}: ActivityScope & { days: number; now?: Date }) {
+  const { start, end } = activityPeriod(days, now)
+  const where = and(activityInScope(scope), gte(episodeActivity.occurredAt, start), lt(episodeActivity.occurredAt, end))
 
   const day = sql<string>`to_char(${episodeActivity.occurredAt} at time zone 'UTC', 'YYYY-MM-DD')`
   const [byType, byDay, countries, clients, referrers] = await Promise.all([

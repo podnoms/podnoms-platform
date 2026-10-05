@@ -22,3 +22,7 @@ export const activityQuerySchema = z.object({
   episodeSlug: z.string().optional(),
   days: z.union([z.literal(7), z.literal(30), z.literal(90)]),
 })
+
+export const dashboardQuerySchema = z.object({
+  days: z.union([z.literal(7), z.literal(30), z.literal(90)]),
+})
