@@ -8,6 +8,9 @@ const lastEpisodeSchema = z.object({
   audioUrl: z.string(),
   imageUrl: z.string().nullable(),
   podcastTitle: z.string(),
+  slug: z.string().optional(),
+  podcastSlug: z.string().optional(),
+  isOwner: z.boolean().optional(),
   positionSeconds: z.number().nullable(),
 })
 export type LastEpisode = z.infer<typeof lastEpisodeSchema>

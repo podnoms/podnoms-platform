@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import type { Choice } from '~/components/choice-cards'
 import { Icons } from '~/components/icons'
 import { Button } from '~/components/ui/button'
@@ -58,6 +58,85 @@ export function useAudioUpload(onUploaded?: (result: UploadedAudio) => void) {
   }
 
   return { upload, fileInput, clear, onFileChosen }
+}
+
+// One of several files being uploaded, waiting its turn to begin with.
+export type QueuedAudioUpload = { id: string } & (
+  | { status: 'queued'; file: File }
+  | Exclude<AudioUpload, { status: 'idle' }>
+)
+
+// Files a folder holds besides its audio (artwork, playlists, notes) are left
+// out. Some systems give no type for formats like FLAC or Opus, hence the
+// extensions; names starting with a dot are hidden files, e.g. macOS's "._" ones.
+const audioExtension = /\.(mp3|m4a|m4b|aac|wav|flac|ogg|oga|opus|wma|aiff?|mp4|m4v|mkv|webm|mov|avi)$/i
+const isAudioOrVideo = (file: File) =>
+  !file.name.startsWith('.') && (/^(audio|video)\//.test(file.type) || audioExtension.test(file.name))
+
+// Several audio files (e.g. a folder of them) uploaded to /api/uploads, a few
+// at a time, in name order, for BulkUploadDialog.
+export function useAudioUploads(maxFiles: number, concurrency = 2) {
+  const [uploads, setUploads] = useState<QueuedAudioUpload[]>([])
+  const current = useRef(uploads)
+  current.current = uploads
+
+  const update = (id: string, change: (upload: QueuedAudioUpload) => QueuedAudioUpload) =>
+    setUploads((list) => list.map((upload) => (upload.id === id ? change(upload) : upload)))
+
+  function start(id: string, file: File) {
+    const { done, abort } = uploadFileInParts<UploadedAudio>(file, (percent) =>
+      update(id, (upload) => (upload.status === 'uploading' ? { ...upload, percent } : upload)),
+    )
+    update(id, () => ({ id, status: 'uploading', file, percent: 0, abort }))
+    done.then(
+      (result) => update(id, (upload) => (upload.status === 'uploading' ? { id, status: 'ready', file, result } : upload)),
+      (error) => {
+        if (isAbort(error)) return
+        const message = error instanceof Error ? error.message : String(error)
+        update(id, (upload) => (upload.status === 'uploading' ? { id, status: 'failed', file, message } : upload))
+      },
+    )
+  }
+
+  // Starts the next queued files while fewer than `concurrency` are uploading.
+  useEffect(() => {
+    const running = uploads.filter((upload) => upload.status === 'uploading').length
+    const next = uploads.filter((upload) => upload.status === 'queued').slice(0, Math.max(0, concurrency - running))
+    for (const upload of next) start(upload.id, upload.file)
+  }, [uploads, concurrency])
+
+  // Uploads still going when the form goes away are stopped.
+  useEffect(() => () => clear(), [])
+
+  // Queues the audio among the files chosen. Returns how many were left out
+  // for not being audio, or for going over maxFiles.
+  function add(files: File[]) {
+    const audio = files
+      .filter(isAudioOrVideo)
+      .sort((a, b) => (a.webkitRelativePath || a.name).localeCompare(b.webkitRelativePath || b.name, undefined, { numeric: true }))
+    const room = Math.max(0, maxFiles - current.current.length)
+    const added: QueuedAudioUpload[] = audio.slice(0, room).map((file) => {
+      const id = crypto.randomUUID()
+      return file.size > maxUploadBytes
+        ? { id, status: 'failed', file, message: `That file is too big. The limit is ${formatBytes(maxUploadBytes)}.` }
+        : { id, status: 'queued', file }
+    })
+    setUploads((list) => [...list, ...added])
+    return { notAudio: files.length - audio.length, overLimit: audio.length - added.length }
+  }
+
+  function remove(id: string) {
+    const upload = current.current.find((item) => item.id === id)
+    if (upload?.status === 'uploading') upload.abort()
+    setUploads((list) => list.filter((item) => item.id !== id))
+  }
+
+  function clear() {
+    for (const upload of current.current) if (upload.status === 'uploading') upload.abort()
+    setUploads([])
+  }
+
+  return { uploads, add, remove, clear }
 }
 
 // Choosing an audio file, with its upload's progress, or what's wrong with it.

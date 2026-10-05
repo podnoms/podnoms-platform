@@ -3,7 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { episodePageSchema, episodePageSize } from '~/lib/episode-pages'
-import { editEpisodeSchema, newEpisodeSchema, replaceAudioSchema } from '~/lib/episode-schema'
+import { bulkUploadEpisodesSchema, editEpisodeSchema, newEpisodeSchema, replaceAudioSchema } from '~/lib/episode-schema'
 import { listenPath } from '~/lib/paths'
 import { editPodcastSchema, newPodcastSchema } from '~/lib/podcast-schema'
 import { getSession, publicUrl } from '~/server/auth.server'
@@ -13,6 +13,7 @@ import { feedPath } from '~/server/feed.server'
 import { localiseRemoteImages } from '~/server/images.server'
 import {
   createEpisode,
+  createUploadedEpisodes,
   deleteEpisode,
   dismissEpisodeError,
   getEpisode,
@@ -124,6 +125,14 @@ export const createMyEpisode = createServerFn({ method: 'POST' })
     const episode = await createEpisode(await requireUserId(), data)
     if (!episode) throw notFound()
     return episode
+  })
+
+export const createMyEpisodes = createServerFn({ method: 'POST' })
+  .validator(bulkUploadEpisodesSchema)
+  .handler(async ({ data }) => {
+    const created = await createUploadedEpisodes(await requireUserId(), data)
+    if (!created) throw notFound()
+    return created
   })
 
 export const deleteMyEpisode = createServerFn({ method: 'POST' })

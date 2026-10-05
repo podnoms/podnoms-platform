@@ -1,6 +1,7 @@
 import { useEffect, useRef, type RefObject } from 'react'
+import { Link, useRouteContext } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
-import { usePlayer } from '~/components/player/player-provider'
+import { usePlayer, type PlayerEpisode } from '~/components/player/player-provider'
 import { Button } from '~/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
 import { Slider } from '~/components/ui/slider'
@@ -50,7 +51,7 @@ export function PlayerBar() {
           </div>
         )}
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{episode.title}</p>
+          <EpisodeTitle episode={episode} />
           <p className="truncate text-xs text-muted-foreground">{episode.podcastTitle}</p>
         </div>
         <Button variant="ghost" size="icon-sm" className="ml-auto sm:hidden" onClick={player.close}>
@@ -103,6 +104,24 @@ export function PlayerBar() {
         </Button>
       </div>
     </div>
+  )
+}
+
+// The episode's title, linking to its page: the manage page for its owner,
+// else the public one. In the same tab, so playback carries on.
+function EpisodeTitle({ episode }: { episode: PlayerEpisode }) {
+  const { session } = useRouteContext({ from: '__root__' })
+  const className = 'block truncate text-sm font-medium'
+  if (!episode.slug || !episode.podcastSlug) return <p className={className}>{episode.title}</p>
+  const params = { slug: episode.podcastSlug, episodeSlug: episode.slug }
+  return session && episode.isOwner ? (
+    <Link to="/podcasts/$slug/episodes/$episodeSlug/manage" params={params} className={`${className} hover:underline`}>
+      {episode.title}
+    </Link>
+  ) : (
+    <Link to="/podcasts/$slug/episodes/$episodeSlug" params={params} className={`${className} hover:underline`}>
+      {episode.title}
+    </Link>
   )
 }
 

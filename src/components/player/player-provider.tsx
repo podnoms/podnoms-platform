@@ -10,6 +10,12 @@ export type PlayerEpisode = {
   audioUrl: string
   imageUrl: string | null
   podcastTitle: string
+  // For linking to the episode: its manage page for its owner, else its
+  // public page. Missing for an episode remembered in this browser from
+  // before they were kept.
+  slug?: string
+  podcastSlug?: string
+  isOwner?: boolean
   // Where the listener left off, as last loaded from the server.
   positionSeconds: number | null
 }

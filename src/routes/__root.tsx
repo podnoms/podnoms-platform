@@ -4,7 +4,7 @@ import { HeadContent, Outlet, Scripts, createRootRoute, useMatches } from '@tans
 import { AppSidebar } from '~/components/app-sidebar'
 import { ThemeProvider } from '~/components/theme-provider'
 import { TopNav } from '~/components/top-nav'
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '~/components/ui/sidebar'
+import { SidebarInset, SidebarProvider } from '~/components/ui/sidebar'
 import { LoginDialog } from '~/components/login-dialog'
 import { PlayerBar } from '~/components/player/player-bar'
 import { PlayerProvider } from '~/components/player/player-provider'
@@ -23,9 +23,10 @@ declare module '@tanstack/react-router' {
     // Renders the page on its own, without the app's shell, header, player or
     // dialogs, as for the embeddable player.
     bare?: boolean
-    // Keeps the sidebar and player but leaves out the header across the top
-    // (the top nav, or the public header when signed out), as for public pages.
-    headerless?: boolean
+    // A public page (a podcast or episode anyone can visit), shown as visitors
+    // see it even to signed-in users: with the player, but without the app's
+    // sidebar, top nav or public header.
+    publicPage?: boolean
   }
 }
 
@@ -64,9 +65,9 @@ function RootComponent() {
   const { errorReportingDsn } = Route.useLoaderData()
   useEffect(() => startClientErrorReporting(errorReportingDsn), [errorReportingDsn])
   const bare = useMatches({ select: (matches) => matches.some((match) => match.staticData.bare) })
-  const headerless = useMatches({ select: (matches) => matches.some((match) => match.staticData.headerless) })
+  const publicPage = useMatches({ select: (matches) => matches.some((match) => match.staticData.publicPage) })
   return (
-    <RootDocument signedIn={Boolean(session)} bare={bare} headerless={headerless}>
+    <RootDocument signedIn={Boolean(session)} bare={bare} publicPage={publicPage}>
       <Outlet />
     </RootDocument>
   )
@@ -75,12 +76,12 @@ function RootComponent() {
 function RootDocument({
   signedIn,
   bare,
-  headerless,
+  publicPage,
   children,
 }: {
   signedIn: boolean
   bare: boolean
-  headerless: boolean
+  publicPage: boolean
   children: ReactNode
 }) {
   return (
@@ -93,35 +94,31 @@ function RootDocument({
       {/* Browser extensions add attributes to <body> before React hydrates. */}
       <body suppressHydrationWarning>
         <ThemeProvider>
-          {/* The app shell (sidebar and top nav) is only for signed-in users.
-              Everyone gets the player, so public pages can play episodes. */}
+          {/* The app shell (sidebar and top nav) is only for signed-in users,
+              and not on public pages. Everyone gets the player, so public
+              pages can play episodes. */}
           {bare ? (
             children
-          ) : signedIn ? (
-            <PlayerProvider signedIn>
-              <SidebarProvider style={{ '--sidebar-width': '18rem' } as CSSProperties}>
-                <AppSidebar />
-                {/* --top-nav-height lets sticky content sit below the sticky top nav. */}
-                <SidebarInset
-                  className="pb-(--player-height)"
-                  style={headerless ? undefined : ({ '--top-nav-height': '3.5rem' } as CSSProperties)}
-                >
-                  {headerless ? (
-                    // Without the top nav, phones still need a way to open the sidebar.
-                    <SidebarTrigger className="absolute top-3 left-3 z-10 md:hidden" />
-                  ) : (
-                    <TopNav />
-                  )}
-                  {children}
-                </SidebarInset>
-              </SidebarProvider>
-              {/* Outside the sidebar layout, so it spans the full width below the sidebar. */}
-              <PlayerBar />
-            </PlayerProvider>
           ) : (
-            <PlayerProvider signedIn={false}>
-              {!headerless && <PublicHeader />}
-              <div className="pb-(--player-height)">{children}</div>
+            // One player around both layouts, so what's playing carries on
+            // between the app and public pages.
+            <PlayerProvider signedIn={signedIn}>
+              {signedIn && !publicPage ? (
+                <SidebarProvider style={{ '--sidebar-width': '18rem' } as CSSProperties}>
+                  <AppSidebar />
+                  {/* --top-nav-height lets sticky content sit below the sticky top nav. */}
+                  <SidebarInset className="pb-(--player-height)" style={{ '--top-nav-height': '3.5rem' } as CSSProperties}>
+                    <TopNav />
+                    {children}
+                  </SidebarInset>
+                </SidebarProvider>
+              ) : (
+                <>
+                  {!publicPage && <PublicHeader />}
+                  <div className="pb-(--player-height)">{children}</div>
+                </>
+              )}
+              {/* Outside the sidebar layout, so it spans the full width below the sidebar. */}
               <PlayerBar />
             </PlayerProvider>
           )}

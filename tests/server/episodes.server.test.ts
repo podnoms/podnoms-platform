@@ -6,6 +6,7 @@ import { episodes, playbackPositions } from '~/server/db/schema'
 import { enqueueEpisode } from '~/server/episode-processor.server'
 import {
   createEpisode,
+  createUploadedEpisodes,
   deleteEpisode,
   dismissEpisodeError,
   getEpisode,
@@ -155,6 +156,63 @@ describe('createEpisode from an upload', () => {
     const { user, podcast } = await setup()
     const uploadId = await stageUpload((await createUser()).id, { title: 'Theirs', durationSeconds: 1 })
     await expect(createEpisode(user.id, { podcastId: podcast.id, uploadId })).rejects.toThrow('That upload has expired')
+  })
+})
+
+describe('createUploadedEpisodes', () => {
+  it('makes an episode of each upload, published in the order given', async () => {
+    const { user, podcast } = await setup()
+    const first = await stageUpload(user.id, { title: 'Track 1', durationSeconds: 10 })
+    const second = await stageUpload(user.id, { title: 'Track 2', durationSeconds: 20 })
+    const created = await createUploadedEpisodes(user.id, {
+      podcastId: podcast.id,
+      episodes: [{ uploadId: first }, { uploadId: second, title: 'Renamed' }],
+    })
+    const rows = await Promise.all(created!.map((episode) => getRow(episode.id)))
+    expect(rows).toMatchObject([
+      { title: 'Track 1', durationSeconds: 10, status: 'pending' },
+      { title: 'Renamed', durationSeconds: 20, status: 'pending' },
+    ])
+    expect(rows[1]!.publishedAt!.getTime()).toBeGreaterThan(rows[0]!.publishedAt!.getTime())
+    for (const episode of created!) {
+      expect(await exists(episodeSourcePath(episode.id))).toBe(true)
+      expect(enqueueEpisode).toHaveBeenCalledWith(episode.id)
+    }
+    expect(await exists(stagedUploadPath(user.id, first))).toBe(false)
+  })
+
+  it('gives files with the same title different slugs', async () => {
+    const { user, podcast } = await setup()
+    const uploads = [
+      await stageUpload(user.id, { title: 'Untitled', durationSeconds: 1 }),
+      await stageUpload(user.id, { title: 'Untitled', durationSeconds: 1 }),
+    ]
+    const created = await createUploadedEpisodes(user.id, {
+      podcastId: podcast.id,
+      episodes: uploads.map((uploadId) => ({ uploadId })),
+    })
+    expect(new Set(created!.map((episode) => episode.slug)).size).toBe(2)
+  })
+
+  it('adds nothing when any upload has expired', async () => {
+    const { user, podcast } = await setup()
+    const uploadId = await stageUpload(user.id, { title: 'Fine', durationSeconds: 1 })
+    await expect(
+      createUploadedEpisodes(user.id, {
+        podcastId: podcast.id,
+        episodes: [{ uploadId }, { uploadId: crypto.randomUUID() }],
+      }),
+    ).rejects.toThrow('Some of the uploads have expired')
+    expect(await db.select().from(episodes)).toEqual([])
+    expect(await exists(stagedUploadPath(user.id, uploadId))).toBe(true)
+  })
+
+  it("returns null for another user's podcast", async () => {
+    const { podcast } = await setup()
+    const other = await createUser()
+    const uploadId = await stageUpload(other.id, { title: 'Mine', durationSeconds: 1 })
+    expect(await createUploadedEpisodes(other.id, { podcastId: podcast.id, episodes: [{ uploadId }] })).toBeNull()
+    expect(await db.select().from(episodes)).toEqual([])
   })
 })
 

@@ -12,6 +12,8 @@ const episode = (id: string): PlayerEpisode => ({
   audioUrl: `/api/episodes/${id}/audio`,
   imageUrl: null,
   podcastTitle: 'Show',
+  slug: id,
+  podcastSlug: 'show',
   positionSeconds: null,
 })
 

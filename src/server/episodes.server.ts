@@ -16,7 +16,7 @@ import { plainTextToHtml } from '~/lib/rich-text'
 import { commitImage, deleteImage } from '~/server/images.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import { deleteWaveform } from '~/server/waveforms.server'
-import type { EditEpisodeInput, NewEpisodeInput, ReplaceAudioInput } from '~/lib/episode-schema'
+import type { BulkUploadEpisodesInput, EditEpisodeInput, NewEpisodeInput, ReplaceAudioInput } from '~/lib/episode-schema'
 
 // Whether the episode's audio is being replaced.
 const replacing = sql<boolean>`${episodes.replacement} is not null`
@@ -214,18 +214,7 @@ export async function createEpisode(userId: string, input: NewEpisodeInput) {
   const imageUrl = input.imageId ? await commitImage(userId, input.imageId) : null
 
   if ('uploadId' in input) {
-    const title = input.title ?? upload!.title
-    const episode = await insertEpisode({
-      podcastId: podcast.id,
-      title,
-      slug: await availableEpisodeSlug(podcast.id, title),
-      description,
-      imageUrl,
-      durationSeconds: upload!.durationSeconds,
-    })
-    await moveUploadToEpisode(userId, input.uploadId, episode.id)
-    enqueueEpisode(episode.id)
-    return episode
+    return insertUploadedEpisode(userId, podcast.id, upload!, { title: input.title, description, imageUrl })
   }
 
   const episode = await insertEpisode({
@@ -242,6 +231,51 @@ export async function createEpisode(userId: string, input: NewEpisodeInput) {
   })
   enqueueEpisode(episode.id)
   return episode
+}
+
+// Makes an episode of a file the user has uploaded, handing the file over for
+// the processor to convert.
+async function insertUploadedEpisode(
+  userId: string,
+  podcastId: string,
+  upload: UploadedAudio,
+  details: Pick<NewEpisode, 'description' | 'imageUrl' | 'publishedAt'> & { title?: string },
+) {
+  const title = details.title ?? upload.title
+  const episode = await insertEpisode({
+    ...details,
+    podcastId,
+    title,
+    slug: await availableEpisodeSlug(podcastId, title),
+    durationSeconds: upload.durationSeconds,
+  })
+  await moveUploadToEpisode(userId, upload.uploadId, episode.id)
+  enqueueEpisode(episode.id)
+  return episode
+}
+
+// Makes an episode of each uploaded file (e.g. a folder of them), or returns
+// null unless the podcast belongs to the user. Nothing is added if any upload
+// has expired. Each is published a second after the one before, so the feed
+// keeps the files' order however long each takes to convert.
+export async function createUploadedEpisodes(userId: string, input: BulkUploadEpisodesInput) {
+  const [podcast] = await db
+    .select({ id: podcasts.id })
+    .from(podcasts)
+    .where(and(eq(podcasts.id, input.podcastId), eq(podcasts.userId, userId)))
+    .limit(1)
+  if (!podcast) return null
+  const uploads = await Promise.all(input.episodes.map((item) => findUpload(userId, item.uploadId)))
+  if (uploads.some((upload) => !upload)) throw new Error('Some of the uploads have expired. Please choose the files again.')
+
+  const start = Date.now()
+  const created = []
+  for (const [i, item] of input.episodes.entries()) {
+    created.push(
+      await insertUploadedEpisode(userId, podcast.id, uploads[i]!, { title: item.title, publishedAt: new Date(start + i * 1000) }),
+    )
+  }
+  return created
 }
 
 // Only ready episodes have audio to serve.

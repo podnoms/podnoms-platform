@@ -16,7 +16,7 @@ import { htmlToText } from '~/lib/rich-text'
 // A podcast's public page, which anyone can visit. Its owner manages it at
 // /podcasts/:slug/manage.
 export const Route = createFileRoute('/podcasts/$slug')({
-  staticData: { headerless: true },
+  staticData: { publicPage: true },
   loader: ({ params }) => fetchPodcastPage({ data: { slug: params.slug } }),
   head: ({ loaderData: podcast }) =>
     podcast
@@ -126,6 +126,7 @@ function PodcastPage() {
                   podcastSlug={podcast.slug}
                   podcastTitle={podcast.title}
                   podcastImageUrl={podcast.imageUrl}
+                  isOwner={podcast.isOwner}
                 />
               ))}
             </ItemGroup>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { ActivityPanel } from '~/components/activity-panel'
+import { BulkUploadDialog } from '~/components/bulk-upload-dialog'
 import { ChannelPanel } from '~/components/channel-panel'
 import { EditDetailsDialog } from '~/components/edit-details-dialog'
 import { EpisodeListEnd } from '~/components/episode-list-end'
@@ -61,13 +62,21 @@ function PodcastPage() {
     totalSeconds ? formatLength(totalSeconds) : null,
   ].filter(Boolean)
 
-  const newEpisodeButton = (
-    <NewEpisodeDialog podcastId={podcast.id} podcastTitle={podcast.title}>
-      <Button>
-        <Icons.add />
-        New episode
-      </Button>
-    </NewEpisodeDialog>
+  const newEpisodeButtons = (
+    <>
+      <BulkUploadDialog podcastId={podcast.id}>
+        <Button variant="outline">
+          <Icons.uploadFolder />
+          Upload folder
+        </Button>
+      </BulkUploadDialog>
+      <NewEpisodeDialog podcastId={podcast.id} podcastTitle={podcast.title}>
+        <Button>
+          <Icons.add />
+          New episode
+        </Button>
+      </NewEpisodeDialog>
+    </>
   )
 
   return (
@@ -116,7 +125,7 @@ function PodcastPage() {
                   </Link>
                 </Button>
                 <FeedUrlButton feedUrl={podcast.feedUrl} />
-                {episodes.length > 0 && newEpisodeButton}
+                {episodes.length > 0 && newEpisodeButtons}
               </div>
             </div>
           </div>
@@ -148,7 +157,7 @@ function PodcastPage() {
                         : 'Paste a YouTube link or upload an audio file, and podnoms will turn it into an episode.'}
                     </EmptyDescription>
                   </EmptyHeader>
-                  <EmptyContent>{newEpisodeButton}</EmptyContent>
+                  <EmptyContent className="flex-row flex-wrap justify-center">{newEpisodeButtons}</EmptyContent>
                 </Empty>
               ) : (
                 <ItemGroup className="gap-3">

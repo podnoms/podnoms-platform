@@ -27,11 +27,13 @@ export function PublicEpisodeRow({
   podcastSlug,
   podcastTitle,
   podcastImageUrl,
+  isOwner,
 }: {
   episode: PublicEpisodeRowData
   podcastSlug: string
   podcastTitle: string
   podcastImageUrl: string | null
+  isOwner: boolean
 }) {
   const player = usePlayer()
   const isCurrent = player.episode?.id === episode.id
@@ -50,6 +52,9 @@ export function PublicEpisodeRow({
       audioUrl: episode.audioUrl,
       imageUrl: artwork,
       podcastTitle,
+      slug: episode.slug,
+      podcastSlug,
+      isOwner,
       positionSeconds: episode.positionSeconds,
     })
   }

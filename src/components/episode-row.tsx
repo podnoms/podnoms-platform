@@ -92,6 +92,9 @@ export function EpisodeRow({
       audioUrl: episode.audioUrl,
       imageUrl: episode.imageUrl,
       podcastTitle,
+      slug: episode.slug,
+      podcastSlug,
+      isOwner: true,
       positionSeconds: episode.positionSeconds,
     })
   }

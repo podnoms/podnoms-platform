@@ -40,6 +40,19 @@ export const uploadEpisodeSchema = z.object({ ...episodeDetails, uploadId })
 export const newEpisodeSchema = z.union([linkEpisodeSchema, uploadEpisodeSchema])
 export type NewEpisodeInput = z.infer<typeof newEpisodeSchema>
 
+// The most files that can be uploaded as episodes at once (a folder of them).
+export const maxBulkUploadFiles = 50
+
+// Several uploaded files, each to become an episode, in the order given.
+export const bulkUploadEpisodesSchema = z.object({
+  podcastId: z.string().min(1),
+  episodes: z
+    .array(z.object({ uploadId, title: optionalText(200, 'Keep each title under 200 characters') }))
+    .min(1, 'Choose some audio files to upload')
+    .max(maxBulkUploadFiles, `Upload up to ${maxBulkUploadFiles} files at once`),
+})
+export type BulkUploadEpisodesInput = z.infer<typeof bulkUploadEpisodesSchema>
+
 export const editEpisodeSchema = z.object({
   id: z.string().min(1),
   title: z.string().trim().min(1, 'Give the episode a title').max(200, 'Keep the title under 200 characters'),
