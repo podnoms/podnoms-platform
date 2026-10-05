@@ -27,6 +27,8 @@ describe('migrations', () => {
     const { rows } = await pg.query<{ tablename: string }>(`select tablename from pg_tables where schemaname = 'public' order by 1`)
     expect(rows.map((r) => r.tablename)).toEqual([
       'account',
+      'channel',
+      'channel_item',
       'episode',
       'episode_activity',
       'playback_position',
@@ -34,10 +36,32 @@ describe('migrations', () => {
       'recovery_code',
       'security_key',
       'session',
+      'site_setting',
       'user',
       'verification_token',
       'visitor_salt',
     ])
+  })
+
+  it('0011 makes the site settings, with the defaults, and gives existing users the default channel limit', async () => {
+    const pg = new PGlite()
+    await migrateUntil(pg, tagOf('0011'))
+    await pg.query(`insert into "user" (id, email) values ('u1', 'u@example.com')`)
+    await runMigration(pg, tagOf('0011'))
+
+    const { rows: settings } = await pg.query(`select * from site_setting`)
+    expect(settings).toEqual([
+      expect.objectContaining({
+        id: 'global',
+        downloadConcurrency: 3,
+        perPlatformConcurrency: 2,
+        downloadDelaySeconds: 10,
+        channelCheckHours: 6,
+        downloadRateLimit: null,
+      }),
+    ])
+    const { rows: users } = await pg.query<{ channelEpisodeLimit: number }>(`select "channelEpisodeLimit" from "user"`)
+    expect(users).toEqual([{ channelEpisodeLimit: 10 }])
   })
 
   it('0004 converts plain-text descriptions to HTML as plainTextToHtml does', async () => {

@@ -20,7 +20,7 @@ function SettingsLayout() {
     <div className="flex max-w-2xl flex-col gap-6 p-4">
       <h1 className="text-2xl font-semibold">Settings</h1>
       <Tabs value={tab} onValueChange={(value) => navigate({ to: tabs[value as keyof typeof tabs] })}>
-        <TabsList>
+        <TabsList variant="line">
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>

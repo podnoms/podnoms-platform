@@ -26,6 +26,9 @@ class PostgresJsLikePGlite extends PGlite {
 export async function createTestDb() {
   const db = drizzle(new PostgresJsLikePGlite(), { schema })
   await migrate(db, { migrationsFolder: 'drizzle' })
+  // Downloads start without the polite pause between them, which would only
+  // slow the tests down; tests of the pause set it themselves.
+  await db.execute(sql`update site_setting set "downloadDelaySeconds" = 0`)
   return db
 }
 

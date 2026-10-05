@@ -183,7 +183,7 @@ export async function getEpisode(userId: string, podcastSlug: string, episodeSlu
 }
 
 // Saves a new episode, choosing another slug if its was taken meanwhile.
-async function insertEpisode(values: NewEpisode & { slug: string }) {
+export async function insertEpisode(values: NewEpisode & { slug: string }) {
   const insert = (slug: string) =>
     db
       .insert(episodes)
@@ -237,6 +237,8 @@ export async function createEpisode(userId: string, input: NewEpisodeInput) {
     sourceUrl: input.sourceUrl,
     description,
     imageUrl,
+    // Someone's waiting for it, so it goes ahead of channels' uploads.
+    priority: 1,
   })
   enqueueEpisode(episode.id)
   return episode

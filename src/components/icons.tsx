@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import {
+  ArrowDownWideNarrowIcon,
   ArrowLeftIcon,
   BoldIcon,
   CheckIcon,
@@ -87,6 +88,7 @@ export const Icons = {
   logo: PodcastIcon,
   home: HouseIcon,
   back: ArrowLeftIcon,
+  sort: ArrowDownWideNarrowIcon,
   list: ListIcon,
   broadcast: RadioIcon,
   database: DatabaseIcon,

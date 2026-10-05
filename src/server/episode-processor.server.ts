@@ -3,23 +3,26 @@
 // metadata; an uploaded file is converted to MP3 by ffmpeg. A ready episode's
 // audio can be replaced the same way, without taking it offline meanwhile.
 //
-// Jobs run in this server process, one at a time. That's fine for a single
-// server; move to a real job queue before running several.
+// Jobs run in this server process, so only one instance of the app may run.
+// Downloads wait for a slot in the site-wide download throttle (see
+// download-throttle.server.ts), which keeps us polite to the platforms;
+// uploads touch no platform, so they're converted one at a time on their own.
 import '@tanstack/react-start/server-only'
-import { spawn } from 'node:child_process'
 import { rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { eq, inArray, isNotNull, or } from 'drizzle-orm'
-import { env } from '~/env'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
-import { episodes, type Episode, type EpisodeReplacement } from '~/server/db/schema'
+import { platformOf } from '~/lib/platforms'
+import { channelItems, episodes, type Episode, type EpisodeReplacement } from '~/server/db/schema'
+import { onThrottleChange, placeInQueue, RateLimitedError, withDownloadSlot } from '~/server/download-throttle.server'
 import { publishEpisodeEvent } from '~/server/episode-events.server'
 import { availableEpisodeSlug, isSlugConflict, withRandomSuffix } from '~/server/episode-slugs.server'
 import { downloadImage } from '~/server/images.server'
 import { convertToMp3, probeAudio } from '~/server/media.server'
 import { logger, reportError } from '~/server/logger.server'
 import { saveWaveform } from '~/server/waveforms.server'
+import { runYtDlpLines } from '~/server/ytdlp.server'
 import {
   ensureAudioDir,
   episodeAudioPath,
@@ -35,12 +38,12 @@ export type EpisodeProgress =
   | { stage: 'queued'; ahead: number }
   | { stage: 'fetching' }
   | {
-      stage: 'downloading'
-      downloadedBytes: number
-      totalBytes: number | null
-      bytesPerSecond: number | null
-      secondsLeft: number | null
-    }
+    stage: 'downloading'
+    downloadedBytes: number
+    totalBytes: number | null
+    bytesPerSecond: number | null
+    secondsLeft: number | null
+  }
   // Percent is known when converting an upload, but not a download.
   | { stage: 'converting'; percent: number | null }
 
@@ -65,6 +68,9 @@ type SourceInfo = {
   duration?: number
   thumbnail?: string
   filepath?: string
+  // When it was uploaded: as a Unix time, or failing that a date (YYYYMMDD).
+  timestamp?: number
+  upload_date?: string
 }
 
 type DownloadProgress = {
@@ -76,7 +82,8 @@ type DownloadProgress = {
   eta?: number | null
 }
 
-function runYtDlp(sourceUrl: string, outputTemplate: string, onLine: (line: string) => void) {
+// The source's details, printed by yt-dlp once the download is saved.
+async function runYtDlp(sourceUrl: string, outputTemplate: string, onLine: (line: string) => void) {
   const args = [
     '--no-playlist',
     // --print implies --quiet, which would hide progress; --newline gives one
@@ -93,41 +100,20 @@ function runYtDlp(sourceUrl: string, outputTemplate: string, onLine: (line: stri
     '--output',
     outputTemplate,
     '--print',
-    'after_move:INFO %(.{title,description,duration,thumbnail,filepath})j',
+    'after_move:INFO %(.{title,description,duration,thumbnail,filepath,timestamp,upload_date})j',
     sourceUrl,
   ]
-  return new Promise<SourceInfo>((resolve, reject) => {
-    const child = spawn(env.YTDLP_PATH, args, { stdio: ['ignore', 'pipe', 'pipe'] })
-    let info: SourceInfo | undefined
-    const errors: string[] = []
-    // Progress and messages arrive on both streams, a line at a time.
-    const readLines = (stream: NodeJS.ReadableStream) => {
-      let buffered = ''
-      stream.on('data', (chunk) => {
-        buffered += chunk
-        const lines = buffered.split('\n')
-        buffered = lines.pop() ?? ''
-        for (const line of lines) {
-          if (line.startsWith('INFO ')) info = JSON.parse(line.slice(5)) as SourceInfo
-          // "ERROR: [youtube] abc123: This video is unavailable" → "This video is unavailable"
-          else if (line.startsWith('ERROR')) errors.push(line.replace(/^ERROR:\s*(\[[^\]]+\]\s*[^:\s]+:\s*)?/, ''))
-          else onLine(line)
-        }
-      })
-    }
-    readLines(child.stdout)
-    readLines(child.stderr)
-    child.on('error', (error) => reject(new Error(`Could not run yt-dlp: ${error.message}`)))
-    child.on('close', (code) => {
-      if (code !== 0) reject(new Error(errors.at(-1) || `yt-dlp exited with code ${code}`))
-      else if (!info) reject(new Error('yt-dlp returned no information about the download'))
-      else resolve(info)
-    })
+  let info: SourceInfo | undefined
+  await runYtDlpLines(args, (line) => {
+    if (line.startsWith('INFO ')) info = JSON.parse(line.slice(5)) as SourceInfo
+    else onLine(line)
   })
+  if (!info) throw new Error('yt-dlp returned no information about the download')
+  return info
 }
 
 // What a download or conversion learnt about the episode's audio.
-type ProcessedAudio = Pick<SourceInfo, 'title' | 'description' | 'thumbnail'> & {
+type ProcessedAudio = Pick<SourceInfo, 'title' | 'description' | 'thumbnail' | 'timestamp' | 'upload_date'> & {
   path: string
   durationSeconds: number | null
 }
@@ -207,6 +193,12 @@ async function processEpisode(episodeId: string) {
     await saveWaveform(episodeId).catch((error: unknown) => logWaveformFailure(episodeId, error))
     logger.info({ ...job, durationMs: Date.now() - started }, 'Episode processing finished')
   } catch (error) {
+    if (error instanceof RateLimitedError) {
+      // Not this episode's fault: it's tried again once the platform lets us.
+      logger.warn({ ...job, err: error }, 'Episode download was refused by the platform; will retry')
+      await db.update(episodes).set({ status: 'pending' }).where(eq(episodes.id, episodeId))
+      throw error
+    }
     reportError(error, { ...job, stage: progress.get(episodeId)?.stage, durationMs: Date.now() - started, msg: 'Episode processing failed' })
     const message = error instanceof Error ? error.message : String(error)
     await db
@@ -226,6 +218,9 @@ async function markReady(episode: Episode, audio: ProcessedAudio) {
   // Titles default to the link, and slugs are temporary, until the source's
   // real title is known.
   const titled = episode.title === episode.sourceUrl && audio.title ? audio.title : null
+  // A channel's uploads are dated as the channel has them, so the feed is in
+  // the same order; anything else is new as of now.
+  const publishedAt = episode.publishedAt ?? ((await isFromChannel(episode.id)) ? uploadedAt(audio) : null) ?? new Date()
   const slug = titled ? await availableEpisodeSlug(episode.podcastId, titled, episode.id) : episode.slug
   const update = (slug: string) =>
     db
@@ -240,7 +235,7 @@ async function markReady(episode: Episode, audio: ProcessedAudio) {
         audioUrl: episodeAudioUrl(episode.id),
         audioMimeType: 'audio/mpeg',
         audioSizeBytes: size,
-        publishedAt: episode.publishedAt ?? new Date(),
+        publishedAt,
       })
       .where(eq(episodes.id, episode.id))
   try {
@@ -249,6 +244,17 @@ async function markReady(episode: Episode, audio: ProcessedAudio) {
     if (!isSlugConflict(error)) throw error
     await update(withRandomSuffix(slug))
   }
+}
+
+async function isFromChannel(episodeId: string) {
+  const [item] = await db.select({ episodeId: channelItems.episodeId }).from(channelItems).where(eq(channelItems.episodeId, episodeId)).limit(1)
+  return Boolean(item)
+}
+
+function uploadedAt({ timestamp, upload_date }: Pick<SourceInfo, 'timestamp' | 'upload_date'>) {
+  if (timestamp) return new Date(timestamp * 1000)
+  const date = upload_date?.match(/^(\d{4})(\d{2})(\d{2})$/)
+  return date ? new Date(`${date[1]}-${date[2]}-${date[3]}T00:00:00Z`) : null
 }
 
 // Makes the episode's new audio alongside its current audio, which stays live
@@ -277,6 +283,11 @@ async function replaceAudio(episode: Episode, { sourceUrl }: EpisodeReplacement)
     await saveWaveform(id).catch((error: unknown) => logWaveformFailure(id, error))
     logger.info({ episodeId: id, sourceUrl }, 'Episode audio replaced')
   } catch (error) {
+    // Kept waiting to be replaced, and tried again once the platform lets us.
+    if (error instanceof RateLimitedError) {
+      logger.warn({ episodeId: id, sourceUrl, err: error }, 'Audio replacement was refused by the platform; will retry')
+      throw error
+    }
     reportError(error, { episodeId: id, podcastId: episode.podcastId, sourceUrl, stage: progress.get(id)?.stage, msg: 'Episode audio replacement failed' })
     const message = error instanceof Error ? error.message : String(error)
     await rm(replacementAudioPath(id), { force: true })
@@ -295,43 +306,94 @@ function logWaveformFailure(episodeId: string, error: unknown) {
   logger.warn({ episodeId, err: error }, 'Could not make a waveform for the episode')
 }
 
-const queue: string[] = []
-const queued = new Set<string>()
-let draining = false
-
-async function drain() {
-  if (draining) return
-  draining = true
-  try {
-    for (let id = queue.shift(); id; id = queue.shift()) {
-      publishQueuePositions()
-      await processEpisode(id)
-      queued.delete(id)
-    }
-  } finally {
-    draining = false
-  }
-}
+// Every episode given to the processor and not yet done with, in the order
+// given, and which lane it's in: downloads wait in the download throttle,
+// uploads in the local queue. 'new' until its row has been read.
+const jobs = new Map<string, 'new' | 'download' | 'local'>()
+const localQueue: string[] = []
+let localRunning: string | null = null
+let localTail: Promise<unknown> = Promise.resolve()
 
 export function enqueueEpisode(episodeId: string) {
-  if (queued.has(episodeId)) return
-  queued.add(episodeId)
-  queue.push(episodeId)
+  if (jobs.has(episodeId)) return
+  jobs.set(episodeId, 'new')
   publishQueuePositions()
-  void drain()
+  void run(episodeId)
+}
+
+async function run(episodeId: string) {
+  let retry = false
+  try {
+    const [episode] = await db
+      .select({ podcastId: episodes.podcastId, title: episodes.title, sourceUrl: episodes.sourceUrl, replacement: episodes.replacement, priority: episodes.priority })
+      .from(episodes)
+      .where(eq(episodes.id, episodeId))
+      .limit(1)
+    if (!episode) return
+    const sourceUrl = episode.replacement ? episode.replacement.sourceUrl : episode.sourceUrl
+    if (sourceUrl) {
+      jobs.set(episodeId, 'download')
+      const slot = { priority: episode.priority, key: episode.podcastId, id: episodeId, label: episode.title }
+      await withDownloadSlot(platformOf(sourceUrl), slot, () => processEpisode(episodeId))
+    } else {
+      jobs.set(episodeId, 'local')
+      await runLocally(episodeId)
+    }
+  } catch (error) {
+    // The platform refused us; the throttle holds it back until it's likely
+    // to let us again.
+    if (error instanceof RateLimitedError) retry = true
+    else reportError(error, { episodeId, msg: 'Episode processing failed' })
+  } finally {
+    jobs.delete(episodeId)
+    publishQueuePositions()
+  }
+  if (retry) enqueueEpisode(episodeId)
+}
+
+// Uploads are converted one at a time, in the order they came.
+function runLocally(episodeId: string) {
+  localQueue.push(episodeId)
+  const turn = localTail.then(async () => {
+    localQueue.splice(localQueue.indexOf(episodeId), 1)
+    localRunning = episodeId
+    publishQueuePositions()
+    try {
+      await processEpisode(episodeId)
+    } finally {
+      localRunning = null
+    }
+  })
+  localTail = turn.catch(() => {})
+  return turn
 }
 
 // Each queued episode's place changes whenever the queue moves.
 function publishQueuePositions() {
-  for (const id of queue) publishEpisodeEvent({ type: 'progress', episodeId: id, progress: getEpisodeProgress(id) })
+  for (const id of jobs.keys()) {
+    if (!progress.has(id)) publishEpisodeEvent({ type: 'progress', episodeId: id, progress: getEpisodeProgress(id) })
+  }
 }
+onThrottleChange(publishQueuePositions)
 
 export function getEpisodeProgress(episodeId: string): EpisodeProgress | null {
   const running = progress.get(episodeId)
   if (running) return running
-  const index = queue.indexOf(episodeId)
-  // Jobs ahead: the rest of the queue before this one, plus the running job.
-  return index === -1 ? null : { stage: 'queued', ahead: index + (draining ? 1 : 0) }
+  const lane = jobs.get(episodeId)
+  if (lane === 'download') {
+    const ahead = placeInQueue(episodeId)
+    return ahead === null ? null : { stage: 'queued', ahead }
+  }
+  if (lane === 'local') {
+    const index = localQueue.indexOf(episodeId)
+    return index === -1 ? null : { stage: 'queued', ahead: index + (localRunning ? 1 : 0) }
+  }
+  // Not yet sorted into a lane: what's running, and what came just before it.
+  if (lane === 'new') {
+    const before = [...jobs].slice(0, [...jobs.keys()].indexOf(episodeId))
+    return { stage: 'queued', ahead: progress.size + before.filter(([, l]) => l === 'new').length }
+  }
+  return null
 }
 
 // Episodes left pending or mid-download, or with audio waiting to be

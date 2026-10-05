@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useRouter } from '@tanstack/react-router'
-import { AudioFileField, useAudioUpload } from '~/components/audio-file-field'
-import { Icons } from '~/components/icons'
+import { AudioFileField, audioSourceChoices, useAudioUpload, type AudioSource } from '~/components/audio-file-field'
+import { ChoiceCards } from '~/components/choice-cards'
 import { Button } from '~/components/ui/button'
 import {
   Dialog,
@@ -14,11 +14,9 @@ import {
 } from '~/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { replaceMyEpisodeAudio } from '~/functions/podcasts'
 import { replaceAudioLinkSchema, replaceAudioUploadSchema } from '~/lib/episode-schema'
 
-type Source = 'link' | 'file'
 
 // Gives an episode new audio, from a link or an uploaded file: a ready
 // episode keeps its current audio until the new audio is ready; a failed one
@@ -35,7 +33,7 @@ export function ReplaceAudioDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const router = useRouter()
-  const [source, setSource] = useState<Source>('link')
+  const [source, setSource] = useState<AudioSource>('link')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string>()
   const uploadState = useAudioUpload(() => setError(undefined))
@@ -80,7 +78,7 @@ export function ReplaceAudioDialog({
         }
       }}
     >
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Replace audio</DialogTitle>
           <DialogDescription>
@@ -91,41 +89,31 @@ export function ReplaceAudioDialog({
         </DialogHeader>
         <form id="replace-audio" onSubmit={onSubmit}>
           <FieldGroup>
-            <Tabs
+            <ChoiceCards
+              label="Where the audio comes from"
               value={source}
               onValueChange={(next) => {
-                setSource(next as Source)
+                setSource(next)
                 setError(undefined)
               }}
-            >
-              <TabsList>
-                <TabsTrigger value="link">
-                  <Icons.link />
-                  Link
-                </TabsTrigger>
-                <TabsTrigger value="file">
-                  <Icons.upload />
-                  Upload a file
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="link">
-                <Field>
-                  <FieldLabel htmlFor="replace-audio-source">Link</FieldLabel>
-                  <Input
-                    id="replace-audio-source"
-                    name="sourceUrl"
-                    type="url"
-                    placeholder="https://www.youtube.com/watch?v=…"
-                    autoComplete="off"
-                    required
-                  />
-                  <FieldDescription>A YouTube, Mixcloud or SoundCloud link, or anything else with audio or video.</FieldDescription>
-                </Field>
-              </TabsContent>
-              <TabsContent value="file">
-                <AudioFileField id="replace-audio-file" state={uploadState} />
-              </TabsContent>
-            </Tabs>
+              choices={audioSourceChoices}
+            />
+            {source === 'link' ? (
+              <Field>
+                <FieldLabel htmlFor="replace-audio-source">Link</FieldLabel>
+                <Input
+                  id="replace-audio-source"
+                  name="sourceUrl"
+                  type="url"
+                  placeholder="https://www.youtube.com/watch?v=…"
+                  autoComplete="off"
+                  required
+                />
+                <FieldDescription>A YouTube, Mixcloud or SoundCloud link, or anything else with audio or video.</FieldDescription>
+              </Field>
+            ) : (
+              <AudioFileField id="replace-audio-file" state={uploadState} />
+            )}
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
         </form>

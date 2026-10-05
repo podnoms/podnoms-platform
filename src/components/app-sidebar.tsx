@@ -1,7 +1,15 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useLoaderData, useLocation } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { NewPodcastDialog } from '~/components/new-podcast-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu'
 import {
   Sidebar,
   SidebarContent,
@@ -18,9 +26,12 @@ import {
 } from '~/components/ui/sidebar'
 import { imageSrc } from '~/lib/images'
 import { navLinks } from '~/lib/nav-links'
+import { podcastSorts, savePodcastSort, sortPodcasts, type PodcastSort } from '~/lib/podcast-sort'
 
 export function AppSidebar() {
-  const { podcasts } = useLoaderData({ from: '__root__' })
+  const { podcasts: loaded, podcastSort } = useLoaderData({ from: '__root__' })
+  const [sort, setSort] = useState(podcastSort)
+  const podcasts = useMemo(() => sortPodcasts(loaded, sort), [loaded, sort])
   const pathname = useLocation({ select: (location) => location.pathname })
   // A podcast's public and management pages, and its episodes', all count as its.
   const isActive = (slug: string) => pathname === `/podcasts/${slug}` || pathname.startsWith(`/podcasts/${slug}/`)
@@ -52,6 +63,33 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Podcasts</SidebarGroupLabel>
+          {podcasts.length > 1 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                {/* Beside the "New podcast" action, which takes the usual place. */}
+                <SidebarGroupAction title="Sort podcasts" className="right-9">
+                  <Icons.sort />
+                  <span className="sr-only">Sort podcasts: {podcastSorts[sort]}</span>
+                </SidebarGroupAction>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={sort}
+                  onValueChange={(value) => {
+                    setSort(value as PodcastSort)
+                    savePodcastSort(value as PodcastSort)
+                  }}
+                >
+                  {Object.entries(podcastSorts).map(([value, label]) => (
+                    <DropdownMenuRadioItem key={value} value={value}>
+                      {label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <NewPodcastDialog>
             <SidebarGroupAction title="New podcast">
               <Icons.add />

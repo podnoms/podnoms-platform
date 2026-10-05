@@ -7,6 +7,13 @@ export function formatDate(date: Date) {
   return dateFormat.format(date)
 }
 
+const dateTimeFormat = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })
+
+// 5 Oct 2026, 14:30 (UTC)
+export function formatDateTime(date: Date) {
+  return `${dateTimeFormat.format(date)} UTC`
+}
+
 // 1:05 · 12:30 · 2:00:10
 export function formatClock(totalSeconds: number) {
   const seconds = Math.max(0, Math.floor(totalSeconds))

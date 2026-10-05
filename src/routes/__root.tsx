@@ -13,6 +13,7 @@ import { TwoFactorDialog } from '~/components/two-factor-dialog'
 import { fetchOAuthProviders, fetchAuthState } from '~/functions/auth'
 import { fetchErrorReportingDsn } from '~/functions/error-reporting'
 import { fetchMyPodcasts } from '~/functions/podcasts'
+import { readPodcastSort } from '~/lib/podcast-sort'
 import { startClientErrorReporting } from '~/lib/client-errors'
 import { loginSearchSchema } from '~/lib/login-search'
 import appCss from '~/styles/app.css?url'
@@ -44,7 +45,7 @@ export const Route = createRootRoute({
       context.session ? fetchMyPodcasts() : [],
       fetchErrorReportingDsn(),
     ])
-    return { providers, podcasts, errorReportingDsn }
+    return { providers, podcasts, podcastSort: readPodcastSort(), errorReportingDsn }
   },
   staleTime: Infinity,
   head: () => ({

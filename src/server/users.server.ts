@@ -93,3 +93,14 @@ export async function isAdmin(userId: string) {
   const [user] = await db.select({ isAdmin: users.isAdmin }).from(users).where(eq(users.id, userId)).limit(1)
   return user?.isAdmin ?? false
 }
+
+// How many of a channel's newest uploads the user's podcasts import (see
+// channels.server.ts); 0 if there's no such user.
+export async function getChannelEpisodeLimit(userId: string) {
+  const [user] = await db
+    .select({ limit: users.channelEpisodeLimit })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+  return user?.limit ?? 0
+}

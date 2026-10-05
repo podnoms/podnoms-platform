@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { geoEqualEarth, geoPath } from 'd3-geo'
-import { alpha2ToNumeric } from 'i18n-iso-countries'
+// CommonJS, so its exports are only on the default export when rendered on the server.
+import isoCountries from 'i18n-iso-countries'
 import { feature } from 'topojson-client'
 import { countryName } from '~/components/activity-panel'
 import { Skeleton } from '~/components/ui/skeleton'
@@ -80,7 +81,7 @@ export function ListenerMap({ countries }: { countries: CountryCount[] }) {
     const byId = new Map<string, CountryCount & { total: number }>()
     let max = 0
     for (const row of countries) {
-      const id = alpha2ToNumeric(row.country)
+      const id = isoCountries.alpha2ToNumeric(row.country)
       const total = row.plays + row.downloads
       if (id) byId.set(id, { ...row, total })
       max = Math.max(max, total)

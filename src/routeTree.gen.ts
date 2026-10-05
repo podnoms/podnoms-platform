@@ -19,6 +19,7 @@ import { Route as ApiUploadsRouteImport } from './routes/api/uploads'
 import { Route as FeedSlugRouteImport } from './routes/feed/$slug'
 import { Route as ImagesFileRouteImport } from './routes/images/$file'
 import { Route as PodcastsSlugRouteImport } from './routes/podcasts/$slug'
+import { Route as AuthedAdminIndexRouteImport } from './routes/_authed/admin/index'
 import { Route as AuthedSettingsIndexRouteImport } from './routes/_authed/settings/index'
 import { Route as AuthedSettingsSecurityRouteImport } from './routes/_authed/settings/security'
 import { Route as AdminQueuesSplatRouteImport } from './routes/admin/queues/$'
@@ -80,6 +81,11 @@ const PodcastsSlugRoute = PodcastsSlugRouteImport.update({
   id: '/podcasts/$slug',
   path: '/podcasts/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedAdminIndexRoute = AuthedAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedSettingsIndexRoute = AuthedSettingsIndexRouteImport.update({
   id: '/',
@@ -160,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
+  '/admin/': typeof AuthedAdminIndexRoute
   '/settings/': typeof AuthedSettingsIndexRoute
   '/podcasts/$slug/manage': typeof AuthedPodcastsSlugManageRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
@@ -182,6 +189,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
+  '/admin': typeof AuthedAdminIndexRoute
   '/settings': typeof AuthedSettingsIndexRoute
   '/podcasts/$slug/manage': typeof AuthedPodcastsSlugManageRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
@@ -207,6 +215,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
+  '/_authed/admin/': typeof AuthedAdminIndexRoute
   '/_authed/settings/': typeof AuthedSettingsIndexRoute
   '/_authed/podcasts/$slug/manage': typeof AuthedPodcastsSlugManageRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
@@ -232,6 +241,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/embed/$slug/$episodeSlug'
     | '/listen/$slug/$episodeSlug'
+    | '/admin/'
     | '/settings/'
     | '/podcasts/$slug/manage'
     | '/api/episodes/$id/activity'
@@ -254,6 +264,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/embed/$slug/$episodeSlug'
     | '/listen/$slug/$episodeSlug'
+    | '/admin'
     | '/settings'
     | '/podcasts/$slug/manage'
     | '/api/episodes/$id/activity'
@@ -278,6 +289,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/embed/$slug/$episodeSlug'
     | '/listen/$slug/$episodeSlug'
+    | '/_authed/admin/'
     | '/_authed/settings/'
     | '/_authed/podcasts/$slug/manage'
     | '/api/episodes/$id/activity'
@@ -377,6 +389,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/podcasts/$slug'
       preLoaderRoute: typeof PodcastsSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authed/admin/': {
+      id: '/_authed/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthedAdminIndexRouteImport
+      parentRoute: typeof AuthedRoute
     }
     '/_authed/settings/': {
       id: '/_authed/settings/'
@@ -482,6 +501,7 @@ const AuthedSettingsRouteWithChildren = AuthedSettingsRoute._addFileChildren(
 interface AuthedRouteChildren {
   AuthedSecurityRoute: typeof AuthedSecurityRoute
   AuthedSettingsRoute: typeof AuthedSettingsRouteWithChildren
+  AuthedAdminIndexRoute: typeof AuthedAdminIndexRoute
   AuthedPodcastsSlugManageRoute: typeof AuthedPodcastsSlugManageRoute
   AuthedPodcastsSlugEpisodesEpisodeSlugManageRoute: typeof AuthedPodcastsSlugEpisodesEpisodeSlugManageRoute
 }
@@ -489,6 +509,7 @@ interface AuthedRouteChildren {
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedSecurityRoute: AuthedSecurityRoute,
   AuthedSettingsRoute: AuthedSettingsRouteWithChildren,
+  AuthedAdminIndexRoute: AuthedAdminIndexRoute,
   AuthedPodcastsSlugManageRoute: AuthedPodcastsSlugManageRoute,
   AuthedPodcastsSlugEpisodesEpisodeSlugManageRoute:
     AuthedPodcastsSlugEpisodesEpisodeSlugManageRoute,

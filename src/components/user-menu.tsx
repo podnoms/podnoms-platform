@@ -58,13 +58,21 @@ export function UserMenu() {
           </Link>
         </DropdownMenuItem>
         {isAdmin && (
-          <DropdownMenuItem asChild>
-            {/* The job queue UI is a separate page, not one of the app's routes. */}
-            <a href="/admin/queues">
-              <Icons.jobs />
-              Jobs
-            </a>
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuItem asChild>
+              <Link to="/admin">
+                <Icons.security />
+                Admin
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              {/* The job queue UI is a separate page, not one of the app's routes. */}
+              <a href="/admin/queues">
+                <Icons.jobs />
+                Jobs
+              </a>
+            </DropdownMenuItem>
+          </>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => signOut()}>

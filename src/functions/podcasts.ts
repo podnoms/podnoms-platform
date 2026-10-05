@@ -7,6 +7,7 @@ import { editEpisodeSchema, newEpisodeSchema, replaceAudioSchema } from '~/lib/e
 import { listenPath } from '~/lib/paths'
 import { editPodcastSchema, newPodcastSchema } from '~/lib/podcast-schema'
 import { getSession, publicUrl } from '~/server/auth.server'
+import { getPodcastChannel } from '~/server/channels.server'
 import { getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
 import { feedPath } from '~/server/feed.server'
 import { localiseRemoteImages } from '~/server/images.server'
@@ -47,9 +48,10 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
     void resumeUnfinishedEpisodes()
     void localiseRemoteImages()
     void backfillWaveforms()
-    const [episodes, summary] = await Promise.all([
+    const [episodes, summary, channel] = await Promise.all([
       listEpisodes(userId, podcast.id, { offset: 0, limit: episodePageSize }),
       summariseEpisodes(podcast.id),
+      getPodcastChannel(podcast.id),
     ])
     return {
       ...podcast,
@@ -58,6 +60,8 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
       feedUrl: new URL(feedPath(podcast.slug), publicUrl(getRequest())).toString(),
       episodes: episodes.map((episode) => ({ ...episode, progress: getEpisodeProgress(episode.id) })),
       summary,
+      // The channel the podcast follows, if it follows one.
+      channel,
     }
   })
 

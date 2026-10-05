@@ -56,16 +56,28 @@ describe('listPodcasts', () => {
     expect((await listPodcasts(user.id)).map((p) => p.title)).toEqual(['Aardvark', 'Zebra'])
   })
 
-  // BUG: drizzle leaves columns unqualified in single-table selects, so the
-  // artwork subquery compares "podcastId" = "id" within the episode table and
-  // never matches. Make this a plain `it` once the query qualifies its columns.
-  it.fails("uses the newest ready episode's artwork when the podcast has none", async () => {
+  it("uses the newest ready episode's artwork when the podcast has none", async () => {
     const user = await createUser()
     const podcast = await insertPodcast(user.id)
     await createEpisode(podcast.id, { status: 'ready', imageUrl: '/images/old.jpg', createdAt: new Date('2026-01-01') })
     await createEpisode(podcast.id, { status: 'ready', imageUrl: '/images/new.jpg', createdAt: new Date('2026-02-01') })
     await createEpisode(podcast.id, { status: 'failed', imageUrl: '/images/failed.jpg', createdAt: new Date('2026-03-01') })
     expect((await listPodcasts(user.id))[0]!.imageUrl).toBe('/images/new.jpg')
+  })
+
+  it('says when each was made and when its latest ready episode came out', async () => {
+    const user = await createUser()
+    const quiet = await insertPodcast(user.id, { title: 'Quiet', createdAt: new Date('2026-03-01') })
+    const busy = await insertPodcast(user.id, { title: 'Busy', createdAt: new Date('2026-01-01') })
+    await createEpisode(busy.id, { status: 'ready', publishedAt: new Date('2026-02-01') })
+    await createEpisode(busy.id, { status: 'ready', createdAt: new Date('2026-04-01') })
+    await createEpisode(busy.id, { status: 'failed', createdAt: new Date('2026-05-01') })
+    await createEpisode(quiet.id, { status: 'pending', createdAt: new Date('2026-06-01') })
+
+    expect(await listPodcasts(user.id)).toMatchObject([
+      { title: 'Busy', createdAt: new Date('2026-01-01'), latestEpisodeAt: new Date('2026-04-01') },
+      { title: 'Quiet', createdAt: new Date('2026-03-01'), latestEpisodeAt: null },
+    ])
   })
 
   it("prefers the podcast's own artwork", async () => {

@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useRouter } from '@tanstack/react-router'
-import { AudioFileField, useAudioUpload } from '~/components/audio-file-field'
-import { Icons } from '~/components/icons'
+import { AudioFileField, audioSourceChoices, useAudioUpload, type AudioSource } from '~/components/audio-file-field'
+import { ChoiceCards } from '~/components/choice-cards'
 import { ImageField, imageIdToSave, type ImageValue } from '~/components/image-field'
 import { Button } from '~/components/ui/button'
 import {
@@ -16,12 +16,10 @@ import {
 } from '~/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { Textarea } from '~/components/ui/textarea'
 import { createMyEpisode } from '~/functions/podcasts'
 import { linkEpisodeSchema, uploadEpisodeSchema } from '~/lib/episode-schema'
 
-type Source = 'link' | 'file'
 
 // Wraps a trigger (a button) that opens the "New episode" form for a podcast.
 export function NewEpisodeDialog({
@@ -36,7 +34,7 @@ export function NewEpisodeDialog({
   const descriptionInput = useRef<HTMLTextAreaElement>(null)
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [source, setSource] = useState<Source>('link')
+  const [source, setSource] = useState<AudioSource>('link')
   const [title, setTitle] = useState('')
   const [image, setImage] = useState<ImageValue>({ kind: 'keep' })
   const [pending, setPending] = useState(false)
@@ -94,50 +92,39 @@ export function NewEpisodeDialog({
       }}
     >
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>New episode</DialogTitle>
           <DialogDescription>
-            Paste a link to a video or audio track, e.g. on YouTube, or upload an audio file. It's turned into an
-            episode in the background.
+            It's turned into an episode in the background, so you can carry on meanwhile.
           </DialogDescription>
         </DialogHeader>
         <form id="new-episode" onSubmit={onSubmit}>
           <FieldGroup>
-            <Tabs
+            <ChoiceCards
+              label="Where the audio comes from"
               value={source}
               onValueChange={(next) => {
-                setSource(next as Source)
+                setSource(next)
                 setError(undefined)
               }}
-            >
-              <TabsList>
-                <TabsTrigger value="link">
-                  <Icons.link />
-                  Link
-                </TabsTrigger>
-                <TabsTrigger value="file">
-                  <Icons.upload />
-                  Upload a file
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="link">
-                <Field>
-                  <FieldLabel htmlFor="episode-source">Link</FieldLabel>
-                  <Input
-                    id="episode-source"
-                    name="sourceUrl"
-                    type="url"
-                    placeholder="https://www.youtube.com/watch?v=…"
-                    autoComplete="off"
-                    required
-                  />
-                </Field>
-              </TabsContent>
-              <TabsContent value="file">
-                <AudioFileField id="episode-file" state={uploadState} />
-              </TabsContent>
-            </Tabs>
+              choices={audioSourceChoices}
+            />
+            {source === 'link' ? (
+              <Field>
+                <FieldLabel htmlFor="episode-source">Link</FieldLabel>
+                <Input
+                  id="episode-source"
+                  name="sourceUrl"
+                  type="url"
+                  placeholder="https://www.youtube.com/watch?v=…"
+                  autoComplete="off"
+                  required
+                />
+              </Field>
+            ) : (
+              <AudioFileField id="episode-file" state={uploadState} />
+            )}
             <div className="flex flex-col gap-6 sm:flex-row">
               <Field className="w-auto shrink-0">
                 <FieldLabel htmlFor="episode-image">Artwork</FieldLabel>

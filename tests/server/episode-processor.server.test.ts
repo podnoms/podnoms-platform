@@ -3,8 +3,9 @@ import type { AddressInfo } from 'node:net'
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { eq } from 'drizzle-orm'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { episodes, type Episode } from '~/server/db/schema'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { channelItems, channels, episodes, type Episode } from '~/server/db/schema'
+import { resetThrottle, throttleStatus } from '~/server/download-throttle.server'
 import { subscribeToEpisodeEvents, type EpisodeEvent } from '~/server/episode-events.server'
 import { enqueueEpisode, getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
 import { reportError } from '~/server/logger.server'
@@ -185,6 +186,71 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     expect(args[args.indexOf('--format') + 1]).toBe('bestaudio/best')
     expect(args).not.toContain('--extract-audio')
   })
+
+  it('asks yt-dlp to go easy on the platform', async () => {
+    const episode = await linkEpisode({ sourceUrl: link('/watch') })
+    enqueueEpisode(episode.id)
+    await processed(episode.id)
+    const args = JSON.parse(await readFile(join(media, 'yt-dlp-args.json'), 'utf8')) as string[]
+    expect(args[args.indexOf('--sleep-requests') + 1]).toBe('1')
+    expect(args[args.indexOf('--retry-sleep') + 1]).toBe('exp=1:60')
+    expect(args).not.toContain('--limit-rate')
+  })
+
+  it("dates a channel's upload as the channel does, and anything else as now", async () => {
+    const fromChannel = await linkEpisode({ sourceUrl: link('/watch', { upload_date: '20260115' }) })
+    const [channel] = await db
+      .insert(channels)
+      .values({ podcastId: fromChannel.podcastId, platform: 'other', url: 'https://video.test/channel' })
+      .returning()
+    await db.insert(channelItems).values({ channelId: channel!.id, sourceKey: 'other:1', episodeId: fromChannel.id })
+    const byHand = await linkEpisode({ sourceUrl: link('/watch', { upload_date: '20260115' }) })
+    enqueueEpisode(fromChannel.id)
+    enqueueEpisode(byHand.id)
+
+    expect((await processed(fromChannel.id)).publishedAt).toEqual(new Date('2026-01-15T00:00:00Z'))
+    expect((await processed(byHand.id)).publishedAt!.getTime()).toBeGreaterThan(Date.now() - 60_000)
+  })
+})
+
+describe.skipIf(!hasFfmpeg)('when the platform refuses us', () => {
+  afterEach(() => resetThrottle())
+
+  it("keeps the episode pending, to try again once the platform's pause is over", async () => {
+    const episode = await linkEpisode({ sourceUrl: link('/rate-limited') })
+    enqueueEpisode(episode.id)
+    await vi.waitFor(() => expect(throttleStatus().cooldowns.map((c) => c.platform)).toEqual(['other']))
+    await vi.waitFor(() => expect(getEpisodeProgress(episode.id)).toMatchObject({ stage: 'queued' }))
+    expect(await getRow(episode.id)).toMatchObject({ status: 'pending', error: null })
+    expect(reportError).not.toHaveBeenCalled()
+  })
+
+  it('keeps converting uploads, which go to no platform', async () => {
+    const refused = await linkEpisode({ sourceUrl: link('/rate-limited') })
+    enqueueEpisode(refused.id)
+    await vi.waitFor(() => expect(throttleStatus().cooldowns).toHaveLength(1))
+
+    const upload = await createEpisode(refused.podcastId, { title: 'Upload', slug: 'upload' })
+    await makeTone(episodeSourcePath(upload.id), 1, ['-f', 'wav'])
+    const waiting = await linkEpisode({ sourceUrl: link('/watch') })
+    enqueueEpisode(upload.id)
+    enqueueEpisode(waiting.id)
+    expect((await processed(upload.id)).status).toBe('ready')
+    expect((await getRow(waiting.id)).status).toBe('pending')
+  })
+
+  it('keeps an episode waiting for new audio, with its current audio', async () => {
+    const podcast = await createPodcast((await createUser()).id)
+    const episode = await createEpisode(podcast.id, {
+      status: 'ready',
+      audioUrl: '/api/episodes/x/audio',
+      replacement: { sourceUrl: link('/rate-limited') },
+    })
+    enqueueEpisode(episode.id)
+    await vi.waitFor(() => expect(throttleStatus().cooldowns).toHaveLength(1))
+    await vi.waitFor(() => expect(getEpisodeProgress(episode.id)).toMatchObject({ stage: 'queued' }))
+    expect(await getRow(episode.id)).toMatchObject({ status: 'ready', replacement: { sourceUrl: link('/rate-limited') }, error: null })
+  })
 })
 
 describe.skipIf(!hasFfmpeg)('episodes from uploads', () => {
@@ -351,7 +417,7 @@ describe.skipIf(!hasFfmpeg)('replacing audio', () => {
 })
 
 describe.skipIf(!hasFfmpeg)('the queue', () => {
-  it('runs one job at a time, reporting how many are ahead', async () => {
+  it('reports how many are ahead', async () => {
     const podcast = await createPodcast((await createUser()).id)
     const make = (slug: string) =>
       createEpisode(podcast.id, { slug, sourceUrl: link('/watch', { hold: '100' }), title: slug })

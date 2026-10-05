@@ -1,4 +1,5 @@
 import { useRef, useState, type ChangeEvent } from 'react'
+import type { Choice } from '~/components/choice-cards'
 import { Icons } from '~/components/icons'
 import { Button } from '~/components/ui/button'
 import { Field, FieldDescription, FieldLabel } from '~/components/ui/field'
@@ -7,6 +8,13 @@ import { maxUploadBytes } from '~/lib/episode-schema'
 import { formatBytes, formatClock } from '~/lib/format'
 import { isAbort, uploadFileInParts } from '~/lib/upload'
 import type { UploadedAudio } from '~/server/uploads.server'
+
+// Where an episode's audio comes from, for the dialogs that ask.
+export type AudioSource = 'link' | 'file'
+export const audioSourceChoices: Choice<AudioSource>[] = [
+  { value: 'link', icon: Icons.link, title: 'From a link', hint: 'YouTube, Mixcloud and more' },
+  { value: 'file', icon: Icons.upload, title: 'Upload a file', hint: 'Audio or video' },
+]
 
 export type AudioUpload =
   | { status: 'idle' }

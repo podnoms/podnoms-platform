@@ -23,11 +23,21 @@ const artwork = sql<string | null>`coalesce(${podcasts.imageUrl}, (
   limit 1
 ))`
 
+// With when each was made and when its latest episode came out, so the
+// sidebar can sort them (see src/lib/podcast-sort.ts). The join also makes
+// drizzle qualify the columns in the artwork subquery.
 export function listPodcasts(userId: string) {
   return db
-    .select({ ...summaryColumns, imageUrl: artwork })
+    .select({
+      ...summaryColumns,
+      imageUrl: artwork,
+      createdAt: podcasts.createdAt,
+      latestEpisodeAt: sql`max(coalesce(${episodes.publishedAt}, ${episodes.createdAt}))`.mapWith(podcasts.createdAt),
+    })
     .from(podcasts)
+    .leftJoin(episodes, and(eq(episodes.podcastId, podcasts.id), eq(episodes.status, 'ready')))
     .where(eq(podcasts.userId, userId))
+    .groupBy(podcasts.id)
     .orderBy(asc(podcasts.title))
 }
 
