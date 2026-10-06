@@ -183,6 +183,7 @@ export function episodeHeadOptions(page: EpisodePageData) {
   return {
     title: page.episode.title,
     description: page.episode.description,
+    fallbackDescription: `An episode of ${page.podcast.title}`,
     url: page.pageUrl,
     image: page.previewImage,
     type: 'music.song' as const,

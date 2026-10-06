@@ -7,6 +7,8 @@ import { htmlToText } from '~/lib/rich-text'
 export function publicPageHead(page: {
   title: string
   description: string | null
+  // Used when there's no description, as link previews expect one.
+  fallbackDescription: string
   url: string
   shareUrl?: string
   image: { url: string; width?: number; height?: number } | null
@@ -16,15 +18,16 @@ export function publicPageHead(page: {
   feedTitle: string
   noindex: boolean
 }) {
-  const description = page.description ? htmlToText(page.description).replace(/\s+/g, ' ').trim().slice(0, 300) : null
+  const description =
+    (page.description && htmlToText(page.description).replace(/\s+/g, ' ').trim().slice(0, 300)) || page.fallbackDescription
   const meta = [
     { title: `${page.title} · podnoms` },
-    description && { name: 'description', content: description },
+    { name: 'description', content: description },
     { property: 'og:site_name', content: 'podnoms' },
     { property: 'og:title', content: page.title },
     { property: 'og:type', content: page.type },
     { property: 'og:url', content: page.shareUrl ?? page.url },
-    description && { property: 'og:description', content: description },
+    { property: 'og:description', content: description },
     ...imageTags(page.image, page.title),
     page.audioUrl && { property: 'og:audio', content: page.audioUrl },
     page.noindex && { name: 'robots', content: 'noindex' },

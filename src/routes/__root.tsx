@@ -54,6 +54,11 @@ export const Route = createRootRoute({
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { title: 'podnoms' },
+      // Pages with their own description (the public pages) replace this one.
+      {
+        name: 'description',
+        content: 'Turn YouTube, Mixcloud and SoundCloud links, or your own audio and video, into podcasts with their own RSS feeds.',
+      },
     ],
     links: [{ rel: 'stylesheet', href: appCss }],
   }),

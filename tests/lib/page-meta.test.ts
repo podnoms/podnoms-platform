@@ -4,6 +4,7 @@ import { publicPageHead } from '~/lib/page-meta'
 const page = {
   title: 'Show',
   description: '<p>About <b>it</b></p>',
+  fallbackDescription: 'A podcast',
   url: 'https://pods.example/podcasts/show',
   type: 'website' as const,
   feedUrl: 'https://pods.example/feed/show',
@@ -31,6 +32,13 @@ describe('publicPageHead', () => {
       'og:image:height': '630',
       'og:image:alt': 'Artwork for Show',
       'twitter:card': 'summary_large_image',
+    })
+  })
+
+  it.each([null, '', '<p> </p>'])('falls back to the default description for %j', (description) => {
+    expect(tags(publicPageHead({ ...page, description, image: null }))).toMatchObject({
+      description: 'A podcast',
+      'og:description': 'A podcast',
     })
   })
 

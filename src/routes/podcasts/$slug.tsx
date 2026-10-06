@@ -23,6 +23,7 @@ export const Route = createFileRoute('/podcasts/$slug')({
       ? publicPageHead({
           title: podcast.title,
           description: podcast.description,
+          fallbackDescription: podcast.author ? `A podcast by ${podcast.author}` : `${podcast.title}, a podcast on podnoms`,
           url: podcast.pageUrl,
           image: podcast.previewImage,
           type: 'website',
