@@ -7,6 +7,7 @@ import { readdir, rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { eq, like } from 'drizzle-orm'
 import sharp from 'sharp'
+import { openGraphImageSize } from '~/lib/images'
 import { db } from '~/server/db/client.server'
 import { episodes, podcasts } from '~/server/db/schema'
 import { decodeImageToPng } from '~/server/media.server'
@@ -17,6 +18,7 @@ import {
   imagePath,
   imageUrl,
   imageVariantPath,
+  openGraphImagePath,
   removeStaleFiles,
   stagedImagePath,
 } from '~/server/storage.server'
@@ -116,16 +118,47 @@ export async function imageVariant(imageId: string, requestedWidth: number, form
   if (!width) return { path: original, format: 'jpg' as const }
 
   const path = imageVariantPath(imageId, width, format)
-  if (await stat(path).catch(() => null)) return { path, format }
+  await makeOnce(path, (partial) => {
+    const resized = sharp(original).resize(width, width, { fit: 'cover' })
+    return (format === 'webp' ? resized.webp({ quality: 80 }) : resized.jpeg({ quality: 82, mozjpeg: true })).toFile(partial)
+  })
+  return { path, format }
+}
+
+// The image for link previews (Open Graph), made the first time it's asked for:
+// a 1.91:1 JPEG, the shape Facebook, LinkedIn and X show large, with the square
+// artwork in the middle of a blurred copy of itself, so cropping it to 2:1 (as
+// X does) loses nothing. Null when the image doesn't exist.
+export async function openGraphImage(imageId: string) {
+  const original = imagePath(imageId)
+  if (!(await stat(original).catch(() => null))) return null
+  const path = openGraphImagePath(imageId)
+  await makeOnce(path, async (partial) => {
+    const { width, height } = openGraphImageSize
+    const artworkSide = height - 2 * 60
+    const [background, artwork] = await Promise.all([
+      sharp(original).resize(width, height, { fit: 'cover' }).blur(40).modulate({ brightness: 0.8 }).toBuffer(),
+      sharp(original).resize(artworkSide, artworkSide).toBuffer(),
+    ])
+    await sharp(background)
+      .composite([{ input: artwork, gravity: 'center' }])
+      .jpeg({ quality: 85, mozjpeg: true })
+      .toFile(partial)
+  })
+  return path
+}
+
+// Writes the file at `path` with `write` unless it's there already. It's written
+// under another name first, so a half-written copy is never served.
+async function makeOnce(path: string, write: (partial: string) => Promise<unknown>) {
+  if (await stat(path).catch(() => null)) return
   let pending = making.get(path)
   if (!pending) {
     pending = (async () => {
       await ensureImageVariantsDir()
-      // Written under another name first, so a half-written copy is never served.
       const partial = `${path}.${crypto.randomUUID()}.partial`
-      const resized = sharp(original).resize(width, width, { fit: 'cover' })
       try {
-        await (format === 'webp' ? resized.webp({ quality: 80 }) : resized.jpeg({ quality: 82, mozjpeg: true })).toFile(partial)
+        await write(partial)
         await rename(partial, path)
       } finally {
         await rm(partial, { force: true })
@@ -134,7 +167,6 @@ export async function imageVariant(imageId: string, requestedWidth: number, form
     making.set(path, pending)
   }
   await pending
-  return { path, format }
 }
 
 // Downloads an image, e.g. a video's thumbnail, into the image store.

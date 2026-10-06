@@ -9,7 +9,7 @@ export function publicPageHead(page: {
   description: string | null
   url: string
   shareUrl?: string
-  imageUrl: string | null
+  image: { url: string; width?: number; height?: number } | null
   type: 'website' | 'music.song'
   audioUrl?: string
   feedUrl: string
@@ -25,9 +25,8 @@ export function publicPageHead(page: {
     { property: 'og:type', content: page.type },
     { property: 'og:url', content: page.shareUrl ?? page.url },
     description && { property: 'og:description', content: description },
-    page.imageUrl && { property: 'og:image', content: page.imageUrl },
+    ...imageTags(page.image, page.title),
     page.audioUrl && { property: 'og:audio', content: page.audioUrl },
-    { name: 'twitter:card', content: page.imageUrl ? 'summary_large_image' : 'summary' },
     page.noindex && { name: 'robots', content: 'noindex' },
   ].filter((tag) => !!tag)
   const links = [
@@ -35,4 +34,23 @@ export function publicPageHead(page: {
     { rel: 'alternate', type: 'application/rss+xml', title: page.feedTitle, href: page.feedUrl },
   ]
   return { meta, links }
+}
+
+// Open Graph tags for the page's image. Stored artwork comes as a 1200×630
+// JPEG (see openGraphImage), so it can be shown as a large card; other images'
+// size and shape are unknown, so they get a small one.
+function imageTags(image: { url: string; width?: number; height?: number } | null, title: string) {
+  if (!image) return [{ name: 'twitter:card', content: 'summary' }]
+  const alt = `Artwork for ${title}`
+  const sized = image.width && image.height
+  return [
+    { property: 'og:image', content: image.url },
+    image.url.startsWith('https:') && { property: 'og:image:secure_url', content: image.url },
+    sized && { property: 'og:image:type', content: 'image/jpeg' },
+    sized && { property: 'og:image:width', content: String(image.width) },
+    sized && { property: 'og:image:height', content: String(image.height) },
+    { property: 'og:image:alt', content: alt },
+    { name: 'twitter:card', content: sized ? 'summary_large_image' : 'summary' },
+    { name: 'twitter:image:alt', content: alt },
+  ]
 }

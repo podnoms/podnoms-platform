@@ -5,17 +5,14 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { episodePageSchema, episodePageSize } from '~/lib/episode-pages'
-import { imageSrc } from '~/lib/images'
-import { embedPath, episodePath, listenPath, podcastPath } from '~/lib/paths'
+import { openGraphImage } from '~/lib/images'
+import { embedPath, episodePath, listenPath, podcastPath, shortPath } from '~/lib/paths'
 import { getSession, publicUrl } from '~/server/auth.server'
 import { getPublicEpisode, listPublishedEpisodes, summarisePublishedEpisodes } from '~/server/episodes.server'
 import { feedPath } from '~/server/feed.server'
 import { getPublicPodcast } from '~/server/podcasts.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import { readWaveform } from '~/server/waveforms.server'
-
-// Link previews ask for images about this wide.
-const previewImageWidth = 600
 
 async function visitor() {
   const request = getRequest()
@@ -25,6 +22,13 @@ async function visitor() {
     userId: session?.user?.id ?? null,
     absolute: (path: string) => new URL(path, origin).toString(),
   }
+}
+
+// The image for the page's link previews, at an absolute URL.
+function previewImage(artwork: string | null, absolute: (path: string) => string) {
+  if (!artwork) return null
+  const image = openGraphImage(artwork)
+  return { ...image, url: absolute(image.url) }
 }
 
 // A podcast's public page, with its first page of episodes; the rest are
@@ -47,7 +51,7 @@ export const fetchPodcastPage = createServerFn({ method: 'GET' })
       isOwner: userId === ownerId,
       pageUrl: absolute(podcastPath(podcast.slug)),
       feedUrl: absolute(feedPath(podcast.slug)),
-      previewImageUrl: podcast.imageUrl && absolute(imageSrc(podcast.imageUrl, previewImageWidth)),
+      previewImage: previewImage(podcast.imageUrl, absolute),
       // Sanitised when saved; again here, as they're rendered as HTML.
       episodes: episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) })),
       summary,
@@ -86,10 +90,12 @@ export const fetchEpisodePage = createServerFn({ method: 'GET' })
       isOwner: userId === ownerId,
       pageUrl: absolute(episodePath(podcast.slug, episode.slug)),
       shareUrl: absolute(listenPath(podcast.slug, episode.slug)),
+      // What the Share button gives out; it redirects to shareUrl.
+      shortUrl: absolute(shortPath(episode.shortSlug)),
       embedUrl: absolute(embedPath(podcast.slug, episode.slug)),
       feedUrl: absolute(feedPath(podcast.slug)),
       audioUrl: absolute(episode.audioUrl!),
-      previewImageUrl: artwork && absolute(imageSrc(artwork, previewImageWidth)),
+      previewImage: previewImage(artwork, absolute),
       // The smoother of the two shapes, as Mixcloud draws them.
       waveform: waveform?.rms ?? null,
     }

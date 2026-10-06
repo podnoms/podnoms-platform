@@ -166,4 +166,21 @@ describe('migrations', () => {
       { id: 'u2', isAdmin: false },
     ])
   })
+
+  it('0012 gives every existing episode its own short slug', async () => {
+    const pg = new PGlite()
+    await migrateUntil(pg, tagOf('0012'))
+    await pg.query(`insert into "user" (id, email) values ('u1', 'u@example.com')`)
+    await pg.query(`insert into podcast (id, "userId", title, slug) values ('p1', 'u1', 'Podcast', 'podcast')`)
+    await pg.query(
+      `insert into episode (id, "podcastId", title, slug) select 'e' || n, 'p1', 'Episode', 'episode-' || n from generate_series(1, 200) n`,
+    )
+
+    await runMigration(pg, tagOf('0012'))
+
+    const { rows } = await pg.query<{ shortSlug: string }>(`select "shortSlug" from episode`)
+    expect(rows).toHaveLength(200)
+    for (const { shortSlug } of rows) expect(shortSlug).toMatch(/^[23456789abcdefghjkmnpqrstuvwxyz]{8}$/)
+    expect(new Set(rows.map((r) => r.shortSlug)).size).toBe(200)
+  })
 })

@@ -16,3 +16,8 @@ export function embedPath(slug: string, episodeSlug: string) {
 export function listenPath(slug: string, episodeSlug: string) {
   return `/listen/${slug}/${episodeSlug}`
 }
+
+// An episode's short link, which redirects to its listen page.
+export function shortPath(shortSlug: string) {
+  return `/s/${shortSlug}`
+}

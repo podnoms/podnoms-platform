@@ -16,7 +16,7 @@ export type EpisodePageData = Awaited<ReturnType<typeof fetchEpisodePage>>
 // (see /listen), so it names its podcast itself and leaves out the owner's
 // controls.
 export function PublicEpisode({ page, standalone = false }: { page: EpisodePageData; standalone?: boolean }) {
-  const { podcast, episode, waveform, isOwner, shareUrl, embedUrl } = page
+  const { podcast, episode, waveform, isOwner, shortUrl, embedUrl } = page
   const player = usePlayer()
 
   const isCurrent = player.episode?.id === episode.id
@@ -127,7 +127,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
                   </Link>
                 </Button>
               )}
-              <ShareButton url={shareUrl} episodeId={episode.id} source={standalone ? 'listen' : 'web'} />
+              <ShareButton url={shortUrl} episodeId={episode.id} source={standalone ? 'listen' : 'web'} />
               <EmbedButton
                 embedUrl={embedUrl}
                 title={episode.title}
@@ -184,7 +184,7 @@ export function episodeHeadOptions(page: EpisodePageData) {
     title: page.episode.title,
     description: page.episode.description,
     url: page.pageUrl,
-    imageUrl: page.previewImageUrl,
+    image: page.previewImage,
     type: 'music.song' as const,
     audioUrl: page.audioUrl,
     feedUrl: page.feedUrl,

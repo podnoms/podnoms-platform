@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { firstFreeSlug, slugify } from '~/lib/slug'
+import { firstFreeSlug, randomShortSlug, slugify } from '~/lib/slug'
 
 describe('slugify', () => {
   it('lowercases and joins words with hyphens', () => {
@@ -40,5 +40,16 @@ describe('firstFreeSlug', () => {
   it('skips numbers that are taken and fills gaps', () => {
     expect(firstFreeSlug('show', new Set(['show', 'show-2', 'show-3']))).toBe('show-4')
     expect(firstFreeSlug('show', new Set(['show', 'show-3']))).toBe('show-2')
+  })
+})
+
+describe('randomShortSlug', () => {
+  it('makes 8 characters that are hard to misread', () => {
+    for (let i = 0; i < 100; i++) expect(randomShortSlug()).toMatch(/^[23456789abcdefghjkmnpqrstuvwxyz]{8}$/)
+  })
+
+  it("doesn't repeat itself", () => {
+    const slugs = Array.from({ length: 1000 }, () => randomShortSlug())
+    expect(new Set(slugs).size).toBe(1000)
   })
 })

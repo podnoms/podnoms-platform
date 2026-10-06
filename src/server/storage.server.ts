@@ -126,6 +126,11 @@ export function imageVariantPath(imageId: string, width: number, extension: 'jpg
   return join(imagesDir, 'variants', `${safeId(imageId)}-${width}.${extension}`)
 }
 
+// The image laid out for link previews (see openGraphImage).
+export function openGraphImagePath(imageId: string) {
+  return join(imagesDir, 'variants', `${safeId(imageId)}-og.jpg`)
+}
+
 export function imageUrl(imageId: string) {
   return `/images/${imageId}.jpg`
 }

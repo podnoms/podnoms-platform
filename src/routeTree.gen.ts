@@ -19,6 +19,7 @@ import { Route as ApiUploadsRouteImport } from './routes/api/uploads'
 import { Route as FeedSlugRouteImport } from './routes/feed/$slug'
 import { Route as ImagesFileRouteImport } from './routes/images/$file'
 import { Route as PodcastsSlugRouteImport } from './routes/podcasts/$slug'
+import { Route as SShortSlugRouteImport } from './routes/s/$shortSlug'
 import { Route as AuthedAdminIndexRouteImport } from './routes/_authed/admin/index'
 import { Route as AuthedSettingsIndexRouteImport } from './routes/_authed/settings/index'
 import { Route as AuthedSettingsSecurityRouteImport } from './routes/_authed/settings/security'
@@ -80,6 +81,11 @@ const ImagesFileRoute = ImagesFileRouteImport.update({
 const PodcastsSlugRoute = PodcastsSlugRouteImport.update({
   id: '/podcasts/$slug',
   path: '/podcasts/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SShortSlugRoute = SShortSlugRouteImport.update({
+  id: '/s/$shortSlug',
+  path: '/s/$shortSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedAdminIndexRoute = AuthedAdminIndexRouteImport.update({
@@ -161,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
   '/podcasts/$slug': typeof PodcastsSlugRoute
+  '/s/$shortSlug': typeof SShortSlugRoute
   '/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -184,6 +191,7 @@ export interface FileRoutesByTo {
   '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
   '/podcasts/$slug': typeof PodcastsSlugRoute
+  '/s/$shortSlug': typeof SShortSlugRoute
   '/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -210,6 +218,7 @@ export interface FileRoutesById {
   '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
   '/podcasts/$slug': typeof PodcastsSlugRoute
+  '/s/$shortSlug': typeof SShortSlugRoute
   '/_authed/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -236,6 +245,7 @@ export interface FileRouteTypes {
     | '/feed/$slug'
     | '/images/$file'
     | '/podcasts/$slug'
+    | '/s/$shortSlug'
     | '/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
@@ -259,6 +269,7 @@ export interface FileRouteTypes {
     | '/feed/$slug'
     | '/images/$file'
     | '/podcasts/$slug'
+    | '/s/$shortSlug'
     | '/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
@@ -284,6 +295,7 @@ export interface FileRouteTypes {
     | '/feed/$slug'
     | '/images/$file'
     | '/podcasts/$slug'
+    | '/s/$shortSlug'
     | '/_authed/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
@@ -308,6 +320,7 @@ export interface RootRouteChildren {
   FeedSlugRoute: typeof FeedSlugRoute
   ImagesFileRoute: typeof ImagesFileRoute
   PodcastsSlugRoute: typeof PodcastsSlugRoute
+  SShortSlugRoute: typeof SShortSlugRoute
   AdminQueuesSplatRoute: typeof AdminQueuesSplatRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   EmbedSlugEpisodeSlugRoute: typeof EmbedSlugEpisodeSlugRoute
@@ -388,6 +401,13 @@ declare module '@tanstack/react-router' {
       path: '/podcasts/$slug'
       fullPath: '/podcasts/$slug'
       preLoaderRoute: typeof PodcastsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/s/$shortSlug': {
+      id: '/s/$shortSlug'
+      path: '/s/$shortSlug'
+      fullPath: '/s/$shortSlug'
+      preLoaderRoute: typeof SShortSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/admin/': {
@@ -527,6 +547,7 @@ const rootRouteChildren: RootRouteChildren = {
   FeedSlugRoute: FeedSlugRoute,
   ImagesFileRoute: ImagesFileRoute,
   PodcastsSlugRoute: PodcastsSlugRoute,
+  SShortSlugRoute: SShortSlugRoute,
   AdminQueuesSplatRoute: AdminQueuesSplatRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   EmbedSlugEpisodeSlugRoute: EmbedSlugEpisodeSlugRoute,

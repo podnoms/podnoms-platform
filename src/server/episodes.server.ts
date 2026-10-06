@@ -32,6 +32,7 @@ const publicEpisodeColumns = {
   id: episodes.id,
   title: episodes.title,
   slug: episodes.slug,
+  shortSlug: episodes.shortSlug,
   description: episodes.description,
   imageUrl: episodes.imageUrl,
   audioUrl: episodes.audioUrl,
@@ -104,6 +105,18 @@ export async function getPublicEpisode(podcastSlug: string, episodeSlug: string,
   return row ?? null
 }
 
+// Where a short link (/s/<shortSlug>) goes: the slugs of a published episode
+// and its podcast, or null.
+export async function findShortLink(shortSlug: string) {
+  const [row] = await db
+    .select({ slug: podcasts.slug, episodeSlug: episodes.slug })
+    .from(episodes)
+    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .where(and(eq(episodes.shortSlug, shortSlug), isPublished))
+    .limit(1)
+  return row ?? null
+}
+
 // Includes where the user left off in each episode. All of them, or a page.
 export function listEpisodes(userId: string, podcastId: string, page?: Page) {
   const query = db
@@ -157,6 +170,7 @@ export async function getEpisode(userId: string, podcastSlug: string, episodeSlu
         id: episodes.id,
         title: episodes.title,
         slug: episodes.slug,
+        shortSlug: episodes.shortSlug,
         description: episodes.description,
         sourceUrl: episodes.sourceUrl,
         imageUrl: episodes.imageUrl,

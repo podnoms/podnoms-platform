@@ -24,7 +24,7 @@ export const Route = createFileRoute('/podcasts/$slug')({
           title: podcast.title,
           description: podcast.description,
           url: podcast.pageUrl,
-          imageUrl: podcast.previewImageUrl,
+          image: podcast.previewImage,
           type: 'website',
           feedUrl: podcast.feedUrl,
           feedTitle: podcast.title,

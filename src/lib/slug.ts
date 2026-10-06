@@ -16,3 +16,20 @@ export function firstFreeSlug(base: string, taken: Set<string>) {
   if (!taken.has(base)) return base
   for (let n = 2; ; n++) if (!taken.has(`${base}-${n}`)) return `${base}-${n}`
 }
+
+// Letters and digits that can't be mistaken for each other (no 0/o, 1/i/l).
+const shortSlugAlphabet = '23456789abcdefghjkmnpqrstuvwxyz'
+
+// An episode's short slug, for its short link (/s/<slug>): random, as it's
+// unique across the whole site. 31^8 makes a clash vanishingly unlikely.
+export function randomShortSlug(length = 8) {
+  let slug = ''
+  while (slug.length < length) {
+    for (const byte of crypto.getRandomValues(new Uint8Array(length))) {
+      // Skips the bytes past the last whole run of the alphabet, so every
+      // character is equally likely.
+      if (byte < 256 - (256 % shortSlugAlphabet.length) && slug.length < length) slug += shortSlugAlphabet[byte % shortSlugAlphabet.length]
+    }
+  }
+  return slug
+}

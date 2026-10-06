@@ -18,6 +18,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
 import type { AdapterAccountType } from '@auth/core/adapters'
+import { randomShortSlug } from '../../lib/slug'
 
 export const users = pgTable(
   'user',
@@ -179,6 +180,11 @@ export const episodes = pgTable(
     // Used in the episode's URL, so unique within the podcast. Kept when the
     // title is edited, so links keep working.
     slug: text('slug').notNull(),
+    // For the episode's short link (/s/<shortSlug>), which redirects to its
+    // listen page. Unique across the site, and never changes.
+    shortSlug: text('shortSlug')
+      .notNull()
+      .$defaultFn(() => randomShortSlug()),
     description: text('description'),
     imageUrl: text('imageUrl'),
     // Where the episode came from (e.g. a YouTube URL), if it was imported.
@@ -206,6 +212,7 @@ export const episodes = pgTable(
   (table) => [
     index('episode_podcastId_publishedAt_idx').on(table.podcastId, table.publishedAt),
     uniqueIndex('episode_podcastId_slug_idx').on(table.podcastId, table.slug),
+    uniqueIndex('episode_shortSlug_idx').on(table.shortSlug),
   ],
 )
 

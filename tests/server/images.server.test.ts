@@ -14,9 +14,10 @@ import {
   downloadImage,
   imageVariant,
   localiseRemoteImages,
+  openGraphImage,
   stageImage,
 } from '~/server/images.server'
-import { ensureImageVariantsDir, imagePath, imageVariantPath, stagedImagePath } from '~/server/storage.server'
+import { ensureImageVariantsDir, imagePath, imageVariantPath, openGraphImagePath, stagedImagePath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import {
   createEpisode,
@@ -112,6 +113,7 @@ describe('deleteImage', () => {
     const variants = await ensureImageVariantsDir()
     await writeFile(imageVariantPath(image.imageId, 64, 'jpg'), 'x')
     await writeFile(imageVariantPath(image.imageId, 128, 'webp'), 'x')
+    await writeFile(openGraphImagePath(image.imageId), 'x')
     const other = await storeTestImage()
     await writeFile(imageVariantPath(other.imageId, 64, 'jpg'), 'x')
 
@@ -154,6 +156,20 @@ describe('imageVariant', () => {
     expect(new Set(results.map((r) => r!.path)).size).toBe(1)
     const variants = await readdir(await ensureImageVariantsDir())
     expect(variants.filter((name) => name.includes('.partial'))).toEqual([])
+  })
+})
+
+describe('openGraphImage', () => {
+  it('returns null for images that do not exist', async () => {
+    expect(await openGraphImage(crypto.randomUUID())).toBeNull()
+  })
+
+  it('makes a 1200×630 JPEG once', async () => {
+    const image = await storeTestImage()
+    const path = await openGraphImage(image.imageId)
+    expect(path).toBe(openGraphImagePath(image.imageId))
+    expect(await sharp(path!).metadata()).toMatchObject({ format: 'jpeg', width: 1200, height: 630 })
+    expect(await openGraphImage(image.imageId)).toBe(path)
   })
 })
 

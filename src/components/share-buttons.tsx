@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitl
 // Where a share is reported as coming from, for the podcast's stats.
 type ShareSource = 'web' | 'listen'
 
-// The episode page's link, ready to copy. Copying it counts as a share.
+// The episode's short link, ready to copy. Copying it counts as a share.
 export function ShareButton({ url, episodeId, source }: { url: string; episodeId: string; source: ShareSource }) {
   return (
     <Popover>

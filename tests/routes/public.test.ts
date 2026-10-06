@@ -1,4 +1,4 @@
-// The routes anyone can fetch: episode audio, artwork and RSS feeds.
+// The routes anyone can fetch: episode audio, artwork, RSS feeds and short links.
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import sharp from 'sharp'
@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { Route as AudioRoute } from '~/routes/api/episodes/$id/audio'
 import { Route as FeedRoute } from '~/routes/feed/$slug'
 import { Route as ImageRoute } from '~/routes/images/$file'
+import { Route as ShortLinkRoute } from '~/routes/s/$shortSlug'
 import { episodeAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import { callRoute, createEpisode, createPodcast, createUser, db, storeTestImage } from '../helpers'
@@ -105,6 +106,14 @@ describe('GET /images/:file', () => {
     expect(await sharp(Buffer.from(await response.arrayBuffer())).metadata()).toMatchObject({ width: 64 })
   })
 
+  it('serves the link preview image as a 1200×630 JPEG, even to browsers with WebP', async () => {
+    const image = await storeTestImage()
+    const response = await get(`${image.imageId}.jpg`, { query: '?og', accept: 'image/webp' })
+    expect(response.headers.get('content-type')).toBe('image/jpeg')
+    const metadata = await sharp(Buffer.from(await response.arrayBuffer())).metadata()
+    expect(metadata).toMatchObject({ format: 'jpeg', width: 1200, height: 630 })
+  })
+
   it('ignores invalid widths', async () => {
     const image = await storeTestImage()
     const response = await get(`${image.imageId}.jpg`, { query: '?w=abc', accept: 'image/webp' })
@@ -131,5 +140,30 @@ describe('GET /feed/:slug', () => {
   it('is 404 for unknown podcasts', async () => {
     const response = await callRoute(FeedRoute, 'GET', new Request('https://pods.example/feed/nope'), { slug: 'nope' })
     expect(response.status).toBe(404)
+  })
+})
+
+describe('GET /s/:shortSlug', () => {
+  const get = (shortSlug: string) => callRoute(ShortLinkRoute, 'GET', new Request(`http://x/s/${shortSlug}`), { shortSlug })
+
+  it("redirects to a published episode's listen page", async () => {
+    const podcast = await createPodcast((await createUser()).id, { slug: 'my-show' })
+    const episode = await createEpisode(podcast.id, { slug: 'first', status: 'ready', audioUrl: '/api/episodes/x/audio' })
+    const response = await get(episode.shortSlug)
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toBe('/listen/my-show/first')
+  })
+
+  it('ignores the case of the slug', async () => {
+    const podcast = await createPodcast((await createUser()).id)
+    const episode = await createEpisode(podcast.id, { status: 'ready', audioUrl: '/api/episodes/x/audio' })
+    expect((await get(episode.shortSlug.toUpperCase())).status).toBe(302)
+  })
+
+  it("is not found for an episode that isn't ready, or doesn't exist", async () => {
+    const podcast = await createPodcast((await createUser()).id)
+    const episode = await createEpisode(podcast.id, { status: 'processing' })
+    expect((await get(episode.shortSlug)).status).toBe(404)
+    expect((await get('nosuchep')).status).toBe(404)
   })
 })

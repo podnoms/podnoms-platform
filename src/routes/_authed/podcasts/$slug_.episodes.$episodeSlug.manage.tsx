@@ -177,7 +177,7 @@ function EpisodePage() {
               </>
             )}
             <div className="flex gap-1 sm:ml-auto">
-              {ready && <ShareButton url={loaded.shareUrl} episodeId={loaded.episode.id} source="web" />}
+              {ready && <ShareButton url={loaded.shortUrl} episodeId={loaded.episode.id} source="web" />}
               <Button variant="outline" disabled={inProgress} onClick={() => setEditing(true)}>
                 <Icons.edit />
                 Edit
