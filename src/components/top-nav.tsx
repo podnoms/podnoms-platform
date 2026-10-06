@@ -1,4 +1,6 @@
 import { Link } from '@tanstack/react-router'
+import { DiscordLink } from '~/components/discord-link'
+import { DonateMenu } from '~/components/donate-menu'
 import { ModeToggle } from '~/components/mode-toggle'
 import { SearchCommand } from '~/components/search-command'
 import {
@@ -29,6 +31,8 @@ export function TopNav() {
         </NavigationMenuList>
       </NavigationMenu>
       <div className="ml-auto flex items-center gap-1">
+        <DonateMenu />
+        <DiscordLink />
         <SearchCommand />
         <ModeToggle />
         <UserMenu />

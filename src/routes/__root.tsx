@@ -13,6 +13,7 @@ import { TwoFactorDialog } from '~/components/two-factor-dialog'
 import { fetchOAuthProviders, fetchAuthState } from '~/functions/auth'
 import { fetchErrorReportingDsn } from '~/functions/error-reporting'
 import { fetchMyPodcasts } from '~/functions/podcasts'
+import { fetchSiteLinks } from '~/functions/site-links'
 import { readPodcastSort } from '~/lib/podcast-sort'
 import { startClientErrorReporting } from '~/lib/client-errors'
 import { loginSearchSchema } from '~/lib/login-search'
@@ -38,15 +39,16 @@ export const Route = createRootRoute({
   beforeLoad: () => fetchAuthState(),
   validateSearch: loginSearchSchema,
   // OAuth providers with keys (for the login dialog), the user's podcasts
-  // (for the sidebar) and where to report browser errors. Loaded once;
-  // creating a podcast calls router.invalidate().
+  // (for the sidebar), where to report browser errors, and where to donate
+  // and chat (for the top nav). Loaded once; creating a podcast calls router.invalidate().
   loader: async ({ context }) => {
-    const [providers, podcasts, errorReportingDsn] = await Promise.all([
+    const [providers, podcasts, errorReportingDsn, siteLinks] = await Promise.all([
       fetchOAuthProviders(),
       context.session ? fetchMyPodcasts() : [],
       fetchErrorReportingDsn(),
+      fetchSiteLinks(),
     ])
-    return { providers, podcasts, podcastSort: readPodcastSort(), errorReportingDsn }
+    return { providers, podcasts, podcastSort: readPodcastSort(), errorReportingDsn, siteLinks }
   },
   staleTime: Infinity,
   head: () => ({

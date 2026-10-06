@@ -37,6 +37,12 @@ export const env = createEnv({
     // Without them, activity is recorded without a location.
     MAXMIND_ACCOUNT_ID: z.string().optional(),
     MAXMIND_LICENSE_KEY: z.string().optional(),
+    // Where signed-in users can donate, shown in the top nav's Donate menu.
+    // Without either, there's no menu.
+    KOFI_URL: z.url().optional(),
+    BITCOIN_ADDRESS: z.string().optional(),
+    // An invite link to the community Discord server, shown in the top nav.
+    DISCORD_SERVER: z.url().optional(),
   },
   clientPrefix: 'VITE_',
   client: {},
