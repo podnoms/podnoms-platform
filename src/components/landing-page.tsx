@@ -222,6 +222,12 @@ export function LandingPage() {
         <div className="mx-auto flex w-full max-w-6xl items-center gap-2 px-4 py-6 text-sm text-muted-foreground">
           <img src="/logo.png" alt="" className="size-5 rounded" />
           podnoms
+          <Link to="/privacy" className="ml-4 hover:text-foreground">
+            Privacy
+          </Link>
+          <Link to="/tos" className="hover:text-foreground">
+            Terms
+          </Link>
           <span className="ml-auto">Robot powered podcasts</span>
         </div>
       </footer>

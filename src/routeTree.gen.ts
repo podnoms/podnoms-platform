@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as TosRouteImport } from './routes/tos'
 import { Route as AuthedSecurityRouteImport } from './routes/_authed/security'
 import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings'
 import { Route as ApiImagesRouteImport } from './routes/api/images'
@@ -46,6 +48,16 @@ const AuthedRoute = AuthedRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TosRoute = TosRouteImport.update({
+  id: '/tos',
+  path: '/tos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedSecurityRoute = AuthedSecurityRouteImport.update({
@@ -160,6 +172,8 @@ const AuthedPodcastsSlugEpisodesEpisodeSlugManageRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/tos': typeof TosRoute
   '/security': typeof AuthedSecurityRoute
   '/settings': typeof AuthedSettingsRouteWithChildren
   '/api/images': typeof ApiImagesRoute
@@ -185,6 +199,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/tos': typeof TosRoute
   '/security': typeof AuthedSecurityRoute
   '/api/images': typeof ApiImagesRoute
   '/api/uploads': typeof ApiUploadsRoute
@@ -211,6 +227,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/tos': typeof TosRoute
   '/_authed/security': typeof AuthedSecurityRoute
   '/_authed/settings': typeof AuthedSettingsRouteWithChildren
   '/api/images': typeof ApiImagesRoute
@@ -238,6 +256,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/privacy'
+    | '/tos'
     | '/security'
     | '/settings'
     | '/api/images'
@@ -263,6 +283,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/privacy'
+    | '/tos'
     | '/security'
     | '/api/images'
     | '/api/uploads'
@@ -288,6 +310,8 @@ export interface FileRouteTypes {
     | '/'
     | '/_authed'
     | '/login'
+    | '/privacy'
+    | '/tos'
     | '/_authed/security'
     | '/_authed/settings'
     | '/api/images'
@@ -315,6 +339,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthedRoute: typeof AuthedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  PrivacyRoute: typeof PrivacyRoute
+  TosRoute: typeof TosRoute
   ApiImagesRoute: typeof ApiImagesRoute
   ApiUploadsRoute: typeof ApiUploadsRoute
   FeedSlugRoute: typeof FeedSlugRoute
@@ -352,6 +378,20 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tos': {
+      id: '/tos'
+      path: '/tos'
+      fullPath: '/tos'
+      preLoaderRoute: typeof TosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/security': {
@@ -542,6 +582,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthedRoute: AuthedRouteWithChildren,
   LoginRoute: LoginRoute,
+  PrivacyRoute: PrivacyRoute,
+  TosRoute: TosRoute,
   ApiImagesRoute: ApiImagesRoute,
   ApiUploadsRoute: ApiUploadsRoute,
   FeedSlugRoute: FeedSlugRoute,
