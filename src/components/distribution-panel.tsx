@@ -74,7 +74,7 @@ export function DistributionPanel({
         <h3 className="font-semibold">Directories</h3>
         <p className="text-sm text-muted-foreground">
           {ready
-            ? 'Add your podcast to each one. Overcast, Castro and most other apps find shows through Apple Podcasts, so listing there reaches them too.'
+            ? 'Podcast aggregators are super flaky but this is our current best guidance. Assuming the checklist above passes you\'re probably better off adding these yourself. Add your podcast to each one. Overcast, Castro and most other apps find shows through Apple Podcasts, so listing there reaches them too.'
             : 'Once the checklist above is complete, you can add your podcast to each one.'}
         </p>
       </div>
