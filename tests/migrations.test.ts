@@ -43,6 +43,25 @@ describe('migrations', () => {
     ])
   })
 
+  it("0013 clears categories that aren't Apple's, keeping the rest", async () => {
+    const pg = new PGlite()
+    await migrateUntil(pg, tagOf('0013'))
+    await pg.query(`insert into "user" (id, email) values ('u1', 'u@example.com')`)
+    await pg.query(
+      `insert into podcast (id, "userId", title, slug, category) values
+        ('p1', 'u1', 'P', 'p1', 'Music'), ('p2', 'u1', 'P', 'p2', 'TV & Film'), ('p3', 'u1', 'P', 'p3', 'Podcasts'), ('p4', 'u1', 'P', 'p4', null)`,
+    )
+    await runMigration(pg, tagOf('0013'))
+
+    const { rows } = await pg.query(`select id, category, "directoryLinks" from podcast order by id`)
+    expect(rows).toEqual([
+      { id: 'p1', category: 'Music', directoryLinks: {} },
+      { id: 'p2', category: 'TV & Film', directoryLinks: {} },
+      { id: 'p3', category: null, directoryLinks: {} },
+      { id: 'p4', category: null, directoryLinks: {} },
+    ])
+  })
+
   it('0011 makes the site settings, with the defaults, and gives existing users the default channel limit', async () => {
     const pg = new PGlite()
     await migrateUntil(pg, tagOf('0011'))

@@ -18,6 +18,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
 import type { AdapterAccountType } from '@auth/core/adapters'
+import type { DirectoryLinks } from '../../lib/podcast-directories'
 import { randomShortSlug } from '../../lib/slug'
 
 export const users = pgTable(
@@ -152,11 +153,21 @@ export const podcasts = pgTable(
     slug: text('slug').notNull().unique(),
     description: text('description'),
     imageUrl: text('imageUrl'),
+    // One of Apple's categories and, optionally, one of its subcategories (see
+    // src/lib/podcast-directories.ts).
     category: text('category'),
+    subcategory: text('subcategory'),
     language: text('language').notNull().default('en'),
     explicit: boolean('explicit').notNull().default(false),
     // Private podcasts aren't listed publicly; their feed is only reachable by URL.
     private: boolean('private').notNull().default(false),
+    // Who makes it, as shown in podcast apps; the owner's name when not set.
+    author: text('author'),
+    // Where directories (Spotify, say) send the code that confirms the show is
+    // the owner's. Public: it's in the feed. Only set if the owner chooses to.
+    ownerEmail: text('ownerEmail'),
+    // The podcast's pages on Apple Podcasts, Spotify and the rest, once listed.
+    directoryLinks: jsonb('directoryLinks').$type<DirectoryLinks>().notNull().default({}),
     customDomain: text('customDomain').unique(),
     ...timestamps,
   },

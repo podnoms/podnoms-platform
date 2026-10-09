@@ -7,6 +7,8 @@ import { htmlToText } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
 import { episodes, podcasts, users } from '~/server/db/schema'
 import { isPublished, newestPublishedFirst } from '~/server/episodes.server'
+import { podcastAuthor } from '~/server/podcasts.server'
+import { uuidV5 } from '~/server/uuid.server'
 
 export function feedPath(slug: string) {
   return `/feed/${slug}`
@@ -26,6 +28,20 @@ function tag(name: string, text: string | null | undefined, attributes = '') {
   return text ? `<${name}${attributes}>${escapeXml(text)}</${name}>` : ''
 }
 
+// Apple's category, with its subcategory nested inside.
+function categoryXml(category: string | null, subcategory: string | null) {
+  if (!category) return ''
+  const open = `<itunes:category text="${escapeXml(category)}"`
+  return subcategory ? `${open}><itunes:category text="${escapeXml(subcategory)}"/></itunes:category>` : `${open}/>`
+}
+
+// The feed's permanent id (Podcasting 2.0's podcast:guid): a UUIDv5 of its URL
+// without the scheme or trailing slashes, so any host that moves the feed can
+// work out the same one.
+export function podcastGuid(feedUrl: string) {
+  return uuidV5(feedUrl.replace(/^[a-z]+:\/\//i, '').replace(/\/+$/, ''), 'ead4c236-bf58-58c6-a2c6-a6b28d128cb6')
+}
+
 function itunesExplicit(explicit: boolean) {
   return explicit ? 'true' : 'false'
 }
@@ -41,11 +57,13 @@ export async function buildPodcastFeed(slug: string, origin: string) {
       description: podcasts.description,
       imageUrl: podcasts.imageUrl,
       category: podcasts.category,
+      subcategory: podcasts.subcategory,
       language: podcasts.language,
       explicit: podcasts.explicit,
       private: podcasts.private,
       updatedAt: podcasts.updatedAt,
-      author: users.name,
+      author: podcastAuthor,
+      ownerEmail: podcasts.ownerEmail,
     })
     .from(podcasts)
     .innerJoin(users, eq(users.id, podcasts.userId))
@@ -89,7 +107,7 @@ export async function buildPodcastFeed(slug: string, origin: string) {
   })
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     ${[
       tag('title', podcast.title),
@@ -101,11 +119,20 @@ export async function buildPodcastFeed(slug: string, origin: string) {
       tag('itunes:author', podcast.author),
       artwork ? `<itunes:image href="${escapeXml(absolute(artwork))}"/>` : '',
       artwork ? `<image><url>${escapeXml(absolute(artwork))}</url>${tag('title', podcast.title)}${tag('link', pageUrl)}</image>` : '',
-      podcast.category ? `<itunes:category text="${escapeXml(podcast.category)}"/>` : '',
+      categoryXml(podcast.category, podcast.subcategory),
+      podcast.ownerEmail
+        ? `<itunes:owner>${tag('itunes:name', podcast.author ?? podcast.title)}${tag('itunes:email', podcast.ownerEmail)}</itunes:owner>`
+        : '',
       `<itunes:explicit>${itunesExplicit(podcast.explicit)}</itunes:explicit>`,
       // Keeps unlisted podcasts out of directories that honour it.
       podcast.private ? '<itunes:block>Yes</itunes:block>' : '',
       '<itunes:type>episodic</itunes:type>',
+      `<podcast:guid>${podcastGuid(feedUrl)}</podcast:guid>`,
+      // Asks other hosts not to import the feed, unless the owner (who can be
+      // emailed) agrees.
+      podcast.ownerEmail
+        ? `<podcast:locked owner="${escapeXml(podcast.ownerEmail)}">yes</podcast:locked>`
+        : '<podcast:locked>no</podcast:locked>',
       '<generator>podnoms</generator>',
       `<lastBuildDate>${latest.toUTCString()}</lastBuildDate>`,
       ...itemXml,

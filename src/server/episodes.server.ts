@@ -15,6 +15,7 @@ import { findUpload, moveUploadToEpisode, type UploadedAudio } from '~/server/up
 import { plainTextToHtml } from '~/lib/rich-text'
 import { commitImage, deleteImage } from '~/server/images.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
+import { podcastAuthor } from '~/server/podcasts.server'
 import { deleteWaveform } from '~/server/waveforms.server'
 import type { BulkUploadEpisodesInput, EditEpisodeInput, NewEpisodeInput, ReplaceAudioInput } from '~/lib/episode-schema'
 
@@ -93,7 +94,7 @@ export async function getPublicEpisode(podcastSlug: string, episodeSlug: string,
         imageUrl: podcasts.imageUrl,
         private: podcasts.private,
         userId: podcasts.userId,
-        author: users.name,
+        author: podcastAuthor,
       },
     })
     .from(episodes)

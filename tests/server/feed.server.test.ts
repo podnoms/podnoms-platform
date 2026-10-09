@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { buildPodcastFeed, feedPath } from '~/server/feed.server'
+import { buildPodcastFeed, feedPath, podcastGuid } from '~/server/feed.server'
 import { resetDb } from '../db'
 import { createEpisode, createPodcast, createUser, db } from '../helpers'
 
@@ -62,6 +62,43 @@ describe('buildPodcastFeed', () => {
     expect(channel.getElementsByTagName('itunes:image')[0]!.getAttribute('href')).toBe(`${origin}/images/art.jpg`)
     expect(channel.getElementsByTagName('atom:link')[0]!.getAttribute('href')).toBe(`${origin}/feed/show`)
     expect(channel.getElementsByTagName('itunes:block')).toHaveLength(0)
+  })
+
+  it('nests the subcategory in the category', async () => {
+    await createPodcast((await createUser()).id, { slug: 'show', category: 'TV & Film', subcategory: 'Film Reviews' })
+    const xml = (await buildPodcastFeed('show', origin))!
+    expect(xml).toContain('<itunes:category text="TV &amp; Film"><itunes:category text="Film Reviews"/></itunes:category>')
+    await parseFeed(xml)
+  })
+
+  it("uses the podcast's own author over the owner's name", async () => {
+    await createPodcast((await createUser({ name: 'Ada' })).id, { slug: 'show', author: 'The Show Team' })
+    const doc = await parseFeed((await buildPodcastFeed('show', origin))!)
+    expect(doc.getElementsByTagName('itunes:author')[0]!.textContent).toBe('The Show Team')
+  })
+
+  it('names the owner, and locks the feed to them, only when they give an email', async () => {
+    const user = await createUser({ name: 'Ada' })
+    await createPodcast(user.id, { slug: 'open' })
+    await createPodcast(user.id, { slug: 'owned', ownerEmail: 'ada@example.com' })
+
+    const open = await parseFeed((await buildPodcastFeed('open', origin))!)
+    expect(open.getElementsByTagName('itunes:owner')).toHaveLength(0)
+    expect(open.getElementsByTagName('podcast:locked')[0]!.textContent).toBe('no')
+
+    const owned = await parseFeed((await buildPodcastFeed('owned', origin))!)
+    const owner = owned.getElementsByTagName('itunes:owner')[0]!
+    expect(owner.getElementsByTagName('itunes:name')[0]!.textContent).toBe('Ada')
+    expect(owner.getElementsByTagName('itunes:email')[0]!.textContent).toBe('ada@example.com')
+    const locked = owned.getElementsByTagName('podcast:locked')[0]!
+    expect(locked.textContent).toBe('yes')
+    expect(locked.getAttribute('owner')).toBe('ada@example.com')
+  })
+
+  it("gives the feed a podcast:guid from its URL", async () => {
+    await createPodcast((await createUser()).id, { slug: 'show' })
+    const doc = await parseFeed((await buildPodcastFeed('show', origin))!)
+    expect(doc.getElementsByTagName('podcast:guid')[0]!.textContent).toBe(podcastGuid(`${origin}/feed/show`))
   })
 
   it('falls back to the title as description when there is none', async () => {
@@ -146,5 +183,16 @@ describe('buildPodcastFeed', () => {
     const doc = await parseFeed(xml)
     expect(doc.querySelector('channel > title')!.textContent).toBe(`A & B's <"show">`)
     expect(doc.querySelector('item > title')!.textContent).toBe(']]></title><script>')
+  })
+})
+
+describe('podcastGuid', () => {
+  // The example from the Podcasting 2.0 namespace's documentation.
+  it('matches the specification', () => {
+    expect(podcastGuid('https://podnews.net/rss')).toBe('9b024349-ccf0-5f69-a609-6b82873eab3c')
+  })
+
+  it('ignores the scheme and trailing slashes', () => {
+    expect(podcastGuid('http://podnews.net/rss/')).toBe('9b024349-ccf0-5f69-a609-6b82873eab3c')
   })
 })

@@ -3,6 +3,7 @@ import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { ActivityPanel } from '~/components/activity-panel'
 import { BulkUploadDialog } from '~/components/bulk-upload-dialog'
 import { ChannelPanel } from '~/components/channel-panel'
+import { DistributionPanel } from '~/components/distribution-panel'
 import { EditDetailsDialog } from '~/components/edit-details-dialog'
 import { EpisodeListEnd } from '~/components/episode-list-end'
 import { EpisodeRow } from '~/components/episode-row'
@@ -25,6 +26,7 @@ import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
 import { formatDate, formatLength } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
+import { isReady } from '~/lib/podcast-directories'
 import { htmlToText } from '~/lib/rich-text'
 
 export const Route = createFileRoute('/_authed/podcasts/$slug/manage')({
@@ -142,6 +144,10 @@ function PodcastPage() {
                 {summary.count > 0 && <span className="text-muted-foreground tabular-nums">{summary.count}</span>}
               </TabsTrigger>
               <TabsTrigger value="activity">Activity</TabsTrigger>
+              <TabsTrigger value="distribution">
+                Distribution
+                {!isReady(podcast.distribution.readiness) && <span className="size-1.5 rounded-full bg-destructive" />}
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="episodes" className="flex flex-col gap-3">
               {episodes.length === 0 ? (
@@ -170,6 +176,14 @@ function PodcastPage() {
             </TabsContent>
             <TabsContent value="activity">
               <ActivityPanel slug={podcast.slug} />
+            </TabsContent>
+            <TabsContent value="distribution">
+              <DistributionPanel
+                podcast={podcast}
+                distribution={podcast.distribution}
+                onChanged={() => router.invalidate({ filter: (match) => match.routeId === Route.id })}
+                onEditDetails={() => setEditing(true)}
+              />
             </TabsContent>
           </Tabs>
         </div>

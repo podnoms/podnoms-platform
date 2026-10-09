@@ -1,7 +1,15 @@
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { podcasts } from '~/server/db/schema'
-import { createPodcast, getPodcastBySlug, getPublicPodcast, listPodcasts, updatePodcast } from '~/server/podcasts.server'
+import {
+  createPodcast,
+  getPodcastBySlug,
+  getPublicPodcast,
+  listPodcasts,
+  updateDirectoryDetails,
+  updateDirectoryLink,
+  updatePodcast,
+} from '~/server/podcasts.server'
 import { imagePath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import {
@@ -172,7 +180,13 @@ describe('getPublicPodcast', () => {
       explicit: false,
       private: false,
       author: 'Ada',
+      directoryLinks: {},
     })
+  })
+
+  it("prefers the podcast's own author to the owner's name", async () => {
+    await insertPodcast((await createUser({ name: 'Ada' })).id, { slug: 'show', author: 'The Show Team' })
+    expect(await getPublicPodcast('show')).toMatchObject({ author: 'The Show Team' })
   })
 
   it('includes private podcasts, which are unlisted rather than secret', async () => {
@@ -188,5 +202,52 @@ describe('getPublicPodcast', () => {
 
   it('returns null for an unknown slug', async () => {
     expect(await getPublicPodcast('nope')).toBeNull()
+  })
+})
+
+describe('updateDirectoryDetails', () => {
+  const details = {
+    category: 'Music' as const,
+    subcategory: 'Music History',
+    language: 'en-ie' as const,
+    explicit: true,
+    author: 'The Show Team',
+    ownerEmail: 'show@example.com',
+  }
+
+  it("saves the details on the user's own podcast", async () => {
+    const user = await createUser()
+    const podcast = await insertPodcast(user.id)
+    expect(await updateDirectoryDetails(user.id, { id: podcast.id, ...details })).toBe(true)
+    expect(await getRow(podcast.id)).toMatchObject(details)
+  })
+
+  it("leaves someone else's podcast alone", async () => {
+    const podcast = await insertPodcast((await createUser()).id)
+    const other = await createUser()
+    expect(await updateDirectoryDetails(other.id, { id: podcast.id, ...details })).toBe(false)
+    expect(await getRow(podcast.id)).toMatchObject({ category: null, ownerEmail: null })
+  })
+})
+
+describe('updateDirectoryLink', () => {
+  const apple = 'https://podcasts.apple.com/podcast/id1'
+  const spotify = 'https://open.spotify.com/show/abc'
+
+  it('remembers each listing, and forgets one given an empty link', async () => {
+    const user = await createUser()
+    const podcast = await insertPodcast(user.id)
+    await updateDirectoryLink(user.id, { id: podcast.id, directory: 'apple', link: apple })
+    await updateDirectoryLink(user.id, { id: podcast.id, directory: 'spotify', link: spotify })
+    expect((await getRow(podcast.id)).directoryLinks).toEqual({ apple, spotify })
+    await updateDirectoryLink(user.id, { id: podcast.id, directory: 'apple', link: '' })
+    expect((await getRow(podcast.id)).directoryLinks).toEqual({ spotify })
+  })
+
+  it("leaves someone else's podcast alone", async () => {
+    const podcast = await insertPodcast((await createUser()).id)
+    const other = await createUser()
+    expect(await updateDirectoryLink(other.id, { id: podcast.id, directory: 'apple', link: apple })).toBe(false)
+    expect((await getRow(podcast.id)).directoryLinks).toEqual({})
   })
 })

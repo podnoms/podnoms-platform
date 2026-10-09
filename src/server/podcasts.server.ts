@@ -6,7 +6,8 @@ import { plainTextToHtml } from '~/lib/rich-text'
 import { firstFreeSlug, slugify } from '~/lib/slug'
 import { commitImage, deleteImage } from '~/server/images.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
-import type { EditPodcastInput, NewPodcastInput } from '~/lib/podcast-schema'
+import type { DirectoryLinks } from '~/lib/podcast-directories'
+import type { DirectoryDetailsInput, DirectoryLinkInput, EditPodcastInput, NewPodcastInput } from '~/lib/podcast-schema'
 
 const summaryColumns = {
   id: podcasts.id,
@@ -15,8 +16,12 @@ const summaryColumns = {
   imageUrl: podcasts.imageUrl,
 }
 
+// Who makes the podcast: as its owner says on the Distribution tab, or else
+// the owner's name. Needs the user table joined.
+export const podcastAuthor = sql<string | null>`coalesce(${podcasts.author}, ${users.name})`
+
 // The podcast's own artwork, or else its newest ready episode's, as on the podcast page.
-const artwork = sql<string | null>`coalesce(${podcasts.imageUrl}, (
+export const podcastArtwork = sql<string | null>`coalesce(${podcasts.imageUrl}, (
   select ${episodes.imageUrl} from ${episodes}
   where ${episodes.podcastId} = ${podcasts.id} and ${episodes.status} = 'ready' and ${episodes.imageUrl} is not null
   order by ${episodes.createdAt} desc
@@ -30,7 +35,7 @@ export function listPodcasts(userId: string) {
   return db
     .select({
       ...summaryColumns,
-      imageUrl: artwork,
+      imageUrl: podcastArtwork,
       createdAt: podcasts.createdAt,
       latestEpisodeAt: sql`max(coalesce(${episodes.publishedAt}, ${episodes.createdAt}))`.mapWith(podcasts.createdAt),
     })
@@ -60,11 +65,12 @@ export async function getPublicPodcast(slug: string) {
       title: podcasts.title,
       slug: podcasts.slug,
       description: podcasts.description,
-      imageUrl: artwork,
+      imageUrl: podcastArtwork,
       category: podcasts.category,
       explicit: podcasts.explicit,
       private: podcasts.private,
-      author: users.name,
+      author: podcastAuthor,
+      directoryLinks: podcasts.directoryLinks,
     })
     .from(podcasts)
     .innerJoin(users, eq(users.id, podcasts.userId))
@@ -114,5 +120,33 @@ export async function updatePodcast(userId: string, input: EditPodcastInput) {
     .set({ title: input.title, description: sanitizeDescription(input.description), imageUrl })
     .where(eq(podcasts.id, podcast.id))
   if (imageUrl !== podcast.imageUrl) await deleteImage(podcast.imageUrl)
+  return true
+}
+
+// Saves what directories need to know: category, language, who makes it and
+// the owner email they confirm ownership with. Returns false unless the
+// podcast belongs to the user.
+export async function updateDirectoryDetails(userId: string, input: DirectoryDetailsInput) {
+  const { id, ...details } = input
+  const updated = await db
+    .update(podcasts)
+    .set(details)
+    .where(and(eq(podcasts.id, id), eq(podcasts.userId, userId)))
+    .returning({ id: podcasts.id })
+  return updated.length > 0
+}
+
+// Remembers (or, given an empty link, forgets) the podcast's listing on a
+// directory. Returns false unless the podcast belongs to the user.
+export async function updateDirectoryLink(userId: string, input: DirectoryLinkInput) {
+  const [podcast] = await db
+    .select({ directoryLinks: podcasts.directoryLinks })
+    .from(podcasts)
+    .where(and(eq(podcasts.id, input.id), eq(podcasts.userId, userId)))
+    .limit(1)
+  if (!podcast) return false
+  const { [input.directory]: _previous, ...others } = podcast.directoryLinks
+  const directoryLinks: DirectoryLinks = input.link ? { ...others, [input.directory]: input.link } : others
+  await db.update(podcasts).set({ directoryLinks }).where(eq(podcasts.id, input.id))
   return true
 }

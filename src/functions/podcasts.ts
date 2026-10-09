@@ -5,9 +5,10 @@ import { z } from 'zod'
 import { episodePageSchema, episodePageSize } from '~/lib/episode-pages'
 import { bulkUploadEpisodesSchema, editEpisodeSchema, newEpisodeSchema, replaceAudioSchema } from '~/lib/episode-schema'
 import { shortPath } from '~/lib/paths'
-import { editPodcastSchema, newPodcastSchema } from '~/lib/podcast-schema'
+import { directoryDetailsSchema, directoryLinkSchema, editPodcastSchema, newPodcastSchema } from '~/lib/podcast-schema'
 import { getSession, publicUrl } from '~/server/auth.server'
 import { getPodcastChannel } from '~/server/channels.server'
+import { getDirectoryReadiness, podcastIndexConfigured, submitToPodcastIndex } from '~/server/directories.server'
 import { getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
 import { feedPath } from '~/server/feed.server'
 import { localiseRemoteImages } from '~/server/images.server'
@@ -25,8 +26,16 @@ import {
   summariseEpisodes,
   updateEpisode,
 } from '~/server/episodes.server'
-import { createPodcast, getPodcastBySlug, listPodcasts, updatePodcast } from '~/server/podcasts.server'
+import {
+  createPodcast,
+  getPodcastBySlug,
+  listPodcasts,
+  updateDirectoryDetails,
+  updateDirectoryLink,
+  updatePodcast,
+} from '~/server/podcasts.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
+import { getProfile } from '~/server/users.server'
 import { backfillWaveforms, readWaveform } from '~/server/waveforms.server'
 
 async function requireUserId() {
@@ -49,10 +58,12 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
     void resumeUnfinishedEpisodes()
     void localiseRemoteImages()
     void backfillWaveforms()
-    const [episodes, summary, channel] = await Promise.all([
+    const [episodes, summary, channel, readiness, profile] = await Promise.all([
       listEpisodes(userId, podcast.id, { offset: 0, limit: episodePageSize }),
       summariseEpisodes(podcast.id),
       getPodcastChannel(podcast.id),
+      getDirectoryReadiness(userId, podcast.id),
+      getProfile(userId),
     ])
     return {
       ...podcast,
@@ -63,6 +74,14 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
       summary,
       // The channel the podcast follows, if it follows one.
       channel,
+      // For the Distribution tab: what directories still need, the name and
+      // email to suggest, and whether Podcast Index can be submitted to here.
+      distribution: {
+        readiness: readiness ?? [],
+        accountName: profile?.name ?? null,
+        accountEmail: profile?.email ?? null,
+        podcastIndexAvailable: podcastIndexConfigured(),
+      },
     }
   })
 
@@ -119,6 +138,24 @@ export const updateMyPodcast = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     if (!(await updatePodcast(await requireUserId(), data))) throw notFound()
   })
+
+export const saveDirectoryDetails = createServerFn({ method: 'POST' })
+  .validator(directoryDetailsSchema)
+  .handler(async ({ data }) => {
+    if (!(await updateDirectoryDetails(await requireUserId(), data))) throw notFound()
+  })
+
+export const saveDirectoryLink = createServerFn({ method: 'POST' })
+  .validator(directoryLinkSchema)
+  .handler(async ({ data }) => {
+    if (!(await updateDirectoryLink(await requireUserId(), data))) throw notFound()
+  })
+
+export const submitMyPodcastToIndex = createServerFn({ method: 'POST' })
+  .validator(z.object({ id: z.string().min(1) }))
+  .handler(async ({ data }) =>
+    submitToPodcastIndex(await requireUserId(), data.id, publicUrl(getRequest()).origin),
+  )
 
 export const createMyEpisode = createServerFn({ method: 'POST' })
   .validator(newEpisodeSchema)

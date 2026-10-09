@@ -10,6 +10,7 @@ import { fetchPodcastEpisodes, fetchPodcastPage } from '~/functions/public'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { formatDate, formatLength } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
+import { directories } from '~/lib/podcast-directories'
 import { publicPageHead } from '~/lib/page-meta'
 import { htmlToText } from '~/lib/rich-text'
 import { jsonLdMeta, podcastSeriesJsonLd } from '~/lib/structured-data'
@@ -34,7 +35,11 @@ export const Route = createFileRoute('/podcasts/$slug')({
     })
     // Unlisted podcasts aren't described to search engines.
     if (podcast.private) return head
-    const jsonLd = podcastSeriesJsonLd({ ...podcast, image: podcast.previewImage?.url ?? null })
+    const jsonLd = podcastSeriesJsonLd({
+      ...podcast,
+      image: podcast.previewImage?.url ?? null,
+      listings: Object.values(podcast.directoryLinks),
+    })
     return { ...head, meta: [...head.meta, jsonLdMeta(jsonLd)] }
   },
   component: PodcastPage,
@@ -49,6 +54,11 @@ function PodcastPage() {
     first: podcast.episodes,
     total: summary.count,
     fetchMore: (offset, limit) => fetchPodcastEpisodes({ data: { slug: podcast.slug, offset, limit } }),
+  })
+  // The directories it's listed on, in the order they're offered to owners.
+  const listings = directories.flatMap((directory) => {
+    const link = podcast.directoryLinks[directory.id]
+    return link ? [{ directory, link }] : []
   })
   const stats = [
     podcast.author ? `by ${podcast.author}` : null,
@@ -102,6 +112,18 @@ function PodcastPage() {
                 <FeedUrlButton feedUrl={podcast.feedUrl} label="Subscribe" />
               </div>
             </div>
+            {listings.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-muted-foreground">Listen on</span>
+                {listings.map(({ directory, link }) => (
+                  <Button key={directory.id} variant="secondary" size="sm" asChild>
+                    <a href={link} target="_blank" rel="noreferrer">
+                      {directory.name}
+                    </a>
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </header>

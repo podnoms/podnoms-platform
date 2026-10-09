@@ -47,6 +47,8 @@ export function podcastSeriesJsonLd(podcast: {
   image: string | null
   author: string | null
   category: string | null
+  // Its pages on Apple Podcasts, Spotify and the rest.
+  listings?: string[]
 }): JsonLd {
   return {
     '@context': 'https://schema.org',
@@ -58,6 +60,7 @@ export function podcastSeriesJsonLd(podcast: {
     image: podcast.image ?? undefined,
     author: podcast.author ? { '@type': 'Person', name: podcast.author } : undefined,
     genre: podcast.category ?? undefined,
+    sameAs: podcast.listings?.length ? podcast.listings : undefined,
   }
 }
 

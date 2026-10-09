@@ -38,6 +38,20 @@ describe('podcastSeriesJsonLd', () => {
     })
   })
 
+  it('links its directory listings', () => {
+    const data = podcastSeriesJsonLd({
+      title: 'Show',
+      description: null,
+      pageUrl: 'https://pods.example/podcasts/show',
+      feedUrl: 'https://pods.example/feed/show',
+      image: null,
+      author: null,
+      category: null,
+      listings: ['https://podcasts.apple.com/podcast/id1'],
+    })
+    expect(data.sameAs).toEqual(['https://podcasts.apple.com/podcast/id1'])
+  })
+
   it('leaves out what the podcast lacks', () => {
     const data = podcastSeriesJsonLd({
       title: 'Show',
