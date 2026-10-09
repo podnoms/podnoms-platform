@@ -13,10 +13,25 @@ import {
   EmptyTitle,
 } from '~/components/ui/empty'
 import { fetchDashboard } from '~/functions/dashboard'
+import { siteHead } from '~/lib/page-meta'
+import { siteDescription, siteInfo } from '~/lib/site'
+import { jsonLdMeta, websiteJsonLd } from '~/lib/structured-data'
 
 export const Route = createFileRoute('/')({
   // The dashboard, for signed-in users, starting with the last 30 days.
   loader: ({ context }) => (context.session ? fetchDashboard({ data: { days: 30 } }) : null),
+  head: ({ matches }) => {
+    const site = siteInfo(matches)
+    if (!site?.origin) return {}
+    const head = siteHead({
+      origin: site.origin,
+      path: '/',
+      title: 'podnoms · Turn YouTube, Mixcloud and SoundCloud links into podcasts',
+      description: siteDescription,
+    })
+    const jsonLd = websiteJsonLd({ origin: site.origin, description: siteDescription, discordUrl: site.discordUrl ?? null })
+    return { ...head, meta: [...head.meta, jsonLdMeta(jsonLd)] }
+  },
   component: Index,
 })
 

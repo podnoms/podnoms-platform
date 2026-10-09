@@ -182,6 +182,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
 export function episodeHeadOptions(page: EpisodePageData) {
   return {
     title: page.episode.title,
+    documentTitle: `${page.episode.title} – ${page.podcast.title}`,
     description: page.episode.description,
     fallbackDescription: `An episode of ${page.podcast.title}`,
     url: page.pageUrl,

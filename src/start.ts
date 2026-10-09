@@ -1,7 +1,9 @@
-// App-wide middleware: request logging, and reporting of errors thrown by
-// routes and server functions (see src/server/logger.server.ts).
+// App-wide middleware: request logging, reporting of errors thrown by routes
+// and server functions (see src/server/logger.server.ts), and keeping search
+// engines out of what isn't a page.
 import { isNotFound, isRedirect } from '@tanstack/react-router'
 import { createMiddleware, createStart } from '@tanstack/react-start'
+import { noindexPath } from '~/lib/robots'
 
 // Served often enough that a line each would drown out everything else.
 const quietPaths = [/^\/images\//, /^\/api\/episodes\/[^/]+\/audio/, /^\/assets\//, /^\/@/, /^\/node_modules\//, /\.\w+$/]
@@ -34,6 +36,21 @@ const loggingMiddleware = createMiddleware().server(async ({ request, pathname, 
   }
 })
 
+const noindexMiddleware = createMiddleware().server(async ({ pathname, next }) => {
+  const result = await next()
+  if (!noindexPath(pathname)) return result
+  try {
+    result.response.headers.set('X-Robots-Tag', 'noindex')
+    return result
+  } catch {
+    // The headers of a response from fetch() can't be changed; copy them.
+    const { response } = result
+    const headers = new Headers(response.headers)
+    headers.set('X-Robots-Tag', 'noindex')
+    return { ...result, response: new Response(response.body, { status: response.status, statusText: response.statusText, headers }) }
+  }
+})
+
 const serverFnErrorMiddleware = createMiddleware({ type: 'function' }).server(async ({ next, serverFnMeta }) => {
   try {
     return await next()
@@ -47,6 +64,6 @@ const serverFnErrorMiddleware = createMiddleware({ type: 'function' }).server(as
 })
 
 export const startInstance = createStart(() => ({
-  requestMiddleware: [loggingMiddleware],
+  requestMiddleware: [loggingMiddleware, noindexMiddleware],
   functionMiddleware: [serverFnErrorMiddleware],
 }))

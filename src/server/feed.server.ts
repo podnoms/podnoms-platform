@@ -12,7 +12,7 @@ export function feedPath(slug: string) {
   return `/feed/${slug}`
 }
 
-function escapeXml(text: string) {
+export function escapeXml(text: string) {
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

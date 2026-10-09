@@ -1,10 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { ContactLink, LegalPage, LegalSection } from '~/components/legal-page'
+import { siteHead } from '~/lib/page-meta'
+import { siteInfo } from '~/lib/site'
 
 export const Route = createFileRoute('/privacy')({
-  head: () => ({
-    meta: [{ title: 'Privacy policy · podnoms' }, { name: 'description', content: 'How podnoms collects and uses your data.' }],
-  }),
+  head: ({ matches }) => {
+    const site = siteInfo(matches)
+    return site?.origin
+      ? siteHead({ origin: site.origin, path: '/privacy', title: 'Privacy policy · podnoms', description: 'How podnoms collects and uses your data.' })
+      : { meta: [{ title: 'Privacy policy · podnoms' }] }
+  },
   component: PrivacyPage,
 })
 

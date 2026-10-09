@@ -15,6 +15,7 @@ import { fetchErrorReportingDsn } from '~/functions/error-reporting'
 import { fetchMyPodcasts } from '~/functions/podcasts'
 import { fetchSiteLinks } from '~/functions/site-links'
 import { readPodcastSort } from '~/lib/podcast-sort'
+import { siteDescription } from '~/lib/site'
 import { startClientErrorReporting } from '~/lib/client-errors'
 import { loginSearchSchema } from '~/lib/login-search'
 import appCss from '~/styles/app.css?url'
@@ -51,18 +52,30 @@ export const Route = createRootRoute({
     return { providers, podcasts, podcastSort: readPodcastSort(), errorReportingDsn, siteLinks }
   },
   staleTime: Infinity,
-  head: () => ({
+  // Defaults: a page's own tags of the same name or property replace these.
+  head: ({ loaderData }) => ({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { title: 'podnoms' },
-      // Pages with their own description (the public pages) replace this one.
-      {
-        name: 'description',
-        content: 'Turn YouTube, Mixcloud and SoundCloud links, or your own audio and video, into podcasts with their own RSS feeds.',
-      },
+      { name: 'description', content: siteDescription },
+      { property: 'og:site_name', content: 'podnoms' },
+      { name: 'twitter:card', content: 'summary' },
+      { name: 'theme-color', content: '#ffffff' },
+      loaderData?.siteLinks.googleSiteVerification
+        ? { name: 'google-site-verification', content: loaderData.siteLinks.googleSiteVerification }
+        : undefined,
+      loaderData?.siteLinks.bingSiteVerification
+        ? { name: 'msvalidate.01', content: loaderData.siteLinks.bingSiteVerification }
+        : undefined,
     ],
-    links: [{ rel: 'stylesheet', href: appCss }],
+    links: [
+      { rel: 'stylesheet', href: appCss },
+      { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
+      { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' },
+      { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+      { rel: 'manifest', href: '/site.webmanifest' },
+    ],
   }),
   component: RootComponent,
 })

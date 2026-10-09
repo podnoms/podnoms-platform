@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { publicPageHead } from '~/lib/page-meta'
+import { publicPageHead, siteHead, truncate } from '~/lib/page-meta'
 
 const page = {
   title: 'Show',
@@ -50,9 +50,55 @@ describe('publicPageHead', () => {
     expect(result).not.toHaveProperty('og:image:secure_url')
   })
 
-  it('has no image tags without an image', () => {
+  it('falls back to the site card without an image', () => {
     const result = tags(publicPageHead({ ...page, image: null }))
-    expect(Object.keys(result).filter((key) => key.startsWith('og:image'))).toEqual([])
-    expect(result['twitter:card']).toBe('summary')
+    expect(result).toMatchObject({
+      'og:image': 'https://pods.example/og-default.png',
+      'og:image:type': 'image/png',
+      'og:image:alt': 'podnoms',
+      'twitter:card': 'summary_large_image',
+    })
+  })
+
+  it('names the page with documentTitle, keeping the title for previews', () => {
+    const head = publicPageHead({ ...page, image: null, documentTitle: 'Episode – Show' })
+    expect(head.meta[0]).toEqual({ title: 'Episode – Show · podnoms' })
+    expect(tags(head)['og:title']).toBe('Show')
+  })
+
+  it('keeps search descriptions shorter than preview ones', () => {
+    const long = `<p>${'word '.repeat(100)}</p>`
+    const result = tags(publicPageHead({ ...page, description: long, image: null }))
+    expect(result.description!.length).toBeLessThanOrEqual(160)
+    expect(result['og:description']!.length).toBeLessThanOrEqual(300)
+    expect(result['og:description']!.length).toBeGreaterThan(160)
+  })
+
+  it('names the audio and its type', () => {
+    const result = tags(publicPageHead({ ...page, image: null, audioUrl: 'https://pods.example/a.mp3' }))
+    expect(result).toMatchObject({ 'og:audio': 'https://pods.example/a.mp3', 'og:audio:type': 'audio/mpeg' })
+  })
+})
+
+describe('siteHead', () => {
+  it('gives a site page an absolute canonical URL and the site card', () => {
+    const head = siteHead({ origin: 'https://pods.example', path: '/privacy', title: 'Privacy', description: 'About data' })
+    expect(head.links).toEqual([{ rel: 'canonical', href: 'https://pods.example/privacy' }])
+    expect(tags(head)).toMatchObject({
+      description: 'About data',
+      'og:url': 'https://pods.example/privacy',
+      'og:image': 'https://pods.example/og-default.png',
+      'twitter:card': 'summary_large_image',
+    })
+  })
+})
+
+describe('truncate', () => {
+  it('leaves short text alone', () => {
+    expect(truncate('Short.', 160)).toBe('Short.')
+  })
+
+  it('cuts at a word boundary, marking the cut', () => {
+    expect(truncate('one two three four', 12)).toBe('one two…')
   })
 })

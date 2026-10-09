@@ -43,6 +43,10 @@ export const env = createEnv({
     BITCOIN_ADDRESS: z.string().optional(),
     // An invite link to the community Discord server, shown in the top nav.
     DISCORD_SERVER: z.url().optional(),
+    // Search engines' site-ownership tokens (the content of their verification
+    // meta tag), for Google Search Console and Bing Webmaster Tools.
+    GOOGLE_SITE_VERIFICATION: z.string().optional(),
+    BING_SITE_VERIFICATION: z.string().optional(),
   },
   clientPrefix: 'VITE_',
   client: {},

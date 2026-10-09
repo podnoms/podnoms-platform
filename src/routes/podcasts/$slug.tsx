@@ -12,26 +12,31 @@ import { formatDate, formatLength } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { publicPageHead } from '~/lib/page-meta'
 import { htmlToText } from '~/lib/rich-text'
+import { jsonLdMeta, podcastSeriesJsonLd } from '~/lib/structured-data'
 
 // A podcast's public page, which anyone can visit. Its owner manages it at
 // /podcasts/:slug/manage.
 export const Route = createFileRoute('/podcasts/$slug')({
   staticData: { publicPage: true },
   loader: ({ params }) => fetchPodcastPage({ data: { slug: params.slug } }),
-  head: ({ loaderData: podcast }) =>
-    podcast
-      ? publicPageHead({
-          title: podcast.title,
-          description: podcast.description,
-          fallbackDescription: podcast.author ? `A podcast by ${podcast.author}` : `${podcast.title}, a podcast on podnoms`,
-          url: podcast.pageUrl,
-          image: podcast.previewImage,
-          type: 'website',
-          feedUrl: podcast.feedUrl,
-          feedTitle: podcast.title,
-          noindex: podcast.private,
-        })
-      : {},
+  head: ({ loaderData: podcast }) => {
+    if (!podcast) return {}
+    const head = publicPageHead({
+      title: podcast.title,
+      description: podcast.description,
+      fallbackDescription: podcast.author ? `A podcast by ${podcast.author}` : `${podcast.title}, a podcast on podnoms`,
+      url: podcast.pageUrl,
+      image: podcast.previewImage,
+      type: 'website',
+      feedUrl: podcast.feedUrl,
+      feedTitle: podcast.title,
+      noindex: podcast.private,
+    })
+    // Unlisted podcasts aren't described to search engines.
+    if (podcast.private) return head
+    const jsonLd = podcastSeriesJsonLd({ ...podcast, image: podcast.previewImage?.url ?? null })
+    return { ...head, meta: [...head.meta, jsonLdMeta(jsonLd)] }
+  },
   component: PodcastPage,
 })
 

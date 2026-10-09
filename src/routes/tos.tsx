@@ -1,10 +1,15 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { ContactLink, LegalPage, LegalSection } from '~/components/legal-page'
+import { siteHead } from '~/lib/page-meta'
+import { siteInfo } from '~/lib/site'
 
 export const Route = createFileRoute('/tos')({
-  head: () => ({
-    meta: [{ title: 'Terms of service · podnoms' }, { name: 'description', content: 'The terms for using podnoms.' }],
-  }),
+  head: ({ matches }) => {
+    const site = siteInfo(matches)
+    return site?.origin
+      ? siteHead({ origin: site.origin, path: '/tos', title: 'Terms of service · podnoms', description: 'The terms for using podnoms.' })
+      : { meta: [{ title: 'Terms of service · podnoms' }] }
+  },
   component: TermsPage,
 })
 
