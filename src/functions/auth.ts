@@ -31,5 +31,9 @@ export const signUp = createServerFn({ method: 'POST' })
     const user = await createUser(data.email, data.password)
     return user
       ? { ok: true as const }
-      : { ok: false as const, error: 'An account with that email already exists' }
+      : {
+          ok: false as const,
+          error:
+            'An account with that email already exists. Sign in instead, or if you signed up with GitHub, Google or Facebook, sign in that way and add a password in Settings → Security.',
+        }
   })

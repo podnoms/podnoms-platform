@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { users } from '~/server/db/schema'
 import { imagePath } from '~/server/storage.server'
-import { createUser, getProfile, isAdmin, updateProfile, verifyUser } from '~/server/users.server'
+import { createUser, getProfile, hasPassword, isAdmin, setPassword, updateProfile, verifyUser } from '~/server/users.server'
 import { resetDb } from '../db'
 import { createUser as insertUser, db, exists, stageTestImage, storeTestImage } from '../helpers'
 
@@ -45,6 +45,37 @@ describe('createUser', () => {
   it('returns null when an OAuth user already has the email', async () => {
     await insertUser({ email: 'oauth@example.com' })
     expect(await createUser('oauth@example.com', 'password123')).toBeNull()
+  })
+})
+
+describe('setPassword', () => {
+  it('adds a password to an OAuth-only user without asking for a current one', async () => {
+    const user = await insertUser({ email: 'oauth@example.com' })
+    expect(await hasPassword(user.id)).toBe(false)
+    expect(await setPassword(user.id, 'new-password')).toEqual({ ok: true })
+    expect(await hasPassword(user.id)).toBe(true)
+    expect(await verifyUser('oauth@example.com', 'new-password')).toEqual({ id: user.id, email: 'oauth@example.com' })
+  })
+
+  it('changes a password given the current one', async () => {
+    const user = await createUser('a@example.com', 'password123')
+    expect(await setPassword(user!.id, 'new-password', 'password123')).toEqual({ ok: true })
+    expect(await verifyUser('a@example.com', 'new-password')).toEqual(user)
+    expect(await verifyUser('a@example.com', 'password123')).toBeNull()
+  })
+
+  it('refuses to change a password without the right current one', async () => {
+    const user = await createUser('a@example.com', 'password123')
+    expect(await setPassword(user!.id, 'new-password')).toEqual({ ok: false, error: expect.any(String) })
+    expect(await setPassword(user!.id, 'new-password', 'wrong-password')).toEqual({
+      ok: false,
+      error: expect.any(String),
+    })
+    expect(await verifyUser('a@example.com', 'password123')).toEqual(user)
+  })
+
+  it("refuses a user that doesn't exist", async () => {
+    expect((await setPassword(crypto.randomUUID(), 'new-password')).ok).toBe(false)
   })
 })
 

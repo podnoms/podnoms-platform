@@ -58,6 +58,26 @@ export async function verifyUser(email: string, password: string): Promise<User 
   return { id: user.id, email: user.email }
 }
 
+export async function hasPassword(userId: string) {
+  const [user] = await db.select({ passwordHash: users.passwordHash }).from(users).where(eq(users.id, userId)).limit(1)
+  return Boolean(user?.passwordHash)
+}
+
+// Adds a password to an account (one made with OAuth, say) or changes it, which
+// needs the current one. Being signed in is proof enough to add the first one.
+export async function setPassword(userId: string, password: string, currentPassword?: string) {
+  const [user] = await db.select({ passwordHash: users.passwordHash }).from(users).where(eq(users.id, userId)).limit(1)
+  if (!user) return { ok: false as const, error: 'You need to be signed in' }
+  if (user.passwordHash && !(currentPassword && (await checkPassword(currentPassword, user.passwordHash)))) {
+    return { ok: false as const, error: 'Your current password is wrong' }
+  }
+  await db
+    .update(users)
+    .set({ passwordHash: await hashPassword(password) })
+    .where(eq(users.id, userId))
+  return { ok: true as const }
+}
+
 // What the user shows as, and edits on the settings page. Read from the
 // database rather than the session, which only has what was true at sign-in.
 export async function getProfile(userId: string) {

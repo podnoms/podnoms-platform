@@ -42,11 +42,16 @@ import {
   newRecoveryCodes,
   removeTotp,
 } from '~/functions/two-factor'
+import { fetchHasPassword, savePassword } from '~/functions/profile'
+import { setPasswordSchema } from '~/lib/auth-schema'
 import { formatDate } from '~/lib/format'
 import { securityKeyNameSchema, totpCodeSchema } from '~/lib/two-factor-schema'
 
 export const Route = createFileRoute('/_authed/settings/security')({
-  loader: () => fetchTwoFactorStatus(),
+  loader: async () => {
+    const [status, hasPassword] = await Promise.all([fetchTwoFactorStatus(), fetchHasPassword()])
+    return { ...status, hasPassword }
+  },
   head: () => ({ meta: [{ title: 'Security · Settings · podnoms' }] }),
   component: SecurityPage,
 })
@@ -69,6 +74,31 @@ function SecurityPage() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
+        <h2 className="text-lg font-semibold">Password</h2>
+        <p className="text-sm text-muted-foreground">
+          {status.hasPassword
+            ? 'You can sign in with your email address and password.'
+            : 'You sign in with GitHub, Google or Facebook. Add a password to also sign in with your email address.'}
+        </p>
+      </header>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Icons.password className="size-4" />
+            {status.hasPassword ? 'Password set' : 'No password'}
+          </CardTitle>
+          <CardAction>
+            <PasswordDialog change={status.hasPassword} onSaved={reload}>
+              <Button size="sm" variant={status.hasPassword ? 'outline' : 'default'}>
+                {status.hasPassword ? 'Change' : 'Add password'}
+              </Button>
+            </PasswordDialog>
+          </CardAction>
+        </CardHeader>
+      </Card>
+
+      <header className="flex flex-col gap-1 pt-4">
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           Two-factor authentication
           <Badge variant={status.enabled ? 'default' : 'secondary'}>{status.enabled ? 'On' : 'Off'}</Badge>
@@ -237,6 +267,94 @@ function ConfirmRemove({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  )
+}
+
+// Adds a password to an account without one, or changes it (asking for the current one).
+function PasswordDialog({
+  change,
+  onSaved,
+  children,
+}: {
+  change: boolean
+  onSaved: () => Promise<void>
+  children: ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string>()
+
+  function onOpenChange(next: boolean) {
+    setOpen(next)
+    setError(undefined)
+  }
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const parsed = setPasswordSchema.safeParse(Object.fromEntries(new FormData(event.currentTarget)))
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message)
+      return
+    }
+    setError(undefined)
+    setPending(true)
+    try {
+      const result = await savePassword({ data: parsed.data })
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      setOpen(false)
+      await onSaved()
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{change ? 'Change your password' : 'Add a password'}</DialogTitle>
+          <DialogDescription>
+            {change
+              ? 'Enter your current password, then the new one.'
+              : "You'll be able to sign in with your email address and this password, as well as your other sign-in."}
+          </DialogDescription>
+        </DialogHeader>
+        <form id="set-password" onSubmit={onSubmit}>
+          <FieldGroup>
+            {change && (
+              <Field>
+                <FieldLabel htmlFor="current-password">Current password</FieldLabel>
+                <Input id="current-password" name="currentPassword" type="password" autoComplete="current-password" required />
+              </Field>
+            )}
+            <Field>
+              <FieldLabel htmlFor="new-password">New password</FieldLabel>
+              <Input id="new-password" name="password" type="password" autoComplete="new-password" minLength={8} required />
+              <FieldDescription>At least 8 characters.</FieldDescription>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="confirm-password">Confirm new password</FieldLabel>
+              <Input id="confirm-password" name="confirmPassword" type="password" autoComplete="new-password" required />
+            </Field>
+            {error && <FieldError>{error}</FieldError>}
+          </FieldGroup>
+        </form>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button type="submit" form="set-password" disabled={pending}>
+            {change ? 'Change password' : 'Add password'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
