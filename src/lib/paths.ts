@@ -12,12 +12,7 @@ export function embedPath(slug: string, episodeSlug: string) {
   return `/embed/${slug}/${episodeSlug}`
 }
 
-// An episode on its own, without the site around it, for sharing.
-export function listenPath(slug: string, episodeSlug: string) {
-  return `/listen/${slug}/${episodeSlug}`
-}
-
-// An episode's short link, which redirects to its listen page.
+// An episode's share page: the episode on its own, without the site around it.
 export function shortPath(shortSlug: string) {
   return `/s/${shortSlug}`
 }

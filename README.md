@@ -203,7 +203,7 @@ Admins can watch, retry and clean up jobs at `/admin/queues` ([Bull Board](https
 
 Podcast owners see plays, downloads and shares on the **Activity** tab of a podcast's page, and on each episode's page: totals, a count per day, and the top countries, apps and referring sites.
 
-- **Plays** are reported by the site's own players (the episode page, `/listen` and embeds).
+- **Plays** are reported by the site's own players (the episode page, share pages at `/s/<code>` and embeds).
 - **Downloads** are counted when anything else fetches the audio, usually a podcast app. The checks apps make before downloading (requests for the first few bytes) aren't counted.
 - **Shares** are counted when someone copies an episode's link or embed code.
 

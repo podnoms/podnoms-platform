@@ -7,11 +7,16 @@ import { z } from 'zod'
 import { episodePageSchema, episodePageSize } from '~/lib/episode-pages'
 import { toDomainPath } from '~/lib/custom-domain'
 import { openGraphImage } from '~/lib/images'
-import { embedPath, episodePath, listenPath, podcastPath, shortPath } from '~/lib/paths'
+import { embedPath, episodePath, podcastPath, shortPath } from '~/lib/paths'
 import { getSession } from '~/server/auth.server'
 import { currentRequestDomainSlug, requestHost } from '~/server/custom-domains.server'
 import { publicUrl } from '~/server/site-url.server'
-import { getPublicEpisode, listPublishedEpisodes, summarisePublishedEpisodes } from '~/server/episodes.server'
+import {
+  findShortLink,
+  getPublicEpisode,
+  listPublishedEpisodes,
+  summarisePublishedEpisodes,
+} from '~/server/episodes.server'
 import { feedPath } from '~/server/feed.server'
 import { getPublicPodcast } from '~/server/podcasts.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
@@ -79,30 +84,45 @@ export const fetchPodcastEpisodes = createServerFn({ method: 'GET' })
 export const fetchEpisodePage = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: z.string(), episodeSlug: z.string() }))
   .handler(async ({ data }) => {
-    const { userId, absolute } = await visitor()
-    const found = await getPublicEpisode(data.slug, data.episodeSlug, userId)
-    if (!found) throw notFound()
-    const { userId: ownerId, ...podcast } = found.podcast
-    const { episode } = found
-    const artwork = episode.imageUrl ?? podcast.imageUrl
-    const waveform = await readWaveform(episode.id)
-    return {
-      podcast,
-      episode: {
-        ...episode,
-        // Sanitised when saved; again here, as it's rendered as HTML.
-        description: sanitizeDescription(episode.description),
-      },
-      isOwner: userId === ownerId,
-      pageUrl: absolute(episodePath(podcast.slug, episode.slug)),
-      shareUrl: absolute(listenPath(podcast.slug, episode.slug)),
-      // What the Share button gives out; it redirects to shareUrl.
-      shortUrl: absolute(shortPath(episode.shortSlug)),
-      embedUrl: absolute(embedPath(podcast.slug, episode.slug)),
-      feedUrl: absolute(feedPath(podcast.slug)),
-      audioUrl: absolute(episode.audioUrl!),
-      previewImage: previewImage(artwork, absolute),
-      // The smoother of the two shapes, as Mixcloud draws them.
-      waveform: waveform?.rms ?? null,
-    }
+    const page = await episodePage(data.slug, data.episodeSlug)
+    if (!page) throw notFound()
+    return page
   })
+
+// An episode's share page (/s/<shortSlug>): the episode on its own.
+export const fetchSharePage = createServerFn({ method: 'GET' })
+  .validator(z.object({ shortSlug: z.string() }))
+  .handler(async ({ data }) => {
+    const found = await findShortLink(data.shortSlug.toLowerCase())
+    const page = found && (await episodePage(found.slug, found.episodeSlug))
+    if (!page) throw notFound()
+    return page
+  })
+
+async function episodePage(slug: string, episodeSlug: string) {
+  const { userId, absolute } = await visitor()
+  const found = await getPublicEpisode(slug, episodeSlug, userId)
+  if (!found) return null
+  const { userId: ownerId, ...podcast } = found.podcast
+  const { episode } = found
+  const artwork = episode.imageUrl ?? podcast.imageUrl
+  const waveform = await readWaveform(episode.id)
+  return {
+    podcast,
+    episode: {
+      ...episode,
+      // Sanitised when saved; again here, as it's rendered as HTML.
+      description: sanitizeDescription(episode.description),
+    },
+    isOwner: userId === ownerId,
+    pageUrl: absolute(episodePath(podcast.slug, episode.slug)),
+    // The episode's share page, which the Share button gives out.
+    shareUrl: absolute(shortPath(episode.shortSlug)),
+    embedUrl: absolute(embedPath(podcast.slug, episode.slug)),
+    feedUrl: absolute(feedPath(podcast.slug)),
+    audioUrl: absolute(episode.audioUrl!),
+    previewImage: previewImage(artwork, absolute),
+    // The smoother of the two shapes, as Mixcloud draws them.
+    waveform: waveform?.rms ?? null,
+  }
+}

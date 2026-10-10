@@ -202,8 +202,8 @@ export const episodes = pgTable(
     // Used in the episode's URL, so unique within the podcast. Kept when the
     // title is edited, so links keep working.
     slug: text('slug').notNull(),
-    // For the episode's short link (/s/<shortSlug>), which redirects to its
-    // listen page. Unique across the site, and never changes.
+    // For the episode's share page (/s/<shortSlug>). Unique across the site,
+    // and never changes.
     shortSlug: text('shortSlug')
       .notNull()
       .$defaultFn(() => randomShortSlug()),
@@ -346,7 +346,7 @@ export const playbackPositions = pgTable(
 // activity.server.ts). Nothing here identifies a person: there's no IP or
 // account, only a hash that changes daily and where they roughly were.
 export const activityType = pgEnum('activity_type', ['play', 'download', 'share'])
-// Where it happened: the site's own pages, the shareable /listen page, a
+// Where it happened: the site's own pages, an episode's share page, a
 // player embedded on another site, or a podcast app (or anything else)
 // fetching the audio directly.
 export const activitySource = pgEnum('activity_source', ['web', 'listen', 'embed', 'app'])

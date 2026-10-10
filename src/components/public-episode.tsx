@@ -12,11 +12,11 @@ import { imageSrc } from '~/lib/images'
 export type EpisodePageData = Awaited<ReturnType<typeof fetchEpisodePage>>
 
 // An episode as listeners see it: artwork, player and show notes. On the
-// episode page it sits in the site's shell; `standalone`, it's the whole page
-// (see /listen), so it names its podcast itself and leaves out the owner's
-// controls.
+// episode page it sits in the site's shell; `standalone`, it's the whole share
+// page (see /s/$shortSlug): it names its podcast itself, and is just the player,
+// without the show notes, the owner's controls or the share and embed buttons.
 export function PublicEpisode({ page, standalone = false }: { page: EpisodePageData; standalone?: boolean }) {
-  const { podcast, episode, waveform, isOwner, shortUrl, embedUrl } = page
+  const { podcast, episode, waveform, isOwner, shareUrl, embedUrl } = page
   const player = usePlayer()
 
   const isCurrent = player.episode?.id === episode.id
@@ -127,13 +127,13 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
                   </Link>
                 </Button>
               )}
-              <ShareButton url={shortUrl} episodeId={episode.id} source={standalone ? 'listen' : 'web'} />
-              <EmbedButton
-                embedUrl={embedUrl}
-                title={episode.title}
-                episodeId={episode.id}
-                source={standalone ? 'listen' : 'web'}
-              />
+              {/* The share page is what's shared; it doesn't pass itself on. */}
+              {!standalone && (
+                <>
+                  <ShareButton url={shareUrl} episodeId={episode.id} source="web" />
+                  <EmbedButton embedUrl={embedUrl} title={episode.title} episodeId={episode.id} source="web" />
+                </>
+              )}
               <Button variant="ghost" size="icon" asChild title="Download MP3">
                 <a href={episode.audioUrl!} download={`${episode.title}.mp3`}>
                   <Icons.download />
@@ -166,7 +166,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
         </div>
       </section>
 
-      {episode.description && (
+      {episode.description && !standalone && (
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold">About this episode</h2>
           {/* Sanitised on the server (see rich-text.server.ts). */}

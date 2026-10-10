@@ -6,7 +6,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { Route as AudioRoute } from '~/routes/api/episodes/$id/audio'
 import { Route as FeedRoute } from '~/routes/feed/$slug'
 import { Route as ImageRoute } from '~/routes/images/$file'
-import { Route as ShortLinkRoute } from '~/routes/s/$shortSlug'
+import { Route as ListenRoute } from '~/routes/listen/$slug.$episodeSlug'
+import { findShortLink } from '~/server/episodes.server'
 import { episodeAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import { callRoute, createEpisode, createPodcast, createUser, db, storeTestImage } from '../helpers'
@@ -143,27 +144,37 @@ describe('GET /feed/:slug', () => {
   })
 })
 
-describe('GET /s/:shortSlug', () => {
-  const get = (shortSlug: string) => callRoute(ShortLinkRoute, 'GET', new Request(`http://x/s/${shortSlug}`), { shortSlug })
-
-  it("redirects to a published episode's listen page", async () => {
+describe('share pages', () => {
+  it("find a published episode by its short slug", async () => {
     const podcast = await createPodcast((await createUser()).id, { slug: 'my-show' })
     const episode = await createEpisode(podcast.id, { slug: 'first', status: 'ready', audioUrl: '/api/episodes/x/audio' })
-    const response = await get(episode.shortSlug)
-    expect(response.status).toBe(302)
-    expect(response.headers.get('location')).toBe('/listen/my-show/first')
+    expect(await findShortLink(episode.shortSlug)).toEqual({ slug: 'my-show', episodeSlug: 'first' })
   })
 
-  it('ignores the case of the slug', async () => {
+  it("find nothing for an episode that isn't ready, or doesn't exist", async () => {
     const podcast = await createPodcast((await createUser()).id)
-    const episode = await createEpisode(podcast.id, { status: 'ready', audioUrl: '/api/episodes/x/audio' })
-    expect((await get(episode.shortSlug.toUpperCase())).status).toBe(302)
+    const episode = await createEpisode(podcast.id, { status: 'processing' })
+    expect(await findShortLink(episode.shortSlug)).toBeNull()
+    expect(await findShortLink('nosuchep')).toBeNull()
+  })
+})
+
+describe('GET /listen/:slug/:episodeSlug', () => {
+  const get = (slug: string, episodeSlug: string, search = '') =>
+    callRoute(ListenRoute, 'GET', new Request(`http://x/listen/${slug}/${episodeSlug}${search}`), { slug, episodeSlug })
+
+  it("sends old share links on to the episode's share page, for good", async () => {
+    const podcast = await createPodcast((await createUser()).id, { slug: 'my-show' })
+    const episode = await createEpisode(podcast.id, { slug: 'first', status: 'ready', audioUrl: '/api/episodes/x/audio' })
+    const response = await get('my-show', 'first', '?t=1')
+    expect(response.status).toBe(301)
+    expect(response.headers.get('location')).toBe(`/s/${episode.shortSlug}?t=1`)
   })
 
   it("is not found for an episode that isn't ready, or doesn't exist", async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const episode = await createEpisode(podcast.id, { status: 'processing' })
-    expect((await get(episode.shortSlug)).status).toBe(404)
-    expect((await get('nosuchep')).status).toBe(404)
+    const podcast = await createPodcast((await createUser()).id, { slug: 'my-show' })
+    await createEpisode(podcast.id, { slug: 'first', status: 'processing' })
+    expect((await get('my-show', 'first')).status).toBe(404)
+    expect((await get('my-show', 'nope')).status).toBe(404)
   })
 })

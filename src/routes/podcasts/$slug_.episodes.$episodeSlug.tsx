@@ -6,8 +6,8 @@ import { jsonLdMeta, podcastEpisodeJsonLd } from '~/lib/structured-data'
 
 // An episode's public page, at /podcasts/:slug/episodes/:episodeSlug. The
 // trailing underscore on $slug_ keeps it from nesting inside the podcast page's
-// route. Its owner manages it at .../manage; /listen has it without the site
-// around it, for sharing.
+// route. Its owner manages it at .../manage; its share page (/s/<shortSlug>)
+// has it without the site around it, for sharing.
 export const Route = createFileRoute('/podcasts/$slug_/episodes/$episodeSlug')({
   staticData: { publicPage: true },
   loader: ({ params }) => fetchEpisodePage({ data: { slug: params.slug, episodeSlug: params.episodeSlug } }),

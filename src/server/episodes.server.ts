@@ -106,7 +106,7 @@ export async function getPublicEpisode(podcastSlug: string, episodeSlug: string,
   return row ?? null
 }
 
-// Where a short link (/s/<shortSlug>) goes: the slugs of a published episode
+// The episode a share page (/s/<shortSlug>) shows: the slugs of a published episode
 // and its podcast, or null.
 export async function findShortLink(shortSlug: string) {
   const [row] = await db
