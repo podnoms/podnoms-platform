@@ -131,6 +131,7 @@ export function PlayerProvider({
       if (episode?.id === next.id) {
         if (options?.startAt !== undefined) {
           audio.currentTime = options.startAt
+          setCurrentTime(audio.currentTime)
           if (audio.paused) void audio.play()
         } else if (audio.paused) void audio.play()
         else audio.pause()
@@ -139,13 +140,15 @@ export function PlayerProvider({
       startAt.current = options?.startAt ?? null
       if (episode) savePosition(episode.id, audio.currentTime)
       setEpisode(next)
-      setCurrentTime(0)
+      // Where it will start once loaded (see onLoadedMetadata), so the
+      // progress shown doesn't drop to 0 and jump back in the meantime.
+      setCurrentTime(options?.startAt ?? positionOf(next.id, next.positionSeconds))
       setDuration(0)
       audio.src = next.audioUrl
       audio.playbackRate = rate
       void audio.play()
     },
-    [episode, rate, savePosition],
+    [episode, rate, savePosition, positionOf],
   )
 
   const value = useMemo<PlayerContextValue>(
@@ -165,11 +168,16 @@ export function PlayerProvider({
         else audio.pause()
       },
       seek: (seconds) => {
-        if (audioRef.current) audioRef.current.currentTime = seconds
+        const audio = audioRef.current
+        if (!audio) return
+        audio.currentTime = seconds
+        setCurrentTime(audio.currentTime)
       },
       skip: (seconds) => {
         const audio = audioRef.current
-        if (audio) audio.currentTime = Math.min(Math.max(0, audio.currentTime + seconds), audio.duration || 0)
+        if (!audio) return
+        audio.currentTime = Math.min(Math.max(0, audio.currentTime + seconds), audio.duration || 0)
+        setCurrentTime(audio.currentTime)
       },
       setRate: (next) => {
         setRateState(next)
@@ -201,6 +209,25 @@ export function PlayerProvider({
     reported.current.add(episode.id)
     reportActivity(episode.id, { type: 'play', source })
   }, [playing, episode, source])
+
+  // While something plays, the left and right arrow keys skip back and forward
+  // on any page, unless they're wanted where they're pressed: in a field, or
+  // by a control that handles them itself (like the waveform, which seeks by 5).
+  useEffect(() => {
+    if (!playing) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      const step = { ArrowLeft: -arrowSkipSeconds, ArrowRight: arrowSkipSeconds }[event.key]
+      if (step === undefined || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+      if (wantsArrowKeys(event.target)) return
+      const audio = audioRef.current
+      if (!audio) return
+      event.preventDefault()
+      audio.currentTime = Math.min(Math.max(0, audio.currentTime + step), audio.duration || 0)
+      setCurrentTime(audio.currentTime)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [playing])
 
   // Save the position every few seconds while playing.
   useEffect(() => {
@@ -243,6 +270,10 @@ export function PlayerProvider({
           }
         }}
         onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+        // A seek moves the position at once; timeupdate only follows once the
+        // new part of the file has loaded, so without this the progress shown
+        // would spring back to the old position until then.
+        onSeeking={(event) => setCurrentTime(event.currentTarget.currentTime)}
         onLoadedMetadata={(event) => {
           const audio = event.currentTarget
           setDuration(audio.duration)
@@ -264,4 +295,17 @@ export function usePlayer() {
   const context = useContext(PlayerContext)
   if (!context) throw new Error('usePlayer must be used within a PlayerProvider')
   return context
+}
+
+// How far the arrow keys skip while something plays.
+export const arrowSkipSeconds = 20
+
+// Whether arrow keys pressed here move something else: a caret in a field, or
+// a control such as a slider, tab list or menu.
+function wantsArrowKeys(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false
+  if (target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return true
+  return Boolean(
+    target.closest('[role="slider"], [role="tablist"], [role="tab"], [role="menu"], [role="menuitem"], [role="listbox"], [role="option"], [role="radiogroup"], [role="radio"], [role="combobox"], [role="spinbutton"]'),
+  )
 }
