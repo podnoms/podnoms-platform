@@ -92,6 +92,30 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     expect(args.at(-1)).toBe(sourceUrl)
   })
 
+  it("shows the source's details while its audio downloads", async () => {
+    const sourceUrl = link('/watch', { title: 'Early Title', description: 'About it', duration: '3', thumbnail: thumbnailUrl, hold: '400' })
+    const episode = await linkEpisode({ sourceUrl })
+    const changed: string[] = []
+    const unsubscribe = subscribeToEpisodeEvents((event) => {
+      if (event.episodeId === episode.id && event.type === 'changed') changed.push(event.type)
+    })
+    try {
+      enqueueEpisode(episode.id)
+      const row = await vi.waitFor(async () => {
+        const row = await getRow(episode.id)
+        if (row.title === sourceUrl) throw new Error('No title yet')
+        return row
+      })
+      expect(row).toMatchObject({ status: 'processing', title: 'Early Title', slug: 'early-title', description: '<p>About it</p>', durationSeconds: 3 })
+      expect(row.imageUrl).toMatch(/^\/images\//)
+      expect(changed.length).toBeGreaterThan(0)
+      // Not fetched again once it's ready.
+      expect(await processed(episode.id)).toMatchObject({ status: 'ready', title: 'Early Title', slug: 'early-title', imageUrl: row.imageUrl })
+    } finally {
+      unsubscribe()
+    }
+  })
+
   it('keeps a title, description and image the user gave', async () => {
     const episode = await linkEpisode({
       sourceUrl: link('/watch', { title: 'Source Title', description: 'Source description', thumbnail: thumbnailUrl }),

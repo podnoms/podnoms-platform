@@ -51,7 +51,7 @@ export function EditDetailsDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{heading}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -109,19 +109,19 @@ function DetailsForm({
   return (
     <>
       <form id="edit-details" onSubmit={onSubmit} className="min-w-0">
-        <FieldGroup>
-          <div className="flex flex-col gap-6 sm:flex-row">
-            <Field className="w-auto shrink-0">
-              <FieldLabel htmlFor="details-image">Artwork</FieldLabel>
-              <ImageField
-                id="details-image"
-                imageUrl={details.imageUrl}
-                value={image}
-                onChange={setImage}
-                suggest={() => ({ title, description: descriptionHtml, context: imageContext })}
-              />
-            </Field>
-            <Field className="min-w-0">
+        <div className="flex flex-col gap-6 sm:flex-row">
+          <Field className="w-auto shrink-0">
+            <FieldLabel htmlFor="details-image">Artwork</FieldLabel>
+            <ImageField
+              id="details-image"
+              imageUrl={details.imageUrl}
+              value={image}
+              onChange={setImage}
+              suggest={() => ({ title, description: descriptionHtml, context: imageContext })}
+            />
+          </Field>
+          <FieldGroup className="min-w-0 flex-1">
+            <Field>
               <FieldLabel htmlFor="details-title">Title</FieldLabel>
               <Input
                 id="details-title"
@@ -132,18 +132,18 @@ function DetailsForm({
                 required
               />
             </Field>
-          </div>
-          <Field>
-            <FieldLabel htmlFor="details-description">Description</FieldLabel>
-            <RichTextEditor
-              id="details-description"
-              value={descriptionHtml}
-              onChange={setDescriptionHtml}
-              placeholder="What's it about?"
-            />
-          </Field>
-          {error && <FieldError>{error}</FieldError>}
-        </FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="details-description">Description</FieldLabel>
+              <RichTextEditor
+                id="details-description"
+                value={descriptionHtml}
+                onChange={setDescriptionHtml}
+                placeholder="What's it about?"
+              />
+            </Field>
+            {error && <FieldError>{error}</FieldError>}
+          </FieldGroup>
+        </div>
       </form>
       <DialogFooter>
         <DialogClose asChild>

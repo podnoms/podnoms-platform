@@ -83,7 +83,12 @@ type DownloadProgress = {
   eta?: number | null
 }
 
-// The source's details, printed by yt-dlp once the download is saved.
+// What's known about the source before its audio is downloaded.
+type SourceDetails = Pick<SourceInfo, 'title' | 'description' | 'duration' | 'thumbnail'>
+
+// The source's details, printed by yt-dlp once the download is saved. They're
+// also printed (as DETAILS) once it's looked the source up, before the
+// download starts.
 async function runYtDlp(sourceUrl: string, outputTemplate: string, onLine: (line: string) => void) {
   const args = [
     '--no-playlist',
@@ -100,6 +105,8 @@ async function runYtDlp(sourceUrl: string, outputTemplate: string, onLine: (line
     'bestaudio/best',
     '--output',
     outputTemplate,
+    '--print',
+    'video:DETAILS %(.{title,description,duration,thumbnail})j',
     '--print',
     'after_move:INFO %(.{title,description,duration,thumbnail,filepath,timestamp,upload_date})j',
     sourceUrl,
@@ -122,9 +129,20 @@ type ProcessedAudio = Pick<SourceInfo, 'title' | 'description' | 'thumbnail' | '
 // Saved in the audio folder as `<name>.mp3`. yt-dlp downloads the audio as
 // the site has it (`<name>.download.<ext>`), and it's converted here rather
 // than by yt-dlp, which doesn't report how its conversion is going.
-async function downloadSource(episodeId: string, sourceUrl: string, name = episodeId): Promise<ProcessedAudio> {
+// `onDetails` gets the source's details as soon as they're known, before the
+// download; it's waited for before this returns.
+async function downloadSource(
+  episodeId: string,
+  sourceUrl: string,
+  { name = episodeId, onDetails }: { name?: string; onDetails?: (details: SourceDetails) => Promise<void> } = {},
+): Promise<ProcessedAudio> {
   setProgress(episodeId, { stage: 'fetching' })
+  let detailsSaved: Promise<void> | undefined
   const onLine = (line: string) => {
+    if (line.startsWith('DETAILS ')) {
+      detailsSaved ??= onDetails?.(JSON.parse(line.slice(8)) as SourceDetails)
+      return
+    }
     if (!line.startsWith('PROGRESS ')) return
     const p = JSON.parse(line.slice(9)) as DownloadProgress
     setProgress(episodeId, {
@@ -136,7 +154,12 @@ async function downloadSource(episodeId: string, sourceUrl: string, name = episo
     })
   }
   const dir = await ensureAudioDir()
-  const info = await runYtDlp(sourceUrl, join(dir, `${name}.download.%(ext)s`), onLine)
+  let info: SourceInfo
+  try {
+    info = await runYtDlp(sourceUrl, join(dir, `${name}.download.%(ext)s`), onLine)
+  } finally {
+    await detailsSaved
+  }
   if (!info.filepath) throw new Error("yt-dlp didn't say where it saved the download")
   const downloaded = info.filepath
   const path = join(dir, `${name}.mp3`)
@@ -186,8 +209,10 @@ async function processEpisode(episodeId: string) {
   const started = Date.now()
   logger.info(job, 'Episode processing started')
   try {
-    const audio = episode.sourceUrl ? await downloadSource(episodeId, episode.sourceUrl) : await convertUpload(episodeId)
-    await markReady(episode, audio)
+    const audio = episode.sourceUrl
+      ? await downloadSource(episodeId, episode.sourceUrl, { onDetails: (details) => saveSourceDetails(episodeId, details) })
+      : await convertUpload(episodeId)
+    await markReady(episodeId, audio)
     // The upload is only kept so a failed conversion can be retried.
     if (!episode.sourceUrl) await rm(episodeSourcePath(episodeId), { force: true })
     // The episode can be played meanwhile; it just has no waveform if this fails.
@@ -212,40 +237,61 @@ async function processEpisode(episodeId: string) {
   }
 }
 
-async function markReady(episode: Episode, audio: ProcessedAudio) {
-  const { size } = await stat(audio.path)
-  const description = episode.description ?? (audio.description ? plainTextToHtml(audio.description) : null)
+// The source's details the episode doesn't have yet, i.e. what the user left
+// out when adding it.
+async function detailsFromSource(episode: Episode, source: SourceDetails) {
+  const description = episode.description ?? (source.description ? plainTextToHtml(source.description) : null)
   // Store the source's artwork rather than linking to it, which can break.
-  const imageUrl = episode.imageUrl ?? (audio.thumbnail ? await downloadImage(audio.thumbnail) : null)
+  const imageUrl = episode.imageUrl ?? (source.thumbnail ? await downloadImage(source.thumbnail) : null)
   // Titles default to the link, and slugs are temporary, until the source's
   // real title is known.
-  const titled = episode.title === episode.sourceUrl && audio.title ? audio.title : null
+  const titled = episode.title === episode.sourceUrl && source.title ? source.title : null
+  const slug = titled ? await availableEpisodeSlug(episode.podcastId, titled, episode.id) : episode.slug
+  return { title: titled ?? episode.title, slug, description, imageUrl }
+}
+
+// Numbers the slug if another episode has taken it meanwhile.
+async function updateWithSlug(episodeId: string, values: Partial<Episode> & { slug: string }) {
+  const update = (slug: string) => db.update(episodes).set({ ...values, slug }).where(eq(episodes.id, episodeId))
+  try {
+    await update(values.slug)
+  } catch (error) {
+    if (!isSlugConflict(error)) throw error
+    await update(withRandomSuffix(values.slug))
+  }
+}
+
+// Shows the source's details while its audio downloads, rather than the link.
+// They're saved again once it's ready, so this failing doesn't matter.
+async function saveSourceDetails(episodeId: string, source: SourceDetails) {
+  try {
+    const [episode] = await db.select().from(episodes).where(eq(episodes.id, episodeId)).limit(1)
+    if (!episode) return
+    const durationSeconds = source.duration ? Math.round(source.duration) : episode.durationSeconds
+    await updateWithSlug(episodeId, { ...(await detailsFromSource(episode, source)), durationSeconds })
+    publishEpisodeEvent({ type: 'changed', episodeId })
+  } catch (error) {
+    logger.warn({ episodeId, err: error }, "Could not save the source's details before downloading")
+  }
+}
+
+async function markReady(episodeId: string, audio: ProcessedAudio) {
+  // As it is now, with any details saved before the download.
+  const [episode] = await db.select().from(episodes).where(eq(episodes.id, episodeId)).limit(1)
+  if (!episode) return
+  const { size } = await stat(audio.path)
   // A channel's uploads are dated as the channel has them, so the feed is in
   // the same order; anything else is new as of now.
   const publishedAt = episode.publishedAt ?? ((await isFromChannel(episode.id)) ? uploadedAt(audio) : null) ?? new Date()
-  const slug = titled ? await availableEpisodeSlug(episode.podcastId, titled, episode.id) : episode.slug
-  const update = (slug: string) =>
-    db
-      .update(episodes)
-      .set({
-        status: 'ready',
-        title: titled ?? episode.title,
-        slug,
-        description,
-        imageUrl,
-        durationSeconds: audio.durationSeconds ?? episode.durationSeconds,
-        audioUrl: episodeAudioUrl(episode.id),
-        audioMimeType: 'audio/mpeg',
-        audioSizeBytes: size,
-        publishedAt,
-      })
-      .where(eq(episodes.id, episode.id))
-  try {
-    await update(slug)
-  } catch (error) {
-    if (!isSlugConflict(error)) throw error
-    await update(withRandomSuffix(slug))
-  }
+  await updateWithSlug(episode.id, {
+    ...(await detailsFromSource(episode, audio)),
+    status: 'ready',
+    durationSeconds: audio.durationSeconds ?? episode.durationSeconds,
+    audioUrl: episodeAudioUrl(episode.id),
+    audioMimeType: 'audio/mpeg',
+    audioSizeBytes: size,
+    publishedAt,
+  })
 }
 
 async function isFromChannel(episodeId: string) {
@@ -266,7 +312,7 @@ async function replaceAudio(episode: Episode, { sourceUrl }: EpisodeReplacement)
   const id = episode.id
   try {
     const audio = sourceUrl
-      ? await downloadSource(id, sourceUrl, replacementAudioName(id))
+      ? await downloadSource(id, sourceUrl, { name: replacementAudioName(id) })
       : await convertUpload(id, replacementAudioPath(id))
     const { size } = await stat(audio.path)
     await rename(audio.path, episodeAudioPath(id))

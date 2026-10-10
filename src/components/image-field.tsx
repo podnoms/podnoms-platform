@@ -7,6 +7,7 @@ import type { ImageSuggestionInput } from '~/lib/image-search'
 import { imageSrc } from '~/lib/images'
 import type { ImageCredit } from '~/server/image-suggestions.server'
 import { isAbort, uploadFile } from '~/lib/upload'
+import { cn } from '~/lib/utils'
 
 // What's happening to the image in an edit form. An uploaded image is only
 // kept once the form is saved with its ID.
@@ -28,8 +29,9 @@ export function imageFromClipboard(data: DataTransfer | null) {
   return Array.from(data?.files ?? []).find((file) => file.type.startsWith('image/')) ?? null
 }
 
-// Square artwork with buttons to upload a replacement or remove it. Pasting an
-// image anywhere on the page, while it's shown, replaces it too. With
+// Square artwork that's clicked (or dropped on) to upload a replacement, with
+// a button to remove it on hover. Pasting an image anywhere on the page, while
+// it's shown, replaces it too. With
 // `suggest`, it also offers a random image to suit what `suggest` returns:
 // what's known so far about the podcast or episode.
 export function ImageField({
@@ -49,6 +51,7 @@ export function ImageField({
   const fileInput = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string>()
   const [suggesting, setSuggesting] = useState(false)
+  const [dragging, setDragging] = useState(false)
   // Images already suggested, so each click brings a new one.
   const suggested = useRef<string[]>([])
   // Tracks the latest value for the upload callbacks, which outlive renders.
@@ -116,14 +119,59 @@ export function ImageField({
   const credit = value.kind === 'uploaded' ? value.credit : undefined
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="relative size-32 overflow-hidden rounded-lg border bg-muted">
-        {shown ? (
-          <img src={imageSrc(shown, 128)} alt="" className="size-full object-cover" />
-        ) : (
-          <div className="flex size-full items-center justify-center">
-            <Icons.image className="size-8 text-muted-foreground" />
-          </div>
+    <div className="flex w-40 flex-col gap-2">
+      <div
+        className={cn(
+          'group relative size-40 overflow-hidden rounded-lg border bg-muted transition-colors',
+          dragging && 'border-ring ring-[3px] ring-ring/50',
+        )}
+        onDragOver={(event) => {
+          if (!event.dataTransfer.types.includes('Files')) return
+          event.preventDefault()
+          setDragging(true)
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(event) => {
+          event.preventDefault()
+          setDragging(false)
+          const file = imageFromClipboard(event.dataTransfer)
+          if (file) void upload(file)
+        }}
+      >
+        {shown && <img src={imageSrc(shown, 160)} alt="" className="size-full object-cover" />}
+        {/* The whole image picks a file. Over an image, what it does only shows on hover. */}
+        <button
+          type="button"
+          title={shown ? 'Change image' : 'Upload image'}
+          onClick={() => fileInput.current?.click()}
+          className={cn(
+            'absolute inset-0 flex flex-col items-center justify-center gap-1 text-xs outline-none transition',
+            shown
+              ? 'bg-black/55 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:group-hover:opacity-0'
+              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+            'focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset',
+          )}
+        >
+          {shown ? <Icons.upload className="size-5" /> : <Icons.image className="size-8" />}
+          <span className="font-medium">{shown ? 'Change' : 'Upload'}</span>
+          <span className={shown ? 'text-white/75' : ''}>or drop or paste one</span>
+        </button>
+        {shown && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon-xs"
+            title="Remove image"
+            className="absolute top-1.5 right-1.5 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
+            onClick={() => {
+              if (value.kind === 'uploading') value.abort()
+              setError(undefined)
+              onChange(imageUrl ? { kind: 'remove' } : { kind: 'keep' })
+            }}
+          >
+            <Icons.delete />
+            <span className="sr-only">Remove image</span>
+          </Button>
         )}
         {(value.kind === 'uploading' || suggesting) && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/60">
@@ -143,36 +191,14 @@ export function ImageField({
           if (file) void upload(file)
         }}
       />
-      <div className="flex gap-1">
-        <Button type="button" variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
-          <Icons.upload />
-          {shown ? 'Change' : 'Upload'}
-        </Button>
-        {shown && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            title="Remove image"
-            onClick={() => {
-              if (value.kind === 'uploading') value.abort()
-              setError(undefined)
-              onChange(imageUrl ? { kind: 'remove' } : { kind: 'keep' })
-            }}
-          >
-            <Icons.delete />
-            <span className="sr-only">Remove image</span>
-          </Button>
-        )}
-      </div>
       {suggest && (
-        <Button type="button" variant="outline" size="sm" className="w-32" disabled={suggesting} onClick={suggestImage}>
+        <Button type="button" variant="outline" size="sm" disabled={suggesting} onClick={suggestImage}>
           <Icons.random />
           Random image
         </Button>
       )}
-      {credit ? (
-        <p className="w-32 text-xs text-muted-foreground">
+      {credit && (
+        <p className="text-xs text-muted-foreground">
           <ExternalLink href={credit.pageUrl}>Photo</ExternalLink>
           {credit.author && (
             <>
@@ -182,10 +208,8 @@ export function ImageField({
           )}{' '}
           {credit.source === 'Pexels' ? 'on' : 'via'} <ExternalLink href={credit.sourceUrl}>{credit.source}</ExternalLink>
         </p>
-      ) : (
-        <p className="w-32 text-xs text-muted-foreground">Or paste an image.</p>
       )}
-      {error && <p className="w-32 text-xs text-destructive">{error}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   )
 }

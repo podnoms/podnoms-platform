@@ -51,6 +51,17 @@ if (args.includes('--flat-playlist')) {
   process.exit(0)
 }
 
+const param = (name) => url.searchParams.get(name) ?? undefined
+const duration = param('duration')
+const details = {
+  title: param('title'),
+  description: param('description'),
+  duration: duration ? Number(duration) : undefined,
+  thumbnail: param('thumbnail'),
+}
+// Looked up before the download starts.
+console.log(`DETAILS ${JSON.stringify(details)}`)
+
 const hold = () => new Promise((resolve) => setTimeout(resolve, Number(url.searchParams.get('hold') ?? 0)))
 const total = 3000
 for (const downloaded of [1000, 2000, total]) {
@@ -61,13 +72,4 @@ await hold()
 
 const filepath = output.replace('%(ext)s', 'mp3')
 copyFileSync(process.env.FAKE_YTDLP_AUDIO, filepath)
-const param = (name) => url.searchParams.get(name) ?? undefined
-const duration = param('duration')
-console.log(`INFO ${JSON.stringify({
-  title: param('title'),
-  description: param('description'),
-  duration: duration ? Number(duration) : undefined,
-  thumbnail: param('thumbnail'),
-  upload_date: param('upload_date'),
-  filepath,
-})}`)
+console.log(`INFO ${JSON.stringify({ ...details, upload_date: param('upload_date'), filepath })}`)
