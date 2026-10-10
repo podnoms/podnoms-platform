@@ -31,6 +31,8 @@ import { Route as AuthedSettingsNotificationsRouteImport } from './routes/_authe
 import { Route as AuthedSettingsSecurityRouteImport } from './routes/_authed/settings/security'
 import { Route as AdminQueuesSplatRouteImport } from './routes/admin/queues/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiDomainsAllowedRouteImport } from './routes/api/domains/allowed'
+import { Route as ApiTraefikConfigRouteImport } from './routes/api/traefik/config'
 import { Route as EmbedSlugEpisodeSlugRouteImport } from './routes/embed/$slug.$episodeSlug'
 import { Route as ListenSlugEpisodeSlugRouteImport } from './routes/listen/$slug.$episodeSlug'
 import { Route as AuthedPodcastsSlugManageRouteImport } from './routes/_authed/podcasts/$slug.manage'
@@ -150,6 +152,16 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDomainsAllowedRoute = ApiDomainsAllowedRouteImport.update({
+  id: '/api/domains/allowed',
+  path: '/api/domains/allowed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTraefikConfigRoute = ApiTraefikConfigRouteImport.update({
+  id: '/api/traefik/config',
+  path: '/api/traefik/config',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EmbedSlugEpisodeSlugRoute = EmbedSlugEpisodeSlugRouteImport.update({
   id: '/embed/$slug/$episodeSlug',
   path: '/embed/$slug/$episodeSlug',
@@ -214,6 +226,8 @@ export interface FileRoutesByFullPath {
   '/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/domains/allowed': typeof ApiDomainsAllowedRoute
+  '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/admin/': typeof AuthedAdminIndexRoute
@@ -244,6 +258,8 @@ export interface FileRoutesByTo {
   '/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/domains/allowed': typeof ApiDomainsAllowedRoute
+  '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/admin': typeof AuthedAdminIndexRoute
@@ -277,6 +293,8 @@ export interface FileRoutesById {
   '/_authed/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/domains/allowed': typeof ApiDomainsAllowedRoute
+  '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/_authed/admin/': typeof AuthedAdminIndexRoute
@@ -310,6 +328,8 @@ export interface FileRouteTypes {
     | '/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
+    | '/api/domains/allowed'
+    | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
     | '/listen/$slug/$episodeSlug'
     | '/admin/'
@@ -340,6 +360,8 @@ export interface FileRouteTypes {
     | '/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
+    | '/api/domains/allowed'
+    | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
     | '/listen/$slug/$episodeSlug'
     | '/admin'
@@ -372,6 +394,8 @@ export interface FileRouteTypes {
     | '/_authed/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
+    | '/api/domains/allowed'
+    | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
     | '/listen/$slug/$episodeSlug'
     | '/_authed/admin/'
@@ -401,6 +425,8 @@ export interface RootRouteChildren {
   SShortSlugRoute: typeof SShortSlugRoute
   AdminQueuesSplatRoute: typeof AdminQueuesSplatRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiDomainsAllowedRoute: typeof ApiDomainsAllowedRoute
+  ApiTraefikConfigRoute: typeof ApiTraefikConfigRoute
   EmbedSlugEpisodeSlugRoute: typeof EmbedSlugEpisodeSlugRoute
   ListenSlugEpisodeSlugRoute: typeof ListenSlugEpisodeSlugRoute
   ApiEpisodesIdActivityRoute: typeof ApiEpisodesIdActivityRoute
@@ -565,6 +591,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/domains/allowed': {
+      id: '/api/domains/allowed'
+      path: '/api/domains/allowed'
+      fullPath: '/api/domains/allowed'
+      preLoaderRoute: typeof ApiDomainsAllowedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/traefik/config': {
+      id: '/api/traefik/config'
+      path: '/api/traefik/config'
+      fullPath: '/api/traefik/config'
+      preLoaderRoute: typeof ApiTraefikConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/embed/$slug/$episodeSlug': {
       id: '/embed/$slug/$episodeSlug'
       path: '/embed/$slug/$episodeSlug'
@@ -677,6 +717,8 @@ const rootRouteChildren: RootRouteChildren = {
   SShortSlugRoute: SShortSlugRoute,
   AdminQueuesSplatRoute: AdminQueuesSplatRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiDomainsAllowedRoute: ApiDomainsAllowedRoute,
+  ApiTraefikConfigRoute: ApiTraefikConfigRoute,
   EmbedSlugEpisodeSlugRoute: EmbedSlugEpisodeSlugRoute,
   ListenSlugEpisodeSlugRoute: ListenSlugEpisodeSlugRoute,
   ApiEpisodesIdActivityRoute: ApiEpisodesIdActivityRoute,

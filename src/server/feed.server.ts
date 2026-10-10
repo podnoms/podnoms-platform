@@ -2,6 +2,7 @@
 // are HTML, which RSS carries escaped; the iTunes summaries are plain text.
 import '@tanstack/react-start/server-only'
 import { and, eq } from 'drizzle-orm'
+import { domainFeedPath, toDomainPath } from '~/lib/custom-domain'
 import { episodePath, podcastPath } from '~/lib/paths'
 import { htmlToText } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
@@ -48,7 +49,7 @@ function itunesExplicit(explicit: boolean) {
 
 // Null if there's no podcast with that slug. Private podcasts have feeds too:
 // they're unlisted, not secret, and the feed is how listeners subscribe.
-export async function buildPodcastFeed(slug: string, origin: string) {
+export async function buildPodcastFeed(slug: string, origin: string, options: { domain?: string } = {}) {
   const [podcast] = await db
     .select({
       id: podcasts.id,
@@ -77,9 +78,13 @@ export async function buildPodcastFeed(slug: string, origin: string) {
     .where(and(eq(episodes.podcastId, podcast.id), isPublished))
     .orderBy(newestPublishedFirst)
 
-  const absolute = (url: string) => new URL(url, origin).toString()
-  const feedUrl = absolute(feedPath(podcast.slug))
-  const pageUrl = absolute(podcastPath(podcast.slug))
+  // On the podcast's own domain, its links are to that domain's short paths.
+  const domainOrigin = options.domain ? `https://${options.domain}` : null
+  const absolute = (url: string) => new URL(url, domainOrigin ?? origin).toString()
+  const page = (path: string) => (options.domain ? (toDomainPath(path, podcast.slug) ?? path) : path)
+  const siteFeedUrl = new URL(feedPath(podcast.slug), origin).toString()
+  const feedUrl = options.domain ? absolute(domainFeedPath) : siteFeedUrl
+  const pageUrl = absolute(page(podcastPath(podcast.slug)))
   const artwork = podcast.imageUrl ?? items.find((item) => item.imageUrl)?.imageUrl ?? null
   const description = podcast.description || podcast.title
   const latest = items[0] ? (items[0].publishedAt ?? items[0].createdAt) : podcast.updatedAt
@@ -89,7 +94,7 @@ export async function buildPodcastFeed(slug: string, origin: string) {
     return [
       '<item>',
       tag('title', item.title),
-      tag('link', absolute(episodePath(podcast.slug, item.slug))),
+      tag('link', absolute(page(episodePath(podcast.slug, item.slug)))),
       tag('description', item.description),
       tag('itunes:summary', item.description && htmlToText(item.description)),
       `<guid isPermaLink="false">${escapeXml(item.id)}</guid>`,
@@ -127,7 +132,8 @@ export async function buildPodcastFeed(slug: string, origin: string) {
       // Keeps unlisted podcasts out of directories that honour it.
       podcast.private ? '<itunes:block>Yes</itunes:block>' : '',
       '<itunes:type>episodic</itunes:type>',
-      `<podcast:guid>${podcastGuid(feedUrl)}</podcast:guid>`,
+      // From the site's feed URL, so the podcast keeps one id on any domain.
+      `<podcast:guid>${podcastGuid(siteFeedUrl)}</podcast:guid>`,
       // Asks other hosts not to import the feed, unless the owner (who can be
       // emailed) agrees.
       podcast.ownerEmail

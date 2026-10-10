@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { channelProviders, parseChannelUrl } from '~/lib/platforms'
+import { customDomainField } from '~/lib/podcast-schema'
 
 const platformNames = channelProviders.map((provider) => provider.label).join(' or ')
 
@@ -11,6 +12,7 @@ export const newChannelPodcastSchema = z.object({
     .min(1, 'Paste a link to the channel')
     .max(2000)
     .refine((url) => parseChannelUrl(url) !== null, `That isn't a link to a ${platformNames} channel`),
+  customDomain: customDomainField.optional(),
 })
 export type NewChannelPodcastInput = z.infer<typeof newChannelPodcastSchema>
 

@@ -63,7 +63,13 @@ const serverFnErrorMiddleware = createMiddleware({ type: 'function' }).server(as
   }
 })
 
+// Podcasts on their owners' own domains (see custom-domains.server.ts).
+const customDomainMiddleware = createMiddleware().server(async ({ request, next }) => {
+  const { handleCustomDomain } = await import('~/server/custom-domains.server')
+  return handleCustomDomain(request, () => next())
+})
+
 export const startInstance = createStart(() => ({
-  requestMiddleware: [loggingMiddleware, noindexMiddleware],
+  requestMiddleware: [loggingMiddleware, noindexMiddleware, customDomainMiddleware],
   functionMiddleware: [serverFnErrorMiddleware],
 }))

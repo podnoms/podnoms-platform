@@ -26,6 +26,11 @@ services:
       # Optional Pexels API key for the "Random image" button on artwork;
       # without it, photos come from Openverse, which needs no key.
       PEXELS_API_KEY: ${PEXELS_API_KEY:-}
+      # Custom domains (see README.md): where owners point their CNAME, the
+      # edge container's name, and a token Traefik sends for /api/traefik/config.
+      CUSTOM_DOMAIN_TARGET: ${CUSTOM_DOMAIN_TARGET:-}
+      CUSTOM_DOMAIN_EDGE_HOST: ${CUSTOM_DOMAIN_EDGE_HOST:-}
+      TRAEFIK_CONFIG_TOKEN: ${TRAEFIK_CONFIG_TOKEN:-}
     volumes:
       - media:/app/media
     # Picked up by Grafana Alloy (see deploy/observability). Docker keeps a
@@ -76,7 +81,25 @@ services:
       timeout: 5s
       retries: 12
 
+  # Certificates for podcasts' custom domains; Traefik passes those domains'
+  # connections through to it (see "Custom domains" in README.md). It must
+  # share a network with Traefik, and the app needs CUSTOM_DOMAIN_EDGE_HOST
+  # set to its name (podnoms-edge).
+  podnoms-edge:
+    image: caddy:2
+    profiles: [custom-domains]
+    restart: unless-stopped
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      APP_HOST: app:3000
+    volumes:
+      - ./docker/edge/Caddyfile:/etc/caddy/Caddyfile:ro
+      - edge-data:/data
+      - edge-config:/config
+
 volumes:
   media:
   postgres:
   redis:
+  edge-data:
+  edge-config:

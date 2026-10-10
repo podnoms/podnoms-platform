@@ -5,10 +5,22 @@ import { z } from 'zod'
 import { episodePageSchema, episodePageSize } from '~/lib/episode-pages'
 import { bulkUploadEpisodesSchema, editEpisodeSchema, newEpisodeSchema, replaceAudioSchema } from '~/lib/episode-schema'
 import { shortPath } from '~/lib/paths'
-import { directoryDetailsSchema, directoryLinkSchema, editPodcastSchema, newPodcastSchema } from '~/lib/podcast-schema'
+import {
+  customDomainSchema,
+  directoryDetailsSchema,
+  directoryLinkSchema,
+  editPodcastSchema,
+  newPodcastSchema,
+} from '~/lib/podcast-schema'
 import { getSession } from '~/server/auth.server'
 import { publicUrl } from '~/server/site-url.server'
 import { getPodcastChannel } from '~/server/channels.server'
+import {
+  catchDomainError,
+  customDomainTarget,
+  setCustomDomain,
+  verifyCustomDomain,
+} from '~/server/custom-domains.server'
 import { getDirectoryReadiness, podcastIndexConfigured, submitToPodcastIndex } from '~/server/directories.server'
 import { getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
 import { feedPath } from '~/server/feed.server'
@@ -83,6 +95,8 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
         accountEmail: profile?.email ?? null,
         podcastIndexAvailable: podcastIndexConfigured(),
       },
+      // Where owners point their domain's CNAME; null when custom domains are off.
+      customDomainTarget: customDomainTarget(),
     }
   })
 
@@ -132,7 +146,10 @@ export const fetchMyEpisodeSlug = createServerFn({ method: 'GET' })
 
 export const createMyPodcast = createServerFn({ method: 'POST' })
   .validator(newPodcastSchema)
-  .handler(async ({ data }) => createPodcast(await requireUserId(), data))
+  .handler(async ({ data }) => {
+    const userId = await requireUserId()
+    return catchDomainError(() => createPodcast(userId, data))
+  })
 
 export const updateMyPodcast = createServerFn({ method: 'POST' })
   .validator(editPodcastSchema)
@@ -150,6 +167,24 @@ export const saveDirectoryLink = createServerFn({ method: 'POST' })
   .validator(directoryLinkSchema)
   .handler(async ({ data }) => {
     if (!(await updateDirectoryLink(await requireUserId(), data))) throw notFound()
+  })
+
+export const saveCustomDomain = createServerFn({ method: 'POST' })
+  .validator(customDomainSchema)
+  .handler(async ({ data }) => {
+    const userId = await requireUserId()
+    const result = await catchDomainError(() => setCustomDomain(userId, data.id, data.domain))
+    if ('value' in result && !result.value) throw notFound()
+    return 'error' in result ? { error: result.error } : {}
+  })
+
+// Checks the podcast's domain's DNS records now, verifying it if they're right.
+export const testCustomDomain = createServerFn({ method: 'POST' })
+  .validator(z.object({ id: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    const result = await verifyCustomDomain(await requireUserId(), data.id)
+    if (!result) throw notFound()
+    return result
   })
 
 export const submitMyPodcastToIndex = createServerFn({ method: 'POST' })

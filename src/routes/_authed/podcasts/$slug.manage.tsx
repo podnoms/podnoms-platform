@@ -3,6 +3,7 @@ import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { ActivityPanel } from '~/components/activity-panel'
 import { BulkUploadDialog } from '~/components/bulk-upload-dialog'
 import { ChannelPanel } from '~/components/channel-panel'
+import { CustomDomainCard } from '~/components/custom-domain-card'
 import { DistributionPanel } from '~/components/distribution-panel'
 import { EditDetailsDialog } from '~/components/edit-details-dialog'
 import { EpisodeListEnd } from '~/components/episode-list-end'
@@ -177,13 +178,20 @@ function PodcastPage() {
             <TabsContent value="activity">
               <ActivityPanel slug={podcast.slug} />
             </TabsContent>
-            <TabsContent value="distribution">
+            <TabsContent value="distribution" className="flex flex-col gap-6">
               <DistributionPanel
                 podcast={podcast}
                 distribution={podcast.distribution}
                 onChanged={() => router.invalidate({ filter: (match) => match.routeId === Route.id })}
                 onEditDetails={() => setEditing(true)}
               />
+              {podcast.customDomainTarget && (
+                <CustomDomainCard
+                  podcast={podcast}
+                  target={podcast.customDomainTarget}
+                  onChanged={() => router.invalidate({ filter: (match) => match.routeId === Route.id })}
+                />
+              )}
             </TabsContent>
           </Tabs>
         </div>

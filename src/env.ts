@@ -67,6 +67,17 @@ export const env = createEnv({
     SMTP_SECURE: z.stringbool().default(false),
     // Who emails come from, e.g. "podnoms <hello@podnoms.com>".
     EMAIL_FROM: z.string().optional(),
+    // Custom domains (see custom-domains.server.ts). Owners point a CNAME at
+    // this host; without it, SITE_URL's host is used.
+    CUSTOM_DOMAIN_TARGET: z.string().optional(),
+    // The edge container that gets certificates for custom domains and passes
+    // their traffic to the app, e.g. "podnoms-edge". Traefik is told (through
+    // /api/traefik/config) to pass those domains' connections through to it.
+    CUSTOM_DOMAIN_EDGE_HOST: z.string().optional(),
+    TRAEFIK_TLS_ENTRYPOINT: z.string().default('websecure'),
+    TRAEFIK_HTTP_ENTRYPOINT: z.string().default('web'),
+    // When set, Traefik must send it as a bearer token to read /api/traefik/config.
+    TRAEFIK_CONFIG_TOKEN: z.string().optional(),
   },
   clientPrefix: 'VITE_',
   client: {},

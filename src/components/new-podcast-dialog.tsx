@@ -52,10 +52,15 @@ export function NewPodcastDialog({ children }: { children: ReactNode }) {
     setError(undefined)
     setPending(true)
     try {
-      const podcast =
+      const created =
         'url' in parsed.data
           ? await createMyChannelPodcast({ data: parsed.data })
           : await createMyPodcast({ data: parsed.data })
+      if ('error' in created) {
+        setError(created.error)
+        return
+      }
+      const podcast = created.value
       setOpen(false)
       // Reload route data so the sidebar and home page list the new podcast.
       await router.invalidate()
@@ -134,6 +139,23 @@ export function NewPodcastDialog({ children }: { children: ReactNode }) {
                 </FieldDescription>
               </Field>
             )}
+            <Field>
+              <FieldLabel htmlFor="podcast-domain">
+                Custom domain <span className="font-normal text-muted-foreground">(optional)</span>
+              </FieldLabel>
+              <Input
+                id="podcast-domain"
+                name="customDomain"
+                placeholder="pod.example.com"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                maxLength={300}
+              />
+              <FieldDescription>
+                Serve the podcast from your own domain. You'll get the DNS records to add on its Distribution tab.
+              </FieldDescription>
+            </Field>
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
         </form>

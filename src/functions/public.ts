@@ -5,9 +5,11 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { episodePageSchema, episodePageSize } from '~/lib/episode-pages'
+import { toDomainPath } from '~/lib/custom-domain'
 import { openGraphImage } from '~/lib/images'
 import { embedPath, episodePath, listenPath, podcastPath, shortPath } from '~/lib/paths'
 import { getSession } from '~/server/auth.server'
+import { currentRequestDomainSlug, requestHost } from '~/server/custom-domains.server'
 import { publicUrl } from '~/server/site-url.server'
 import { getPublicEpisode, listPublishedEpisodes, summarisePublishedEpisodes } from '~/server/episodes.server'
 import { feedPath } from '~/server/feed.server'
@@ -18,10 +20,13 @@ import { readWaveform } from '~/server/waveforms.server'
 async function visitor() {
   const request = getRequest()
   const session = await getSession(request)
-  const origin = publicUrl(request).origin
+  // On a podcast's own domain, its pages' links use that domain's short paths.
+  const domainSlug = currentRequestDomainSlug()
+  const origin = domainSlug ? `https://${requestHost(request)}` : publicUrl(request).origin
+  const onDomain = (path: string) => (domainSlug && toDomainPath(path, domainSlug)) || path
   return {
     userId: session?.user?.id ?? null,
-    absolute: (path: string) => new URL(path, origin).toString(),
+    absolute: (path: string) => new URL(onDomain(path), origin).toString(),
   }
 }
 

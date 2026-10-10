@@ -45,11 +45,15 @@ export function nameFromChannelUrl(url: string) {
 export async function createChannelPodcast(userId: string, input: NewChannelPodcastInput) {
   const source = parseChannelUrl(input.url)
   if (!source) throw new Error("That isn't a link to a channel")
-  return followChannel(userId, source)
+  return followChannel(userId, source, input.customDomain)
 }
 
-export async function followChannel(userId: string, source: { platform: Platform; url: string }) {
-  const podcast = await createPodcast(userId, { title: nameFromChannelUrl(source.url) })
+export async function followChannel(
+  userId: string,
+  source: { platform: Platform; url: string },
+  customDomain?: string | null,
+) {
+  const podcast = await createPodcast(userId, { title: nameFromChannelUrl(source.url), customDomain })
   const [channel] = await db
     .insert(channels)
     .values({ podcastId: podcast.id, platform: source.platform, url: source.url })

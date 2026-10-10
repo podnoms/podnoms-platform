@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { channelEnabledSchema, newChannelPodcastSchema } from '~/lib/channel-schema'
 import { getSession } from '~/server/auth.server'
 import { checkChannelNow, createChannelPodcast, setChannelEnabled } from '~/server/channels.server'
+import { catchDomainError } from '~/server/custom-domains.server'
 import { getChannelEpisodeLimit } from '~/server/users.server'
 
 async function requireUserId() {
@@ -20,7 +21,10 @@ export const fetchMyChannelLimit = createServerFn({ method: 'GET' }).handler(asy
 
 export const createMyChannelPodcast = createServerFn({ method: 'POST' })
   .validator(newChannelPodcastSchema)
-  .handler(async ({ data }) => createChannelPodcast(await requireUserId(), data))
+  .handler(async ({ data }) => {
+    const userId = await requireUserId()
+    return catchDomainError(() => createChannelPodcast(userId, data))
+  })
 
 export const checkMyChannelNow = createServerFn({ method: 'POST' })
   .validator(z.object({ podcastId: z.string().min(1) }))

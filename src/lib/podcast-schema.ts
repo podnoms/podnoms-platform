@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { normalizeDomain } from '~/lib/custom-domain'
 import {
   categoryNames,
   directoryIds,
@@ -9,6 +10,22 @@ import {
   type DirectoryId,
 } from '~/lib/podcast-directories'
 
+// The owner's own domain for a podcast, as typed or pasted: normalised to a
+// host name such as "pod.example.com", or null when left empty.
+export const customDomainField = z
+  .string()
+  .max(300)
+  .nullable()
+  .transform((value, context) => {
+    if (!value?.trim()) return null
+    const domain = normalizeDomain(value)
+    if (!domain) {
+      context.addIssue({ code: 'custom', message: 'Enter a domain such as pod.example.com' })
+      return z.NEVER
+    }
+    return domain
+  })
+
 export const newPodcastSchema = z.object({
   title: z.string().trim().min(1, 'Give your podcast a title').max(100, 'Keep the title under 100 characters'),
   description: z
@@ -17,6 +34,7 @@ export const newPodcastSchema = z.object({
     .max(4000, 'Keep the description under 4000 characters')
     .transform((value) => value || undefined)
     .optional(),
+  customDomain: customDomainField.optional(),
 })
 export type NewPodcastInput = z.infer<typeof newPodcastSchema>
 
@@ -72,3 +90,10 @@ export const directoryLinkSchema = z
     path: ['link'],
   })
 export type DirectoryLinkInput = z.infer<typeof directoryLinkSchema>
+
+// Setting (or, with an empty domain, removing) a podcast's own domain.
+export const customDomainSchema = z.object({
+  id: z.string().min(1),
+  domain: customDomainField,
+})
+export type CustomDomainInput = z.infer<typeof customDomainSchema>

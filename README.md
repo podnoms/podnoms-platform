@@ -193,6 +193,7 @@ Jobs are queued in Redis with [BullMQ](https://docs.bullmq.io/) and run by a wor
 
 | Job | When | What it does |
 | --- | --- | --- |
+| `custom-domain-check` | Daily, 05:15 | Checks the DNS records of podcasts' verified custom domains again; a domain whose records have been wrong for 3 days stops being served |
 | `geoip-update` | Wednesdays, 04:00 | Downloads the latest GeoLite2 database, if a MaxMind account is configured |
 | `media-cleanup` | Daily, 03:30 | Removes files in `MEDIA_DIR` that no podcast, episode or user refers to (once they're a day old), uploads and images that were never saved (after a day), and the kept upload of an episode that has been failed for a week, telling its owner to upload it again |
 
@@ -209,6 +210,48 @@ Podcast owners see plays, downloads and shares on the **Activity** tab of a podc
 Nothing recorded identifies a listener. The IP address is used to look up the country, region and city, and then dropped. Visitors are told apart by a hash of the address and user agent, salted with a random value that changes daily and is deleted afterwards. Each visitor counts once a day for each episode and kind of activity. Crawlers aren't counted.
 
 Behind a reverse proxy, the listener's address is taken from `X-Forwarded-For` (or `X-Real-IP`). Make sure the proxy sets it.
+
+### Custom domains
+
+Owners can serve a podcast from their own domain, set on the podcast's **Distribution** tab (or when creating it). The domain then shows the podcast's page at `/`, its episodes at `/episodes/<slug>` and its RSS feed at `/feed`. The podnoms addresses keep working, and the feed keeps its `podcast:guid`, so existing subscribers aren't affected.
+
+**Owners add two DNS records**, which the tab lists with a **Test** button:
+
+| Type | Name | Value |
+| --- | --- | --- |
+| `CNAME` | `pod.example.com` | `CUSTOM_DOMAIN_TARGET` (default: the host in `SITE_URL`) |
+| `TXT` | `_podnoms.pod.example.com` | `podnoms-verify=<token>`, a token made for that podcast and domain |
+
+The CNAME sends the traffic here. The TXT record proves the owner controls the domain, so nobody can claim a domain that someone else pointed at us. A domain is only served once both check out. The daily `custom-domain-check` job checks them again and drops a domain whose records have been wrong for 3 days.
+
+**Certificates come from podnoms' own edge container, not the main reverse proxy.** [`docker/edge/Caddyfile`](docker/edge/Caddyfile) runs Caddy as `podnoms-edge` (the `custom-domains` profile in `compose.yml`). Before Caddy gets a certificate, it asks the app (`/api/domains/allowed`), which says yes only for verified domains. Certificates are issued on a domain's first visit with the TLS-ALPN-01 challenge and are kept in the `edge-data` volume. Set `ACME_EMAIL` for Let's Encrypt's expiry notices.
+
+**Traefik only passes these domains' connections through.** It never holds their certificates or terminates their TLS. The app publishes, for each verified domain:
+
+- a TCP router (`HostSNI`, `tls.passthrough`) on `TRAEFIK_TLS_ENTRYPOINT` (default `websecure`) to `podnoms-edge:443`, with the PROXY protocol so listeners' addresses reach the activity stats;
+- an HTTP router on `TRAEFIK_HTTP_ENTRYPOINT` (default `web`) to `podnoms-edge:80`, which redirects to HTTPS.
+
+Traefik reads them from `/api/traefik/config` with its HTTP provider. Add this to Traefik's static configuration; Traefik, the app and `podnoms-edge` must share a Docker network:
+
+```yaml
+providers:
+  http:
+    endpoint: http://app:3000/api/traefik/config
+    pollInterval: 30s
+    # When TRAEFIK_CONFIG_TOKEN is set:
+    headers:
+      Authorization: Bearer <TRAEFIK_CONFIG_TOKEN>
+```
+
+| Variable | Description |
+| --- | --- |
+| `SITE_URL` | Required for custom domains: it's how the site's own address is told apart from owners' domains. |
+| `CUSTOM_DOMAIN_TARGET` | Where owners point their CNAME, e.g. `domains.podnoms.com`. It must resolve to the server running Traefik. Defaults to the host in `SITE_URL`. |
+| `CUSTOM_DOMAIN_EDGE_HOST` | The edge container's name on the shared network (`podnoms-edge`). Without it, `/api/traefik/config` is empty. |
+| `TRAEFIK_TLS_ENTRYPOINT`, `TRAEFIK_HTTP_ENTRYPOINT` | Traefik's entry points for HTTPS and HTTP (default `websecure` and `web`). |
+| `TRAEFIK_CONFIG_TOKEN` | Optional. When set, Traefik must send it as a bearer token to read `/api/traefik/config`. |
+
+On a custom domain, anything other than the podcast's pages and the files they load (sign-in, settings, other podcasts) redirects to the site. A domain that isn't verified also redirects to the site.
 
 ### Admins
 

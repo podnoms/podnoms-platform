@@ -171,7 +171,15 @@ export const podcasts = pgTable(
     ownerEmail: text('ownerEmail'),
     // The podcast's pages on Apple Podcasts, Spotify and the rest, once listed.
     directoryLinks: jsonb('directoryLinks').$type<DirectoryLinks>().notNull().default({}),
+    // The owner's own domain for the podcast (see custom-domains.server.ts). It's
+    // only served once its DNS records check out: a CNAME to us, and a TXT record
+    // holding customDomainToken, which proves the owner controls the domain.
     customDomain: text('customDomain').unique(),
+    customDomainToken: text('customDomainToken'),
+    customDomainVerifiedAt: timestamp('customDomainVerifiedAt', { mode: 'date', withTimezone: true }),
+    // When a verified domain's records first stopped checking out; it's dropped
+    // after a few days of that, in case it was a passing DNS problem.
+    customDomainFailingSince: timestamp('customDomainFailingSince', { mode: 'date', withTimezone: true }),
     ...timestamps,
   },
   (table) => [index('podcast_userId_idx').on(table.userId)],

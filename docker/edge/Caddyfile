@@ -1,0 +1,37 @@
+# The edge for podcasts' custom domains (see "Custom domains" in README.md).
+#
+# Traefik passes these domains' TLS connections through untouched (by SNI, with
+# the PROXY protocol), so the certificates live here, in this container's
+# /data volume, not in Traefik. They're issued on demand, on a domain's first
+# visit, and only for domains the app says are verified.
+{
+	email {$ACME_EMAIL}
+	on_demand_tls {
+		ask http://{$APP_HOST:app:3000}/api/domains/allowed
+	}
+	servers :443 {
+		listener_wrappers {
+			# From Traefik, which sends the listener's address this way.
+			proxy_protocol {
+				allow 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 fc00::/7
+			}
+			tls
+		}
+	}
+}
+
+https:// {
+	tls {
+		on_demand
+		# TLS-ALPN-01 only: it works through the passthrough on 443 alone.
+		issuer acme {
+			disable_http_challenge
+		}
+	}
+	# Passes on the original Host, and the listener's address in X-Forwarded-For.
+	reverse_proxy {$APP_HOST:app:3000}
+}
+
+http:// {
+	redir https://{host}{uri} 308
+}

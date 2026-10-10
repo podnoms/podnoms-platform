@@ -9,6 +9,7 @@ import { Queue, Worker } from 'bullmq'
 import { Redis } from 'ioredis'
 import { env } from '~/env'
 import { checkDueChannels } from '~/server/channels.server'
+import { recheckCustomDomains } from '~/server/custom-domains.server'
 import { updateGeoipDatabase } from '~/server/geoip.server'
 import { cleanUpMedia } from '~/server/media-cleanup.server'
 import { logger, reportError } from '~/server/logger.server'
@@ -23,6 +24,8 @@ const jobs = {
   'geoip-update': () => updateGeoipDatabase(),
   // Each channel has its own time to be checked; this just looks for those due.
   'channel-check': () => checkDueChannels(),
+  // Drops custom domains whose DNS records have gone (after a grace period).
+  'custom-domain-check': () => recheckCustomDomains(),
 } satisfies Record<string, () => Promise<unknown>>
 
 export type JobName = keyof typeof jobs
@@ -33,6 +36,7 @@ const schedules: { name: JobName; pattern: string }[] = [
   // MaxMind publishes updates on Tuesdays and Fridays.
   { name: 'geoip-update', pattern: '0 4 * * 3' },
   { name: 'channel-check', pattern: '*/15 * * * *' },
+  { name: 'custom-domain-check', pattern: '15 5 * * *' },
 ]
 
 type Running = { queue: Queue; worker: Worker }

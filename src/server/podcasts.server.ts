@@ -4,6 +4,7 @@ import { db } from '~/server/db/client.server'
 import { episodes, podcasts, users } from '~/server/db/schema'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { firstFreeSlug, slugify } from '~/lib/slug'
+import { customDomainValues, withDomainConflict } from '~/server/custom-domains.server'
 import { commitImage, deleteImage } from '~/server/images.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import type { DirectoryLinks } from '~/lib/podcast-directories'
@@ -92,16 +93,24 @@ async function availableSlug(title: string) {
 export async function createPodcast(userId: string, input: NewPodcastInput) {
   const slug = await availableSlug(input.title)
   const description = input.description ? plainTextToHtml(input.description) : undefined
-  const values = { userId, title: input.title, description, slug }
-  const [podcast] = await db.insert(podcasts).values(values).onConflictDoNothing().returning(summaryColumns)
-  if (podcast) return podcast
-  // Someone took the slug in the meantime; fall back to a random suffix.
-  const suffix = crypto.randomUUID().slice(0, 6)
-  const [retry] = await db
-    .insert(podcasts)
-    .values({ ...values, slug: `${slug}-${suffix}` })
-    .returning(summaryColumns)
-  return retry!
+  // Its own domain, if one was given, is checked later from the Distribution tab.
+  const domain = input.customDomain ? customDomainValues(input.customDomain) : {}
+  const values = { userId, title: input.title, description, slug, ...domain }
+  return withDomainConflict(async () => {
+    const [podcast] = await db
+      .insert(podcasts)
+      .values(values)
+      .onConflictDoNothing({ target: podcasts.slug })
+      .returning(summaryColumns)
+    if (podcast) return podcast
+    // Someone took the slug in the meantime; fall back to a random suffix.
+    const suffix = crypto.randomUUID().slice(0, 6)
+    const [retry] = await db
+      .insert(podcasts)
+      .values({ ...values, slug: `${slug}-${suffix}` })
+      .returning(summaryColumns)
+    return retry!
+  })
 }
 
 // Returns false unless the podcast belongs to the user. The slug (and so the

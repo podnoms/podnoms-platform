@@ -17,6 +17,7 @@ import { fetchSiteLinks } from '~/functions/site-links'
 import { readPodcastSort } from '~/lib/podcast-sort'
 import { siteDescription } from '~/lib/site'
 import { startClientErrorReporting } from '~/lib/client-errors'
+import { currentDomainSlug } from '~/lib/current-domain'
 import { loginSearchSchema } from '~/lib/login-search'
 import appCss from '~/styles/app.css?url'
 
@@ -106,7 +107,7 @@ function RootDocument({
 }) {
   return (
     // ThemeProvider's inline script sets the theme class on <html> before hydration.
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning data-custom-domain={currentDomainSlug() ?? undefined}>
       <head>
         <HeadContent />
         <script defer src="https://a.ferg.al/script.js" data-website-id="96e2c096-bf04-41b8-993e-5f7912b29878" />

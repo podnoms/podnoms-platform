@@ -7,7 +7,7 @@ import {
   uploadEpisodeSchema,
 } from '~/lib/episode-schema'
 import { loginSearchSchema } from '~/lib/login-search'
-import { editPodcastSchema, newPodcastSchema } from '~/lib/podcast-schema'
+import { customDomainSchema, editPodcastSchema, newPodcastSchema } from '~/lib/podcast-schema'
 import { recoveryCodeSchema, secondFactorSchema, securityKeyNameSchema, totpCodeSchema } from '~/lib/two-factor-schema'
 
 const uuid = '0b6f4a3e-7a3c-4d1e-9f2a-1c2b3d4e5f60'
@@ -56,6 +56,25 @@ describe('newPodcastSchema', () => {
 
   it('limits the description to 4000 characters', () => {
     expect(newPodcastSchema.safeParse({ title: 't', description: 'x'.repeat(4001) }).success).toBe(false)
+  })
+
+  it('takes an optional custom domain, normalised', () => {
+    expect(newPodcastSchema.parse({ title: 't', customDomain: 'https://Pod.Example.com/' }).customDomain).toBe(
+      'pod.example.com',
+    )
+    expect(newPodcastSchema.parse({ title: 't', customDomain: '  ' }).customDomain).toBeNull()
+    expect(newPodcastSchema.parse({ title: 't' }).customDomain).toBeUndefined()
+    expect(firstError(newPodcastSchema.safeParse({ title: 't', customDomain: 'not a domain' }))).toBe(
+      'Enter a domain such as pod.example.com',
+    )
+  })
+})
+
+describe('customDomainSchema', () => {
+  it('takes a domain, or empty or null to remove it', () => {
+    expect(customDomainSchema.parse({ id: 'p1', domain: 'pod.example.com' }).domain).toBe('pod.example.com')
+    expect(customDomainSchema.parse({ id: 'p1', domain: '' }).domain).toBeNull()
+    expect(customDomainSchema.parse({ id: 'p1', domain: null }).domain).toBeNull()
   })
 })
 
