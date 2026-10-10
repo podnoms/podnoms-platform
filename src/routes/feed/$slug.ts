@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { publicUrl } from '~/server/auth.server'
+import { publicUrl } from '~/server/site-url.server'
 import { buildPodcastFeed } from '~/server/feed.server'
 
 // A podcast's RSS feed, which listeners subscribe to in their podcast app.

@@ -9,12 +9,14 @@ export const Route = createFileRoute('/_authed/settings')({
 const tabs = {
   details: '/settings',
   security: '/settings/security',
+  notifications: '/settings/notifications',
 } as const
 
 function SettingsLayout() {
   const navigate = useNavigate()
   const onSecurity = useMatch({ from: '/_authed/settings/security', shouldThrow: false })
-  const tab = onSecurity ? 'security' : 'details'
+  const onNotifications = useMatch({ from: '/_authed/settings/notifications', shouldThrow: false })
+  const tab = onSecurity ? 'security' : onNotifications ? 'notifications' : 'details'
 
   return (
     <div className="flex max-w-2xl flex-col gap-6 p-4">
@@ -23,6 +25,7 @@ function SettingsLayout() {
         <TabsList variant="line">
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
         </TabsList>
         <TabsContent value={tab} className="pt-4">
           <Outlet />

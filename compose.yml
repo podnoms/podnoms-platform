@@ -9,7 +9,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://podnoms:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD for bundled Postgres, or DATABASE_URL for external Postgres}@postgres:5432/podnoms}
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET to at least 32 characters}
-      AUTH_URL: ${AUTH_URL:-http://localhost:${PORT:-3000}}
+      SITE_URL: ${SITE_URL:-http://localhost:${PORT:-3000}}
       MEDIA_DIR: /app/media
       AUTH_GITHUB_ID: ${AUTH_GITHUB_ID:-}
       AUTH_GITHUB_SECRET: ${AUTH_GITHUB_SECRET:-}

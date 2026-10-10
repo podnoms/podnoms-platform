@@ -18,6 +18,7 @@ import { availableEpisodeSlug, temporaryEpisodeSlug } from '~/server/episode-slu
 import { insertEpisode } from '~/server/episodes.server'
 import { deleteImage, downloadImage } from '~/server/images.server'
 import { logger, reportError } from '~/server/logger.server'
+import { notifyNewEpisodes } from '~/server/notifications.server'
 import { createPodcast } from '~/server/podcasts.server'
 import { listChannel, type ChannelEntry, type ChannelListing } from '~/server/channel-listing.server'
 import { getSiteSettings } from '~/server/site-settings.server'
@@ -108,6 +109,8 @@ async function runCheck(channelId: string, priority: number): Promise<CheckResul
       .set({ title: listing.title ?? channel.title, lastCheckedAt: new Date(), nextCheckAt, lastError: null })
       .where(eq(channels.id, channelId))
     logger.info({ ...context, listed: listing.entries.length, added }, 'Channel checked')
+    // The first import is the owner's own doing; later uploads are news.
+    if (!first) notifyNewEpisodes(podcast.id, added)
     return { added }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

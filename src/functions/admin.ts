@@ -2,8 +2,15 @@ import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
-import { siteSettingsSchema, userChannelLimitSchema } from '~/lib/site-settings-schema'
-import { endCooldown, getAdminOverview, saveSiteSettings, setUserChannelLimit } from '~/server/admin.server'
+import { emailSettingsSchema, siteSettingsSchema, testEmailSchema, userChannelLimitSchema } from '~/lib/site-settings-schema'
+import {
+  endCooldown,
+  getAdminOverview,
+  saveEmailSettings,
+  saveSiteSettings,
+  sendTestEmail,
+  setUserChannelLimit,
+} from '~/server/admin.server'
 import { getSession } from '~/server/auth.server'
 import { isAdmin } from '~/server/users.server'
 
@@ -24,6 +31,20 @@ export const saveAdminSettings = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     await requireAdmin()
     await saveSiteSettings(data)
+  })
+
+export const saveAdminEmailSettings = createServerFn({ method: 'POST' })
+  .validator(emailSettingsSchema)
+  .handler(async ({ data }) => {
+    await requireAdmin()
+    if (!(await saveEmailSettings(data))) throw new Error('Email is set by environment variables on this site')
+  })
+
+export const sendAdminTestEmail = createServerFn({ method: 'POST' })
+  .validator(testEmailSchema)
+  .handler(async ({ data }) => {
+    await requireAdmin()
+    return sendTestEmail(data.to, data.settings)
   })
 
 export const saveUserChannelLimit = createServerFn({ method: 'POST' })

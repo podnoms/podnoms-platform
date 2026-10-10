@@ -32,6 +32,14 @@ describe('the admin page', () => {
     expect(overview.jobsRunning).toBe(false)
   })
 
+  it("shows the email settings without the password", async () => {
+    await updateSiteSettings({ smtpHost: 'smtp.example.com', emailFrom: 'a@example.com', smtpPassword: 'encrypted-value' })
+    const overview = await getAdminOverview()
+    expect(overview.email).toMatchObject({ source: 'admin', host: 'smtp.example.com', hasPassword: true })
+    expect(JSON.stringify(overview)).not.toContain('encrypted-value')
+    await updateSiteSettings({ smtpHost: null, emailFrom: null, smtpPassword: null })
+  })
+
   it('saves the settings', async () => {
     await saveSiteSettings({ downloadConcurrency: 4, perPlatformConcurrency: 1, downloadDelaySeconds: 30, channelCheckHours: 12, downloadRateLimit: '1M' })
     expect((await getAdminOverview()).settings).toMatchObject({ downloadConcurrency: 4, downloadDelaySeconds: 30, downloadRateLimit: '1M' })

@@ -12,3 +12,9 @@ export const editProfileSchema = z.object({
   imageId: imageChange,
 })
 export type EditProfileInput = z.infer<typeof editProfileSchema>
+
+// Which emails the user gets about their podcasts.
+export const notificationPrefsSchema = z.object({
+  notifyEpisodeFailed: z.boolean(),
+  notifyNewEpisodes: z.boolean(),
+})

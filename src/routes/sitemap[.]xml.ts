@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { publicUrl } from '~/server/auth.server'
+import { publicUrl } from '~/server/site-url.server'
 import { buildSitemap, listSitemapEntries } from '~/server/sitemap.server'
 
 // The sitemap, for search engines (see robots.txt).

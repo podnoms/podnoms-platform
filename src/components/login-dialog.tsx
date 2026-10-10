@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useLoaderData, useNavigate, useRouteContext, useSearch } from '@tanstack/react-router'
+import { Link, useLoaderData, useNavigate, useRouteContext, useSearch } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardHeader } from '~/components/ui/card'
@@ -13,9 +13,9 @@ import {
 } from '~/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldSeparator } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
-import { signUp } from '~/functions/auth'
+import { requestPasswordResetFn, signUp } from '~/functions/auth'
 import { signIn } from '~/lib/auth-client'
-import { credentialsSchema } from '~/lib/auth-schema'
+import { credentialsSchema, passwordResetRequestSchema } from '~/lib/auth-schema'
 
 const oauthButtons = [
   ['github', 'GitHub', Icons.github],
@@ -30,11 +30,17 @@ const authErrors: Record<string, string> = {
   AccessDenied: 'Access was denied.',
 }
 
+// Notices shown above the form, e.g. after a password reset.
+const notices: Record<string, string> = {
+  passwordReset: 'Your password has been changed. Sign in with your new password.',
+}
+
 // The page to return to after signing in: the current URL without the dialog's params.
 function currentPageUrl() {
   const url = new URL(window.location.href)
   url.searchParams.delete('login')
   url.searchParams.delete('authError')
+  url.searchParams.delete('notice')
   return url.pathname + url.search
 }
 
@@ -46,7 +52,7 @@ export function LoginDialog() {
   // While a sign-in waits for its second factor, TwoFactorDialog shows instead.
   const open = !session && !twoFactor && Boolean(search.login)
 
-  const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn')
+  const [mode, setMode] = useState<'signIn' | 'signUp' | 'forgot'>('signIn')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string>()
 
@@ -61,7 +67,7 @@ export function LoginDialog() {
   function close() {
     void navigate({
       to: '.',
-      search: (prev) => ({ ...prev, login: undefined, authError: undefined }),
+      search: (prev) => ({ ...prev, login: undefined, authError: undefined, notice: undefined }),
       replace: true,
     })
   }
@@ -93,6 +99,7 @@ export function LoginDialog() {
   }
 
   const isSignIn = mode === 'signIn'
+  const notice = search.notice && notices[search.notice]
 
   function toggleMode() {
     setError(undefined)
@@ -125,85 +132,173 @@ export function LoginDialog() {
             </Button>
           </DialogClose>
           <CardHeader className="text-center">
-            <DialogTitle className="text-xl font-semibold">{isSignIn ? 'Welcome back' : 'Create an account'}</DialogTitle>
+            <DialogTitle className="text-xl font-semibold">
+              {mode === 'forgot' ? 'Reset your password' : isSignIn ? 'Welcome back' : 'Create an account'}
+            </DialogTitle>
             <DialogDescription>
-              {isSignIn ? 'Login' : 'Sign up'} with your GitHub, Google or Facebook account
+              {mode === 'forgot'
+                ? "Enter your account's email and we'll send you a link to choose a new password."
+                : `${isSignIn ? 'Login' : 'Sign up'} with your GitHub, Google or Facebook account`}
             </DialogDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={onSubmit}>
-              <FieldGroup>
-                <Field>
-                  {oauthButtons.map(([id, label, Icon]) => (
-                    <Button
-                      key={id}
-                      type="button"
-                      variant="outline"
-                      size="lg"
-                      disabled={!providers[id] || pending}
-                      onClick={() => signIn(id, { callbackUrl: currentPageUrl() })}
-                    >
-                      <Icon />
-                      {isSignIn ? 'Login' : 'Sign up'} with {label}
+            {notice && mode === 'signIn' && (
+              <p className="mb-4 rounded-md bg-muted px-3 py-2 text-center text-sm">{notice}</p>
+            )}
+            {mode === 'forgot' ? (
+              <ForgotPassword onBack={() => setMode('signIn')} />
+            ) : (
+              <form onSubmit={onSubmit}>
+                <FieldGroup>
+                  <Field>
+                    {oauthButtons.map(([id, label, Icon]) => (
+                      <Button
+                        key={id}
+                        type="button"
+                        variant="outline"
+                        size="lg"
+                        disabled={!providers[id] || pending}
+                        onClick={() => signIn(id, { callbackUrl: currentPageUrl() })}
+                      >
+                        <Icon />
+                        {isSignIn ? 'Login' : 'Sign up'} with {label}
+                      </Button>
+                    ))}
+                  </Field>
+                  <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
+                    Or continue with
+                  </FieldSeparator>
+                  <Field>
+                    <FieldLabel htmlFor="email">Email</FieldLabel>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      placeholder="m@example.com"
+                      autoComplete="email"
+                      required
+                      className="h-9"
+                    />
+                  </Field>
+                  <Field>
+                    <div className="flex items-center">
+                      <FieldLabel htmlFor="password">Password</FieldLabel>
+                      {isSignIn && providers.passwordReset && (
+                        <button
+                          type="button"
+                          className="ml-auto text-sm underline-offset-4 hover:underline"
+                          onClick={() => {
+                            setError(undefined)
+                            setMode('forgot')
+                          }}
+                        >
+                          Forgot your password?
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      autoComplete={isSignIn ? 'current-password' : 'new-password'}
+                      required
+                      className="h-9"
+                    />
+                  </Field>
+                  {error && <FieldError>{error}</FieldError>}
+                  <Field>
+                    <Button type="submit" size="lg" disabled={pending}>
+                      {isSignIn ? 'Login' : 'Sign up'}
                     </Button>
-                  ))}
-                </Field>
-                <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                  Or continue with
-                </FieldSeparator>
-                <Field>
-                  <FieldLabel htmlFor="email">Email</FieldLabel>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="m@example.com"
-                    autoComplete="email"
-                    required
-                    className="h-9"
-                  />
-                </Field>
-                <Field>
-                  <div className="flex items-center">
-                    <FieldLabel htmlFor="password">Password</FieldLabel>
-                    {isSignIn && (
-                      // TODO: hook up a password reset flow.
-                      <button type="button" className="ml-auto text-sm underline-offset-4 hover:underline">
-                        Forgot your password?
+                    <FieldDescription className="text-center">
+                      {isSignIn ? "Don't have an account? " : 'Already have an account? '}
+                      <button type="button" onClick={toggleMode} className="underline underline-offset-4">
+                        {isSignIn ? 'Sign up' : 'Login'}
                       </button>
-                    )}
-                  </div>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete={isSignIn ? 'current-password' : 'new-password'}
-                    required
-                    className="h-9"
-                  />
-                </Field>
-                {error && <FieldError>{error}</FieldError>}
-                <Field>
-                  <Button type="submit" size="lg" disabled={pending}>
-                    {isSignIn ? 'Login' : 'Sign up'}
-                  </Button>
-                  <FieldDescription className="text-center">
-                    {isSignIn ? "Don't have an account? " : 'Already have an account? '}
-                    <button type="button" onClick={toggleMode} className="underline underline-offset-4">
-                      {isSignIn ? 'Sign up' : 'Login'}
-                    </button>
-                  </FieldDescription>
-                </Field>
-              </FieldGroup>
-            </form>
+                    </FieldDescription>
+                  </Field>
+                </FieldGroup>
+              </form>
+            )}
           </CardContent>
         </Card>
-        {/* TODO: link to the real Terms of Service and Privacy Policy pages. */}
         <FieldDescription className="px-6 text-center">
-          By clicking continue, you agree to our <a href="#">Terms of Service</a> and{' '}
-          <a href="#">Privacy Policy</a>.
+          By clicking continue, you agree to our{' '}
+          <Link to="/tos" onClick={close}>
+            Terms of Service
+          </Link>{' '}
+          and{' '}
+          <Link to="/privacy" onClick={close}>
+            Privacy Policy
+          </Link>
+          .
         </FieldDescription>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// Asks for a reset link. Says the same whether or not there's an account for
+// the address, as the server does.
+function ForgotPassword({ onBack }: { onBack: () => void }) {
+  const [pending, setPending] = useState(false)
+  const [sentTo, setSentTo] = useState<string>()
+  const [error, setError] = useState<string>()
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const parsed = passwordResetRequestSchema.safeParse(Object.fromEntries(new FormData(event.currentTarget)))
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message)
+      return
+    }
+    setError(undefined)
+    setPending(true)
+    try {
+      await requestPasswordResetFn({ data: parsed.data })
+      setSentTo(parsed.data.email)
+    } catch {
+      setError('Something went wrong. Please try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  const back = (
+    <FieldDescription className="text-center">
+      <button type="button" onClick={onBack} className="underline underline-offset-4">
+        Back to login
+      </button>
+    </FieldDescription>
+  )
+
+  if (sentTo) {
+    return (
+      <FieldGroup>
+        <p className="text-center text-sm">
+          If there's an account for <strong>{sentTo}</strong>, we've sent it a link to reset the password. It works for
+          an hour.
+        </p>
+        {back}
+      </FieldGroup>
+    )
+  }
+
+  return (
+    <form onSubmit={onSubmit}>
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="reset-email">Email</FieldLabel>
+          <Input id="reset-email" name="email" type="email" autoComplete="email" required className="h-9" />
+        </Field>
+        {error && <FieldError>{error}</FieldError>}
+        <Field>
+          <Button type="submit" size="lg" disabled={pending}>
+            Email me a reset link
+          </Button>
+          {back}
+        </Field>
+      </FieldGroup>
+    </form>
   )
 }

@@ -78,6 +78,37 @@ export async function setPassword(userId: string, password: string, currentPassw
   return { ok: true as const }
 }
 
+// Sets the user's password with no questions asked, for a password reset
+// (which proves the user has their email instead).
+export async function replacePassword(userId: string, password: string) {
+  await db
+    .update(users)
+    .set({ passwordHash: await hashPassword(password) })
+    .where(eq(users.id, userId))
+}
+
+// The user with this email, matched case-insensitively.
+export async function findUserByEmail(email: string) {
+  const [user] = await db.select({ id: users.id, email: users.email }).from(users).where(byEmail(email)).limit(1)
+  return user?.email ? { id: user.id, email: user.email } : null
+}
+
+export async function getNotificationPrefs(userId: string) {
+  const [prefs] = await db
+    .select({ notifyEpisodeFailed: users.notifyEpisodeFailed, notifyNewEpisodes: users.notifyNewEpisodes })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+  return prefs ?? null
+}
+
+export async function updateNotificationPrefs(
+  userId: string,
+  prefs: { notifyEpisodeFailed: boolean; notifyNewEpisodes: boolean },
+) {
+  await db.update(users).set(prefs).where(eq(users.id, userId))
+}
+
 // What the user shows as, and edits on the settings page. Read from the
 // database rather than the session, which only has what was true at sign-in.
 export async function getProfile(userId: string) {

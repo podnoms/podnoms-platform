@@ -13,5 +13,35 @@
         "**/.tanstack": true,
         "**/.plugin_symlinks": true
     },
-    "workbench.colorTheme": "Panda Syntax"
+    "workbench.colorTheme": "Panda Syntax",
+    "workbench.colorCustomizations": {
+        "activityBar.activeBackground": "#91fc00",
+        "activityBar.activeBorder": "#15202b",
+        "activityBar.background": "#91fc00",
+        "activityBar.foreground": "#15202b",
+        "activityBar.inactiveForeground": "#15202b99",
+        "activityBarBadge.background": "#20a0ff",
+        "activityBarBadge.foreground": "#15202b",
+        "activityBarTop.activeBackground": "#91fc00",
+        "activityBarTop.activeBorder": "#15202b",
+        "activityBarTop.background": "#91fc00",
+        "activityBarTop.foreground": "#15202b",
+        "activityBarTop.inactiveForeground": "#15202b99",
+        "commandCenter.border": "#15202b99",
+        "commandCenter.foreground": "#15202b",
+        "sash.hoverBorder": "#91fc00",
+        "statusBar.background": "#74c900",
+        "statusBar.debuggingBackground": "#74c900",
+        "statusBar.debuggingForeground": "#15202b",
+        "statusBar.foreground": "#15202b",
+        "statusBar.inactiveBackground": "#74c900",
+        "statusBarItem.hoverBackground": "#579600",
+        "statusBarItem.remoteBackground": "#006ebf",
+        "statusBarItem.remoteForeground": "#15202b",
+        "titleBar.activeBackground": "#74c900",
+        "titleBar.activeForeground": "#15202b",
+        "titleBar.inactiveBackground": "#74c90099",
+        "titleBar.inactiveForeground": "#15202b99"
+    },
+    "peacock.color": "#74C900"
 }

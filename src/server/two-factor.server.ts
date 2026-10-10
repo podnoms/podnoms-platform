@@ -6,39 +6,25 @@
 // callback in auth.server.ts). Passing a second factor here issues a one-time
 // ticket, which the browser hands to Auth.js to clear the mark.
 import '@tanstack/react-start/server-only'
-import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import type { AuthenticationResponseJSON } from '@simplewebauthn/server'
 import { and, asc, count, eq, isNull, lt, or } from 'drizzle-orm'
 import { Secret, TOTP } from 'otpauth'
 import QRCode from 'qrcode'
-import { env } from '~/env'
 import { db } from '~/server/db/client.server'
 import { recoveryCodes, securityKeys, users } from '~/server/db/schema'
 import { ExpiringStore } from '~/server/expiring-store.server'
 import { logger } from '~/server/logger.server'
+import { decryptSecret, encryptSecret } from '~/server/secrets.server'
 import { verifyKeyAuthentication } from '~/server/webauthn.server'
 
 // --- Authenticator app secrets ----------------------------------------------
 
-// Secrets are encrypted with a key derived from AUTH_SECRET, so a copy of the
-// database alone can't generate codes. Changing AUTH_SECRET means everyone
-// has to set up their authenticator app again.
-const encryptionKey = Buffer.from(hkdfSync('sha256', env.AUTH_SECRET, '', 'podnoms totp secret', 32))
-
-// Stored as "<iv>.<auth tag>.<ciphertext>", each base64url-encoded.
-function encrypt(plaintext: string) {
-  const iv = randomBytes(12)
-  const cipher = createCipheriv('aes-256-gcm', encryptionKey, iv)
-  const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
-  return [iv, cipher.getAuthTag(), ciphertext].map((part) => part.toString('base64url')).join('.')
-}
-
-function decrypt(stored: string) {
-  const [iv, tag, ciphertext] = stored.split('.').map((part) => Buffer.from(part, 'base64url'))
-  const decipher = createDecipheriv('aes-256-gcm', encryptionKey, iv!)
-  decipher.setAuthTag(tag!)
-  return Buffer.concat([decipher.update(ciphertext!), decipher.final()]).toString('utf8')
-}
+// Secrets are encrypted (see secrets.server.ts), so a copy of the database
+// alone can't generate codes. Changing AUTH_SECRET means everyone has to set
+// up their authenticator app again.
+const encrypt = (plaintext: string) => encryptSecret('podnoms totp secret', plaintext)
+const decrypt = (stored: string) => decryptSecret('podnoms totp secret', stored)
 
 const periodSeconds = 30
 

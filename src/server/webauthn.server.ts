@@ -19,7 +19,7 @@ import { ExpiringStore } from '~/server/expiring-store.server'
 const challenges = new ExpiringStore<string>(5 * 60_000)
 
 // Keys are bound to the host they were registered on, so `url` must be the
-// app's public URL (see publicUrl in auth.server.ts).
+// app's public URL (see publicUrl in site-url.server.ts).
 const relyingParty = (url: URL) => ({ rpID: url.hostname, origin: url.origin })
 
 const userKeys = (userId: string) =>

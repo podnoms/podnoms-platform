@@ -1,7 +1,12 @@
 import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
 import { getRequest } from '@tanstack/react-start/server'
-import { credentialsSchema } from '~/lib/auth-schema'
+import { credentialsSchema, passwordResetRequestSchema, resetPasswordSchema } from '~/lib/auth-schema'
 import { oauthProviders, readSession } from '~/server/auth.server'
+import { publicUrl } from '~/server/site-url.server'
+import { clientIp } from '~/server/activity.server'
+import { emailEnabled } from '~/server/email.server'
+import { isResetTokenValid, requestPasswordReset, resetPassword } from '~/server/password-reset.server'
 import { getTwoFactorMethods } from '~/server/two-factor.server'
 import { createUser, getProfile } from '~/server/users.server'
 
@@ -22,8 +27,27 @@ export const fetchAuthState = createServerFn({ method: 'GET' }).handler(async ()
   }
 })
 
-// Which OAuth providers have keys configured, so the login page can disable the rest.
-export const fetchOAuthProviders = createServerFn({ method: 'GET' }).handler(() => oauthProviders)
+// Which OAuth providers have keys configured, so the login page can disable the
+// rest, and whether email works, for "Forgot password?".
+export const fetchOAuthProviders = createServerFn({ method: 'GET' }).handler(async () => ({
+  ...oauthProviders,
+  passwordReset: await emailEnabled(),
+}))
+
+export const requestPasswordResetFn = createServerFn({ method: 'POST' })
+  .validator(passwordResetRequestSchema)
+  .handler(async ({ data }) => {
+    const request = getRequest()
+    await requestPasswordReset(data.email, publicUrl(request).origin, clientIp(request))
+  })
+
+export const checkResetToken = createServerFn({ method: 'GET' })
+  .validator(z.object({ token: z.string().max(200) }))
+  .handler(({ data }) => isResetTokenValid(data.token))
+
+export const resetPasswordFn = createServerFn({ method: 'POST' })
+  .validator(resetPasswordSchema)
+  .handler(({ data }) => resetPassword(data.token, data.password))
 
 export const signUp = createServerFn({ method: 'POST' })
   .validator(credentialsSchema)

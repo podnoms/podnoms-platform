@@ -10,6 +10,7 @@ import { db } from '~/server/db/client.server'
 import { episodes, podcasts, users } from '~/server/db/schema'
 import { localImageUrl } from '~/server/images.server'
 import { logger } from '~/server/logger.server'
+import { notifyEpisodeFailed } from '~/server/notifications.server'
 import { episodeSourcePath, mediaDirs } from '~/server/storage.server'
 
 const day = 24 * 60 * 60 * 1000
@@ -84,6 +85,7 @@ async function removeOldFailedSources(now: number) {
     if (!(await stat(path).catch(() => null))) continue
     await rm(path, { force: true })
     await db.update(episodes).set({ error: failedSourceRemovedError }).where(eq(episodes.id, id))
+    notifyEpisodeFailed(id, failedSourceRemovedError)
     removed++
   }
   return removed

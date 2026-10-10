@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { Secret, TOTP } from 'otpauth'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { users } from '~/server/db/schema'
 import {
   authConfig,
@@ -8,7 +8,6 @@ import {
   getTwoFactorPendingUserId,
   handleAuthRequest,
   oauthProviders,
-  publicUrl,
   readSession,
 } from '~/server/auth.server'
 import { confirmTotpSetup, startTotpSetup, verifySecondFactor } from '~/server/two-factor.server'
@@ -209,36 +208,6 @@ describe('the OAuth adapter', () => {
   })
 })
 
-describe('publicUrl', () => {
-  it("rewrites the protocol and host to AUTH_URL's", async () => {
-    vi.stubEnv('AUTH_URL', 'https://podnoms.example')
-    vi.resetModules()
-    try {
-      const auth = await import('~/server/auth.server')
-      expect(auth.publicUrl(new Request('http://internal/feed/x?y=1')).toString()).toBe('https://podnoms.example/feed/x?y=1')
-    } finally {
-      vi.unstubAllEnvs()
-    }
-  })
-
-  it('is the request URL when AUTH_URL is not set', () => {
-    expect(publicUrl(new Request('http://internal:3000/feed/x?y=1')).toString()).toBe('http://internal:3000/feed/x?y=1')
-  })
-
-  it("rewrites the protocol, host and port to AUTH_URL's", async () => {
-    vi.stubEnv('AUTH_URL', 'https://podnoms.example')
-    vi.resetModules()
-    try {
-      const auth = await import('~/server/auth.server')
-      expect(auth.publicUrl(new Request('http://internal:3000/feed/x?y=1')).toString()).toBe(
-        'https://podnoms.example/feed/x?y=1',
-      )
-    } finally {
-      vi.unstubAllEnvs()
-    }
-  })
-})
-
 describe('oauthProviders', () => {
   it('is all off without keys', () => {
     expect(oauthProviders).toEqual({ github: false, google: false, facebook: false })
@@ -259,5 +228,26 @@ describe('oauthProviders', () => {
     } finally {
       vi.unstubAllEnvs()
     }
+  })
+})
+
+describe('the address sign-in sees', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  // Auth.js names its cookies __Host-/__Secure- only when it sees an https URL.
+  async function csrfCookie(vars: Record<string, string>) {
+    vi.resetModules()
+    for (const [name, value] of Object.entries(vars)) vi.stubEnv(name, value)
+    const auth = await import('~/server/auth.server')
+    const response = await auth.handleAuthRequest(new Request('http://internal:3000/api/auth/csrf'))
+    return response.headers.getSetCookie().find((cookie) => cookie.includes('csrf-token'))!
+  }
+
+  it("is SITE_URL's, not the request's", async () => {
+    expect(await csrfCookie({ SITE_URL: 'https://podnoms.example' })).toMatch(/^__Host-authjs\.csrf-token=/)
+  })
+
+  it("is the request's own without SITE_URL", async () => {
+    expect(await csrfCookie({})).toMatch(/^authjs\.csrf-token=/)
   })
 })

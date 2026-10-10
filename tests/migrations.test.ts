@@ -31,6 +31,7 @@ describe('migrations', () => {
       'channel_item',
       'episode',
       'episode_activity',
+      'password_reset_token',
       'playback_position',
       'podcast',
       'recovery_code',
@@ -41,6 +42,15 @@ describe('migrations', () => {
       'verification_token',
       'visitor_salt',
     ])
+  })
+
+  it('0014 turns both notifications on for existing users', async () => {
+    const pg = new PGlite()
+    await migrateUntil(pg, tagOf('0014'))
+    await pg.query(`insert into "user" (id, email) values ('u1', 'u@example.com')`)
+    await runMigration(pg, tagOf('0014'))
+    const { rows } = await pg.query(`select "notifyEpisodeFailed", "notifyNewEpisodes" from "user"`)
+    expect(rows).toEqual([{ notifyEpisodeFailed: true, notifyNewEpisodes: true }])
   })
 
   it("0013 clears categories that aren't Apple's, keeping the rest", async () => {

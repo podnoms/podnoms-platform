@@ -7,7 +7,8 @@ import {
   securityKeyNameSchema,
   totpCodeSchema,
 } from '~/lib/two-factor-schema'
-import { getSession, getTwoFactorPendingUserId, publicUrl } from '~/server/auth.server'
+import { getSession, getTwoFactorPendingUserId } from '~/server/auth.server'
+import { publicUrl } from '~/server/site-url.server'
 import {
   confirmTotpSetup,
   disableTotp,

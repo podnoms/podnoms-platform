@@ -22,3 +22,18 @@ export const setPasswordSchema = z
     path: ['confirmPassword'],
   })
 export type SetPasswordInput = z.infer<typeof setPasswordSchema>
+
+// Asking for a password reset link.
+export const passwordResetRequestSchema = credentialsSchema.pick({ email: true })
+
+// Choosing a new password from a reset link.
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1).max(200),
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((input) => input.password === input.confirmPassword, {
+    message: "The passwords don't match",
+    path: ['confirmPassword'],
+  })

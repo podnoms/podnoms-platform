@@ -14,6 +14,7 @@ import { env } from '~/env'
 import { credentialsSchema } from '~/lib/auth-schema'
 import { db } from '~/server/db/client.server'
 import { logger, reportError } from '~/server/logger.server'
+import { publicUrl } from '~/server/site-url.server'
 import { accounts, sessions, users, verificationTokens } from '~/server/db/schema'
 import { hasTwoFactor, redeemTwoFactorTicket } from '~/server/two-factor.server'
 import { firstUserIsAdmin, verifyUser } from '~/server/users.server'
@@ -146,20 +147,8 @@ export const authConfig: AuthConfig = {
 }
 
 // Auth.js derives its URLs (OAuth callbacks, secure cookie names) from the
-// request. Behind a proxy that doesn't forward the original protocol and host,
-// set AUTH_URL to the public base URL and requests are rewritten to match it.
-export function publicUrl(request: Request) {
-  const url = new URL(request.url)
-  if (env.AUTH_URL) {
-    const base = new URL(env.AUTH_URL)
-    url.protocol = base.protocol
-    url.host = base.host
-    // Setting `host` keeps the request's port when AUTH_URL has none.
-    url.port = base.port
-  }
-  return url
-}
-
+// request, so it's handed the request as visitors see it (see SITE_URL). That
+// is why podnoms has no AUTH_URL: @auth/core itself doesn't read it.
 export function handleAuthRequest(request: Request) {
   const init: RequestInit & { duplex?: 'half' } = {
     method: request.method,

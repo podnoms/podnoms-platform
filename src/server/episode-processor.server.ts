@@ -21,6 +21,7 @@ import { availableEpisodeSlug, isSlugConflict, withRandomSuffix } from '~/server
 import { downloadImage } from '~/server/images.server'
 import { convertToMp3, probeAudio } from '~/server/media.server'
 import { logger, reportError } from '~/server/logger.server'
+import { notifyEpisodeFailed } from '~/server/notifications.server'
 import { saveWaveform } from '~/server/waveforms.server'
 import { runYtDlpLines } from '~/server/ytdlp.server'
 import {
@@ -205,6 +206,7 @@ async function processEpisode(episodeId: string) {
       .update(episodes)
       .set({ status: 'failed', error: message.slice(0, 1000) })
       .where(eq(episodes.id, episodeId))
+    notifyEpisodeFailed(episodeId, message.slice(0, 300))
   } finally {
     endProgress(episodeId)
   }

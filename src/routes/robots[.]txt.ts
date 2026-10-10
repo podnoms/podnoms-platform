@@ -1,12 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { publicUrl } from '~/server/auth.server'
+import { publicUrl } from '~/server/site-url.server'
 
 // What crawlers may fetch. Pages that need a signed-in user say noindex
 // themselves, and only redirect a crawler anyway. Behind Cloudflare's managed
 // robots.txt, its content signals are added above these rules. Episode audio
 // stays fetchable, as the episode pages' structured data points to it.
 const allowed = ['/', '/api/episodes/*/audio']
-const disallowed = ['/api/', '/_serverFn/', '/admin', '/settings', '/security', '/embed/', '/s/']
+const disallowed = ['/api/', '/_serverFn/', '/admin', '/settings', '/security', '/embed/', '/s/', '/reset-password']
 
 export const Route = createFileRoute('/robots.txt')({
   server: {

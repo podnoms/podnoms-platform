@@ -19,6 +19,12 @@ const settings: SiteSettings = {
   downloadDelaySeconds: 0,
   channelCheckHours: 6,
   downloadRateLimit: null,
+  smtpHost: null,
+  smtpPort: 587,
+  smtpSecure: false,
+  smtpUser: null,
+  smtpPassword: null,
+  emailFrom: null,
   updatedAt: new Date(0),
 }
 

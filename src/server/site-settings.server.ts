@@ -3,7 +3,6 @@
 // briefly; a change on this server applies at once.
 import '@tanstack/react-start/server-only'
 import { eq } from 'drizzle-orm'
-import type { SiteSettingsInput } from '~/lib/site-settings-schema'
 import { db } from '~/server/db/client.server'
 import { siteSettings, type SiteSettings } from '~/server/db/schema'
 
@@ -18,6 +17,12 @@ const defaults: SiteSettings = {
   downloadDelaySeconds: 10,
   channelCheckHours: 6,
   downloadRateLimit: null,
+  smtpHost: null,
+  smtpPort: 587,
+  smtpSecure: false,
+  smtpUser: null,
+  smtpPassword: null,
+  emailFrom: null,
   updatedAt: new Date(0),
 }
 
@@ -30,7 +35,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   return cached.settings
 }
 
-export async function updateSiteSettings(input: Partial<SiteSettingsInput>) {
+export async function updateSiteSettings(input: Partial<Omit<SiteSettings, 'id' | 'updatedAt'>>) {
   const [row] = await db
     .insert(siteSettings)
     .values({ ...defaults, ...input, id, updatedAt: undefined })

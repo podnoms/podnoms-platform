@@ -13,8 +13,11 @@ export const env = createEnv({
     FFMPEG_PATH: z.string().default('ffmpeg'),
     FFPROBE_PATH: z.string().default('ffprobe'),
     AUTH_SECRET: z.string().min(32),
-    // Public base URL of the app. Only needed when it can't be inferred from the request.
-    AUTH_URL: z.url().optional(),
+    // The site's public address, e.g. https://podnoms.com: for links in emails
+    // sent in the background, and for every absolute URL when a proxy in front
+    // of the app doesn't pass on the original protocol and host.
+    // Sign-in (Auth.js) uses it too, so there's no AUTH_URL.
+    SITE_URL: z.url().optional(),
     // OAuth providers are enabled only when both of their values are set.
     AUTH_GITHUB_ID: z.string().optional(),
     AUTH_GITHUB_SECRET: z.string().optional(),
@@ -52,6 +55,18 @@ export const env = createEnv({
     // their feed on podcastindex.org themselves.
     PODCASTINDEX_API_KEY: z.string().optional(),
     PODCASTINDEX_API_SECRET: z.string().optional(),
+    // An SMTP server for email (password resets, notifications). When
+    // SMTP_HOST is set these are used, and the admin page's email settings
+    // can't be changed; otherwise admins can enter them there.
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASSWORD: z.string().optional(),
+    // "true" for TLS from the start (usually port 465); otherwise STARTTLS is
+    // used when the server offers it.
+    SMTP_SECURE: z.stringbool().default(false),
+    // Who emails come from, e.g. "podnoms <hello@podnoms.com>".
+    EMAIL_FROM: z.string().optional(),
   },
   clientPrefix: 'VITE_',
   client: {},

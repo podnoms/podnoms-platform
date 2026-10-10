@@ -11,3 +11,7 @@ export function siteInfo(matches: ReadonlyArray<{ routeId: string; loaderData?: 
     | undefined
   return root?.siteLinks ?? null
 }
+
+// The site's name and tagline, as shown in its header and emails.
+export const siteName = 'podnoms'
+export const siteTagline = 'Robot powered podcasts'

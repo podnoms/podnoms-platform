@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { env } from '~/env'
-import { publicUrl } from '~/server/auth.server'
+import { publicUrl } from '~/server/site-url.server'
 
 // Where to donate and the community Discord, for the top nav; the site's public
 // origin, for absolute URLs in head tags; and search engines' verification

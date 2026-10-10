@@ -99,6 +99,13 @@
       "when": 1791588845673,
       "tag": "0013_directory_details",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791590250158,
+      "tag": "0014_email",
+      "breakpoints": true
     }
   ]
 }

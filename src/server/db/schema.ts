@@ -44,6 +44,9 @@ export const users = pgTable(
     // Admins can manage the whole site (e.g. the job queues). The first user
     // to sign up becomes one (see firstUserIsAdmin in users.server.ts).
     isAdmin: boolean('isAdmin').notNull().default(false),
+    // Which emails the user gets about their podcasts (see notifications.server.ts).
+    notifyEpisodeFailed: boolean('notifyEpisodeFailed').notNull().default(true),
+    notifyNewEpisodes: boolean('notifyNewEpisodes').notNull().default(true),
     // How many of a channel's newest uploads are imported when the user makes
     // a podcast from it, and considered on each check. Set by admins.
     channelEpisodeLimit: integer('channelEpisodeLimit').notNull().default(10),
@@ -277,6 +280,21 @@ export const channelItems = pgTable(
 
 // Settings for the whole site, edited by admins (see site-settings.server.ts).
 // There's one row, with the id 'global', made by the migration.
+// Links emailed to reset a password: only a hash of each token is kept, and
+// they're deleted once used (see password-reset.server.ts).
+export const passwordResetTokens = pgTable(
+  'password_reset_token',
+  {
+    tokenHash: text('tokenHash').primaryKey(),
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expiresAt', { mode: 'date', withTimezone: true }).notNull(),
+    createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('password_reset_token_userId_idx').on(table.userId)],
+)
+
 export const siteSettings = pgTable('site_setting', {
   id: text('id').primaryKey(),
   // At most this many downloads from the platforms at once, for all users.
@@ -289,6 +307,14 @@ export const siteSettings = pgTable('site_setting', {
   channelCheckHours: integer('channelCheckHours').notNull().default(6),
   // Passed to yt-dlp's --limit-rate (e.g. "2M"); unlimited when null.
   downloadRateLimit: text('downloadRateLimit'),
+  // The SMTP server for email, when it isn't set by environment variables
+  // (see email.server.ts). The password is encrypted (secrets.server.ts).
+  smtpHost: text('smtpHost'),
+  smtpPort: integer('smtpPort').notNull().default(587),
+  smtpSecure: boolean('smtpSecure').notNull().default(false),
+  smtpUser: text('smtpUser'),
+  smtpPassword: text('smtpPassword'),
+  emailFrom: text('emailFrom'),
   updatedAt: timestamps.updatedAt,
 })
 

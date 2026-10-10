@@ -48,15 +48,16 @@ Settings are read from `.env` and checked at startup by [`src/env.ts`](src/env.t
 | --- | --- | --- |
 | `DATABASE_URL` | Yes | Postgres connection string |
 | `AUTH_SECRET` | Yes | At least 32 characters; generate one with `openssl rand -base64 32` |
-| `AUTH_URL` | In production | Public base URL, e.g. `https://podnoms.com`. Used for sign-in callbacks and for the absolute links in RSS feeds. |
+| `SITE_URL` | In production | The site's public address, e.g. `https://podnoms.com`. Used for every absolute link (RSS feeds, sign-in and OAuth callbacks, link previews) and for links in emails sent in the background, which have no request to take the address from. Without it, the address comes from each request. There's no `AUTH_URL`: sign-in uses this. |
 | `MEDIA_DIR` | No | Where all media is stored (default `./media`) |
 | `YTDLP_PATH`, `FFMPEG_PATH`, `FFPROBE_PATH` | No | Paths to the binaries (default: found on `PATH`) |
-| `AUTH_GITHUB_ID` / `_SECRET`, `AUTH_GOOGLE_ID` / `_SECRET`, `AUTH_FACEBOOK_ID` / `_SECRET` | No | Each sign-in provider is enabled when both of its values are set. The OAuth callback URL is `<AUTH_URL>/api/auth/callback/<provider>`. |
+| `AUTH_GITHUB_ID` / `_SECRET`, `AUTH_GOOGLE_ID` / `_SECRET`, `AUTH_FACEBOOK_ID` / `_SECRET` | No | Each sign-in provider is enabled when both of its values are set. The OAuth callback URL is `<SITE_URL>/api/auth/callback/<provider>`. |
 | `LOG_LEVEL` | No | `trace`, `debug`, `info` (default), `warn`, `error`, `fatal` or `silent` |
 | `REDIS_URL` | No | Redis for background jobs, e.g. `redis://localhost:6379`. Without it, scheduled jobs (such as the media clean-up) don't run. See [Background jobs](#background-jobs). |
 | `MAXMIND_ACCOUNT_ID`, `MAXMIND_LICENSE_KEY` | No | A free [MaxMind GeoLite2](https://www.maxmind.com/en/geolite2/signup) account, for listeners' country, region and city in the activity stats. The database is downloaded into `MEDIA_DIR/geoip` on first use and refreshed weekly. See [Activity](#activity). |
 | `PEXELS_API_KEY` | No | A free [Pexels API key](https://www.pexels.com/api/). The **Random image** button on podcast and episode artwork searches for a photo using the title, description and podcast title: on Pexels with this key, otherwise on [Openverse](https://openverse.org) (public-domain and CC0 photos only, no key needed, up to 200 searches a day). |
 | `PODCASTINDEX_API_KEY`, `PODCASTINDEX_API_SECRET` | No | A free [Podcast Index API key](https://api.podcastindex.org/) **with write access**. With it, owners can submit their podcast to Podcast Index with one click from its Distribution tab; without it, they're sent to podcastindex.org/add. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SECURE`, `EMAIL_FROM` | No | An SMTP server for email (password resets and notifications). When `SMTP_HOST` is set these are used and the admin page's email settings are locked; otherwise admins can enter a server there, with a button to send a test. `SMTP_PORT` defaults to 587; set `SMTP_SECURE=true` for TLS from the start (usually port 465). Links in emails use `SITE_URL`. The server must be allowed to send for the domain in `EMAIL_FROM` (verify the domain with your provider and add its SPF/DKIM DNS records); that's set up with your email provider, not in podnoms. |
 | `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION` | No | The `content` of the verification meta tag that Google Search Console or Bing Webmaster Tools gives you, to prove you own the site before submitting `/sitemap.xml`. |
 | `SENTRY_DSN` | No | Sentry-compatible DSN (e.g. a GlitchTip project) that server and browser errors are reported to. See [Logs and errors](#logs-and-errors). |
 
@@ -100,7 +101,7 @@ publishes the image to `ghcr.io/podnoms/podnoms-platform` with `latest`, version
 registry secret is needed. For a fork, set `PODNOMS_IMAGE` to its GHCR image.
 
 Use Docker Compose 2.20 or later. Copy `.env.example` to `.env`, set `AUTH_SECRET`
-to the output of `openssl rand -base64 32`, and set `AUTH_URL` to the public URL
+to the output of `openssl rand -base64 32`, and set `SITE_URL` to the public URL
 (or `http://localhost:3000` locally). OAuth settings in `.env` are passed through.
 
 **With bundled Postgres:** leave `DATABASE_URL` empty and set `POSTGRES_PASSWORD`
