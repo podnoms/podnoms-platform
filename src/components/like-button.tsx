@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useRouteContext } from '@tanstack/react-router'
+import { useNavigate, useRouteContext, useRouter } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { Button } from '~/components/ui/button'
 import { likeEpisode } from '~/functions/library'
@@ -23,6 +23,7 @@ export function LikeButton({
 }) {
   const { session } = useRouteContext({ from: '__root__' })
   const navigate = useNavigate()
+  const router = useRouter()
   const [state, setState] = useState({ liked: initialLiked, likeCount: initialCount })
   const [saving, setSaving] = useState(false)
   // A reload (or the same episode elsewhere on the page) brings newer counts.
@@ -39,6 +40,10 @@ export function LikeButton({
     setSaving(true)
     try {
       setState(await likeEpisode({ data: { episodeId, liked } }))
+      // Other pages showing this episode may be cached, or preloaded when its
+      // link was hovered, with the like as it was; have them load afresh. The
+      // page this button is on keeps what it has.
+      router.clearCache()
     } catch {
       setState(before)
     } finally {

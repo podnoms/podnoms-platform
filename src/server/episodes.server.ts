@@ -393,11 +393,48 @@ export async function deleteEpisode(userId: string, episodeId: string) {
   const episode = await findOwnedEpisode(userId, episodeId)
   if (!episode || episode.status === 'processing' || episode.replacement) return false
   await db.delete(episodes).where(eq(episodes.id, episode.id))
+  await deleteEpisodeFiles(episode)
+  return true
+}
+
+// An episode's audio, kept source, artwork and waveform, once its row is gone.
+async function deleteEpisodeFiles(episode: { id: string; imageUrl: string | null }) {
   await rm(episodeAudioPath(episode.id), { force: true })
   await rm(episodeSourcePath(episode.id), { force: true })
   await deleteImage(episode.imageUrl)
   await deleteWaveform(episode.id)
-  return true
+}
+
+// Deletes one of the user's podcasts, with its episodes and their files.
+// Everything else that hangs off it (its channel, likes, follows, stats,
+// playback positions) goes with its row. Like deleting an episode, it waits
+// until nothing's mid-download or having its audio replaced: 'busy' then,
+// null if it isn't the user's podcast.
+export async function deletePodcast(userId: string, podcastId: string): Promise<'deleted' | 'busy' | null> {
+  const owned = and(eq(podcasts.id, podcastId), eq(podcasts.userId, userId))
+  const [podcast] = await db.select({ id: podcasts.id }).from(podcasts).where(owned).limit(1)
+  if (!podcast) return null
+  const files = await db
+    .select({ id: episodes.id, imageUrl: episodes.imageUrl })
+    .from(episodes)
+    .where(eq(episodes.podcastId, podcastId))
+  // In one statement, so an episode that starts processing meanwhile stops it.
+  const [deleted] = await db
+    .delete(podcasts)
+    .where(
+      and(
+        owned,
+        sql`not exists (
+          select 1 from ${episodes}
+          where ${episodes.podcastId} = ${podcastId} and (${episodes.status} = 'processing' or ${episodes.replacement} is not null)
+        )`,
+      ),
+    )
+    .returning({ imageUrl: podcasts.imageUrl })
+  if (!deleted) return 'busy'
+  for (const episode of files) await deleteEpisodeFiles(episode)
+  await deleteImage(deleted.imageUrl)
+  return 'deleted'
 }
 
 // The episode's current slug, for a page that's following an episode whose

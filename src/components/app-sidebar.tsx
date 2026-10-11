@@ -61,7 +61,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link to="/" className="font-medium">
-                <img src="/logo.png" alt="" className="size-7 rounded-md" />
+                <img src="/logo.png" alt="" className="size-12 rounded-md" />
                 <div className="grid flex-1 text-start text-sm leading-tight">
                   <span className="truncate font-semibold">Pod:Noms</span>
                   <span className="truncate text-xs">Robot powered podcasts</span>

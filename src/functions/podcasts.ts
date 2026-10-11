@@ -30,6 +30,7 @@ import {
   createEpisode,
   createUploadedEpisodes,
   deleteEpisode,
+  deletePodcast,
   dismissEpisodeError,
   getEpisode,
   getEpisodeSlug,
@@ -162,6 +163,17 @@ export const updateMyPodcast = createServerFn({ method: 'POST' })
   .validator(editPodcastSchema)
   .handler(async ({ data }) => {
     if (!(await updatePodcast(await requireUserId(), data))) throw notFound()
+  })
+
+// Deletes one of the user's podcasts, with all its episodes.
+export const deleteMyPodcast = createServerFn({ method: 'POST' })
+  .validator(z.object({ id: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    const result = await deletePodcast(await requireUserId(), data.id)
+    if (!result) throw notFound()
+    if (result === 'busy') {
+      throw new Error('Some episodes are still downloading or having their audio replaced. Try again once they finish.')
+    }
   })
 
 export const setMyPodcastPrivacy = createServerFn({ method: 'POST' })
