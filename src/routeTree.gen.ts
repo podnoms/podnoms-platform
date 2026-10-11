@@ -11,12 +11,15 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedRouteImport } from './routes/_authed'
+import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TosRouteImport } from './routes/tos'
+import { Route as AuthedFollowingRouteImport } from './routes/_authed/following'
+import { Route as AuthedLikesRouteImport } from './routes/_authed/likes'
 import { Route as AuthedSecurityRouteImport } from './routes/_authed/security'
 import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings'
 import { Route as ApiImagesRouteImport } from './routes/api/images'
@@ -51,6 +54,11 @@ const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExploreRoute = ExploreRouteImport.update({
+  id: '/explore',
+  path: '/explore',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -80,6 +88,16 @@ const TosRoute = TosRouteImport.update({
   id: '/tos',
   path: '/tos',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedFollowingRoute = AuthedFollowingRouteImport.update({
+  id: '/following',
+  path: '/following',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedLikesRoute = AuthedLikesRouteImport.update({
+  id: '/likes',
+  path: '/likes',
+  getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedSecurityRoute = AuthedSecurityRouteImport.update({
   id: '/security',
@@ -208,12 +226,15 @@ const AuthedPodcastsSlugEpisodesEpisodeSlugManageRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/explore': typeof ExploreRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tos': typeof TosRoute
+  '/following': typeof AuthedFollowingRoute
+  '/likes': typeof AuthedLikesRoute
   '/security': typeof AuthedSecurityRoute
   '/settings': typeof AuthedSettingsRouteWithChildren
   '/api/images': typeof ApiImagesRoute
@@ -241,12 +262,15 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/explore': typeof ExploreRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tos': typeof TosRoute
+  '/following': typeof AuthedFollowingRoute
+  '/likes': typeof AuthedLikesRoute
   '/security': typeof AuthedSecurityRoute
   '/api/images': typeof ApiImagesRoute
   '/api/uploads': typeof ApiUploadsRoute
@@ -275,12 +299,15 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authed': typeof AuthedRouteWithChildren
+  '/explore': typeof ExploreRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tos': typeof TosRoute
+  '/_authed/following': typeof AuthedFollowingRoute
+  '/_authed/likes': typeof AuthedLikesRoute
   '/_authed/security': typeof AuthedSecurityRoute
   '/_authed/settings': typeof AuthedSettingsRouteWithChildren
   '/api/images': typeof ApiImagesRoute
@@ -310,12 +337,15 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/explore'
     | '/login'
     | '/privacy'
     | '/reset-password'
     | '/robots.txt'
     | '/sitemap.xml'
     | '/tos'
+    | '/following'
+    | '/likes'
     | '/security'
     | '/settings'
     | '/api/images'
@@ -343,12 +373,15 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/explore'
     | '/login'
     | '/privacy'
     | '/reset-password'
     | '/robots.txt'
     | '/sitemap.xml'
     | '/tos'
+    | '/following'
+    | '/likes'
     | '/security'
     | '/api/images'
     | '/api/uploads'
@@ -376,12 +409,15 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authed'
+    | '/explore'
     | '/login'
     | '/privacy'
     | '/reset-password'
     | '/robots.txt'
     | '/sitemap.xml'
     | '/tos'
+    | '/_authed/following'
+    | '/_authed/likes'
     | '/_authed/security'
     | '/_authed/settings'
     | '/api/images'
@@ -411,6 +447,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthedRoute: typeof AuthedRouteWithChildren
+  ExploreRoute: typeof ExploreRoute
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -449,6 +486,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/explore': {
+      id: '/explore'
+      path: '/explore'
+      fullPath: '/explore'
+      preLoaderRoute: typeof ExploreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -492,6 +536,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/tos'
       preLoaderRoute: typeof TosRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authed/following': {
+      id: '/_authed/following'
+      path: '/following'
+      fullPath: '/following'
+      preLoaderRoute: typeof AuthedFollowingRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/likes': {
+      id: '/_authed/likes'
+      path: '/likes'
+      fullPath: '/likes'
+      preLoaderRoute: typeof AuthedLikesRouteImport
+      parentRoute: typeof AuthedRoute
     }
     '/_authed/security': {
       id: '/_authed/security'
@@ -681,6 +739,8 @@ const AuthedSettingsRouteWithChildren = AuthedSettingsRoute._addFileChildren(
 )
 
 interface AuthedRouteChildren {
+  AuthedFollowingRoute: typeof AuthedFollowingRoute
+  AuthedLikesRoute: typeof AuthedLikesRoute
   AuthedSecurityRoute: typeof AuthedSecurityRoute
   AuthedSettingsRoute: typeof AuthedSettingsRouteWithChildren
   AuthedAdminIndexRoute: typeof AuthedAdminIndexRoute
@@ -689,6 +749,8 @@ interface AuthedRouteChildren {
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedFollowingRoute: AuthedFollowingRoute,
+  AuthedLikesRoute: AuthedLikesRoute,
   AuthedSecurityRoute: AuthedSecurityRoute,
   AuthedSettingsRoute: AuthedSettingsRouteWithChildren,
   AuthedAdminIndexRoute: AuthedAdminIndexRoute,
@@ -703,6 +765,7 @@ const AuthedRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthedRoute: AuthedRouteWithChildren,
+  ExploreRoute: ExploreRoute,
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,

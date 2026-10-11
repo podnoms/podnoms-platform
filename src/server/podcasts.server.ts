@@ -1,7 +1,7 @@
 import '@tanstack/react-start/server-only'
 import { and, asc, eq, like, or, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
-import { episodes, podcasts, users } from '~/server/db/schema'
+import { episodes, podcastFollows, podcasts, users } from '~/server/db/schema'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { firstFreeSlug, slugify } from '~/lib/slug'
 import { customDomainValues, withDomainConflict } from '~/server/custom-domains.server'
@@ -30,6 +30,22 @@ export const podcastArtwork = sql<string | null>`coalesce(${podcasts.imageUrl}, 
   order by ${episodes.createdAt} desc
   limit 1
 ))`
+
+// How many follow the podcast, and whether the viewer (if signed in) does.
+// In a query with a join, so drizzle qualifies the podcast's id.
+export function podcastFollowColumns(viewerId: string | null) {
+  return {
+    followerCount: sql<number>`(
+      select count(*) from ${podcastFollows} where ${podcastFollows.podcastId} = ${podcasts.id}
+    )`.mapWith(Number),
+    following: (viewerId
+      ? sql<boolean>`exists (
+          select 1 from ${podcastFollows} where ${podcastFollows.podcastId} = ${podcasts.id} and ${podcastFollows.userId} = ${viewerId}
+        )`
+      : sql<boolean>`false`
+    ).mapWith(Boolean),
+  }
+}
 
 // With when each was made and when its latest episode came out, so the
 // sidebar can sort them (see src/lib/podcast-sort.ts). The join also makes
@@ -75,6 +91,7 @@ export async function getPublicPodcast(slug: string, viewerId: string | null) {
       feedKey: podcasts.feedKey,
       author: podcastAuthor,
       directoryLinks: podcasts.directoryLinks,
+      ...podcastFollowColumns(viewerId),
     })
     .from(podcasts)
     .innerJoin(users, eq(users.id, podcasts.userId))

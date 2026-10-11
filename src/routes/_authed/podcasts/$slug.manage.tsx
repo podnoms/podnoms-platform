@@ -4,6 +4,7 @@ import { ActivityPanel } from '~/components/activity-panel'
 import { BulkUploadDialog } from '~/components/bulk-upload-dialog'
 import { ChannelPanel } from '~/components/channel-panel'
 import { CustomDomainCard } from '~/components/custom-domain-card'
+import { DeletePodcastDialog } from '~/components/delete-podcast-dialog'
 import { DistributionPanel } from '~/components/distribution-panel'
 import { EditDetailsDialog } from '~/components/edit-details-dialog'
 import { EpisodeListEnd } from '~/components/episode-list-end'
@@ -14,6 +15,12 @@ import { NewEpisodeDialog } from '~/components/new-episode-dialog'
 import { PodcastPrivacyCard } from '~/components/podcast-privacy-card'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu'
 import {
   Empty,
   EmptyContent,
@@ -27,7 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { fetchMyPodcast, fetchMyPodcastEpisodes, updateMyPodcast } from '~/functions/podcasts'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
-import { formatDate, formatLength } from '~/lib/format'
+import { formatDate, formatLength, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { isReady } from '~/lib/podcast-directories'
 import { htmlToText } from '~/lib/rich-text'
@@ -42,6 +49,7 @@ function PodcastPage() {
   const podcast = Route.useLoaderData()
   const router = useRouter()
   const [editing, setEditing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const { summary } = podcast
   const { totalSeconds, latestAt } = summary
   const { episodes: loaded, ...more } = useEpisodePages({
@@ -65,6 +73,7 @@ function PodcastPage() {
   const stats = [
     `${summary.count} ${summary.count === 1 ? 'episode' : 'episodes'}`,
     totalSeconds ? formatLength(totalSeconds) : null,
+    podcast.followerCount > 0 ? pluralise(podcast.followerCount, 'follower') : null,
   ].filter(Boolean)
 
   const newEpisodeButtons = (
@@ -139,6 +148,20 @@ function PodcastPage() {
                 </Button>
                 <FeedUrlButton feedUrl={podcast.feedUrl} label={podcast.private ? 'Private RSS URL' : undefined} />
                 {episodes.length > 0 && newEpisodeButtons}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <Icons.more />
+                      <span className="sr-only">Podcast actions</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
+                      <Icons.delete />
+                      Delete podcast
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>
@@ -238,6 +261,11 @@ function PodcastPage() {
           </dl>
         </aside>
       </div>
+      <DeletePodcastDialog
+        podcast={{ id: podcast.id, title: podcast.title, slug: podcast.slug, episodeCount: summary.count }}
+        open={deleting}
+        onOpenChange={setDeleting}
+      />
       <EditDetailsDialog
         open={editing}
         onOpenChange={setEditing}

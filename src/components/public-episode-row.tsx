@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
+import { LikeButton } from '~/components/like-button'
 import { usePlayer } from '~/components/player/player-provider'
 import { Button } from '~/components/ui/button'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '~/components/ui/item'
@@ -18,22 +19,27 @@ export type PublicEpisodeRowData = {
   createdAt: Date
   publishedAt: Date | null
   positionSeconds: number | null
+  likeCount: number
+  liked: boolean
 }
 
 // A row of a public podcast page's episode list: the listener's view of
-// EpisodeRow, without anything for managing the episode.
+// EpisodeRow, without anything for managing the episode. In lists across
+// podcasts (Likes, Explore), `showPodcast` names the podcast too.
 export function PublicEpisodeRow({
   episode,
   podcastSlug,
   podcastTitle,
   podcastImageUrl,
   isOwner,
+  showPodcast = false,
 }: {
   episode: PublicEpisodeRowData
   podcastSlug: string
   podcastTitle: string
   podcastImageUrl: string | null
   isOwner: boolean
+  showPodcast?: boolean
 }) {
   const player = usePlayer()
   const isCurrent = player.episode?.id === episode.id
@@ -103,12 +109,27 @@ export function PublicEpisodeRow({
             {episode.title}
           </Link>
         </ItemTitle>
-        <ItemDescription className="text-xs">{meta.join(' · ')}</ItemDescription>
+        <ItemDescription className="text-xs">
+          {showPodcast && (
+            <>
+              <Link
+                to="/podcasts/$slug"
+                params={{ slug: podcastSlug }}
+                className="relative z-10 font-medium text-foreground/80 hover:text-foreground hover:underline"
+              >
+                {podcastTitle}
+              </Link>
+              {' · '}
+            </>
+          )}
+          {meta.join(' · ')}
+        </ItemDescription>
         {episode.description && (
           <ItemDescription className="mt-1 line-clamp-2">{htmlToText(episode.description)}</ItemDescription>
         )}
       </ItemContent>
       <ItemActions className="relative z-10">
+        <LikeButton episodeId={episode.id} liked={episode.liked} likeCount={episode.likeCount} />
         {episode.audioUrl && (
           <Button size="icon-lg" className="rounded-full" onClick={play}>
             {isPlaying ? <Icons.pause /> : <Icons.play />}

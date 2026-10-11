@@ -25,10 +25,12 @@ import { getDirectoryReadiness, podcastIndexConfigured, submitToPodcastIndex } f
 import { getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
 import { feedPath } from '~/server/feed.server'
 import { localiseRemoteImages } from '~/server/images.server'
+import { countFollowers } from '~/server/library.server'
 import {
   createEpisode,
   createUploadedEpisodes,
   deleteEpisode,
+  deletePodcast,
   dismissEpisodeError,
   getEpisode,
   getEpisodeSlug,
@@ -74,12 +76,13 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
     void resumeUnfinishedEpisodes()
     void localiseRemoteImages()
     void backfillWaveforms()
-    const [episodes, summary, channel, readiness, profile] = await Promise.all([
+    const [episodes, summary, channel, readiness, profile, followerCount] = await Promise.all([
       listEpisodes(userId, podcast.id, { offset: 0, limit: episodePageSize }),
       summariseEpisodes(podcast.id),
       getPodcastChannel(podcast.id),
       getDirectoryReadiness(userId, podcast.id),
       getProfile(userId),
+      countFollowers(podcast.id),
     ])
     return {
       ...podcast,
@@ -89,6 +92,7 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
       feedUrl: new URL(feedPath(podcast.slug, podcast.private ? podcast.feedKey : null), publicUrl(getRequest())).toString(),
       episodes: episodes.map((episode) => ({ ...episode, progress: getEpisodeProgress(episode.id) })),
       summary,
+      followerCount,
       // The channel the podcast follows, if it follows one.
       channel,
       // For the Distribution tab: what directories still need, the name and
@@ -159,6 +163,17 @@ export const updateMyPodcast = createServerFn({ method: 'POST' })
   .validator(editPodcastSchema)
   .handler(async ({ data }) => {
     if (!(await updatePodcast(await requireUserId(), data))) throw notFound()
+  })
+
+// Deletes one of the user's podcasts, with all its episodes.
+export const deleteMyPodcast = createServerFn({ method: 'POST' })
+  .validator(z.object({ id: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    const result = await deletePodcast(await requireUserId(), data.id)
+    if (!result) throw notFound()
+    if (result === 'busy') {
+      throw new Error('Some episodes are still downloading or having their audio replaced. Try again once they finish.')
+    }
   })
 
 export const setMyPodcastPrivacy = createServerFn({ method: 'POST' })

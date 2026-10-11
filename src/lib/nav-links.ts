@@ -1,1 +1,4 @@
-export const navLinks = [['/', 'Home']] as const
+export const navLinks = [
+  ['/', 'Home'],
+  ['/explore', 'Explore'],
+] as const

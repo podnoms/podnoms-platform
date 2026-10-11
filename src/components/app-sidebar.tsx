@@ -25,11 +25,22 @@ import {
   SidebarRail,
 } from '~/components/ui/sidebar'
 import { imageSrc } from '~/lib/images'
-import { navLinks } from '~/lib/nav-links'
+import { cn } from '~/lib/utils'
 import { podcastSorts, savePodcastSort, sortPodcasts, type PodcastSort } from '~/lib/podcast-sort'
 
+// The sidebar lists this many followed podcasts, and links to the Following
+// page for the rest.
+const maxFollowedShown = 8
+
+// Links to the listener's pages, for everyone, whether they make podcasts or not.
+const libraryLinks = [
+  { to: '/explore', label: 'Explore', icon: Icons.explore },
+  { to: '/likes', label: 'Likes', icon: Icons.like },
+  { to: '/following', label: 'Following', icon: Icons.following },
+] as const
+
 export function AppSidebar() {
-  const { podcasts: loaded, podcastSort } = useLoaderData({ from: '__root__' })
+  const { podcasts: loaded, following, podcastSort } = useLoaderData({ from: '__root__' })
   const [sort, setSort] = useState(podcastSort)
   const podcasts = useMemo(() => sortPodcasts(loaded, sort), [loaded, sort])
   const pathname = useLocation({ select: (location) => location.pathname })
@@ -50,7 +61,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link to="/" className="font-medium">
-                <img src="/logo.png" alt="" className="size-7 rounded-md" />
+                <img src="/logo.png" alt="" className="size-12 rounded-md" />
                 <div className="grid flex-1 text-start text-sm leading-tight">
                   <span className="truncate font-semibold">Pod:Noms</span>
                   <span className="truncate text-xs">Robot powered podcasts</span>
@@ -62,7 +73,50 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Podcasts</SidebarGroupLabel>
+          <SidebarGroupLabel>Library</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {libraryLinks.map(({ to, label, icon: Icon }) => (
+                <SidebarMenuItem key={to}>
+                  <SidebarMenuButton asChild isActive={pathname === to}>
+                    <Link to={to}>
+                      <Icon />
+                      {label}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        {following.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Following</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-1">
+                {following.slice(0, maxFollowedShown).map((podcast) => (
+                  <SidebarMenuItem key={podcast.id}>
+                    <SidebarMenuButton asChild className="h-10 gap-3 px-2">
+                      <Link to="/podcasts/$slug" params={{ slug: podcast.slug }} {...(isActive(podcast.slug) && { 'data-active': '' })}>
+                        <PodcastThumb imageUrl={podcast.imageUrl} className="size-6" />
+                        <span className="truncate">{podcast.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+                {following.length > maxFollowedShown && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild className="text-muted-foreground">
+                      <Link to="/following">See all {following.length}</Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+        <SidebarGroup>
+          <SidebarGroupLabel>Your podcasts</SidebarGroupLabel>
           {podcasts.length > 1 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -117,17 +171,7 @@ export function AppSidebar() {
                       // The attribute's presence is what styles it, so leave it off otherwise.
                       {...(isActive(podcast.slug) && { 'data-active': '' })}
                     >
-                      {podcast.imageUrl ? (
-                        <img
-                          src={imageSrc(podcast.imageUrl, 32)}
-                          alt=""
-                          className="size-8 shrink-0 rounded-md object-cover"
-                        />
-                      ) : (
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
-                          <Icons.logo className="size-4 text-muted-foreground" />
-                        </span>
-                      )}
+                      <PodcastThumb imageUrl={podcast.imageUrl} className="size-8" />
                       <span className="truncate">{podcast.title}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -141,9 +185,9 @@ export function AppSidebar() {
               {podcasts.length === 0 && (
                 <SidebarMenuItem>
                   <NewPodcastDialog>
-                    <SidebarMenuButton>
+                    <SidebarMenuButton className="text-muted-foreground">
                       <Icons.add />
-                      New podcast
+                      Create a podcast
                     </SidebarMenuButton>
                   </NewPodcastDialog>
                 </SidebarMenuItem>
@@ -154,5 +198,15 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarRail />
     </Sidebar>
+  )
+}
+
+function PodcastThumb({ imageUrl, className }: { imageUrl: string | null; className: string }) {
+  return imageUrl ? (
+    <img src={imageSrc(imageUrl, 32)} alt="" className={cn('shrink-0 rounded-md object-cover', className)} />
+  ) : (
+    <span className={cn('flex shrink-0 items-center justify-center rounded-md bg-muted', className)}>
+      <Icons.logo className="size-4 text-muted-foreground" />
+    </span>
   )
 }

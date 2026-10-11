@@ -8,6 +8,7 @@ import {
   createEpisode,
   createUploadedEpisodes,
   deleteEpisode,
+  deletePodcast,
   dismissEpisodeError,
   getEpisode,
   getEpisodeAudio,
@@ -327,6 +328,45 @@ describe('setEpisodePrivacy', () => {
     expect(await isPrivate()).toBe(true)
     expect(await setEpisodePrivacy(user.id, episode.id, false)).toBe(true)
     expect(await isPrivate()).toBe(false)
+  })
+})
+
+describe('deletePodcast', () => {
+  const podcastRow = async (id: string) => (await db.select().from(podcasts).where(eq(podcasts.id, id)))[0]
+
+  it('deletes the podcast, its episodes and all their files', async () => {
+    const { user, podcast } = await setup()
+    const podcastImage = await storeTestImage()
+    await db.update(podcasts).set({ imageUrl: podcastImage.url }).where(eq(podcasts.id, podcast.id))
+    const episodeImage = await storeTestImage()
+    const episode = await insertEpisode(podcast.id, { status: 'ready', imageUrl: episodeImage.url })
+    const failed = await insertEpisode(podcast.id, { status: 'failed' })
+    const paths = [episodeAudioPath(episode.id), episodeWaveformPath(episode.id), episodeSourcePath(failed.id)]
+    for (const path of paths) await touch(path)
+    await savePlaybackPosition((await createUser()).id, episode.id, 10)
+
+    expect(await deletePodcast(user.id, podcast.id)).toBe('deleted')
+    expect(await podcastRow(podcast.id)).toBeUndefined()
+    expect(await db.select().from(episodes)).toEqual([])
+    expect(await db.select().from(playbackPositions)).toEqual([])
+    for (const path of [...paths, podcastImage.path, episodeImage.path]) expect(await exists(path)).toBe(false)
+  })
+
+  it.each([
+    ['an episode is mid-download', { status: 'processing' as const }],
+    ["an episode's audio is being replaced", { status: 'ready' as const, replacement: { sourceUrl: null } }],
+  ])("won't delete it while %s", async (_, values) => {
+    const { user, podcast } = await setup()
+    const episode = await insertEpisode(podcast.id, values)
+    expect(await deletePodcast(user.id, podcast.id)).toBe('busy')
+    expect(await podcastRow(podcast.id)).toBeDefined()
+    expect(await getRow(episode.id)).toBeDefined()
+  })
+
+  it("won't delete another user's podcast", async () => {
+    const { podcast } = await setup()
+    expect(await deletePodcast((await createUser()).id, podcast.id)).toBeNull()
+    expect(await podcastRow(podcast.id)).toBeDefined()
   })
 })
 

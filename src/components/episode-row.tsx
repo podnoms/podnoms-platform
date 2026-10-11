@@ -33,7 +33,7 @@ import {
   setMyEpisodePrivacy,
   updateMyEpisode,
 } from '~/functions/podcasts'
-import { formatClock, formatDate, hostname } from '~/lib/format'
+import { formatClock, formatDate, hostname, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { htmlToText } from '~/lib/rich-text'
 import type { EpisodeStatus } from '~/server/db/schema'
@@ -52,6 +52,7 @@ export type EpisodeRowData = {
   error: string | null
   replacing: boolean
   private: boolean
+  likeCount: number
   createdAt: Date
   positionSeconds: number | null
   progress: ProgressInfo | null
@@ -112,6 +113,7 @@ export function EpisodeRow({
     formatDate(episode.createdAt),
     episode.durationSeconds != null ? formatClock(episode.durationSeconds) : null,
     episode.sourceUrl ? hostname(episode.sourceUrl) : null,
+    episode.likeCount > 0 ? pluralise(episode.likeCount, 'like') : null,
   ].filter(Boolean)
 
   return (
