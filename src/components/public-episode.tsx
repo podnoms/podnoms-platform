@@ -90,13 +90,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <p className="truncate text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            {standalone ? (
-              <Link to="/podcasts/$slug" params={{ slug: podcast.slug }} className="hover:text-foreground">
-                {podcast.title}
-              </Link>
-            ) : (
-              'Episode'
-            )}
+            {standalone ? podcast.title : 'Episode'}
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-balance">{episode.title}</h1>
           <p className="text-sm text-muted-foreground">{meta.join(' · ')}</p>
