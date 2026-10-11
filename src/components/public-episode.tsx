@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
+import { EpisodeComments } from '~/components/episode-comments'
 import { Icons } from '~/components/icons'
 import { LikeButton } from '~/components/like-button'
 import { usePlayer } from '~/components/player/player-provider'
@@ -8,7 +9,7 @@ import { EmbedButton, ShareButton } from '~/components/share-buttons'
 import { Button } from '~/components/ui/button'
 import { Slider } from '~/components/ui/slider'
 import type { fetchEpisodePage } from '~/functions/public'
-import { formatClock, formatDate, pluralise } from '~/lib/format'
+import { formatClock, formatDate, initials, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 
 export type EpisodePageData = Awaited<ReturnType<typeof fetchEpisodePage>>
@@ -16,12 +17,16 @@ export type EpisodePageData = Awaited<ReturnType<typeof fetchEpisodePage>>
 // An episode as listeners see it: artwork, player and show notes. On the
 // episode page it sits in the site's shell; `standalone`, it's the whole share
 // page (see /s/$shortSlug): it names its podcast itself, and is just the player,
-// without the show notes, the owner's controls or the share and embed buttons.
+// without the show notes, comments, the owner's controls or the share and
+// embed buttons.
 export function PublicEpisode({ page, standalone = false }: { page: EpisodePageData; standalone?: boolean }) {
   const { podcast, episode, waveform, isOwner, shareUrl, embedUrl } = page
   const player = usePlayer()
   // Shown with the details rather than on the button; the button keeps it current.
   const [likeCount, setLikeCount] = useState(episode.likeCount)
+  const [comments, setComments] = useState(page.comments)
+  // Another episode, or a reload, brings its own.
+  useEffect(() => setComments(page.comments), [page.comments])
 
   const isCurrent = player.episode?.id === episode.id
   const isPlaying = isCurrent && player.playing
@@ -160,7 +165,23 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
 
       <section aria-label="Player" className="flex flex-col gap-2 rounded-xl border bg-card p-4">
         {waveform ? (
-          <Waveform values={waveform} duration={duration} position={position} onSeek={seek} />
+          <Waveform
+            values={waveform}
+            duration={duration}
+            position={position}
+            onSeek={seek}
+            markers={
+              standalone
+                ? []
+                : comments.map((comment) => ({
+                    id: comment.id,
+                    seconds: comment.atSeconds,
+                    image: comment.author.image,
+                    fallback: initials(comment.author.name, null),
+                    title: `${comment.author.name ?? 'A listener'}: ${comment.body}`,
+                  }))
+            }
+          />
         ) : (
           // Waveforms are made just after processing; until then, a plain seek bar.
           <Slider
@@ -185,6 +206,17 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
           {/* Sanitised on the server (see rich-text.server.ts). */}
           <div className="rich-text max-w-prose" dangerouslySetInnerHTML={{ __html: episode.description }} />
         </section>
+      )}
+
+      {!standalone && (
+        <EpisodeComments
+          episodeId={episode.id}
+          comments={comments}
+          onChange={setComments}
+          position={position}
+          playing={isPlaying}
+          onSeek={seek}
+        />
       )}
     </div>
   )

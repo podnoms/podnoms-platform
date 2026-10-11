@@ -10,6 +10,7 @@ import { toDomainPath } from '~/lib/custom-domain'
 import { openGraphImage } from '~/lib/images'
 import { embedPath, episodePath, podcastPath, shortPath } from '~/lib/paths'
 import { getSession } from '~/server/auth.server'
+import { listComments } from '~/server/comments.server'
 import { currentRequestDomainSlug, requestHost } from '~/server/custom-domains.server'
 import { publicUrl } from '~/server/site-url.server'
 import {
@@ -112,7 +113,7 @@ async function episodePage(slug: string, episodeSlug: string) {
   const { userId: ownerId, feedKey, ...podcast } = found.podcast
   const { episode } = found
   const artwork = episode.imageUrl ?? podcast.imageUrl
-  const waveform = await readWaveform(episode.id)
+  const [waveform, comments] = await Promise.all([readWaveform(episode.id), listComments(episode.id, userId)])
   return {
     podcast,
     episode: {
@@ -121,6 +122,7 @@ async function episodePage(slug: string, episodeSlug: string) {
       description: sanitizeDescription(episode.description),
     },
     isOwner: userId === ownerId,
+    comments,
     pageUrl: absolute(episodePath(podcast.slug, episode.slug)),
     // The episode's share page, which the Share button gives out.
     shareUrl: absolute(shortPath(episode.shortSlug)),

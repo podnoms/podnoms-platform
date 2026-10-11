@@ -11,14 +11,8 @@ import {
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu'
 import { signOut } from '~/lib/auth-client'
+import { initials } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
-
-// Up to two initials from the name, else the first letter of the email.
-function initials(name: string | null | undefined, email: string | null | undefined) {
-  const words = name?.trim().split(/\s+/).filter(Boolean) ?? []
-  if (words.length) return words.slice(0, 2).map((w) => w[0]).join('').toUpperCase()
-  return (email?.[0] ?? '?').toUpperCase()
-}
 
 export function UserMenu() {
   const { session } = useRouteContext({ from: '__root__' })

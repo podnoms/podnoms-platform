@@ -31,6 +31,7 @@ describe('migrations', () => {
       'channel_item',
       'episode',
       'episode_activity',
+      'episode_comment',
       'episode_like',
       'password_reset_token',
       'playback_position',

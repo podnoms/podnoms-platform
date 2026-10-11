@@ -1,7 +1,13 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { cn } from 'cn'
+import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { formatClock } from '~/lib/format'
+import { imageSrc } from '~/lib/images'
 import { resample } from '~/lib/waveform'
+
+// A point to mark on the waveform, shown as a tiny avatar: its image, or the
+// fallback text (such as initials) without one.
+export type WaveformMarker = { id: string; seconds: number; image: string | null; fallback: string; title: string }
 
 const barWidth = 3
 const barGap = 1
@@ -14,12 +20,14 @@ const sizes = {
 
 // A Mixcloud-style waveform that shows how far through the episode the
 // listener is. Click or drag to seek; arrow keys seek by 5 seconds, Page
-// Up/Down by 30.
+// Up/Down by 30. Markers (such as where comments were made) show as tiny
+// avatars along the bottom, with their title on hover.
 export function Waveform({
   values,
   duration,
   position,
   onSeek,
+  markers = [],
   size = 'default',
   className,
 }: {
@@ -28,6 +36,7 @@ export function Waveform({
   duration: number
   position: number
   onSeek: (seconds: number) => void
+  markers?: WaveformMarker[]
   size?: keyof typeof sizes
   className?: string
 }) {
@@ -141,6 +150,20 @@ export function Waveform({
           </g>
         </svg>
       )}
+      {duration > 0 &&
+        markers.map((marker) => (
+          // Pressing one seeks like anywhere else on the waveform.
+          <Avatar
+            key={marker.id}
+            aria-hidden="true"
+            title={`${formatClock(marker.seconds)} · ${marker.title}`}
+            className="absolute bottom-0 size-5 -translate-x-1/2 ring-2 ring-card hover:z-10"
+            style={{ left: `${Math.min(100, (marker.seconds / duration) * 100)}%` }}
+          >
+            {marker.image && <AvatarImage src={imageSrc(marker.image, 32)} alt="" />}
+            <AvatarFallback className="bg-primary text-[8px] text-primary-foreground">{marker.fallback}</AvatarFallback>
+          </Avatar>
+        ))}
       {hover !== null && duration > 0 && (
         <div
           className="pointer-events-none absolute top-0 -translate-x-1/2 rounded bg-foreground px-1.5 py-0.5 text-xs text-background tabular-nums"

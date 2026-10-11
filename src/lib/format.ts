@@ -82,3 +82,10 @@ export function formatRelative(date: Date, now = new Date()) {
   }
   return 'just now'
 }
+
+// Up to two initials from the name, else the first letter of the email.
+export function initials(name: string | null | undefined, email: string | null | undefined) {
+  const words = name?.trim().split(/\s+/).filter(Boolean) ?? []
+  if (words.length) return words.slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+  return (email?.[0] ?? '?').toUpperCase()
+}

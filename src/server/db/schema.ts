@@ -387,6 +387,29 @@ export const podcastFollows = pgTable(
   ],
 )
 
+// Comments on an episode, each at a point in it, listed in that order on the
+// episode's page and marked on its waveform (see comments.server.ts).
+export const episodeComments = pgTable(
+  'episode_comment',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    episodeId: text('episodeId')
+      .notNull()
+      .references(() => episodes.id, { onDelete: 'cascade' }),
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    // Plain text, not HTML.
+    body: text('body').notNull(),
+    // How far into the episode it was made.
+    atSeconds: integer('atSeconds').notNull(),
+    createdAt: timestamps.createdAt,
+  },
+  (table) => [index('episode_comment_episodeId_atSeconds_idx').on(table.episodeId, table.atSeconds)],
+)
+
 // What listeners do with episodes, for podcast owners' stats (see
 // activity.server.ts). Nothing here identifies a person: there's no IP or
 // account, only a hash that changes daily and where they roughly were.

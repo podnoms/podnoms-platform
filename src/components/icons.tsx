@@ -31,6 +31,7 @@ import {
   LockOpenIcon,
   LockKeyholeIcon,
   LogOutIcon,
+  MessageSquareIcon,
   MoonIcon,
   PauseIcon,
   PencilIcon,
@@ -162,6 +163,7 @@ export const Icons = {
   follow: UserPlusIcon,
   following: UserCheckIcon,
   continueListening: HistoryIcon,
+  comment: MessageSquareIcon,
   bitcoin: BitcoinIcon,
   github: brandIcon(
     'GitHub',
