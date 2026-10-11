@@ -11,6 +11,8 @@ import { EpisodeRow } from '~/components/episode-row'
 import { FeedUrlButton } from '~/components/feed-url-button'
 import { Icons } from '~/components/icons'
 import { NewEpisodeDialog } from '~/components/new-episode-dialog'
+import { PodcastPrivacyCard } from '~/components/podcast-privacy-card'
+import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import {
   Empty,
@@ -108,7 +110,15 @@ function PodcastPage() {
             </div>
           )}
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Podcast</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Podcast</p>
+              {podcast.private && (
+                <Badge variant="secondary">
+                  <Icons.private />
+                  Private
+                </Badge>
+              )}
+            </div>
             <h1 className="text-3xl font-bold tracking-tight text-balance md:text-5xl">{podcast.title}</h1>
             {/* On wide screens the full description is in the About column instead. */}
             {podcast.description && (
@@ -127,7 +137,7 @@ function PodcastPage() {
                     Public page
                   </Link>
                 </Button>
-                <FeedUrlButton feedUrl={podcast.feedUrl} />
+                <FeedUrlButton feedUrl={podcast.feedUrl} label={podcast.private ? 'Private RSS URL' : undefined} />
                 {episodes.length > 0 && newEpisodeButtons}
               </div>
             </div>
@@ -179,6 +189,10 @@ function PodcastPage() {
               <ActivityPanel slug={podcast.slug} />
             </TabsContent>
             <TabsContent value="distribution" className="flex flex-col gap-6">
+              <PodcastPrivacyCard
+                podcast={podcast}
+                onChanged={() => router.invalidate({ filter: (match) => match.routeId === Route.id })}
+              />
               <DistributionPanel
                 podcast={podcast}
                 distribution={podcast.distribution}

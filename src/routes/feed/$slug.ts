@@ -7,7 +7,8 @@ export const Route = createFileRoute('/feed/$slug')({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
-        const xml = await buildPodcastFeed(params.slug, publicUrl(request).origin)
+        const key = new URL(request.url).searchParams.get('key')
+        const xml = await buildPodcastFeed(params.slug, publicUrl(request).origin, { key })
         if (!xml) return new Response('Not found', { status: 404 })
         return new Response(xml, {
           headers: {

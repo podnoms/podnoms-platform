@@ -2,32 +2,65 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import sharp from 'sharp'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Route as AudioRoute } from '~/routes/api/episodes/$id/audio'
 import { Route as FeedRoute } from '~/routes/feed/$slug'
 import { Route as ImageRoute } from '~/routes/images/$file'
 import { Route as ListenRoute } from '~/routes/listen/$slug.$episodeSlug'
+import { getSession } from '~/server/auth.server'
 import { findShortLink } from '~/server/episodes.server'
 import { episodeAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import { callRoute, createEpisode, createPodcast, createUser, db, storeTestImage } from '../helpers'
 
-beforeEach(() => resetDb(db))
+vi.mock('~/server/auth.server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('~/server/auth.server')>()),
+  getSession: vi.fn(),
+}))
+
+beforeEach(async () => {
+  await resetDb(db)
+  vi.mocked(getSession).mockResolvedValue(null)
+})
 
 describe('GET /api/episodes/:id/audio', () => {
   // 0..99 as bytes, so any range is easy to check.
   const audio = Uint8Array.from({ length: 100 }, (_, i) => i)
 
-  async function readyEpisode() {
-    const podcast = await createPodcast((await createUser()).id)
-    const episode = await createEpisode(podcast.id, { status: 'ready', audioMimeType: 'audio/mpeg' })
+  async function readyEpisode(podcastValues: Parameters<typeof createPodcast>[1] = {}, values: Parameters<typeof createEpisode>[1] = {}) {
+    const owner = await createUser()
+    const podcast = await createPodcast(owner.id, podcastValues)
+    const episode = await createEpisode(podcast.id, { status: 'ready', audioMimeType: 'audio/mpeg', ...values })
     await mkdir(dirname(episodeAudioPath(episode.id)), { recursive: true })
     await writeFile(episodeAudioPath(episode.id), audio)
-    return episode
+    return Object.assign(episode, { ownerId: owner.id })
   }
 
-  const get = (id: string, range?: string) =>
-    callRoute(AudioRoute, 'GET', new Request(`http://x/api/episodes/${id}/audio`, { headers: range ? { range } : {} }), { id })
+  const get = (id: string, range?: string, search = '') =>
+    callRoute(
+      AudioRoute,
+      'GET',
+      new Request(`http://x/api/episodes/${id}/audio${search}`, { headers: range ? { range } : {} }),
+      { id },
+    )
+
+  it("serves a private podcast's audio with its feed key, or to its signed-in owner", async () => {
+    const episode = await readyEpisode({ private: true, feedKey: 'k3y' })
+    expect((await get(episode.id)).status).toBe(404)
+    expect((await get(episode.id, undefined, '?key=wrong')).status).toBe(404)
+    expect((await get(episode.id, undefined, '?v=2&key=k3y')).status).toBe(200)
+    vi.mocked(getSession).mockResolvedValue({ user: { id: episode.ownerId }, expires: '' })
+    expect((await get(episode.id)).status).toBe(200)
+  })
+
+  it("serves a private episode's audio only to its signed-in owner", async () => {
+    const episode = await readyEpisode({}, { private: true })
+    expect((await get(episode.id)).status).toBe(404)
+    vi.mocked(getSession).mockResolvedValue({ user: { id: (await createUser()).id }, expires: '' })
+    expect((await get(episode.id)).status).toBe(404)
+    vi.mocked(getSession).mockResolvedValue({ user: { id: episode.ownerId }, expires: '' })
+    expect((await get(episode.id)).status).toBe(200)
+  })
 
   it('serves the whole file, advertising range support', async () => {
     const episode = await readyEpisode()
@@ -142,6 +175,17 @@ describe('GET /feed/:slug', () => {
     const response = await callRoute(FeedRoute, 'GET', new Request('https://pods.example/feed/nope'), { slug: 'nope' })
     expect(response.status).toBe(404)
   })
+
+  it("serves a private podcast's feed only with its key", async () => {
+    await createPodcast((await createUser()).id, { slug: 'secret', private: true, feedKey: 'k3y' })
+    const get = (search: string) =>
+      callRoute(FeedRoute, 'GET', new Request(`https://pods.example/feed/secret${search}`), { slug: 'secret' })
+    expect((await get('')).status).toBe(404)
+    expect((await get('?key=wrong')).status).toBe(404)
+    const response = await get('?key=k3y')
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain('<atom:link href="https://pods.example/feed/secret?key=k3y"')
+  })
 })
 
 describe('share pages', () => {
@@ -176,5 +220,15 @@ describe('GET /listen/:slug/:episodeSlug', () => {
     await createEpisode(podcast.id, { slug: 'first', status: 'processing' })
     expect((await get('my-show', 'first')).status).toBe(404)
     expect((await get('my-show', 'nope')).status).toBe(404)
+  })
+
+  it('is not found for a private episode, or a private podcast\'s', async () => {
+    const owner = await createUser()
+    const show = await createPodcast(owner.id, { slug: 'my-show' })
+    await createEpisode(show.id, { slug: 'hidden', status: 'ready', audioUrl: '/api/episodes/x/audio', private: true })
+    const secret = await createPodcast(owner.id, { slug: 'secret', private: true })
+    await createEpisode(secret.id, { slug: 'first', status: 'ready', audioUrl: '/api/episodes/x/audio' })
+    expect((await get('my-show', 'hidden')).status).toBe(404)
+    expect((await get('secret', 'first')).status).toBe(404)
   })
 })

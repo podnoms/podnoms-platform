@@ -36,6 +36,7 @@ import {
   replaceEpisodeAudio,
   retryEpisode,
   savePlaybackPosition,
+  setEpisodePrivacy,
   summariseEpisodes,
   updateEpisode,
 } from '~/server/episodes.server'
@@ -43,6 +44,8 @@ import {
   createPodcast,
   getPodcastBySlug,
   listPodcasts,
+  resetFeedKey,
+  setPodcastPrivacy,
   updateDirectoryDetails,
   updateDirectoryLink,
   updatePodcast,
@@ -82,7 +85,8 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
       ...podcast,
       // Sanitised when saved; again here, as it's rendered as HTML.
       description: sanitizeDescription(podcast.description),
-      feedUrl: new URL(feedPath(podcast.slug), publicUrl(getRequest())).toString(),
+      // A private podcast's carries its feed key, for its owner to hand out.
+      feedUrl: new URL(feedPath(podcast.slug, podcast.private ? podcast.feedKey : null), publicUrl(getRequest())).toString(),
       episodes: episodes.map((episode) => ({ ...episode, progress: getEpisodeProgress(episode.id) })),
       summary,
       // The channel the podcast follows, if it follows one.
@@ -157,6 +161,19 @@ export const updateMyPodcast = createServerFn({ method: 'POST' })
     if (!(await updatePodcast(await requireUserId(), data))) throw notFound()
   })
 
+export const setMyPodcastPrivacy = createServerFn({ method: 'POST' })
+  .validator(z.object({ id: z.string().min(1), private: z.boolean() }))
+  .handler(async ({ data }) => {
+    if (!(await setPodcastPrivacy(await requireUserId(), data.id, data.private))) throw notFound()
+  })
+
+// Gives a private podcast a new feed URL, cutting off everyone with the old one.
+export const resetMyFeedKey = createServerFn({ method: 'POST' })
+  .validator(z.object({ id: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    if (!(await resetFeedKey(await requireUserId(), data.id))) throw notFound()
+  })
+
 export const saveDirectoryDetails = createServerFn({ method: 'POST' })
   .validator(directoryDetailsSchema)
   .handler(async ({ data }) => {
@@ -219,6 +236,12 @@ export const updateMyEpisode = createServerFn({ method: 'POST' })
   .validator(editEpisodeSchema)
   .handler(async ({ data }) => {
     if (!(await updateEpisode(await requireUserId(), data))) throw notFound()
+  })
+
+export const setMyEpisodePrivacy = createServerFn({ method: 'POST' })
+  .validator(z.object({ id: z.string().min(1), private: z.boolean() }))
+  .handler(async ({ data }) => {
+    if (!(await setEpisodePrivacy(await requireUserId(), data.id, data.private))) throw notFound()
   })
 
 export const retryMyEpisode = createServerFn({ method: 'POST' })

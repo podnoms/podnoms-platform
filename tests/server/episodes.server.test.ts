@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { episodes, playbackPositions } from '~/server/db/schema'
+import { episodes, playbackPositions, podcasts } from '~/server/db/schema'
 import { enqueueEpisode } from '~/server/episode-processor.server'
 import {
   createEpisode,
@@ -18,6 +18,7 @@ import {
   replaceEpisodeAudio,
   retryEpisode,
   savePlaybackPosition,
+  setEpisodePrivacy,
   summariseEpisodes,
   summarisePublishedEpisodes,
   updateEpisode,
@@ -47,9 +48,9 @@ async function getRow(id: string) {
   return row
 }
 
-async function setup() {
+async function setup(values: Parameters<typeof createPodcast>[1] = {}) {
   const user = await createUser()
-  const podcast = await createPodcast(user.id, { slug: 'show' })
+  const podcast = await createPodcast(user.id, { slug: 'show', ...values })
   return { user, podcast }
 }
 
@@ -264,7 +265,7 @@ describe('listEpisodes / getEpisode / getEpisodeSlug', () => {
     const episode = await insertEpisode(podcast.id, { slug: 'ep' })
     const found = await getEpisode(user.id, 'show', 'ep')
     expect(found?.episode.id).toBe(episode.id)
-    expect(found?.podcast).toEqual({ id: podcast.id, title: podcast.title, slug: 'show', imageUrl: null })
+    expect(found?.podcast).toEqual({ id: podcast.id, title: podcast.title, slug: 'show', imageUrl: null, private: false })
     expect(await getEpisode((await createUser()).id, 'show', 'ep')).toBeNull()
     expect(await getEpisode(user.id, 'other', 'ep')).toBeNull()
   })
@@ -278,13 +279,54 @@ describe('listEpisodes / getEpisode / getEpisodeSlug', () => {
 })
 
 describe('getEpisodeAudio', () => {
+  const anyone = { key: null, viewerId: async () => null }
+
   it('returns only ready episodes', async () => {
     const { podcast } = await setup()
     const ready = await insertEpisode(podcast.id, { status: 'ready', audioMimeType: 'audio/mpeg' })
     const pending = await insertEpisode(podcast.id, { status: 'pending' })
-    expect(await getEpisodeAudio(ready.id)).toEqual({ status: 'ready', audioMimeType: 'audio/mpeg' })
-    expect(await getEpisodeAudio(pending.id)).toBeNull()
-    expect(await getEpisodeAudio('missing')).toBeNull()
+    expect(await getEpisodeAudio(ready.id, anyone)).toEqual({ audioMimeType: 'audio/mpeg' })
+    expect(await getEpisodeAudio(pending.id, anyone)).toBeNull()
+    expect(await getEpisodeAudio('missing', anyone)).toBeNull()
+  })
+
+  it("serves a private podcast's audio with its feed key, or to its owner", async () => {
+    const { user, podcast } = await setup({ private: true, feedKey: 'k3y' })
+    const episode = await insertEpisode(podcast.id, { status: 'ready' })
+    expect(await getEpisodeAudio(episode.id, anyone)).toBeNull()
+    expect(await getEpisodeAudio(episode.id, { ...anyone, key: 'wrong' })).toBeNull()
+    expect(await getEpisodeAudio(episode.id, { ...anyone, viewerId: async () => 'someone-else' })).toBeNull()
+    expect(await getEpisodeAudio(episode.id, { ...anyone, key: 'k3y' })).not.toBeNull()
+    expect(await getEpisodeAudio(episode.id, { ...anyone, viewerId: async () => user.id })).not.toBeNull()
+  })
+
+  it("serves a private episode's audio only to its owner, feed key or not", async () => {
+    const { user, podcast } = await setup({ private: true, feedKey: 'k3y' })
+    const episode = await insertEpisode(podcast.id, { status: 'ready', private: true })
+    expect(await getEpisodeAudio(episode.id, { ...anyone, key: 'k3y' })).toBeNull()
+    expect(await getEpisodeAudio(episode.id, { ...anyone, viewerId: async () => user.id })).not.toBeNull()
+  })
+
+  it("doesn't look up who's asking when it doesn't need to", async () => {
+    const { podcast } = await setup()
+    const episode = await insertEpisode(podcast.id, { status: 'ready' })
+    const viewerId = vi.fn(async () => null)
+    expect(await getEpisodeAudio(episode.id, { key: null, viewerId })).not.toBeNull()
+    expect(viewerId).not.toHaveBeenCalled()
+  })
+})
+
+describe('setEpisodePrivacy', () => {
+  it("hides and shows the owner's episode, and no one else's", async () => {
+    const { user, podcast } = await setup()
+    const episode = await insertEpisode(podcast.id, { status: 'ready' })
+    const isPrivate = async () => (await db.select().from(episodes).where(eq(episodes.id, episode.id)))[0]!.private
+    expect(await setEpisodePrivacy((await createUser()).id, episode.id, true)).toBe(false)
+    expect(await isPrivate()).toBe(false)
+    expect(await setEpisodePrivacy(user.id, episode.id, true)).toBe(true)
+    expect(await isPrivate()).toBe(true)
+    expect(await setEpisodePrivacy(user.id, episode.id, false)).toBe(true)
+    expect(await isPrivate()).toBe(false)
   })
 })
 
@@ -559,6 +601,18 @@ describe('savePlaybackPosition', () => {
     expect(await savePlaybackPosition(listener.id, episode.id, 10)).toBe(true)
     expect(await db.select().from(playbackPositions)).toMatchObject([{ userId: listener.id, positionSeconds: 10 }])
   })
+
+  it("won't save positions on another user's private episode, or private podcast's", async () => {
+    const published = { status: 'ready' as const, audioUrl: '/api/episodes/x/audio' }
+    const { podcast } = await setup()
+    const hidden = await insertEpisode(podcast.id, { ...published, private: true })
+    const secret = await createPodcast((await createUser()).id, { slug: 'secret', private: true })
+    const inSecret = await insertEpisode(secret.id, published)
+    const listener = await createUser()
+    expect(await savePlaybackPosition(listener.id, hidden.id, 10)).toBe(false)
+    expect(await savePlaybackPosition(listener.id, inSecret.id, 10)).toBe(false)
+    expect(await db.select().from(playbackPositions)).toEqual([])
+  })
 })
 
 describe('public episode reads', () => {
@@ -566,7 +620,7 @@ describe('public episode reads', () => {
 
   async function showWithEpisodes() {
     const owner = await createUser({ name: 'Ada' })
-    const podcast = await createPodcast(owner.id, { slug: 'show', private: true })
+    const podcast = await createPodcast(owner.id, { slug: 'show' })
     const older = await insertEpisode(podcast.id, {
       ...ready,
       slug: 'older',
@@ -578,11 +632,12 @@ describe('public episode reads', () => {
     await insertEpisode(podcast.id, { slug: 'processing', status: 'processing' })
     await insertEpisode(podcast.id, { slug: 'failed', status: 'failed', error: 'Boom' })
     await insertEpisode(podcast.id, { slug: 'no-audio', status: 'ready' })
+    await insertEpisode(podcast.id, { ...ready, slug: 'hidden', private: true })
     return { owner, podcast, older, newer }
   }
 
   describe('listPublishedEpisodes', () => {
-    it('lists only ready episodes with audio, newest first', async () => {
+    it('lists only ready, public episodes with audio, newest first', async () => {
       const { podcast } = await showWithEpisodes()
       const list = await listPublishedEpisodes(podcast.id, null)
       expect(list.map((e) => e.slug)).toEqual(['newer', 'older'])
@@ -635,12 +690,27 @@ describe('public episode reads', () => {
   })
 
   describe('getPublicEpisode', () => {
-    it('finds a ready episode of any podcast, private ones included', async () => {
+    it('finds a ready episode, with its podcast', async () => {
       const { owner, older } = await showWithEpisodes()
       const found = await getPublicEpisode('show', 'older', null)
       expect(found!.episode.id).toBe(older.id)
       expect(found!.episode).not.toHaveProperty('sourceUrl')
-      expect(found!.podcast).toMatchObject({ slug: 'show', private: true, userId: owner.id, author: 'Ada' })
+      expect(found!.podcast).toMatchObject({ slug: 'show', private: false, userId: owner.id, author: 'Ada' })
+    })
+
+    it('shows private episodes only to their owner', async () => {
+      const { owner } = await showWithEpisodes()
+      expect(await getPublicEpisode('show', 'hidden', null)).toBeNull()
+      expect(await getPublicEpisode('show', 'hidden', (await createUser()).id)).toBeNull()
+      expect(await getPublicEpisode('show', 'hidden', owner.id)).not.toBeNull()
+    })
+
+    it("shows a private podcast's episodes only to its owner", async () => {
+      const { owner, podcast } = await showWithEpisodes()
+      await db.update(podcasts).set({ private: true }).where(eq(podcasts.id, podcast.id))
+      expect(await getPublicEpisode('show', 'older', null)).toBeNull()
+      expect(await getPublicEpisode('show', 'older', (await createUser()).id)).toBeNull()
+      expect(await getPublicEpisode('show', 'older', owner.id)).not.toBeNull()
     })
 
     it("returns null for episodes that aren't ready, and unknown slugs", async () => {

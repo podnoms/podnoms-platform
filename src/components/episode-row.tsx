@@ -26,7 +26,13 @@ import {
 } from '~/components/ui/dropdown-menu'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemFooter, ItemMedia, ItemTitle } from '~/components/ui/item'
 import { Spinner } from '~/components/ui/spinner'
-import { deleteMyEpisode, dismissMyEpisodeError, retryMyEpisode, updateMyEpisode } from '~/functions/podcasts'
+import {
+  deleteMyEpisode,
+  dismissMyEpisodeError,
+  retryMyEpisode,
+  setMyEpisodePrivacy,
+  updateMyEpisode,
+} from '~/functions/podcasts'
 import { formatClock, formatDate, hostname } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { htmlToText } from '~/lib/rich-text'
@@ -45,6 +51,7 @@ export type EpisodeRowData = {
   status: EpisodeStatus
   error: string | null
   replacing: boolean
+  private: boolean
   createdAt: Date
   positionSeconds: number | null
   progress: ProgressInfo | null
@@ -148,7 +155,15 @@ export function EpisodeRow({
             {title}
           </Link>
         </ItemTitle>
-        <ItemDescription className="text-xs">{meta.join(' · ')}</ItemDescription>
+        <ItemDescription className="flex items-center gap-2 text-xs">
+          {episode.private && (
+            <Badge variant="secondary">
+              <Icons.private />
+              Private
+            </Badge>
+          )}
+          {meta.join(' · ')}
+        </ItemDescription>
         {episode.description && episode.status === 'ready' && (
           <ItemDescription className="mt-1 line-clamp-2">{htmlToText(episode.description)}</ItemDescription>
         )}
@@ -212,6 +227,13 @@ export function EpisodeRow({
                 </a>
               </DropdownMenuItem>
             )}
+            <DropdownMenuItem
+              disabled={busy}
+              onSelect={() => run(() => setMyEpisodePrivacy({ data: { id: episode.id, private: !episode.private } }))}
+            >
+              {episode.private ? <Icons.public /> : <Icons.private />}
+              {episode.private ? 'Make public' : 'Make private'}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"

@@ -1,5 +1,6 @@
-// Server functions for the public pages, which anyone can see. A signed-in
-// visitor also gets where they left off, and whether the podcast is theirs.
+// Server functions for the public pages, which anyone can see, except private
+// podcasts' and episodes', which only their owner can. A signed-in visitor
+// also gets where they left off, and whether the podcast is theirs.
 import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
@@ -48,20 +49,21 @@ export const fetchPodcastPage = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: z.string() }))
   .handler(async ({ data }) => {
     const { userId, absolute } = await visitor()
-    const podcast = await getPublicPodcast(data.slug)
+    const podcast = await getPublicPodcast(data.slug, userId)
     if (!podcast) throw notFound()
     const [episodes, summary] = await Promise.all([
       listPublishedEpisodes(podcast.id, userId, { offset: 0, limit: episodePageSize }),
       summarisePublishedEpisodes(podcast.id),
     ])
-    const { userId: ownerId, ...rest } = podcast
+    const { userId: ownerId, feedKey, ...rest } = podcast
     return {
       ...rest,
       // Sanitised when saved; again here, as it's rendered as HTML.
       description: sanitizeDescription(podcast.description),
       isOwner: userId === ownerId,
       pageUrl: absolute(podcastPath(podcast.slug)),
-      feedUrl: absolute(feedPath(podcast.slug)),
+      // Only the owner sees a private podcast, so only they get its key.
+      feedUrl: absolute(feedPath(podcast.slug, podcast.private ? feedKey : null)),
       previewImage: previewImage(podcast.imageUrl, absolute),
       // Sanitised when saved; again here, as they're rendered as HTML.
       episodes: episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) })),
@@ -74,7 +76,7 @@ export const fetchPodcastEpisodes = createServerFn({ method: 'GET' })
   .validator(episodePageSchema)
   .handler(async ({ data }) => {
     const { userId } = await visitor()
-    const podcast = await getPublicPodcast(data.slug)
+    const podcast = await getPublicPodcast(data.slug, userId)
     if (!podcast) throw notFound()
     const episodes = await listPublishedEpisodes(podcast.id, userId, data)
     // Sanitised when saved; again here, as they're rendered as HTML.
@@ -103,7 +105,7 @@ async function episodePage(slug: string, episodeSlug: string) {
   const { userId, absolute } = await visitor()
   const found = await getPublicEpisode(slug, episodeSlug, userId)
   if (!found) return null
-  const { userId: ownerId, ...podcast } = found.podcast
+  const { userId: ownerId, feedKey, ...podcast } = found.podcast
   const { episode } = found
   const artwork = episode.imageUrl ?? podcast.imageUrl
   const waveform = await readWaveform(episode.id)
@@ -119,7 +121,8 @@ async function episodePage(slug: string, episodeSlug: string) {
     // The episode's share page, which the Share button gives out.
     shareUrl: absolute(shortPath(episode.shortSlug)),
     embedUrl: absolute(embedPath(podcast.slug, episode.slug)),
-    feedUrl: absolute(feedPath(podcast.slug)),
+    // Only the owner sees a private podcast, so only they get its key.
+    feedUrl: absolute(feedPath(podcast.slug, podcast.private ? feedKey : null)),
     audioUrl: absolute(episode.audioUrl!),
     previewImage: previewImage(artwork, absolute),
     // The smoother of the two shapes, as Mixcloud draws them.

@@ -1,4 +1,5 @@
 import { ErrorComponent, createRouter } from '@tanstack/react-router'
+import { NotFound } from '~/components/not-found'
 import { reportClientError } from '~/lib/client-errors'
 import { currentDomainSlug } from '~/lib/current-domain'
 import { toDomainPath, toSitePath } from '~/lib/custom-domain'
@@ -12,7 +13,7 @@ export function getRouter() {
     defaultPendingComponent: () => <p>Loading…</p>,
     defaultErrorComponent: ErrorComponent,
     defaultOnCatch: reportClientError,
-    defaultNotFoundComponent: () => <p>Not found.</p>,
+    defaultNotFoundComponent: NotFound,
     // On a podcast's own domain, "/" is its page and "/episodes/<slug>" its
     // episodes' (see src/lib/custom-domain.ts).
     rewrite: {

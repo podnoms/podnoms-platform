@@ -3,17 +3,19 @@
 import '@tanstack/react-start/server-only'
 import { and, eq } from 'drizzle-orm'
 import { domainFeedPath, toDomainPath } from '~/lib/custom-domain'
-import { episodePath, podcastPath } from '~/lib/paths'
+import { episodePath, podcastPath, withFeedKey } from '~/lib/paths'
 import { htmlToText } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
 import { episodes, podcasts, users } from '~/server/db/schema'
-import { isPublished, newestPublishedFirst } from '~/server/episodes.server'
+import { isListed, newestPublishedFirst } from '~/server/episodes.server'
 import { podcastAuthor } from '~/server/podcasts.server'
 import { uuidV5 } from '~/server/uuid.server'
 
-export function feedPath(slug: string) {
-  return `/feed/${slug}`
+// A private podcast's feed is only served with its feed key.
+export function feedPath(slug: string, feedKey?: string | null) {
+  return withFeedKey(`/feed/${slug}`, feedKey)
 }
+
 
 export function escapeXml(text: string) {
   return text
@@ -47,9 +49,14 @@ function itunesExplicit(explicit: boolean) {
   return explicit ? 'true' : 'false'
 }
 
-// Null if there's no podcast with that slug. Private podcasts have feeds too:
-// they're unlisted, not secret, and the feed is how listeners subscribe.
-export async function buildPodcastFeed(slug: string, origin: string, options: { domain?: string } = {}) {
+// Null if there's no podcast with that slug. Private podcasts have feeds too,
+// as that's how their listeners subscribe, but only with the podcast's feed
+// key (options.key); their audio links carry it too.
+export async function buildPodcastFeed(
+  slug: string,
+  origin: string,
+  options: { domain?: string; key?: string | null } = {},
+) {
   const [podcast] = await db
     .select({
       id: podcasts.id,
@@ -62,6 +69,7 @@ export async function buildPodcastFeed(slug: string, origin: string, options: { 
       language: podcasts.language,
       explicit: podcasts.explicit,
       private: podcasts.private,
+      feedKey: podcasts.feedKey,
       updatedAt: podcasts.updatedAt,
       author: podcastAuthor,
       ownerEmail: podcasts.ownerEmail,
@@ -71,11 +79,13 @@ export async function buildPodcastFeed(slug: string, origin: string, options: { 
     .where(eq(podcasts.slug, slug))
     .limit(1)
   if (!podcast) return null
+  if (podcast.private && (!podcast.feedKey || options.key !== podcast.feedKey)) return null
+  const key = podcast.private ? podcast.feedKey : null
 
   const items = await db
     .select()
     .from(episodes)
-    .where(and(eq(episodes.podcastId, podcast.id), isPublished))
+    .where(and(eq(episodes.podcastId, podcast.id), isListed))
     .orderBy(newestPublishedFirst)
 
   // On the podcast's own domain, its links are to that domain's short paths.
@@ -83,7 +93,7 @@ export async function buildPodcastFeed(slug: string, origin: string, options: { 
   const absolute = (url: string) => new URL(url, domainOrigin ?? origin).toString()
   const page = (path: string) => (options.domain ? (toDomainPath(path, podcast.slug) ?? path) : path)
   const siteFeedUrl = new URL(feedPath(podcast.slug), origin).toString()
-  const feedUrl = options.domain ? absolute(domainFeedPath) : siteFeedUrl
+  const feedUrl = withFeedKey(options.domain ? absolute(domainFeedPath) : siteFeedUrl, key)
   const pageUrl = absolute(page(podcastPath(podcast.slug)))
   const artwork = podcast.imageUrl ?? items.find((item) => item.imageUrl)?.imageUrl ?? null
   const description = podcast.description || podcast.title
@@ -99,7 +109,7 @@ export async function buildPodcastFeed(slug: string, origin: string, options: { 
       tag('itunes:summary', item.description && htmlToText(item.description)),
       `<guid isPermaLink="false">${escapeXml(item.id)}</guid>`,
       `<pubDate>${published.toUTCString()}</pubDate>`,
-      `<enclosure url="${escapeXml(absolute(item.audioUrl!))}" length="${item.audioSizeBytes ?? 0}" type="${escapeXml(item.audioMimeType ?? 'audio/mpeg')}"/>`,
+      `<enclosure url="${escapeXml(withFeedKey(absolute(item.audioUrl!), key))}" length="${item.audioSizeBytes ?? 0}" type="${escapeXml(item.audioMimeType ?? 'audio/mpeg')}"/>`,
       // Plain seconds, which podcast apps accept as well as HH:MM:SS.
       item.durationSeconds ? `<itunes:duration>${item.durationSeconds}</itunes:duration>` : '',
       item.imageUrl ? `<itunes:image href="${escapeXml(absolute(item.imageUrl))}"/>` : '',
@@ -129,7 +139,7 @@ export async function buildPodcastFeed(slug: string, origin: string, options: { 
         ? `<itunes:owner>${tag('itunes:name', podcast.author ?? podcast.title)}${tag('itunes:email', podcast.ownerEmail)}</itunes:owner>`
         : '',
       `<itunes:explicit>${itunesExplicit(podcast.explicit)}</itunes:explicit>`,
-      // Keeps unlisted podcasts out of directories that honour it.
+      // Keeps private podcasts out of directories that honour it.
       podcast.private ? '<itunes:block>Yes</itunes:block>' : '',
       '<itunes:type>episodic</itunes:type>',
       // From the site's feed URL, so the podcast keeps one id on any domain.

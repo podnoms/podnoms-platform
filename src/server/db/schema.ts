@@ -162,8 +162,12 @@ export const podcasts = pgTable(
     subcategory: text('subcategory'),
     language: text('language').notNull().default('en'),
     explicit: boolean('explicit').notNull().default(false),
-    // Private podcasts aren't listed publicly; their feed is only reachable by URL.
+    // Private podcasts' pages are only shown to their owner, and their feed
+    // and audio are only served with feedKey (see feed.server.ts), which the
+    // owner gives to the listeners they choose. The key is made when the
+    // podcast is first made private, and can be reset to cut listeners off.
     private: boolean('private').notNull().default(false),
+    feedKey: text('feedKey'),
     // Who makes it, as shown in podcast apps; the owner's name when not set.
     author: text('author'),
     // Where directories (Spotify, say) send the code that confirms the show is
@@ -225,6 +229,9 @@ export const episodes = pgTable(
     // audio stays live until the new audio is ready.
     replacement: jsonb('replacement').$type<EpisodeReplacement>(),
     explicit: boolean('explicit').notNull().default(false),
+    // Private episodes are only shown to their podcast's owner: they're left
+    // out of the feed and public pages, and their audio isn't served to anyone else.
+    private: boolean('private').notNull().default(false),
     publishedAt: timestamp('publishedAt', { mode: 'date', withTimezone: true }),
     // Downloads with a higher priority go first (see download-throttle.server.ts):
     // 1 for links added by hand, 0 for a channel's uploads.

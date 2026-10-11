@@ -18,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '~/components/ui/alert-dialog'
+import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Slider } from '~/components/ui/slider'
 import {
@@ -26,6 +27,7 @@ import {
   fetchMyEpisode,
   fetchMyEpisodeSlug,
   retryMyEpisode,
+  setMyEpisodePrivacy,
   updateMyEpisode,
 } from '~/functions/podcasts'
 import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
@@ -50,6 +52,7 @@ function EpisodePage() {
   const [replacingAudio, setReplacingAudio] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [savingPrivacy, setSavingPrivacy] = useState(false)
 
   const inProgress = episode.status === 'pending' || episode.status === 'processing'
   // While the episode is being processed or its audio replaced, follow it live
@@ -115,6 +118,16 @@ function EpisodePage() {
     }
   }
 
+  async function togglePrivacy() {
+    setSavingPrivacy(true)
+    try {
+      await setMyEpisodePrivacy({ data: { id: episode.id, private: !episode.private } })
+      await router.invalidate({ filter: (match) => match.routeId === Route.id })
+    } finally {
+      setSavingPrivacy(false)
+    }
+  }
+
   function seek(seconds: number) {
     if (isCurrent) player.seek(seconds)
     else play(seconds)
@@ -144,7 +157,15 @@ function EpisodePage() {
           </div>
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Episode</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Episode</p>
+            {episode.private && (
+              <Badge variant="secondary">
+                <Icons.private />
+                Private
+              </Badge>
+            )}
+          </div>
           <h1 className="text-3xl font-semibold tracking-tight text-balance">{title}</h1>
           <p className="text-sm text-muted-foreground">{meta.join(' · ')}</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -177,10 +198,23 @@ function EpisodePage() {
               </>
             )}
             <div className="flex gap-1 sm:ml-auto">
-              {ready && <ShareButton url={loaded.shortUrl} episodeId={loaded.episode.id} source="web" />}
+              {/* A private episode's or podcast's share link only works for its owner. */}
+              {ready && !episode.private && !podcast.private && (
+                <ShareButton url={loaded.shortUrl} episodeId={loaded.episode.id} source="web" />
+              )}
               <Button variant="outline" disabled={inProgress} onClick={() => setEditing(true)}>
                 <Icons.edit />
                 Edit
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={savingPrivacy}
+                onClick={togglePrivacy}
+                title={episode.private ? 'Make public' : 'Make private'}
+              >
+                {episode.private ? <Icons.public /> : <Icons.private />}
+                <span className="sr-only">{episode.private ? 'Make public' : 'Make private'}</span>
               </Button>
               {(episode.status === 'ready' || episode.status === 'failed') && (
                 <Button

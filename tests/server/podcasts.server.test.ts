@@ -6,6 +6,8 @@ import {
   getPodcastBySlug,
   getPublicPodcast,
   listPodcasts,
+  resetFeedKey,
+  setPodcastPrivacy,
   updateDirectoryDetails,
   updateDirectoryLink,
   updatePodcast,
@@ -169,7 +171,7 @@ describe('getPublicPodcast', () => {
   it('finds any podcast by slug, with its author', async () => {
     const user = await createUser({ name: 'Ada' })
     const podcast = await insertPodcast(user.id, { slug: 'show', title: 'Show', category: 'Music' })
-    expect(await getPublicPodcast('show')).toEqual({
+    expect(await getPublicPodcast('show', null)).toEqual({
       id: podcast.id,
       userId: user.id,
       title: 'Show',
@@ -179,6 +181,7 @@ describe('getPublicPodcast', () => {
       category: 'Music',
       explicit: false,
       private: false,
+      feedKey: null,
       author: 'Ada',
       directoryLinks: {},
     })
@@ -186,22 +189,72 @@ describe('getPublicPodcast', () => {
 
   it("prefers the podcast's own author to the owner's name", async () => {
     await insertPodcast((await createUser({ name: 'Ada' })).id, { slug: 'show', author: 'The Show Team' })
-    expect(await getPublicPodcast('show')).toMatchObject({ author: 'The Show Team' })
+    expect(await getPublicPodcast('show', null)).toMatchObject({ author: 'The Show Team' })
   })
 
-  it('includes private podcasts, which are unlisted rather than secret', async () => {
-    await insertPodcast((await createUser()).id, { slug: 'secret', private: true })
-    expect(await getPublicPodcast('secret')).toMatchObject({ slug: 'secret', private: true })
+  it('shows private podcasts only to their owner', async () => {
+    const owner = await createUser()
+    await insertPodcast(owner.id, { slug: 'secret', private: true })
+    expect(await getPublicPodcast('secret', owner.id)).toMatchObject({ slug: 'secret', private: true })
+    expect(await getPublicPodcast('secret', null)).toBeNull()
+    expect(await getPublicPodcast('secret', (await createUser()).id)).toBeNull()
+  })
+
+  it("doesn't use a private episode's artwork", async () => {
+    const podcast = await insertPodcast((await createUser()).id, { slug: 'show' })
+    await createEpisode(podcast.id, { status: 'ready', imageUrl: '/images/hidden.jpg', private: true })
+    expect((await getPublicPodcast('show', null))!.imageUrl).toBeNull()
   })
 
   it("falls back to a ready episode's artwork", async () => {
     const podcast = await insertPodcast((await createUser()).id, { slug: 'show' })
     await createEpisode(podcast.id, { status: 'ready', imageUrl: '/images/ep.jpg' })
-    expect((await getPublicPodcast('show'))!.imageUrl).toBe('/images/ep.jpg')
+    expect((await getPublicPodcast('show', null))!.imageUrl).toBe('/images/ep.jpg')
   })
 
   it('returns null for an unknown slug', async () => {
-    expect(await getPublicPodcast('nope')).toBeNull()
+    expect(await getPublicPodcast('nope', null)).toBeNull()
+  })
+})
+
+describe('setPodcastPrivacy', () => {
+  it('makes a podcast private with a feed key, and keeps the key when made public and private again', async () => {
+    const user = await createUser()
+    const podcast = await insertPodcast(user.id)
+    expect(await setPodcastPrivacy(user.id, podcast.id, true)).toBe(true)
+    const { private: isPrivate, feedKey } = await getRow(podcast.id)
+    expect(isPrivate).toBe(true)
+    expect(feedKey).toMatch(/^[0-9a-f]{32}$/)
+
+    await setPodcastPrivacy(user.id, podcast.id, false)
+    expect(await getRow(podcast.id)).toMatchObject({ private: false, feedKey })
+    await setPodcastPrivacy(user.id, podcast.id, true)
+    expect(await getRow(podcast.id)).toMatchObject({ private: true, feedKey })
+  })
+
+  it("won't change someone else's podcast", async () => {
+    const podcast = await insertPodcast((await createUser()).id)
+    expect(await setPodcastPrivacy((await createUser()).id, podcast.id, true)).toBe(false)
+    expect((await getRow(podcast.id)).private).toBe(false)
+  })
+})
+
+describe('resetFeedKey', () => {
+  it('gives a private podcast a new key, and only for its owner', async () => {
+    const user = await createUser()
+    const podcast = await insertPodcast(user.id)
+    await setPodcastPrivacy(user.id, podcast.id, true)
+    const before = (await getRow(podcast.id)).feedKey
+    expect(await resetFeedKey((await createUser()).id, podcast.id)).toBe(false)
+    expect((await getRow(podcast.id)).feedKey).toBe(before)
+    expect(await resetFeedKey(user.id, podcast.id)).toBe(true)
+    expect((await getRow(podcast.id)).feedKey).not.toBe(before)
+  })
+
+  it("doesn't reset a public podcast's", async () => {
+    const user = await createUser()
+    const podcast = await insertPodcast(user.id)
+    expect(await resetFeedKey(user.id, podcast.id)).toBe(false)
   })
 })
 

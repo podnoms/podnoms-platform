@@ -16,3 +16,9 @@ export function embedPath(slug: string, episodeSlug: string) {
 export function shortPath(shortSlug: string) {
   return `/s/${shortSlug}`
 }
+
+// A URL or path with a private podcast's feed key added, so its feed and audio
+// links work in podcast apps, which can't sign in. Unchanged without a key.
+export function withFeedKey(url: string, feedKey: string | null | undefined) {
+  return feedKey ? `${url}${url.includes('?') ? '&' : '?'}key=${encodeURIComponent(feedKey)}` : url
+}

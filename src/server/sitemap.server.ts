@@ -6,7 +6,7 @@ import { episodePath, podcastPath } from '~/lib/paths'
 import { db } from '~/server/db/client.server'
 import { episodes, podcasts } from '~/server/db/schema'
 import { escapeXml } from '~/server/feed.server'
-import { isPublished, newestPublishedFirst } from '~/server/episodes.server'
+import { isListed, newestPublishedFirst } from '~/server/episodes.server'
 
 export type SitemapEntry = { path: string; lastModified?: Date; image?: string }
 
@@ -18,14 +18,14 @@ const sitePages = ['/', '/privacy', '/tos']
 
 const publishedAt = sql<Date>`coalesce(${episodes.publishedAt}, ${episodes.createdAt})`.mapWith(episodes.createdAt)
 
-// Private podcasts are unlisted, so they and their episodes are left out, as
-// are podcasts with nothing published yet.
+// Private podcasts and episodes are left out, as are podcasts with nothing
+// published yet.
 export async function listSitemapEntries(): Promise<SitemapEntry[]> {
   const latest = max(publishedAt).mapWith(episodes.createdAt)
   const shows = await db
     .select({ slug: podcasts.slug, imageUrl: podcasts.imageUrl, lastModified: latest })
     .from(podcasts)
-    .innerJoin(episodes, and(eq(episodes.podcastId, podcasts.id), isPublished))
+    .innerJoin(episodes, and(eq(episodes.podcastId, podcasts.id), isListed))
     .where(eq(podcasts.private, false))
     .groupBy(podcasts.id)
     .orderBy(desc(latest))
@@ -34,7 +34,7 @@ export async function listSitemapEntries(): Promise<SitemapEntry[]> {
     .select({ podcastSlug: podcasts.slug, slug: episodes.slug, lastModified: publishedAt })
     .from(episodes)
     .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
-    .where(and(eq(podcasts.private, false), isPublished))
+    .where(and(eq(podcasts.private, false), isListed))
     .orderBy(newestPublishedFirst, desc(episodes.id))
     .limit(maxEntries)
   return [

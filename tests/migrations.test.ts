@@ -44,6 +44,23 @@ describe('migrations', () => {
     ])
   })
 
+  it('0016 gives each private podcast its own feed key, and public ones none', async () => {
+    const pg = new PGlite()
+    await migrateUntil(pg, tagOf('0016'))
+    await pg.query(`insert into "user" (id, email) values ('u1', 'u@example.com')`)
+    await pg.query(
+      `insert into podcast (id, "userId", title, slug, private) values ('p1', 'u1', 'A', 'a', true), ('p2', 'u1', 'B', 'b', true), ('p3', 'u1', 'C', 'c', false)`,
+    )
+
+    await runMigration(pg, tagOf('0016'))
+
+    const { rows } = await pg.query<{ id: string; feedKey: string | null }>(`select id, "feedKey" from podcast order by id`)
+    expect(rows[0]!.feedKey).toMatch(/^[0-9a-f]{32}$/)
+    expect(rows[1]!.feedKey).toMatch(/^[0-9a-f]{32}$/)
+    expect(rows[0]!.feedKey).not.toBe(rows[1]!.feedKey)
+    expect(rows[2]!.feedKey).toBeNull()
+  })
+
   it('0014 turns both notifications on for existing users', async () => {
     const pg = new PGlite()
     await migrateUntil(pg, tagOf('0014'))

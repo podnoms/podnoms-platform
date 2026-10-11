@@ -21,10 +21,12 @@ const summaryColumns = {
 // the owner's name. Needs the user table joined.
 export const podcastAuthor = sql<string | null>`coalesce(${podcasts.author}, ${users.name})`
 
-// The podcast's own artwork, or else its newest ready episode's, as on the podcast page.
+// The podcast's own artwork, or else its newest ready episode's, as on the
+// podcast page. Private episodes' artwork isn't used, as listeners see it.
 export const podcastArtwork = sql<string | null>`coalesce(${podcasts.imageUrl}, (
   select ${episodes.imageUrl} from ${episodes}
   where ${episodes.podcastId} = ${podcasts.id} and ${episodes.status} = 'ready' and ${episodes.imageUrl} is not null
+    and not ${episodes.private}
   order by ${episodes.createdAt} desc
   limit 1
 ))`
@@ -56,9 +58,9 @@ export async function getPodcastBySlug(userId: string, slug: string) {
   return podcast ?? null
 }
 
-// Any podcast, by slug, for its public page: null if there's no such podcast.
-// Private podcasts are included, as they're unlisted rather than secret.
-export async function getPublicPodcast(slug: string) {
+// A podcast, by slug, for its public page: null if there's no such podcast,
+// or it's private and the viewer isn't its owner.
+export async function getPublicPodcast(slug: string, viewerId: string | null) {
   const [podcast] = await db
     .select({
       id: podcasts.id,
@@ -70,14 +72,49 @@ export async function getPublicPodcast(slug: string) {
       category: podcasts.category,
       explicit: podcasts.explicit,
       private: podcasts.private,
+      feedKey: podcasts.feedKey,
       author: podcastAuthor,
       directoryLinks: podcasts.directoryLinks,
     })
     .from(podcasts)
     .innerJoin(users, eq(users.id, podcasts.userId))
-    .where(eq(podcasts.slug, slug))
+    .where(
+      and(
+        eq(podcasts.slug, slug),
+        viewerId ? or(eq(podcasts.private, false), eq(podcasts.userId, viewerId)) : eq(podcasts.private, false),
+      ),
+    )
     .limit(1)
   return podcast ?? null
+}
+
+// A private podcast's feed key, which its feed and audio URLs carry.
+export function randomFeedKey() {
+  return crypto.randomUUID().replaceAll('-', '')
+}
+
+// Makes a podcast private, with a feed key if it hasn't one yet (so the links
+// listeners were given keep working if it's made private again), or public.
+// Returns false unless the podcast belongs to the user.
+export async function setPodcastPrivacy(userId: string, podcastId: string, isPrivate: boolean) {
+  const updated = await db
+    .update(podcasts)
+    .set({ private: isPrivate, ...(isPrivate && { feedKey: sql`coalesce(${podcasts.feedKey}, ${randomFeedKey()})` }) })
+    .where(and(eq(podcasts.id, podcastId), eq(podcasts.userId, userId)))
+    .returning({ id: podcasts.id })
+  return updated.length > 0
+}
+
+// Gives a private podcast a new feed key, so the old feed URL (and the audio
+// links in it) stop working. Returns false unless the podcast is the user's
+// and private.
+export async function resetFeedKey(userId: string, podcastId: string) {
+  const updated = await db
+    .update(podcasts)
+    .set({ feedKey: randomFeedKey() })
+    .where(and(eq(podcasts.id, podcastId), eq(podcasts.userId, userId), eq(podcasts.private, true)))
+    .returning({ id: podcasts.id })
+  return updated.length > 0
 }
 
 // Slugs are unique across all users: "my-show", then "my-show-2", "my-show-3"…

@@ -299,7 +299,7 @@ export async function handleCustomDomain<T>(request: Request, next: () => T | Pr
   if (pathname === domainFeedPath) {
     // Imported here, as the feed needs podcasts.server.ts, which needs this.
     const { buildPodcastFeed } = await import('~/server/feed.server')
-    const xml = await buildPodcastFeed(slug, siteOrigin()!, { domain: host })
+    const xml = await buildPodcastFeed(slug, siteOrigin()!, { domain: host, key: url.searchParams.get('key') })
     if (!xml) return new Response('Not found', { status: 404 })
     return new Response(xml, {
       headers: { 'Content-Type': 'application/rss+xml; charset=utf-8', 'Cache-Control': 'public, max-age=300' },

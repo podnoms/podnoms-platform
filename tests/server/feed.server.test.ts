@@ -27,6 +27,10 @@ describe('feedPath', () => {
   it('is /feed/<slug>', () => {
     expect(feedPath('my-show')).toBe('/feed/my-show')
   })
+
+  it("carries a private podcast's feed key", () => {
+    expect(feedPath('my-show', 'k3y')).toBe('/feed/my-show?key=k3y')
+  })
 })
 
 describe('buildPodcastFeed', () => {
@@ -107,10 +111,37 @@ describe('buildPodcastFeed', () => {
     expect(doc.querySelector('channel > description')!.textContent).toBe('Title only')
   })
 
-  it('blocks private podcasts from directories but still serves them', async () => {
+  it('serves private podcasts only with their feed key', async () => {
+    await createPodcast((await createUser()).id, { slug: 'secret', private: true, feedKey: 'k3y' })
+    expect(await buildPodcastFeed('secret', origin)).toBeNull()
+    expect(await buildPodcastFeed('secret', origin, { key: 'wrong' })).toBeNull()
+    expect(await buildPodcastFeed('secret', origin, { key: 'k3y' })).not.toBeNull()
+  })
+
+  it("doesn't serve a private podcast that has no feed key", async () => {
     await createPodcast((await createUser()).id, { slug: 'secret', private: true })
-    const xml = await buildPodcastFeed('secret', origin)
-    expect(xml).toContain('<itunes:block>Yes</itunes:block>')
+    expect(await buildPodcastFeed('secret', origin)).toBeNull()
+    expect(await buildPodcastFeed('secret', origin, { key: '' })).toBeNull()
+  })
+
+  it("blocks private podcasts from directories, with the key on its own and its audio's links", async () => {
+    const podcast = await createPodcast((await createUser()).id, { slug: 'secret', private: true, feedKey: 'k3y' })
+    await createEpisode(podcast.id, readyEpisode({ audioUrl: '/api/episodes/x/audio?v=2' }))
+    const doc = await parseFeed((await buildPodcastFeed('secret', origin, { key: 'k3y' }))!)
+    expect(doc.getElementsByTagName('itunes:block')[0]!.textContent).toBe('Yes')
+    expect(doc.getElementsByTagName('atom:link')[0]!.getAttribute('href')).toBe(`${origin}/feed/secret?key=k3y`)
+    expect(doc.querySelector('enclosure')!.getAttribute('url')).toBe(`${origin}/api/episodes/x/audio?v=2&key=k3y`)
+    // The id stays the same when the key is reset.
+    expect(doc.getElementsByTagName('podcast:guid')[0]!.textContent).toBe(podcastGuid(`${origin}/feed/secret`))
+  })
+
+  it('leaves out private episodes', async () => {
+    const podcast = await createPodcast((await createUser()).id, { slug: 'show' })
+    await createEpisode(podcast.id, readyEpisode({ title: 'Public' }))
+    await createEpisode(podcast.id, readyEpisode({ title: 'Hidden', private: true }))
+    const doc = await parseFeed((await buildPodcastFeed('show', origin))!)
+    const titles = [...doc.querySelectorAll('item')].map((item) => item.getElementsByTagName('title')[0]!.textContent)
+    expect(titles).toEqual(['Public'])
   })
 
   it('lists only ready episodes with audio, newest first', async () => {

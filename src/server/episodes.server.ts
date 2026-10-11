@@ -25,6 +25,9 @@ const replacing = sql<boolean>`${episodes.replacement} is not null`
 // Episodes listeners can hear: ready, with audio. The feed and the public
 // pages list these, newest first.
 export const isPublished = and(eq(episodes.status, 'ready'), isNotNull(episodes.audioUrl))
+// Published episodes that aren't private: what the feed and the public pages
+// list. (A private podcast's are only seen by its owner and feed key holders.)
+export const isListed = and(isPublished, eq(episodes.private, false))
 export const newestPublishedFirst = desc(sql`coalesce(${episodes.publishedAt}, ${episodes.createdAt})`)
 
 // What public pages may show of an episode: never its source, errors or
@@ -41,6 +44,14 @@ const publicEpisodeColumns = {
   explicit: episodes.explicit,
   createdAt: episodes.createdAt,
   publishedAt: episodes.publishedAt,
+}
+
+// Episodes the viewer may see on the public pages: anyone may see a public
+// podcast's listed episodes, and owners may see all of theirs. Needs the
+// podcast table joined.
+function visibleTo(viewerId: string | null) {
+  const anyone = and(eq(podcasts.private, false), isListed)
+  return viewerId ? or(anyone, and(isPublished, eq(podcasts.userId, viewerId))) : anyone
 }
 
 // Where the listener (if signed in) left off in an episode.
@@ -60,7 +71,7 @@ export function listPublishedEpisodes(podcastId: string, listenerId: string | nu
     .select({ ...publicEpisodeColumns, positionSeconds: playbackPositions.positionSeconds })
     .from(episodes)
     .leftJoin(playbackPositions, listenerPosition(listenerId))
-    .where(and(eq(episodes.podcastId, podcastId), isPublished))
+    .where(and(eq(episodes.podcastId, podcastId), isListed))
     // By id too, so pages split ties the same way each time.
     .orderBy(newestPublishedFirst, desc(episodes.id))
   return page ? query.offset(page.offset).limit(page.limit) : query
@@ -76,13 +87,13 @@ export async function summarisePublishedEpisodes(podcastId: string) {
       latestAt: sql`max(coalesce(${episodes.publishedAt}, ${episodes.createdAt}))`.mapWith(episodes.createdAt),
     })
     .from(episodes)
-    .where(and(eq(episodes.podcastId, podcastId), isPublished))
+    .where(and(eq(episodes.podcastId, podcastId), isListed))
   return { count: summary!.count, totalSeconds: summary!.totalSeconds, latestAt: summary!.latestAt as Date | null }
 }
 
 // A published episode, by podcast and episode slug, with its podcast; null if
-// there's no such episode or it isn't ready. Private podcasts are included:
-// they're unlisted, not secret.
+// there's no such episode, it isn't ready, or it (or its podcast) is private
+// and the listener isn't its owner.
 export async function getPublicEpisode(podcastSlug: string, episodeSlug: string, listenerId: string | null) {
   const [row] = await db
     .select({
@@ -93,6 +104,7 @@ export async function getPublicEpisode(podcastSlug: string, episodeSlug: string,
         slug: podcasts.slug,
         imageUrl: podcasts.imageUrl,
         private: podcasts.private,
+        feedKey: podcasts.feedKey,
         userId: podcasts.userId,
         author: podcastAuthor,
       },
@@ -101,7 +113,7 @@ export async function getPublicEpisode(podcastSlug: string, episodeSlug: string,
     .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
     .innerJoin(users, eq(users.id, podcasts.userId))
     .leftJoin(playbackPositions, listenerPosition(listenerId))
-    .where(and(eq(podcasts.slug, podcastSlug), eq(episodes.slug, episodeSlug), isPublished))
+    .where(and(eq(podcasts.slug, podcastSlug), eq(episodes.slug, episodeSlug), visibleTo(listenerId)))
     .limit(1)
   return row ?? null
 }
@@ -133,6 +145,7 @@ export function listEpisodes(userId: string, podcastId: string, page?: Page) {
       status: episodes.status,
       error: episodes.error,
       replacing,
+      private: episodes.private,
       createdAt: episodes.createdAt,
       positionSeconds: playbackPositions.positionSeconds,
     })
@@ -180,11 +193,18 @@ export async function getEpisode(userId: string, podcastSlug: string, episodeSlu
         status: episodes.status,
         error: episodes.error,
         replacing,
+        private: episodes.private,
         createdAt: episodes.createdAt,
         publishedAt: episodes.publishedAt,
         positionSeconds: playbackPositions.positionSeconds,
       },
-      podcast: { id: podcasts.id, title: podcasts.title, slug: podcasts.slug, imageUrl: podcasts.imageUrl },
+      podcast: {
+        id: podcasts.id,
+        title: podcasts.title,
+        slug: podcasts.slug,
+        imageUrl: podcasts.imageUrl,
+        private: podcasts.private,
+      },
     })
     .from(episodes)
     .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
@@ -293,14 +313,31 @@ export async function createUploadedEpisodes(userId: string, input: BulkUploadEp
   return created
 }
 
-// Only ready episodes have audio to serve.
-export async function getEpisodeAudio(episodeId: string) {
+// Who's asking for an episode's audio: the feed key from its URL, if any, and
+// the signed-in user, looked up only if it's needed.
+export type AudioAccess = { key: string | null; viewerId: () => Promise<string | null> }
+
+// Only ready episodes have audio to serve, and only to those who may hear it:
+// anyone, for a public podcast's listed episodes; those with the feed key, for
+// a private podcast's; and the owner, for any of theirs.
+export async function getEpisodeAudio(episodeId: string, access: AudioAccess) {
   const [episode] = await db
-    .select({ status: episodes.status, audioMimeType: episodes.audioMimeType })
+    .select({
+      status: episodes.status,
+      audioMimeType: episodes.audioMimeType,
+      private: episodes.private,
+      podcastPrivate: podcasts.private,
+      feedKey: podcasts.feedKey,
+      ownerId: podcasts.userId,
+    })
     .from(episodes)
+    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
     .where(eq(episodes.id, episodeId))
     .limit(1)
-  return episode?.status === 'ready' ? episode : null
+  if (episode?.status !== 'ready') return null
+  const listed = !episode.private && (!episode.podcastPrivate || (!!access.key && access.key === episode.feedKey))
+  if (!listed && (await access.viewerId()) !== episode.ownerId) return null
+  return { audioMimeType: episode.audioMimeType }
 }
 
 // The episode, if it belongs to one of the user's podcasts.
@@ -345,6 +382,14 @@ export async function getEpisodeSlug(userId: string, episodeId: string) {
     .where(and(eq(episodes.id, episodeId), eq(podcasts.userId, userId)))
     .limit(1)
   return row?.slug ?? null
+}
+
+// Hides an episode from everyone but the podcast's owner, or shows it again.
+export async function setEpisodePrivacy(userId: string, episodeId: string, isPrivate: boolean) {
+  const episode = await findOwnedEpisode(userId, episodeId)
+  if (!episode) return false
+  await db.update(episodes).set({ private: isPrivate }).where(eq(episodes.id, episode.id))
+  return true
 }
 
 // Episodes can't be edited while they're being processed, which fills in their
@@ -455,13 +500,13 @@ export async function dismissEpisodeError(userId: string, episodeId: string) {
 
 // Records where the user left off; a position of 0 (e.g. they finished it) clears it.
 // Listeners can keep their place in their own episodes and in anyone's
-// published ones.
+// they can see.
 export async function savePlaybackPosition(userId: string, episodeId: string, seconds: number) {
   const [episode] = await db
     .select({ id: episodes.id })
     .from(episodes)
     .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
-    .where(and(eq(episodes.id, episodeId), or(eq(podcasts.userId, userId), isPublished)))
+    .where(and(eq(episodes.id, episodeId), or(eq(podcasts.userId, userId), visibleTo(null))))
     .limit(1)
   if (!episode) return false
   const positionSeconds = Math.floor(seconds)

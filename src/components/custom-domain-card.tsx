@@ -9,6 +9,7 @@ import { Input } from '~/components/ui/input'
 import { saveCustomDomain, testCustomDomain } from '~/functions/podcasts'
 import { domainFeedPath, txtRecordName, txtRecordValue } from '~/lib/custom-domain'
 import { formatDate } from '~/lib/format'
+import { withFeedKey } from '~/lib/paths'
 import { customDomainSchema } from '~/lib/podcast-schema'
 
 type Podcast = {
@@ -17,6 +18,8 @@ type Podcast = {
   customDomainToken: string | null
   customDomainVerifiedAt: Date | null
   customDomainFailingSince: Date | null
+  private: boolean
+  feedKey: string | null
 }
 
 type RecordCheck = { ok: true } | { ok: false; reason: string }
@@ -188,7 +191,7 @@ export function CustomDomainCard({
                 <span className="sr-only">Open</span>
               </a>
             </CopyField>
-            <CopyField label="RSS feed on your domain" value={`https://${domain}${domainFeedPath}`} />
+            <CopyField label="RSS feed on your domain" value={withFeedKey(`https://${domain}${domainFeedPath}`, podcast.private ? podcast.feedKey : null)} />
           </div>
         )}
       </CardContent>

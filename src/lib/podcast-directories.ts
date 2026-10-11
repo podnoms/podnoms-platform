@@ -230,7 +230,7 @@ export function directoryReadiness(podcast: {
       id: 'listed',
       ok: !podcast.private,
       label: 'Listed publicly',
-      fix: 'Your podcast is private, so its feed asks directories not to list it.',
+      fix: 'Your podcast is private, so directories can’t see its feed.',
     },
     {
       id: 'ownerEmail',
