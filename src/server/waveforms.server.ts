@@ -7,6 +7,7 @@ import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { env } from '~/env'
+import { resample } from '~/lib/waveform'
 import { db } from '~/server/db/client.server'
 import { logger } from '~/server/logger.server'
 import { episodes } from '~/server/db/schema'
@@ -118,6 +119,21 @@ export async function readWaveform(episodeId: string) {
   } catch {
     return null
   }
+}
+
+// Bars in a list's waveforms: enough for a row's width, a quarter the data.
+const listBars = 240
+
+// Episodes in a list, each with its waveform (RMS, the smoother shape, as
+// Mixcloud draws them), scaled down for the narrower row; null if it hasn't
+// been made yet.
+export function withWaveforms<T extends { id: string }>(episodes: T[]) {
+  return Promise.all(
+    episodes.map(async (episode) => {
+      const waveform = await readWaveform(episode.id)
+      return { ...episode, waveform: waveform ? resample(waveform.rms, listBars).map(Math.round) : null }
+    }),
+  )
 }
 
 export async function deleteWaveform(episodeId: string) {

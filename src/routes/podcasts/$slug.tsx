@@ -3,10 +3,9 @@ import { EpisodeListEnd } from '~/components/episode-list-end'
 import { FeedUrlButton } from '~/components/feed-url-button'
 import { FollowButton } from '~/components/follow-button'
 import { Icons } from '~/components/icons'
-import { PublicEpisodeRow } from '~/components/public-episode-row'
+import { PublicEpisodeList, PublicEpisodeRow } from '~/components/public-episode-row'
 import { Button } from '~/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '~/components/ui/empty'
-import { ItemGroup } from '~/components/ui/item'
 import { fetchPodcastEpisodes, fetchPodcastPage } from '~/functions/public'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { formatDate, formatLength, pluralise } from '~/lib/format'
@@ -150,7 +149,7 @@ function PodcastPage() {
               </EmptyHeader>
             </Empty>
           ) : (
-            <ItemGroup className="gap-3">
+            <PublicEpisodeList>
               {episodes.map((episode) => (
                 <PublicEpisodeRow
                   key={episode.id}
@@ -161,7 +160,7 @@ function PodcastPage() {
                   isOwner={podcast.isOwner}
                 />
               ))}
-            </ItemGroup>
+            </PublicEpisodeList>
           )}
           <EpisodeListEnd {...more} />
         </section>

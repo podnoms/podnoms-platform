@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { LikeButton } from '~/components/like-button'
@@ -7,7 +8,7 @@ import { EmbedButton, ShareButton } from '~/components/share-buttons'
 import { Button } from '~/components/ui/button'
 import { Slider } from '~/components/ui/slider'
 import type { fetchEpisodePage } from '~/functions/public'
-import { formatClock, formatDate } from '~/lib/format'
+import { formatClock, formatDate, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 
 export type EpisodePageData = Awaited<ReturnType<typeof fetchEpisodePage>>
@@ -19,6 +20,8 @@ export type EpisodePageData = Awaited<ReturnType<typeof fetchEpisodePage>>
 export function PublicEpisode({ page, standalone = false }: { page: EpisodePageData; standalone?: boolean }) {
   const { podcast, episode, waveform, isOwner, shareUrl, embedUrl } = page
   const player = usePlayer()
+  // Shown with the details rather than on the button; the button keeps it current.
+  const [likeCount, setLikeCount] = useState(episode.likeCount)
 
   const isCurrent = player.episode?.id === episode.id
   const isPlaying = isCurrent && player.playing
@@ -29,6 +32,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
     podcast.author ? `by ${podcast.author}` : null,
     formatDate(episode.publishedAt ?? episode.createdAt),
     episode.durationSeconds != null ? formatClock(episode.durationSeconds) : null,
+    likeCount > 0 ? pluralise(likeCount, 'like') : null,
   ].filter(Boolean)
 
   function play(startAt?: number) {
@@ -119,10 +123,11 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
             <div className="flex flex-wrap gap-1 sm:ml-auto">
               <LikeButton
                 variant="outline"
-                className="h-9"
                 episodeId={episode.id}
                 liked={episode.liked}
                 likeCount={episode.likeCount}
+                count="hidden"
+                onChange={(state) => setLikeCount(state.likeCount)}
               />
               {isOwner && !standalone && (
                 <Button variant="outline" asChild>

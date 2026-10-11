@@ -1,11 +1,10 @@
-import { PublicEpisodeRow } from '~/components/public-episode-row'
-import { ItemGroup } from '~/components/ui/item'
+import { PublicEpisodeList, PublicEpisodeRow } from '~/components/public-episode-row'
 import type { ListenerEpisode } from '~/server/library.server'
 
 // Episodes from any podcasts (Likes, Following, Explore), each naming its podcast.
-export function ListenerEpisodeList({ episodes }: { episodes: ListenerEpisode[] }) {
+export function ListenerEpisodeList({ episodes }: { episodes: (ListenerEpisode & { waveform: number[] | null })[] }) {
   return (
-    <ItemGroup className="gap-3">
+    <PublicEpisodeList>
       {episodes.map((episode) => (
         <PublicEpisodeRow
           key={episode.id}
@@ -17,6 +16,6 @@ export function ListenerEpisodeList({ episodes }: { episodes: ListenerEpisode[] 
           showPodcast
         />
       ))}
-    </ItemGroup>
+    </PublicEpisodeList>
   )
 }

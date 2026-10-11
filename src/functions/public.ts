@@ -21,7 +21,7 @@ import {
 import { feedPath } from '~/server/feed.server'
 import { getPublicPodcast } from '~/server/podcasts.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
-import { readWaveform } from '~/server/waveforms.server'
+import { readWaveform, withWaveforms } from '~/server/waveforms.server'
 
 async function visitor() {
   const request = getRequest()
@@ -66,7 +66,9 @@ export const fetchPodcastPage = createServerFn({ method: 'GET' })
       feedUrl: absolute(feedPath(podcast.slug, podcast.private ? feedKey : null)),
       previewImage: previewImage(podcast.imageUrl, absolute),
       // Sanitised when saved; again here, as they're rendered as HTML.
-      episodes: episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) })),
+      episodes: await withWaveforms(
+        episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) })),
+      ),
       summary,
     }
   })
@@ -80,7 +82,9 @@ export const fetchPodcastEpisodes = createServerFn({ method: 'GET' })
     if (!podcast) throw notFound()
     const episodes = await listPublishedEpisodes(podcast.id, userId, data)
     // Sanitised when saved; again here, as they're rendered as HTML.
-    return episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) }))
+    return withWaveforms(
+      episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) })),
+    )
   })
 
 export const fetchEpisodePage = createServerFn({ method: 'GET' })

@@ -1,18 +1,21 @@
+import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { LikeButton } from '~/components/like-button'
 import { usePlayer } from '~/components/player/player-provider'
+import { Waveform } from '~/components/player/waveform'
+import { ShareButton } from '~/components/share-buttons'
 import { Button } from '~/components/ui/button'
-import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '~/components/ui/item'
-import { formatClock, formatDate } from '~/lib/format'
+import { formatClock, formatDate, formatRelative } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
-import { htmlToText } from '~/lib/rich-text'
+import { shortPath } from '~/lib/paths'
+import { cn } from '~/lib/utils'
 
 export type PublicEpisodeRowData = {
   id: string
   title: string
   slug: string
-  description: string | null
+  shortSlug: string
   imageUrl: string | null
   audioUrl: string | null
   durationSeconds: number | null
@@ -21,10 +24,13 @@ export type PublicEpisodeRowData = {
   positionSeconds: number | null
   likeCount: number
   liked: boolean
+  // Bar heights for the row's waveform; null until it's been made.
+  waveform: number[] | null
 }
 
-// A row of a public podcast page's episode list: the listener's view of
-// EpisodeRow, without anything for managing the episode. In lists across
+// An episode in a listener's list, laid out as Mixcloud does: the artwork, a
+// play button by the title, the episode's waveform to see how far through it
+// you are and to seek, and buttons to like and share it. In lists across
 // podcasts (Likes, Explore), `showPodcast` names the podcast too.
 export function PublicEpisodeRow({
   episode,
@@ -45,98 +51,125 @@ export function PublicEpisodeRow({
   const isCurrent = player.episode?.id === episode.id
   const isPlaying = isCurrent && player.playing
   const artwork = episode.imageUrl ?? podcastImageUrl
-
   const position = isCurrent ? player.currentTime : player.positionOf(episode.id, episode.positionSeconds)
-  const length = (isCurrent && player.duration) || episode.durationSeconds || 0
-  const played = length > 0 && position > 0 ? Math.min(position / length, 1) : 0
+  const duration = (isCurrent && player.duration) || episode.durationSeconds || 0
+  const published = episode.publishedAt ?? episode.createdAt
+  const episodeLink = { to: '/podcasts/$slug/episodes/$episodeSlug', params: { slug: podcastSlug, episodeSlug: episode.slug } } as const
 
-  function play() {
+  function play(startAt?: number) {
     if (!episode.audioUrl) return
-    player.play({
-      id: episode.id,
-      title: episode.title,
-      audioUrl: episode.audioUrl,
-      imageUrl: artwork,
-      podcastTitle,
-      slug: episode.slug,
-      podcastSlug,
-      isOwner,
-      positionSeconds: episode.positionSeconds,
-    })
+    player.play(
+      {
+        id: episode.id,
+        title: episode.title,
+        audioUrl: episode.audioUrl,
+        imageUrl: artwork,
+        podcastTitle,
+        slug: episode.slug,
+        podcastSlug,
+        isOwner,
+        positionSeconds: episode.positionSeconds,
+      },
+      startAt === undefined ? undefined : { startAt },
+    )
   }
 
-  const meta = [
-    formatDate(episode.publishedAt ?? episode.createdAt),
-    episode.durationSeconds != null ? formatClock(episode.durationSeconds) : null,
-  ].filter(Boolean)
+  function seek(seconds: number) {
+    if (isCurrent) player.seek(seconds)
+    else play(seconds)
+  }
 
   return (
-    <Item
-      role="listitem"
+    <li
       data-current={isCurrent || undefined}
-      className="relative gap-5 overflow-hidden rounded-xl border bg-card p-4 transition-colors before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-primary before:opacity-0 hover:bg-muted/50 data-current:border-primary/40 data-current:bg-primary/5 data-current:before:opacity-100 sm:p-5"
+      className="group/row flex gap-4 py-5 first:pt-0 last:pb-0 sm:gap-6"
     >
-      <ItemMedia variant="image" className="relative size-20 rounded-lg">
+      <Link {...episodeLink} className="shrink-0 self-start outline-none" tabIndex={-1} aria-hidden>
         {artwork ? (
-          <img src={imageSrc(artwork, 80)} alt="" />
+          <img
+            src={imageSrc(artwork, 160)}
+            alt=""
+            className="size-20 rounded-lg object-cover shadow-sm ring-1 ring-black/5 sm:size-36"
+          />
         ) : (
-          <div className="flex size-full items-center justify-center bg-muted">
-            <Icons.logo className="size-7 text-muted-foreground" />
+          <div className="flex size-20 items-center justify-center rounded-lg bg-muted sm:size-36">
+            <Icons.logo className="size-8 text-muted-foreground" />
           </div>
         )}
-        {played > 0 && (
-          <div
-            role="progressbar"
-            aria-label="Played"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(played * 100)}
-            className="absolute inset-x-0 bottom-0 h-1 bg-black/40"
-          >
-            <div className="h-full bg-primary" style={{ width: `${played * 100}%` }} />
-          </div>
-        )}
-      </ItemMedia>
-      <ItemContent className="min-w-0">
-        <ItemTitle className="line-clamp-1 text-base font-semibold">
-          {/* Stretched over the whole row, so clicking anywhere opens the episode;
-              the play button sits above it. */}
-          <Link
-            to="/podcasts/$slug/episodes/$episodeSlug"
-            params={{ slug: podcastSlug, episodeSlug: episode.slug }}
-            className="outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
-          >
-            {episode.title}
-          </Link>
-        </ItemTitle>
-        <ItemDescription className="text-xs">
-          {showPodcast && (
-            <>
-              <Link
-                to="/podcasts/$slug"
-                params={{ slug: podcastSlug }}
-                className="relative z-10 font-medium text-foreground/80 hover:text-foreground hover:underline"
-              >
-                {podcastTitle}
-              </Link>
-              {' · '}
-            </>
+      </Link>
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="flex items-center gap-3">
+          {episode.audioUrl && (
+            <Button
+              size="icon-lg"
+              className="size-11 shrink-0 rounded-full shadow-sm sm:size-12 [&_svg]:size-5!"
+              onClick={() => play()}
+            >
+              {isPlaying ? <Icons.pause /> : <Icons.play className="translate-x-px fill-current" />}
+              <span className="sr-only">{isPlaying ? 'Pause' : 'Play'}</span>
+            </Button>
           )}
-          {meta.join(' · ')}
-        </ItemDescription>
-        {episode.description && (
-          <ItemDescription className="mt-1 line-clamp-2">{htmlToText(episode.description)}</ItemDescription>
-        )}
-      </ItemContent>
-      <ItemActions className="relative z-10">
-        <LikeButton episodeId={episode.id} liked={episode.liked} likeCount={episode.likeCount} />
-        {episode.audioUrl && (
-          <Button size="icon-lg" className="rounded-full" onClick={play}>
-            {isPlaying ? <Icons.pause /> : <Icons.play />}
-            <span className="sr-only">{isPlaying ? 'Pause' : 'Play'}</span>
-          </Button>
-        )}
-      </ItemActions>
-    </Item>
+          <div className="flex min-w-0 flex-col">
+            <p className="truncate text-sm text-muted-foreground">
+              {showPodcast && (
+                <Separated>
+                  <Link to="/podcasts/$slug" params={{ slug: podcastSlug }} className="hover:text-foreground hover:underline">
+                    {podcastTitle}
+                  </Link>
+                </Separated>
+              )}
+              <time dateTime={published.toISOString()} title={formatDate(published)} suppressHydrationWarning>
+                {formatRelative(published)}
+              </time>
+            </p>
+            <h3 className="truncate text-base font-semibold sm:text-lg">
+              <Link {...episodeLink} className={cn('hover:underline', isCurrent && 'text-primary')}>
+                {episode.title}
+              </Link>
+            </h3>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {episode.waveform ? (
+            <Waveform
+              size="compact"
+              values={episode.waveform}
+              duration={duration}
+              position={position}
+              onSeek={seek}
+              className="min-w-0 flex-1"
+            />
+          ) : (
+            // Waveforms are made just after processing; until then, a plain bar.
+            <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+              <div className="h-full bg-primary" style={{ width: `${duration ? Math.min(1, position / duration) * 100 : 0}%` }} />
+            </div>
+          )}
+          {duration > 0 && (
+            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{formatClock(duration)}</span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <LikeButton variant="outline" episodeId={episode.id} liked={episode.liked} likeCount={episode.likeCount} />
+          <ShareButton url={shortPath(episode.shortSlug)} episodeId={episode.id} source="web" size="sm" />
+        </div>
+      </div>
+    </li>
+  )
+}
+
+// The list the rows go in, with a rule between them.
+export function PublicEpisodeList({ children }: { children: ReactNode }) {
+  return <ul className="flex flex-col divide-y">{children}</ul>
+}
+
+function Separated({ children }: { children: ReactNode }) {
+  return (
+    <>
+      {children}
+      <span aria-hidden className="mx-1.5">
+        •
+      </span>
+    </>
   )
 }

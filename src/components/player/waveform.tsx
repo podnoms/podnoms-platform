@@ -1,25 +1,15 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { cn } from 'cn'
 import { formatClock } from '~/lib/format'
+import { resample } from '~/lib/waveform'
 
 const barWidth = 3
 const barGap = 1
-// The bars, and their reflection below at a fraction of the height.
-const barsHeight = 88
-const reflectionHeight = 28
-const height = barsHeight + 1 + reflectionHeight
-
-// Combines the stored bars (see waveforms.server.ts) into as many as fit.
-function resample(values: number[], count: number) {
-  if (count <= 0 || values.length === 0) return []
-  if (values.length <= count) return values
-  return Array.from({ length: count }, (_, bar) => {
-    const start = Math.floor((bar * values.length) / count)
-    const end = Math.max(start + 1, Math.floor(((bar + 1) * values.length) / count))
-    let sum = 0
-    for (let i = start; i < end; i++) sum += values[i]!
-    return sum / (end - start)
-  })
+// The bars, and their reflection below at a fraction of the height: full
+// size on an episode's page, compact in lists.
+const sizes = {
+  default: { barsHeight: 88, reflectionHeight: 28 },
+  compact: { barsHeight: 40, reflectionHeight: 14 },
 }
 
 // A Mixcloud-style waveform that shows how far through the episode the
@@ -30,6 +20,7 @@ export function Waveform({
   duration,
   position,
   onSeek,
+  size = 'default',
   className,
 }: {
   // Bar heights from 0 to 255.
@@ -37,8 +28,11 @@ export function Waveform({
   duration: number
   position: number
   onSeek: (seconds: number) => void
+  size?: keyof typeof sizes
   className?: string
 }) {
+  const { barsHeight, reflectionHeight } = sizes[size]
+  const height = barsHeight + 1 + reflectionHeight
   const id = useId()
   const container = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)

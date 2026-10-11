@@ -62,3 +62,23 @@ export function formatCount(count: number) {
 export function pluralise(count: number, singular: string, plural = `${singular}s`) {
   return `${formatCount(count)} ${count === 1 ? singular : plural}`
 }
+
+const relativeFormat = new Intl.RelativeTimeFormat('en-GB', { numeric: 'auto' })
+const relativeUnits: [Intl.RelativeTimeFormatUnit, number][] = [
+  ['year', 365 * 24 * 60 * 60],
+  ['month', 30 * 24 * 60 * 60],
+  ['week', 7 * 24 * 60 * 60],
+  ['day', 24 * 60 * 60],
+  ['hour', 60 * 60],
+  ['minute', 60],
+]
+
+// "5 days ago", "last week", "just now". The server and browser can disagree
+// near a boundary, so render it with suppressHydrationWarning.
+export function formatRelative(date: Date, now = new Date()) {
+  const seconds = (date.getTime() - now.getTime()) / 1000
+  for (const [unit, size] of relativeUnits) {
+    if (Math.abs(seconds) >= size) return relativeFormat.format(Math.round(seconds / size), unit)
+  }
+  return 'just now'
+}

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { CopyField } from '~/components/copy-field'
 import { Icons } from '~/components/icons'
 import { Button } from '~/components/ui/button'
@@ -7,12 +8,26 @@ import { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitl
 // Where a share is reported as coming from, for the podcast's stats.
 type ShareSource = 'web' | 'listen'
 
-// The episode's short link, ready to copy. Copying it counts as a share.
-export function ShareButton({ url, episodeId, source }: { url: string; episodeId: string; source: ShareSource }) {
+// The episode's short link, ready to copy. Copying it counts as a share. The
+// link can be a path (as lists have), made absolute against the page's own
+// origin in the browser.
+export function ShareButton({
+  url,
+  episodeId,
+  source,
+  size = 'default',
+}: {
+  url: string
+  episodeId: string
+  source: ShareSource
+  size?: 'default' | 'sm'
+}) {
+  const [absoluteUrl, setAbsoluteUrl] = useState(url)
+  useEffect(() => setAbsoluteUrl(new URL(url, window.location.origin).toString()), [url])
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline">
+        <Button variant="outline" size={size}>
           <Icons.share />
           Share
         </Button>
@@ -24,7 +39,7 @@ export function ShareButton({ url, episodeId, source }: { url: string; episodeId
         </PopoverHeader>
         <CopyField
           label="Episode link"
-          value={url}
+          value={absoluteUrl}
           onCopy={() => reportActivity(episodeId, { type: 'share', source, detail: 'link' })}
         />
       </PopoverContent>
