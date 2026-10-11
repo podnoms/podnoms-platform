@@ -184,6 +184,8 @@ describe('getPublicPodcast', () => {
       feedKey: null,
       author: 'Ada',
       directoryLinks: {},
+      followerCount: 0,
+      following: false,
     })
   })
 

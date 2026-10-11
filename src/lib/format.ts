@@ -50,3 +50,15 @@ export function hostname(url: string) {
     return url
   }
 }
+
+const countFormat = new Intl.NumberFormat('en-GB', { notation: 'compact', maximumFractionDigits: 1 })
+
+// 7 · 1.2K · 3M
+export function formatCount(count: number) {
+  return countFormat.format(count)
+}
+
+// "1 like", "12 followers"
+export function pluralise(count: number, singular: string, plural = `${singular}s`) {
+  return `${formatCount(count)} ${count === 1 ? singular : plural}`
+}

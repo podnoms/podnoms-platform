@@ -31,7 +31,7 @@ import {
   updateMyEpisode,
 } from '~/functions/podcasts'
 import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
-import { formatClock, formatDate, hostname } from '~/lib/format'
+import { formatClock, formatDate, hostname, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 
 // An episode's management page, at /podcasts/:slug/episodes/:episodeSlug/manage. The trailing
@@ -87,6 +87,7 @@ function EpisodePage() {
     formatDate(episode.publishedAt ?? episode.createdAt),
     episode.durationSeconds != null ? formatClock(episode.durationSeconds) : null,
     episode.sourceUrl ? hostname(episode.sourceUrl) : null,
+    episode.likeCount > 0 ? pluralise(episode.likeCount, 'like') : null,
   ].filter(Boolean)
 
   function play(startAt?: number) {

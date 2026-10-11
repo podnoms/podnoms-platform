@@ -349,6 +349,44 @@ export const playbackPositions = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.episodeId] })],
 )
 
+// Episodes a user likes: listed on their Likes page, and counted on the
+// episode for everyone to see (see library.server.ts).
+export const episodeLikes = pgTable(
+  'episode_like',
+  {
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    episodeId: text('episodeId')
+      .notNull()
+      .references(() => episodes.id, { onDelete: 'cascade' }),
+    createdAt: timestamps.createdAt,
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.episodeId] }),
+    index('episode_like_episodeId_idx').on(table.episodeId),
+  ],
+)
+
+// Podcasts a user follows: their new episodes come to the user's home page,
+// and the podcast shows how many follow it.
+export const podcastFollows = pgTable(
+  'podcast_follow',
+  {
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    podcastId: text('podcastId')
+      .notNull()
+      .references(() => podcasts.id, { onDelete: 'cascade' }),
+    createdAt: timestamps.createdAt,
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.podcastId] }),
+    index('podcast_follow_podcastId_idx').on(table.podcastId),
+  ],
+)
+
 // What listeners do with episodes, for podcast owners' stats (see
 // activity.server.ts). Nothing here identifies a person: there's no IP or
 // account, only a hash that changes daily and where they roughly were.

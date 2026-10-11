@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
+import { LikeButton } from '~/components/like-button'
 import { usePlayer } from '~/components/player/player-provider'
 import { Waveform } from '~/components/player/waveform'
 import { EmbedButton, ShareButton } from '~/components/share-buttons'
@@ -116,6 +117,13 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
               <span className="sr-only">Forward 30 seconds</span>
             </Button>
             <div className="flex flex-wrap gap-1 sm:ml-auto">
+              <LikeButton
+                variant="outline"
+                className="h-9"
+                episodeId={episode.id}
+                liked={episode.liked}
+                likeCount={episode.likeCount}
+              />
               {isOwner && !standalone && (
                 <Button variant="outline" asChild>
                   <Link

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { EpisodeListEnd } from '~/components/episode-list-end'
 import { FeedUrlButton } from '~/components/feed-url-button'
+import { FollowButton } from '~/components/follow-button'
 import { Icons } from '~/components/icons'
 import { PublicEpisodeRow } from '~/components/public-episode-row'
 import { Button } from '~/components/ui/button'
@@ -8,7 +9,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '~/
 import { ItemGroup } from '~/components/ui/item'
 import { fetchPodcastEpisodes, fetchPodcastPage } from '~/functions/public'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
-import { formatDate, formatLength } from '~/lib/format'
+import { formatDate, formatLength, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { directories } from '~/lib/podcast-directories'
 import { publicPageHead } from '~/lib/page-meta'
@@ -64,6 +65,7 @@ function PodcastPage() {
     podcast.author ? `by ${podcast.author}` : null,
     `${summary.count} ${summary.count === 1 ? 'episode' : 'episodes'}`,
     totalSeconds ? formatLength(totalSeconds) : null,
+    podcast.followerCount > 0 ? pluralise(podcast.followerCount, 'follower') : null,
   ].filter(Boolean)
 
   return (
@@ -109,6 +111,8 @@ function PodcastPage() {
                     </Link>
                   </Button>
                 )}
+                {/* Owners don't follow their own podcasts; it's in their sidebar already. */}
+                {!podcast.isOwner && <FollowButton podcastId={podcast.id} following={podcast.following} />}
                 <FeedUrlButton feedUrl={podcast.feedUrl} label="Subscribe" />
               </div>
             </div>
@@ -181,6 +185,8 @@ function PodcastPage() {
             )}
             <dt className="text-muted-foreground">Episodes</dt>
             <dd className="text-end">{summary.count}</dd>
+            <dt className="text-muted-foreground">Followers</dt>
+            <dd className="text-end">{podcast.followerCount}</dd>
             {totalSeconds > 0 && (
               <>
                 <dt className="text-muted-foreground">Total length</dt>

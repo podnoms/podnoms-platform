@@ -27,7 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { fetchMyPodcast, fetchMyPodcastEpisodes, updateMyPodcast } from '~/functions/podcasts'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
-import { formatDate, formatLength } from '~/lib/format'
+import { formatDate, formatLength, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { isReady } from '~/lib/podcast-directories'
 import { htmlToText } from '~/lib/rich-text'
@@ -65,6 +65,7 @@ function PodcastPage() {
   const stats = [
     `${summary.count} ${summary.count === 1 ? 'episode' : 'episodes'}`,
     totalSeconds ? formatLength(totalSeconds) : null,
+    podcast.followerCount > 0 ? pluralise(podcast.followerCount, 'follower') : null,
   ].filter(Boolean)
 
   const newEpisodeButtons = (

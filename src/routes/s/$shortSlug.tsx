@@ -1,6 +1,8 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
+import { LoginDialog } from '~/components/login-dialog'
 import { PlayerProvider } from '~/components/player/player-provider'
 import { episodeHeadOptions, PublicEpisode } from '~/components/public-episode'
+import { TwoFactorDialog } from '~/components/two-factor-dialog'
 import { fetchSharePage } from '~/functions/public'
 import { publicPageHead } from '~/lib/page-meta'
 
@@ -34,6 +36,9 @@ function SharePage() {
           </a>
         </footer>
       </div>
+      {/* For the Like button: signing in happens here, without leaving the episode. */}
+      <LoginDialog />
+      <TwoFactorDialog />
     </PlayerProvider>
   )
 }

@@ -12,6 +12,7 @@ import { PublicHeader } from '~/components/public-header'
 import { TwoFactorDialog } from '~/components/two-factor-dialog'
 import { fetchOAuthProviders, fetchAuthState } from '~/functions/auth'
 import { fetchErrorReportingDsn } from '~/functions/error-reporting'
+import { fetchFollowedPodcasts } from '~/functions/library'
 import { fetchMyPodcasts } from '~/functions/podcasts'
 import { fetchSiteLinks } from '~/functions/site-links'
 import { readPodcastSort } from '~/lib/podcast-sort'
@@ -26,9 +27,10 @@ declare module '@tanstack/react-router' {
     // Renders the page on its own, without the app's shell, header, player or
     // dialogs, as for the embeddable player.
     bare?: boolean
-    // A public page (a podcast or episode anyone can visit), shown as visitors
-    // see it even to signed-in users: with the player, but without the app's
-    // sidebar, top nav or public header.
+    // A public page (a podcast or episode anyone can visit). Visitors get it
+    // with the player but without the public header, as the podcast's own
+    // page; signed-in users get it in the app's shell, so their library is a
+    // click away, except on the podcast's own domain.
     publicPage?: boolean
   }
 }
@@ -40,17 +42,19 @@ export const Route = createRootRoute({
   // and, while a sign-in waits for its second factor, `context.twoFactor`.
   beforeLoad: () => fetchAuthState(),
   validateSearch: loginSearchSchema,
-  // OAuth providers with keys (for the login dialog), the user's podcasts
-  // (for the sidebar), where to report browser errors, and where to donate
-  // and chat (for the top nav). Loaded once; creating a podcast calls router.invalidate().
+  // OAuth providers with keys (for the login dialog), the user's podcasts and
+  // the ones they follow (for the sidebar), where to report browser errors,
+  // and where to donate and chat (for the top nav). Loaded once; creating or
+  // following a podcast calls router.invalidate().
   loader: async ({ context }) => {
-    const [providers, podcasts, errorReportingDsn, siteLinks] = await Promise.all([
+    const [providers, podcasts, following, errorReportingDsn, siteLinks] = await Promise.all([
       fetchOAuthProviders(),
       context.session ? fetchMyPodcasts() : [],
+      context.session ? fetchFollowedPodcasts() : [],
       fetchErrorReportingDsn(),
       fetchSiteLinks(),
     ])
-    return { providers, podcasts, podcastSort: readPodcastSort(), errorReportingDsn, siteLinks }
+    return { providers, podcasts, following, podcastSort: readPodcastSort(), errorReportingDsn, siteLinks }
   },
   staleTime: Infinity,
   // Defaults: a page's own tags of the same name or property replace these.
@@ -124,7 +128,7 @@ function RootDocument({
             // One player around both layouts, so what's playing carries on
             // between the app and public pages.
             <PlayerProvider signedIn={signedIn}>
-              {signedIn && !publicPage ? (
+              {signedIn && !(publicPage && currentDomainSlug()) ? (
                 <SidebarProvider style={{ '--sidebar-width': '18rem' } as CSSProperties}>
                   <AppSidebar />
                   {/* --top-nav-height lets sticky content sit below the sticky top nav. */}

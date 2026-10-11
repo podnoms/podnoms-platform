@@ -2,7 +2,7 @@ import '@tanstack/react-start/server-only'
 import { rm } from 'node:fs/promises'
 import { and, count, desc, eq, isNotNull, isNull, max, or, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
-import { episodes, playbackPositions, podcasts, users, type NewEpisode } from '~/server/db/schema'
+import { episodeLikes, episodes, playbackPositions, podcasts, users, type NewEpisode } from '~/server/db/schema'
 import { enqueueEpisode } from '~/server/episode-processor.server'
 import {
   availableEpisodeSlug,
@@ -32,7 +32,7 @@ export const newestPublishedFirst = desc(sql`coalesce(${episodes.publishedAt}, $
 
 // What public pages may show of an episode: never its source, errors or
 // replacement state.
-const publicEpisodeColumns = {
+export const publicEpisodeColumns = {
   id: episodes.id,
   title: episodes.title,
   slug: episodes.slug,
@@ -46,16 +46,42 @@ const publicEpisodeColumns = {
   publishedAt: episodes.publishedAt,
 }
 
+// How many people like the episode. In a query with a join, so drizzle
+// qualifies the episode's id.
+export const likeCount = sql<number>`(
+  select count(*) from ${episodeLikes} where ${episodeLikes.episodeId} = ${episodes.id}
+)`.mapWith(Number)
+
+// Whether the listener (if signed in) likes the episode.
+export function likedBy(listenerId: string | null) {
+  return listenerId
+    ? sql<boolean>`exists (
+        select 1 from ${episodeLikes} where ${episodeLikes.episodeId} = ${episodes.id} and ${episodeLikes.userId} = ${listenerId}
+      )`.mapWith(Boolean)
+    : sql<boolean>`false`.mapWith(Boolean)
+}
+
+// An episode as listeners see it, with where they left off and its likes.
+// Needs playbackPositions joined (see listenerPosition).
+export function listenerEpisodeColumns(listenerId: string | null) {
+  return {
+    ...publicEpisodeColumns,
+    positionSeconds: playbackPositions.positionSeconds,
+    likeCount,
+    liked: likedBy(listenerId),
+  }
+}
+
 // Episodes the viewer may see on the public pages: anyone may see a public
 // podcast's listed episodes, and owners may see all of theirs. Needs the
 // podcast table joined.
-function visibleTo(viewerId: string | null) {
+export function visibleTo(viewerId: string | null) {
   const anyone = and(eq(podcasts.private, false), isListed)
   return viewerId ? or(anyone, and(isPublished, eq(podcasts.userId, viewerId))) : anyone
 }
 
 // Where the listener (if signed in) left off in an episode.
-function listenerPosition(listenerId: string | null) {
+export function listenerPosition(listenerId: string | null) {
   return and(
     eq(playbackPositions.episodeId, episodes.id),
     listenerId ? eq(playbackPositions.userId, listenerId) : sql`false`,
@@ -68,7 +94,7 @@ export type Page = { offset: number; limit: number }
 // A podcast's published episodes, for its public page: all of them, or a page.
 export function listPublishedEpisodes(podcastId: string, listenerId: string | null, page?: Page) {
   const query = db
-    .select({ ...publicEpisodeColumns, positionSeconds: playbackPositions.positionSeconds })
+    .select(listenerEpisodeColumns(listenerId))
     .from(episodes)
     .leftJoin(playbackPositions, listenerPosition(listenerId))
     .where(and(eq(episodes.podcastId, podcastId), isListed))
@@ -97,7 +123,7 @@ export async function summarisePublishedEpisodes(podcastId: string) {
 export async function getPublicEpisode(podcastSlug: string, episodeSlug: string, listenerId: string | null) {
   const [row] = await db
     .select({
-      episode: { ...publicEpisodeColumns, positionSeconds: playbackPositions.positionSeconds },
+      episode: listenerEpisodeColumns(listenerId),
       podcast: {
         id: podcasts.id,
         title: podcasts.title,
@@ -146,6 +172,7 @@ export function listEpisodes(userId: string, podcastId: string, page?: Page) {
       error: episodes.error,
       replacing,
       private: episodes.private,
+      likeCount,
       createdAt: episodes.createdAt,
       positionSeconds: playbackPositions.positionSeconds,
     })
@@ -194,6 +221,7 @@ export async function getEpisode(userId: string, podcastSlug: string, episodeSlu
         error: episodes.error,
         replacing,
         private: episodes.private,
+        likeCount,
         createdAt: episodes.createdAt,
         publishedAt: episodes.publishedAt,
         positionSeconds: playbackPositions.positionSeconds,
