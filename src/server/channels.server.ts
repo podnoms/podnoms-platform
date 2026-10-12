@@ -5,11 +5,12 @@
 // Listing a channel (see channel-listing.server.ts) asks the platform for just
 // its newest uploads, through the download throttle like the downloads.
 //
-// Admins can also make a podcast from a playlist, which is followed the same
-// way but listed whole, so every item becomes an episode.
+// A podcast can follow a playlist the same way. Admins' podcasts aren't held
+// to the channel episode limit: they import everything a channel or playlist
+// has.
 import '@tanstack/react-start/server-only'
 import { and, asc, eq, isNull, lte } from 'drizzle-orm'
-import type { NewChannelPodcastInput, NewPlaylistPodcastInput } from '~/lib/channel-schema'
+import type { NewChannelPodcastInput } from '~/lib/channel-schema'
 import { parseChannelUrl, parsePlaylistUrl, type Platform } from '~/lib/platforms'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
@@ -25,10 +26,12 @@ import { notifyNewEpisodes } from '~/server/notifications.server'
 import { createPodcast } from '~/server/podcasts.server'
 import { listChannel, type ChannelEntry, type ChannelListing } from '~/server/channel-listing.server'
 import { getSiteSettings } from '~/server/site-settings.server'
-import { isAdmin } from '~/server/users.server'
 
 // Users can ask for a check this often at most.
 export const manualCheckIntervalMs = 15 * 60_000
+// After an admin's channel has been imported whole, later checks list this
+// many of its newest uploads, plenty to catch what came out since.
+const adminRecheckLimit = 50
 // Scheduled checks are spread out by this much either way.
 const checkJitter = 0.1
 // Uploads shorter than this are Shorts or trailers, not episodes.
@@ -56,21 +59,14 @@ export function nameFromChannelUrl(url: string) {
   )
 }
 
-// Makes a podcast that follows the channel. Its uploads are listed and
-// queued in the background, as the platform may keep us waiting.
+// Makes a podcast that follows the channel or playlist. Its uploads are
+// listed and queued in the background, as the platform may keep us waiting.
 export async function createChannelPodcast(userId: string, input: NewChannelPodcastInput) {
-  const source = parseChannelUrl(input.url)
-  if (!source) throw new Error("That isn't a link to a channel")
-  return followChannel(userId, source, input.customDomain)
-}
-
-// Makes a podcast of every item in a playlist, and adds ones added to it
-// later. Admins only: there's no limit to how many it downloads.
-export async function createPlaylistPodcast(userId: string, input: NewPlaylistPodcastInput) {
-  if (!(await isAdmin(userId))) throw new Error('Admins only')
-  const source = parsePlaylistUrl(input.url)
-  if (!source) throw new Error("That isn't a link to a playlist")
-  return followChannel(userId, source, input.customDomain, 'playlist')
+  const channel = parseChannelUrl(input.url)
+  if (channel) return followChannel(userId, channel, input.customDomain)
+  const playlist = parsePlaylistUrl(input.url)
+  if (playlist) return followChannel(userId, playlist, input.customDomain, 'playlist')
+  throw new Error("That isn't a link to a channel or playlist")
 }
 
 export async function followChannel(
@@ -126,12 +122,11 @@ async function runCheck(channelId: string, priority: number): Promise<CheckResul
   const context = { channelId, podcastId: podcast.id, url: channel.url }
 
   try {
-    // Checked every time, in case the owner is no longer an admin.
-    if (playlist && !ownerIsAdmin) throw new Error('Only admins can import playlists')
-    // A playlist is listed whole.
-    const limit = playlist ? null : row.limit
-    if (limit !== null && limit <= 0) throw new Error("Your account can't import episodes from channels")
     const first = !channel.lastCheckedAt
+    // Admins get everything: a playlist is listed whole every time, as it
+    // isn't in upload order; a channel the first time, then just its newest.
+    const limit = !ownerIsAdmin ? row.limit : playlist || first ? null : adminRecheckLimit
+    if (limit !== null && limit <= 0) throw new Error("Your account can't import episodes from channels")
     const listing = await withDownloadSlot(
       channel.platform as Platform,
       { priority, key: podcast.id, label: `Listing ${channel.title ?? channel.url}` },

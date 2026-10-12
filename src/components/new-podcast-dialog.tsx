@@ -16,19 +16,19 @@ import { Icons } from '~/components/icons'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
 import { Textarea } from '~/components/ui/textarea'
-import { createMyChannelPodcast, createMyPlaylistPodcast, fetchMyChannelLimit } from '~/functions/channels'
+import { createMyChannelPodcast, fetchMyChannelLimit } from '~/functions/channels'
 import { createMyPodcast } from '~/functions/podcasts'
-import { newChannelPodcastSchema, newPlaylistPodcastSchema } from '~/lib/channel-schema'
+import { newChannelPodcastSchema } from '~/lib/channel-schema'
 import { newPodcastSchema } from '~/lib/podcast-schema'
-import { channelProviders, playlistPlatforms } from '~/lib/platforms'
+import { channelProviders } from '~/lib/platforms'
 
-type Start = 'blank' | 'channel' | 'playlist'
+type Start = 'blank' | 'channel'
 
 // Wraps a trigger (a button or link) that opens the "New podcast" form.
 export function NewPodcastDialog({ children }: { children: ReactNode }) {
   const router = useRouter()
   const navigate = useNavigate()
-  // Only admins can import a whole playlist (the server checks too).
+  // Admins' podcasts import everything, not just the newest uploads.
   const isAdmin = useRouteContext({ from: '__root__' }).session?.user.isAdmin ?? false
   const [open, setOpen] = useState(false)
   const [pending, setPending] = useState(false)
@@ -46,8 +46,7 @@ export function NewPodcastDialog({ children }: { children: ReactNode }) {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = Object.fromEntries(new FormData(event.currentTarget))
-    const schemas = { blank: newPodcastSchema, channel: newChannelPodcastSchema, playlist: newPlaylistPodcastSchema }
-    const parsed = schemas[start].safeParse(form)
+    const parsed = start === 'channel' ? newChannelPodcastSchema.safeParse(form) : newPodcastSchema.safeParse(form)
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message)
       return
@@ -56,11 +55,9 @@ export function NewPodcastDialog({ children }: { children: ReactNode }) {
     setPending(true)
     try {
       const created =
-        !('url' in parsed.data)
-          ? await createMyPodcast({ data: parsed.data })
-          : start === 'playlist'
-            ? await createMyPlaylistPodcast({ data: parsed.data })
-            : await createMyChannelPodcast({ data: parsed.data })
+        'url' in parsed.data
+          ? await createMyChannelPodcast({ data: parsed.data })
+          : await createMyPodcast({ data: parsed.data })
       if ('error' in created) {
         setError(created.error)
         return
@@ -106,18 +103,14 @@ export function NewPodcastDialog({ children }: { children: ReactNode }) {
                 setStart(next)
                 setError(undefined)
               }}
-              className={isAdmin ? 'sm:grid-cols-3' : undefined}
               choices={[
                 { value: 'blank', icon: Icons.add, title: 'Blank podcast', hint: 'Add episodes yourself' },
                 {
                   value: 'channel',
                   icon: Icons.broadcast,
                   title: 'From a channel',
-                  hint: channelProviders.map((p) => p.label).join(' or '),
+                  hint: 'A channel or playlist',
                 },
-                ...(isAdmin
-                  ? [{ value: 'playlist' as const, icon: Icons.playlist, title: 'From a playlist', hint: 'Every episode (admin)' }]
-                  : []),
               ]}
             />
             {start === 'blank' ? (
@@ -131,26 +124,9 @@ export function NewPodcastDialog({ children }: { children: ReactNode }) {
                   <Textarea id="podcast-description" name="description" maxLength={4000} />
                 </Field>
               </>
-            ) : start === 'playlist' ? (
-              <Field>
-                <FieldLabel htmlFor="podcast-playlist">Playlist link</FieldLabel>
-                <Input
-                  id="podcast-playlist"
-                  name="url"
-                  type="url"
-                  placeholder="https://www.youtube.com/playlist?list=…"
-                  autoComplete="off"
-                  required
-                />
-                <FieldDescription>
-                  Every item on a {playlistPlatforms} playlist becomes an episode, however many there are, and ones added
-                  to it later are added too. The title, description and artwork come from the playlist; you can change
-                  them afterwards.
-                </FieldDescription>
-              </Field>
             ) : (
               <Field>
-                <FieldLabel htmlFor="podcast-channel">Channel link</FieldLabel>
+                <FieldLabel htmlFor="podcast-channel">Channel or playlist link</FieldLabel>
                 <Input
                   id="podcast-channel"
                   name="url"
@@ -160,10 +136,12 @@ export function NewPodcastDialog({ children }: { children: ReactNode }) {
                   required
                 />
                 <FieldDescription>
-                  {channelLimit === 0
-                    ? "Your account can't import from channels yet."
-                    : `Its newest ${channelLimit ? `${channelLimit} ` : ''}uploads become episodes, and new ones are added as they come out.`}{' '}
-                  The title, description and artwork come from the channel; you can change them afterwards.
+                  {isAdmin
+                    ? 'Everything on it becomes an episode, and new ones are added as they come out.'
+                    : channelLimit === 0
+                      ? "Your account can't import from channels yet."
+                      : `Its newest ${channelLimit ? `${channelLimit} ` : ''}uploads become episodes, and new ones are added as they come out.`}{' '}
+                  The title, description and artwork come from the channel or playlist; you can change them afterwards.
                 </FieldDescription>
               </Field>
             )}

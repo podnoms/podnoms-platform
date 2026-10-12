@@ -2,9 +2,9 @@ import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
-import { channelEnabledSchema, newChannelPodcastSchema, newPlaylistPodcastSchema } from '~/lib/channel-schema'
+import { channelEnabledSchema, newChannelPodcastSchema } from '~/lib/channel-schema'
 import { getSession } from '~/server/auth.server'
-import { checkChannelNow, createChannelPodcast, createPlaylistPodcast, setChannelEnabled } from '~/server/channels.server'
+import { checkChannelNow, createChannelPodcast, setChannelEnabled } from '~/server/channels.server'
 import { catchDomainError } from '~/server/custom-domains.server'
 import { getChannelEpisodeLimit } from '~/server/users.server'
 
@@ -24,14 +24,6 @@ export const createMyChannelPodcast = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const userId = await requireUserId()
     return catchDomainError(() => createChannelPodcast(userId, data))
-  })
-
-// Admins only; createPlaylistPodcast checks.
-export const createMyPlaylistPodcast = createServerFn({ method: 'POST' })
-  .validator(newPlaylistPodcastSchema)
-  .handler(async ({ data }) => {
-    const userId = await requireUserId()
-    return catchDomainError(() => createPlaylistPodcast(userId, data))
   })
 
 export const checkMyChannelNow = createServerFn({ method: 'POST' })

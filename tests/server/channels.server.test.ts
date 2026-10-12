@@ -4,13 +4,12 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { channelItems, channels, episodes, podcasts, users } from '~/server/db/schema'
+import { channelItems, channels, episodes, podcasts } from '~/server/db/schema'
 import {
   checkChannel,
   checkChannelNow,
   checkDueChannels,
   createChannelPodcast,
-  createPlaylistPodcast,
   followChannel,
   getPodcastChannel,
   setChannelEnabled,
@@ -202,32 +201,39 @@ describe('following a playlist', () => {
     expect((await episodesOf(podcast.id)).map((e) => e.title)).toEqual(['Video a', 'Video b', 'Video x', 'Video c'])
   })
 
-  it("stops importing once its owner isn't an admin", async () => {
-    const { user, podcast, channel } = await followPlaylist({ entries: 'a' })
-    await db.update(users).set({ isAdmin: false }).where(eq(users.id, user.id))
-    await setEntries(channel.id, { entries: 'a,b' })
-    expect(await checkChannel(channel.id)).toEqual({ error: 'Only admins can import playlists' })
-    expect(await episodesOf(podcast.id)).toHaveLength(1)
+  it("only imports up to the user's limit for someone who isn't an admin", async () => {
+    const { podcast } = await followPlaylist({ entries: 'a,b,c,d,e' }, { isAdmin: false })
+    expect((await episodesOf(podcast.id)).map((e) => e.title)).toEqual(['Video a', 'Video b'])
+    const args = JSON.parse(await readFile(join(media, 'yt-dlp-args.json'), 'utf8')) as string[]
+    expect(args[args.indexOf('--playlist-end') + 1]).toBe('2')
   })
 
-  it('can only be made by admins', async () => {
+  it('is made from a playlist link on the channel form', async () => {
     const url = 'https://www.youtube.com/playlist?list=PL123'
     const user = await createUser()
-    await expect(createPlaylistPodcast(user.id, { url })).rejects.toThrow('Admins only')
-    expect(await db.select().from(podcasts)).toEqual([])
-
-    const admin = await createUser({ isAdmin: true })
-    const podcast = await createPlaylistPodcast(admin.id, { url })
+    const podcast = await createChannelPodcast(user.id, { url })
     expect(podcast.title).toBe('PL123')
     const [channel] = await db.select().from(channels).where(eq(channels.podcastId, podcast.id))
     expect(channel).toMatchObject({ kind: 'playlist', platform: 'youtube', url })
     await checkChannel(channel!.id)
   })
+})
 
-  it('only accepts links to playlists', async () => {
-    const admin = await createUser({ isAdmin: true })
-    await expect(createPlaylistPodcast(admin.id, { url: 'https://www.youtube.com/@someone' })).rejects.toThrow()
-    expect(await db.select().from(podcasts)).toEqual([])
+describe("an admin's channel", () => {
+  it('imports every upload the first time, then checks just the newest', async () => {
+    const { podcast, channel } = await follow({ entries: 'e,d,c,b,a' }, { isAdmin: true, channelEpisodeLimit: 2 })
+    expect((await episodesOf(podcast.id)).map((e) => e.title)).toEqual(['Video a', 'Video b', 'Video c', 'Video d', 'Video e'])
+
+    await setEntries(channel.id, { entries: 'f,e,d,c,b,a' })
+    expect(await checkChannel(channel.id)).toEqual({ added: 1 })
+    const args = JSON.parse(await readFile(join(media, 'yt-dlp-args.json'), 'utf8')) as string[]
+    expect(args[args.indexOf('--playlist-end') + 1]).toBe('50')
+  })
+
+  it("isn't stopped by a limit of 0", async () => {
+    const { podcast, channel } = await follow({ entries: 'b,a' }, { isAdmin: true, channelEpisodeLimit: 0 })
+    expect(channel.lastError).toBeNull()
+    expect(await episodesOf(podcast.id)).toHaveLength(2)
   })
 })
 
