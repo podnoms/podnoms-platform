@@ -6,6 +6,7 @@ describe('custom domain paths', () => {
     expect(toSitePath('/', 'show')).toBe('/podcasts/show')
     expect(toSitePath('/episodes/ep-1', 'show')).toBe('/podcasts/show/episodes/ep-1')
     expect(toSitePath('/episodes/ep-1/', 'show')).toBe('/podcasts/show/episodes/ep-1')
+    expect(toSitePath('/live', 'show')).toBe('/live/show')
   })
 
   it("leave paths the domain has no page for alone", () => {
@@ -19,16 +20,17 @@ describe('custom domain paths', () => {
     expect(toDomainPath('/podcasts/show/', 'show')).toBe('/')
     expect(toDomainPath('/podcasts/show/episodes/ep-1', 'show')).toBe('/episodes/ep-1')
     expect(toDomainPath('/feed/show', 'show')).toBe('/feed')
+    expect(toDomainPath('/live/show', 'show')).toBe('/live')
   })
 
   it("leave other podcasts' and the app's paths alone", () => {
-    for (const path of ['/podcasts/other', '/podcasts/show/manage', '/podcasts/showy/episodes/x', '/feed/other', '/']) {
+    for (const path of ['/podcasts/other', '/podcasts/show/manage', '/live/other', '/live/showy', '/podcasts/showy/episodes/x', '/feed/other', '/']) {
       expect(toDomainPath(path, 'show')).toBeNull()
     }
   })
 
   it('are reversible', () => {
-    for (const path of ['/', '/episodes/ep-1']) {
+    for (const path of ['/', '/episodes/ep-1', '/live']) {
       expect(toDomainPath(toSitePath(path, 'show')!, 'show')).toBe(path)
     }
   })

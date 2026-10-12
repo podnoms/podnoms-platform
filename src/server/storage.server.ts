@@ -15,6 +15,10 @@ const imagesDir = resolve(env.MEDIA_DIR, 'images')
 const stagedImagesDir = resolve(env.MEDIA_DIR, 'staged-images')
 // Episode waveforms, as JSON (see waveforms.server.ts).
 const waveformsDir = resolve(env.MEDIA_DIR, 'waveforms')
+// Live broadcasts as MediaMTX records them, one folder per podcast under
+// "live/" (its path names), until they're made into episodes (see
+// live-recordings.server.ts). MediaMTX must write to the same place.
+const liveRecordingsDir = resolve(env.MEDIA_DIR, 'live-recordings')
 // MaxMind's GeoLite2 database, downloaded by geoip.server.ts.
 const geoipDir = resolve(env.MEDIA_DIR, 'geoip')
 
@@ -27,6 +31,7 @@ export const mediaDirs = {
   imageVariants: join(imagesDir, 'variants'),
   stagedImages: stagedImagesDir,
   waveforms: waveformsDir,
+  liveRecordings: liveRecordingsDir,
 }
 
 export const geoipDatabasePath = join(geoipDir, 'GeoLite2-City.mmdb')
@@ -104,6 +109,11 @@ export async function ensureSourcesDir() {
 
 export function episodeSourcePath(episodeId: string) {
   return join(sourcesDir, safeId(episodeId))
+}
+
+// Where MediaMTX records the podcast's broadcasts (its path is "live/<podcast id>").
+export function podcastLiveRecordingsDir(podcastId: string) {
+  return join(liveRecordingsDir, 'live', safeId(podcastId))
 }
 
 export async function ensureImagesDir() {

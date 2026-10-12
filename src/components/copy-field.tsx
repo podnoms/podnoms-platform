@@ -2,20 +2,24 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Icons } from '~/components/icons'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '~/components/ui/input-group'
 
-// A read-only field with a button that copies its value, and room for more buttons.
+// A read-only field with a button that copies its value, and room for more
+// buttons. A masked value (a secret) is hidden until shown, but copies either way.
 export function CopyField({
   label,
   value,
   onCopy,
+  masked = false,
   children,
 }: {
   label: string
   value: string
   // After the button copies the value.
   onCopy?: () => void
+  masked?: boolean
   children?: ReactNode
 }) {
   const [copied, setCopied] = useState(false)
+  const [shown, setShown] = useState(false)
 
   useEffect(() => {
     if (!copied) return
@@ -35,8 +39,20 @@ export function CopyField({
 
   return (
     <InputGroup>
-      <InputGroupInput aria-label={label} readOnly value={value} onFocus={(event) => event.currentTarget.select()} />
+      <InputGroupInput
+        aria-label={label}
+        readOnly
+        type={masked && !shown ? 'password' : 'text'}
+        value={value}
+        onFocus={(event) => event.currentTarget.select()}
+      />
       <InputGroupAddon align="inline-end">
+        {masked && (
+          <InputGroupButton size="icon-xs" onClick={() => setShown(!shown)} title={shown ? 'Hide' : 'Show'}>
+            {shown ? <Icons.hide /> : <Icons.show />}
+            <span className="sr-only">{shown ? 'Hide' : 'Show'}</span>
+          </InputGroupButton>
+        )}
         <InputGroupButton size="icon-xs" onClick={copy} title="Copy">
           {copied ? <Icons.check /> : <Icons.copy />}
           <span className="sr-only">{copied ? 'Copied' : 'Copy'}</span>

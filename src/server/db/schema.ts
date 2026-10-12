@@ -5,11 +5,11 @@ import { relations, sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
-  date,
   index,
   integer,
   jsonb,
   pgEnum,
+  pgSchema,
   pgTable,
   primaryKey,
   smallint,
@@ -20,6 +20,11 @@ import {
 import type { AdapterAccountType } from '@auth/core/adapters'
 import type { DirectoryLinks } from '../../lib/podcast-directories'
 import { randomShortSlug } from '../../lib/slug'
+
+// Signing in: OAuth accounts, second factors, recovery codes and password
+// reset links, apart from the app's own tables. The user table stays in
+// public, as nearly everything refers to it.
+export const authSchema = pgSchema('auth')
 
 export const users = pgTable(
   'user',
@@ -55,7 +60,7 @@ export const users = pgTable(
   (table) => [uniqueIndex('user_email_lower_idx').on(sql`lower(${table.email})`)],
 )
 
-export const accounts = pgTable(
+export const accounts = authSchema.table(
   'account',
   {
     userId: text('userId')
@@ -77,7 +82,7 @@ export const accounts = pgTable(
 
 // Unused while sessions are JWTs (required for email/password sign-in), but
 // the adapter expects it to exist.
-export const sessions = pgTable('session', {
+export const sessions = authSchema.table('session', {
   sessionToken: text('sessionToken').primaryKey(),
   userId: text('userId')
     .notNull()
@@ -85,7 +90,7 @@ export const sessions = pgTable('session', {
   expires: timestamp('expires', { mode: 'date' }).notNull(),
 })
 
-export const verificationTokens = pgTable(
+export const verificationTokens = authSchema.table(
   'verification_token',
   {
     identifier: text('identifier').notNull(),
@@ -98,7 +103,7 @@ export const verificationTokens = pgTable(
 // --- Two-factor authentication ----------------------------------------------
 
 // A security key (such as a YubiKey) registered as a second factor via WebAuthn.
-export const securityKeys = pgTable(
+export const securityKeys = authSchema.table(
   'security_key',
   {
     // The WebAuthn credential ID, base64url-encoded.
@@ -119,7 +124,7 @@ export const securityKeys = pgTable(
 )
 
 // Single-use codes for signing in without the second factor, stored hashed.
-export const recoveryCodes = pgTable(
+export const recoveryCodes = authSchema.table(
   'recovery_code',
   {
     userId: text('userId')
@@ -184,6 +189,11 @@ export const podcasts = pgTable(
     // When a verified domain's records first stopped checking out; it's dropped
     // after a few days of that, in case it was a passing DNS problem.
     customDomainFailingSince: timestamp('customDomainFailingSince', { mode: 'date', withTimezone: true }),
+    // The key OBS sends to broadcast live (see live.server.ts), encrypted
+    // (secrets.server.ts) so the owner can see it again; null until they make one.
+    liveKey: text('liveKey'),
+    // The title of the next broadcast, and of the episode made from it.
+    liveTitle: text('liveTitle'),
     ...timestamps,
   },
   (table) => [index('podcast_userId_idx').on(table.userId)],
@@ -291,13 +301,9 @@ export const channelItems = pgTable(
   (table) => [primaryKey({ columns: [table.channelId, table.sourceKey] }), index('channel_item_episodeId_idx').on(table.episodeId)],
 )
 
-// --- Site settings ----------------------------------------------------------
-
-// Settings for the whole site, edited by admins (see site-settings.server.ts).
-// There's one row, with the id 'global', made by the migration.
 // Links emailed to reset a password: only a hash of each token is kept, and
 // they're deleted once used (see password-reset.server.ts).
-export const passwordResetTokens = pgTable(
+export const passwordResetTokens = authSchema.table(
   'password_reset_token',
   {
     tokenHash: text('tokenHash').primaryKey(),
@@ -310,26 +316,16 @@ export const passwordResetTokens = pgTable(
   (table) => [index('password_reset_token_userId_idx').on(table.userId)],
 )
 
-export const siteSettings = pgTable('site_setting', {
-  id: text('id').primaryKey(),
-  // At most this many downloads from the platforms at once, for all users.
-  downloadConcurrency: integer('downloadConcurrency').notNull().default(3),
-  // And at most this many from any one platform.
-  perPlatformConcurrency: integer('perPlatformConcurrency').notNull().default(2),
-  // The least time between starting two requests to the same platform.
-  downloadDelaySeconds: integer('downloadDelaySeconds').notNull().default(10),
-  // How often each channel is checked for new uploads.
-  channelCheckHours: integer('channelCheckHours').notNull().default(6),
-  // Passed to yt-dlp's --limit-rate (e.g. "2M"); unlimited when null.
-  downloadRateLimit: text('downloadRateLimit'),
-  // The SMTP server for email, when it isn't set by environment variables
-  // (see email.server.ts). The password is encrypted (secrets.server.ts).
-  smtpHost: text('smtpHost'),
-  smtpPort: integer('smtpPort').notNull().default(587),
-  smtpSecure: boolean('smtpSecure').notNull().default(false),
-  smtpUser: text('smtpUser'),
-  smtpPassword: text('smtpPassword'),
-  emailFrom: text('emailFrom'),
+// --- Site settings ----------------------------------------------------------
+
+// Settings for the whole site, edited by admins: one row for each setting
+// that has been saved, with its value as JSON. Settings without a row have
+// their default; the names, types and defaults are in site-settings.server.ts.
+// Keys starting "__" are the app's own (such as the day's visitor salt, see
+// activity.server.ts), never shown as settings.
+export const siteSettings = pgTable('site_settings', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').notNull(),
   updatedAt: timestamps.updatedAt,
 })
 
@@ -410,6 +406,58 @@ export const episodeComments = pgTable(
   (table) => [index('episode_comment_episodeId_atSeconds_idx').on(table.episodeId, table.atSeconds)],
 )
 
+// --- Live -------------------------------------------------------------------
+
+// A live broadcast of a podcast, streamed from OBS through MediaMTX (see
+// live.server.ts). Open while endedAt is null; once it ends, its recording
+// becomes a private episode (see live-recordings.server.ts).
+export const liveBroadcasts = pgTable(
+  'live_broadcast',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    podcastId: text('podcastId')
+      .notNull()
+      .references(() => podcasts.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    startedAt: timestamp('startedAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+    // When MediaMTX last listed the stream, so a dropped connection that comes
+    // back soon continues the same broadcast.
+    lastSeenAt: timestamp('lastSeenAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+    // When MediaMTX stopped listing the stream, while it's gone: OBS may be
+    // reconnecting, or the show may be over, which its owner is asked.
+    interruptedAt: timestamp('interruptedAt', { mode: 'date', withTimezone: true }),
+    endedAt: timestamp('endedAt', { mode: 'date', withTimezone: true }),
+    // The episode made from its recording.
+    episodeId: text('episodeId').references(() => episodes.id, { onDelete: 'set null' }),
+  },
+  (table) => [
+    index('live_broadcast_podcastId_startedAt_idx').on(table.podcastId, table.startedAt),
+    // A podcast has at most one broadcast open.
+    uniqueIndex('live_broadcast_open_idx').on(table.podcastId).where(sql`${table.endedAt} is null`),
+  ],
+)
+
+// What viewers write in a broadcast's chat. Plain text, not HTML.
+export const liveChatMessages = pgTable(
+  'live_chat_message',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    broadcastId: text('broadcastId')
+      .notNull()
+      .references(() => liveBroadcasts.id, { onDelete: 'cascade' }),
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    body: text('body').notNull(),
+    createdAt: timestamps.createdAt,
+  },
+  (table) => [index('live_chat_message_broadcastId_createdAt_idx').on(table.broadcastId, table.createdAt)],
+)
+
 // What listeners do with episodes, for podcast owners' stats (see
 // activity.server.ts). Nothing here identifies a person: there's no IP or
 // account, only a hash that changes daily and where they roughly were.
@@ -436,8 +484,8 @@ export const episodeActivity = pgTable(
     // For a share, what was shared: 'link' or 'embed'.
     detail: text('detail'),
     // The IP address and user agent, hashed with that day's salt (see
-    // visitorSalts), so a visitor can be counted once a day but not followed
-    // from one day to the next.
+    // saltFor in activity.server.ts), so a visitor can be counted once a day
+    // but not followed from one day to the next.
     visitorHash: text('visitorHash').notNull(),
     // From the IP address, which isn't kept. ISO 3166 codes for the country
     // and region.
@@ -461,13 +509,6 @@ export const episodeActivity = pgTable(
     uniqueIndex('episode_activity_once_a_day_idx').on(table.episodeId, table.type, table.visitorHash),
   ],
 )
-
-// A random salt for each day's visitor hashes. Old ones are deleted, after
-// which nobody (us included) can tell which hashes came from which address.
-export const visitorSalts = pgTable('visitor_salt', {
-  day: date('day', { mode: 'string' }).primaryKey(),
-  salt: text('salt').notNull(),
-})
 
 export const usersRelations = relations(users, ({ many }) => ({
   podcasts: many(podcasts),
@@ -497,7 +538,7 @@ export type NewPodcast = typeof podcasts.$inferInsert
 export type Episode = typeof episodes.$inferSelect
 export type NewEpisode = typeof episodes.$inferInsert
 export type Channel = typeof channels.$inferSelect
-export type SiteSettings = typeof siteSettings.$inferSelect
+export type LiveBroadcast = typeof liveBroadcasts.$inferSelect
 export type EpisodeReplacement = { sourceUrl: string | null }
 export type EpisodeStatus = (typeof episodeStatus.enumValues)[number]
 export type ActivityType = (typeof activityType.enumValues)[number]

@@ -31,6 +31,12 @@ services:
       CUSTOM_DOMAIN_TARGET: ${CUSTOM_DOMAIN_TARGET:-}
       CUSTOM_DOMAIN_EDGE_HOST: ${CUSTOM_DOMAIN_EDGE_HOST:-}
       TRAEFIK_CONFIG_TOKEN: ${TRAEFIK_CONFIG_TOKEN:-}
+      # Live broadcasts (see README.md), with the mediamtx service below. Off
+      # unless all four are set.
+      LIVE_SECRET: ${LIVE_SECRET:-}
+      LIVE_API_URL: ${LIVE_API_URL:-}
+      LIVE_HLS_URL: ${LIVE_HLS_URL:-}
+      LIVE_RTMP_URL: ${LIVE_RTMP_URL:-}
     volumes:
       - media:/app/media
     # Picked up by Grafana Alloy (see deploy/observability). Docker keeps a
@@ -96,6 +102,23 @@ services:
       - ./docker/edge/Caddyfile:/etc/caddy/Caddyfile:ro
       - edge-data:/data
       - edge-config:/config
+
+  # Receives live broadcasts from OBS (see "Live broadcasts" in README.md).
+  # The app needs LIVE_API_URL=http://mediamtx:9997 and
+  # LIVE_HLS_URL=http://mediamtx:8888; only RTMP is published.
+  mediamtx:
+    image: bluenviron/mediamtx:1
+    profiles: [live]
+    restart: unless-stopped
+    # As the app's user, so the app can delete the recordings it has used.
+    user: "1000:1000"
+    environment:
+      MTX_AUTHHTTPADDRESS: http://app:3000/api/live/auth?token=${LIVE_SECRET:-}
+    ports:
+      - "${RTMP_PORT:-1935}:1935"
+    volumes:
+      - ./docker/mediamtx/mediamtx.yml:/mediamtx.yml:ro
+      - media:/app/media
 
 volumes:
   media:

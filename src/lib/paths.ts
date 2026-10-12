@@ -8,6 +8,11 @@ export function episodePath(slug: string, episodeSlug: string) {
   return `/podcasts/${slug}/episodes/${episodeSlug}`
 }
 
+// The podcast's live page: its broadcast, when there is one, and its chat.
+export function livePath(slug: string) {
+  return `/live/${slug}`
+}
+
 export function embedPath(slug: string, episodeSlug: string) {
   return `/embed/${slug}/${episodeSlug}`
 }

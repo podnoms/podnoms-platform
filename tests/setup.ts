@@ -16,6 +16,11 @@ env.YTDLP_PATH = resolve(import.meta.dirname, 'fixtures/fake-yt-dlp.mjs')
 for (const name of ['SITE_URL', 'AUTH_GITHUB_ID', 'AUTH_GITHUB_SECRET', 'AUTH_GOOGLE_ID', 'AUTH_GOOGLE_SECRET', 'AUTH_FACEBOOK_ID', 'AUTH_FACEBOOK_SECRET', 'FFMPEG_PATH', 'FFPROBE_PATH', 'SENTRY_DSN', 'REDIS_URL', 'PEXELS_API_KEY', 'MAXMIND_ACCOUNT_ID', 'MAXMIND_LICENSE_KEY', 'PODCASTINDEX_API_KEY', 'PODCASTINDEX_API_SECRET', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_SECURE', 'EMAIL_FROM', 'CUSTOM_DOMAIN_TARGET', 'CUSTOM_DOMAIN_EDGE_HOST', 'TRAEFIK_TLS_ENTRYPOINT', 'TRAEFIK_HTTP_ENTRYPOINT', 'TRAEFIK_CONFIG_TOKEN']) {
   delete env[name]
 }
+// Live broadcasts are on, with a MediaMTX that tests stand in for by mocking fetch.
+env.LIVE_SECRET = 'test-live-secret-that-is-at-least-32-characters'
+env.LIVE_API_URL = 'http://mediamtx.test:9997'
+env.LIVE_HLS_URL = 'http://mediamtx.test:8888'
+env.LIVE_RTMP_URL = 'rtmp://live.example.com/live'
 
 // Server code gets a fresh, migrated, in-memory Postgres per test file. The
 // factory only runs for files that (indirectly) import the database.

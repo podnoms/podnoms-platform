@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { ActivityPanel } from '~/components/activity-panel'
 import { BulkUploadDialog } from '~/components/bulk-upload-dialog'
 import { ChannelPanel } from '~/components/channel-panel'
@@ -11,6 +11,7 @@ import { EpisodeListEnd } from '~/components/episode-list-end'
 import { EpisodeRow } from '~/components/episode-row'
 import { FeedUrlButton } from '~/components/feed-url-button'
 import { Icons } from '~/components/icons'
+import { GoLiveButton } from '~/components/go-live-dialog'
 import { NewEpisodeDialog } from '~/components/new-episode-dialog'
 import { PodcastPrivacyCard } from '~/components/podcast-privacy-card'
 import { Badge } from '~/components/ui/badge'
@@ -34,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { fetchMyPodcast, fetchMyPodcastEpisodes, updateMyPodcast } from '~/functions/podcasts'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
+import { useLiveStart } from '~/hooks/use-live-events'
 import { formatDate, formatLength, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { isReady } from '~/lib/podcast-directories'
@@ -48,6 +50,11 @@ export const Route = createFileRoute('/_authed/podcasts/$slug/manage')({
 function PodcastPage() {
   const podcast = Route.useLoaderData()
   const router = useRouter()
+  const navigate = useNavigate()
+  // Going live (from OBS) brings the owner to the live page, to watch and chat.
+  const broadcasting = useLiveStart(podcast.slug, podcast.liveEnabled, podcast.live, () =>
+    navigate({ to: '/live/$slug', params: { slug: podcast.slug } }),
+  )
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const { summary } = podcast
@@ -136,6 +143,7 @@ function PodcastPage() {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 pt-3">
               <p className="text-sm text-muted-foreground">{stats.join(' · ')}</p>
               <div className="flex flex-wrap gap-2 sm:ml-auto">
+                {podcast.liveEnabled && <GoLiveButton podcast={podcast} live={broadcasting} />}
                 <Button variant="outline" onClick={() => setEditing(true)}>
                   <Icons.edit />
                   Edit

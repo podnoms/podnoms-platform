@@ -78,6 +78,16 @@ export const env = createEnv({
     TRAEFIK_HTTP_ENTRYPOINT: z.string().default('web'),
     // When set, Traefik must send it as a bearer token to read /api/traefik/config.
     TRAEFIK_CONFIG_TOKEN: z.string().optional(),
+    // Live broadcasts (see live.server.ts), streamed from OBS to a MediaMTX
+    // server. Off unless all four are set. LIVE_SECRET is shared with
+    // MediaMTX: it sends it to /api/live/auth, and the app sends it to read
+    // the video. LIVE_API_URL and LIVE_HLS_URL are MediaMTX's API and HLS
+    // addresses, which only the app needs to reach; LIVE_RTMP_URL is what
+    // owners put in OBS, e.g. rtmp://live.podnoms.com/live.
+    LIVE_SECRET: z.string().min(32).optional(),
+    LIVE_API_URL: z.url().optional(),
+    LIVE_HLS_URL: z.url().optional(),
+    LIVE_RTMP_URL: z.string().regex(/^rtmps?:\/\//, 'Must be an rtmp:// or rtmps:// URL').optional(),
   },
   clientPrefix: 'VITE_',
   client: {},

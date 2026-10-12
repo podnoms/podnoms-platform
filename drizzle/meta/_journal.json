@@ -134,6 +134,48 @@
       "when": 1791744997558,
       "tag": "0018_comments",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791825367549,
+      "tag": "0019_live",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791828421069,
+      "tag": "0020_live_key_encrypted",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791828729236,
+      "tag": "0021_site_settings_key_value",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791829150224,
+      "tag": "0022_site_settings_visitor_salt",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791829683585,
+      "tag": "0023_auth_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791830734221,
+      "tag": "0024_live_interrupted",
+      "breakpoints": true
     }
   ]
 }

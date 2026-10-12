@@ -1,0 +1,1 @@
+ALTER TABLE "live_broadcast" ADD COLUMN "interruptedAt" timestamp with time zone;

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Platform } from '~/lib/platforms'
-import type { SiteSettings } from '~/server/db/schema'
+import type { SiteSettings } from '~/server/site-settings.server'
 import {
   clearCooldown,
   firstCooldownMs,
@@ -13,7 +13,6 @@ import {
 } from '~/server/download-throttle.server'
 
 const settings: SiteSettings = {
-  id: 'global',
   downloadConcurrency: 3,
   perPlatformConcurrency: 2,
   downloadDelaySeconds: 0,
@@ -25,7 +24,6 @@ const settings: SiteSettings = {
   smtpUser: null,
   smtpPassword: null,
   emailFrom: null,
-  updatedAt: new Date(0),
 }
 
 vi.mock('~/server/site-settings.server', () => ({ getSiteSettings: async () => settings }))

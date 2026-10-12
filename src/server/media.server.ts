@@ -1,6 +1,7 @@
 // Reads and converts audio files with ffprobe and ffmpeg.
 import '@tanstack/react-start/server-only'
 import { spawn } from 'node:child_process'
+import { rm, writeFile } from 'node:fs/promises'
 import { env } from '~/env'
 
 export type AudioInfo = {
@@ -99,6 +100,29 @@ export async function convertToMp3(
       }
     },
   )
+}
+
+// Joins recordings (a live broadcast's segments, in order) into one file of
+// just their audio, copied rather than re-encoded. It's Matroska, which takes
+// any codec; convertToMp3 makes the episode's MP3 from it.
+export async function joinAudio(sources: string[], destination: string) {
+  // The concat demuxer reads its inputs from a list, quoted as it expects.
+  const list = sources.map((source) => `file '${source.replaceAll("'", "'\\''")}'`).join('\n')
+  const listPath = `${destination}.list`
+  await writeFile(listPath, `${list}\n`)
+  try {
+    await run(env.FFMPEG_PATH, [
+      '-hide_banner', '-nostdin', '-y', '-loglevel', 'error',
+      '-f', 'concat', '-safe', '0',
+      '-i', listPath,
+      '-map', '0:a:0', '-vn',
+      '-c:a', 'copy',
+      '-f', 'matroska',
+      destination,
+    ])
+  } finally {
+    await rm(listPath, { force: true })
+  }
 }
 
 // Decodes the first frame of anything ffmpeg can read as an image to a PNG,
