@@ -1,7 +1,9 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { Link, useRouteContext } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { usePlayer, type PlayerEpisode } from '~/components/player/player-provider'
+import { Waveform } from '~/components/player/waveform'
+import { fetchEpisodeWaveform } from '~/functions/public'
 import { Button } from '~/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
 import { Slider } from '~/components/ui/slider'
@@ -25,12 +27,32 @@ function usePlayerHeight(bar: RefObject<HTMLDivElement | null>, shown: boolean) 
   }, [bar, shown])
 }
 
+// The playing episode's waveform, fetched when the episode changes; null
+// until it arrives, or if the episode has none yet.
+function useEpisodeWaveform(episodeId: string | undefined) {
+  const [loaded, setLoaded] = useState<{ episodeId: string; values: number[] | null }>()
+  useEffect(() => {
+    if (!episodeId) return
+    let current = true
+    fetchEpisodeWaveform({ data: { episodeId } }).then(
+      (values) => current && setLoaded({ episodeId, values }),
+      () => {},
+    )
+    return () => {
+      current = false
+    }
+  }, [episodeId])
+  // A different episode's, while the new one's loads, would be wrong.
+  return loaded && loaded.episodeId === episodeId ? loaded.values : null
+}
+
 // The now-playing bar pinned across the bottom of the app while an episode is loaded.
 export function PlayerBar() {
   const player = usePlayer()
   const { episode } = player
   const bar = useRef<HTMLDivElement>(null)
   usePlayerHeight(bar, Boolean(episode))
+  const waveform = useEpisodeWaveform(episode?.id)
   if (!episode) return null
 
   const nextRate = rates[(rates.indexOf(player.rate) + 1) % rates.length] ?? 1
@@ -75,15 +97,27 @@ export function PlayerBar() {
         <span className="w-14 text-right text-xs text-muted-foreground tabular-nums">
           {formatClock(player.currentTime)}
         </span>
-        <Slider
-          aria-label="Position"
-          className="flex-1"
-          min={0}
-          max={player.duration || 1}
-          step={1}
-          value={[Math.min(player.currentTime, player.duration || 0)]}
-          onValueChange={([seconds]) => seconds !== undefined && player.seek(seconds)}
-        />
+        {waveform && player.duration ? (
+          <Waveform
+            values={waveform}
+            duration={player.duration}
+            position={player.currentTime}
+            onSeek={player.seek}
+            size="mini"
+            tone="neutral"
+            className="min-w-0 flex-1"
+          />
+        ) : (
+          <Slider
+            aria-label="Position"
+            className="flex-1"
+            min={0}
+            max={player.duration || 1}
+            step={1}
+            value={[Math.min(player.currentTime, player.duration || 0)]}
+            onValueChange={([seconds]) => seconds !== undefined && player.seek(seconds)}
+          />
+        )}
         <span className="w-14 text-xs text-muted-foreground tabular-nums">
           {player.duration ? formatClock(player.duration) : '--:--'}
         </span>

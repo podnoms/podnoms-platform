@@ -13,6 +13,7 @@ import {
   getEpisode,
   getEpisodeAudio,
   getEpisodeSlug,
+  getEpisodeWaveform,
   getPublicEpisode,
   listEpisodes,
   listPublishedEpisodes,
@@ -768,5 +769,39 @@ describe('public episode reads', () => {
       expect((await getPublicEpisode('show', 'older', listener.id))!.episode.positionSeconds).toBe(42)
       expect((await getPublicEpisode('show', 'older', null))!.episode.positionSeconds).toBeNull()
     })
+  })
+})
+
+describe('getEpisodeWaveform', () => {
+  async function withWaveform(values: Parameters<typeof insertEpisode>[1] = {}, podcastValues: { private?: boolean } = {}) {
+    const owner = await createUser()
+    const podcast = await createPodcast(owner.id, podcastValues)
+    const episode = await insertEpisode(podcast.id, { status: 'ready', audioUrl: '/audio', ...values })
+    const path = episodeWaveformPath(episode.id)
+    await mkdir(dirname(path), { recursive: true })
+    await writeFile(path, JSON.stringify({ version: 1, peaks: Array(1000).fill(255), rms: Array.from({ length: 1000 }, (_, i) => i % 256) }))
+    return { owner, episode }
+  }
+
+  it("gives anyone a listed episode's waveform, resampled for the player", async () => {
+    const { episode } = await withWaveform()
+    const values = await getEpisodeWaveform(null, episode.id)
+    expect(values).toHaveLength(400)
+    expect(values!.every(Number.isInteger)).toBe(true)
+  })
+
+  it("gives a private episode's waveform only to its owner", async () => {
+    const { owner, episode } = await withWaveform({ private: true })
+    expect(await getEpisodeWaveform(null, episode.id)).toBeNull()
+    expect(await getEpisodeWaveform((await createUser()).id, episode.id)).toBeNull()
+    expect(await getEpisodeWaveform(owner.id, episode.id)).toHaveLength(400)
+  })
+
+  it("is null for a private podcast's episode, or one without a waveform", async () => {
+    const { episode } = await withWaveform({}, { private: true })
+    expect(await getEpisodeWaveform(null, episode.id)).toBeNull()
+    const owner = await createUser()
+    const bare = await insertEpisode((await createPodcast(owner.id)).id, { status: 'ready', audioUrl: '/audio' })
+    expect(await getEpisodeWaveform(owner.id, bare.id)).toBeNull()
   })
 })

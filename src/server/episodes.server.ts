@@ -16,7 +16,8 @@ import { plainTextToHtml } from '~/lib/rich-text'
 import { commitImage, deleteImage } from '~/server/images.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import { podcastAuthor } from '~/server/podcasts.server'
-import { deleteWaveform } from '~/server/waveforms.server'
+import { deleteWaveform, readWaveform } from '~/server/waveforms.server'
+import { resample } from '~/lib/waveform'
 import type { BulkUploadEpisodesInput, EditEpisodeInput, NewEpisodeInput, ReplaceAudioInput } from '~/lib/episode-schema'
 
 // Whether the episode's audio is being replaced.
@@ -591,4 +592,21 @@ export async function savePlaybackPosition(userId: string, episodeId: string, se
       .where(and(eq(playbackPositions.userId, userId), eq(playbackPositions.episodeId, episodeId)))
   }
   return true
+}
+
+// Bars in the player bar's waveform: enough for its width on a wide screen.
+const playerBars = 400
+
+// An episode's waveform for the player bar, if the viewer may see the episode
+// and it has one: null otherwise.
+export async function getEpisodeWaveform(viewerId: string | null, episodeId: string) {
+  const [episode] = await db
+    .select({ id: episodes.id })
+    .from(episodes)
+    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .where(and(eq(episodes.id, episodeId), visibleTo(viewerId)))
+    .limit(1)
+  const waveform = episode && (await readWaveform(episode.id))
+  // The smoother of the two shapes, as the pages draw them.
+  return waveform ? resample(waveform.rms, playerBars).map(Math.round) : null
 }

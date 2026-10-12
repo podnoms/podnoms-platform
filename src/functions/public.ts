@@ -15,6 +15,7 @@ import { currentRequestDomainSlug, requestHost } from '~/server/custom-domains.s
 import { publicUrl } from '~/server/site-url.server'
 import {
   findShortLink,
+  getEpisodeWaveform,
   getPublicEpisode,
   listPublishedEpisodes,
   summarisePublishedEpisodes,
@@ -141,3 +142,12 @@ async function episodePage(slug: string, episodeSlug: string) {
     waveform: waveform?.rms ?? null,
   }
 }
+
+// The playing episode's waveform, for the player bar; null if it has none yet
+// (or the visitor may not see the episode).
+export const fetchEpisodeWaveform = createServerFn({ method: 'GET' })
+  .validator(z.object({ episodeId: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    const { userId } = await visitor()
+    return getEpisodeWaveform(userId, data.episodeId)
+  })

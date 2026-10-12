@@ -12,10 +12,16 @@ export type WaveformMarker = { id: string; seconds: number; image: string | null
 const barWidth = 3
 const barGap = 1
 // The bars, and their reflection below at a fraction of the height: full
-// size on an episode's page, compact in lists.
+// size on an episode's page, compact in lists, mini in the player bar.
 const sizes = {
   default: { barsHeight: 88, reflectionHeight: 28 },
   compact: { barsHeight: 40, reflectionHeight: 14 },
+  mini: { barsHeight: 26, reflectionHeight: 8 },
+}
+
+const tones = {
+  primary: { played: 'fill-primary', hover: 'fill-primary/40' },
+  neutral: { played: 'fill-foreground', hover: 'fill-foreground/40' },
 }
 
 // A Mixcloud-style waveform that shows how far through the episode the
@@ -29,6 +35,7 @@ export function Waveform({
   onSeek,
   markers = [],
   size = 'default',
+  tone = 'primary',
   className,
 }: {
   // Bar heights from 0 to 255.
@@ -38,6 +45,9 @@ export function Waveform({
   onSeek: (seconds: number) => void
   markers?: WaveformMarker[]
   size?: keyof typeof sizes
+  // The played part's colour: the theme's primary, or its foreground where
+  // primary would be too loud (the player bar).
+  tone?: keyof typeof tones
   className?: string
 }) {
   const { barsHeight, reflectionHeight } = sizes[size]
@@ -139,12 +149,12 @@ export function Waveform({
             <path d={lower} opacity={0.5} />
           </g>
           {hover !== null && !dragging && (
-            <g className="fill-primary/40" clipPath={`url(#${id}-hover)`}>
+            <g className={tones[tone].hover} clipPath={`url(#${id}-hover)`}>
               <path d={upper} />
               <path d={lower} opacity={0.5} />
             </g>
           )}
-          <g className="fill-primary" clipPath={`url(#${id}-played)`}>
+          <g className={tones[tone].played} clipPath={`url(#${id}-played)`}>
             <path d={upper} />
             <path d={lower} opacity={0.4} />
           </g>
