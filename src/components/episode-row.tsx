@@ -54,6 +54,8 @@ export type EpisodeRowData = {
   private: boolean
   likeCount: number
   createdAt: Date
+  // When it came out: a channel's uploads are dated as the channel has them.
+  publishedAt: Date | null
   positionSeconds: number | null
   progress: ProgressInfo | null
 }
@@ -110,7 +112,7 @@ export function EpisodeRow({
   // The source's title isn't known until it's fetched; show where it's from meanwhile.
   const title = episode.title === episode.sourceUrl ? `Episode from ${hostname(episode.title)}` : episode.title
   const meta = [
-    formatDate(episode.createdAt),
+    formatDate(episode.publishedAt ?? episode.createdAt),
     episode.durationSeconds != null ? formatClock(episode.durationSeconds) : null,
     episode.sourceUrl ? hostname(episode.sourceUrl) : null,
     episode.likeCount > 0 ? pluralise(episode.likeCount, 'like') : null,

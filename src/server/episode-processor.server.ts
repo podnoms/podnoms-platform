@@ -84,7 +84,7 @@ type DownloadProgress = {
 }
 
 // What's known about the source before its audio is downloaded.
-type SourceDetails = Pick<SourceInfo, 'title' | 'description' | 'duration' | 'thumbnail'>
+type SourceDetails = Pick<SourceInfo, 'title' | 'description' | 'duration' | 'thumbnail' | 'timestamp' | 'upload_date'>
 
 // The source's details, printed by yt-dlp once the download is saved. They're
 // also printed (as DETAILS) once it's looked the source up, before the
@@ -106,7 +106,7 @@ async function runYtDlp(sourceUrl: string, outputTemplate: string, onLine: (line
     '--output',
     outputTemplate,
     '--print',
-    'video:DETAILS %(.{title,description,duration,thumbnail})j',
+    'video:DETAILS %(.{title,description,duration,thumbnail,timestamp,upload_date})j',
     '--print',
     'after_move:INFO %(.{title,description,duration,thumbnail,filepath,timestamp,upload_date})j',
     sourceUrl,
@@ -268,7 +268,9 @@ async function saveSourceDetails(episodeId: string, source: SourceDetails) {
     const [episode] = await db.select().from(episodes).where(eq(episodes.id, episodeId)).limit(1)
     if (!episode) return
     const durationSeconds = source.duration ? Math.round(source.duration) : episode.durationSeconds
-    await updateWithSlug(episodeId, { ...(await detailsFromSource(episode, source)), durationSeconds })
+    // Dated now, rather than when it's ready, so it isn't shown as new meanwhile.
+    const publishedAt = episode.publishedAt ?? ((await isFromChannel(episodeId)) ? uploadedAt(source) : null)
+    await updateWithSlug(episodeId, { ...(await detailsFromSource(episode, source)), durationSeconds, publishedAt })
     publishEpisodeEvent({ type: 'changed', episodeId })
   } catch (error) {
     logger.warn({ episodeId, err: error }, "Could not save the source's details before downloading")

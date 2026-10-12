@@ -222,7 +222,7 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
   })
 
   it("dates a channel's upload as the channel does, and anything else as now", async () => {
-    const fromChannel = await linkEpisode({ sourceUrl: link('/watch', { upload_date: '20260115' }) })
+    const fromChannel = await linkEpisode({ sourceUrl: link('/watch', { upload_date: '20260115', hold: '400' }) })
     const [channel] = await db
       .insert(channels)
       .values({ podcastId: fromChannel.podcastId, platform: 'other', url: 'https://video.test/channel' })
@@ -232,6 +232,13 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     enqueueEpisode(fromChannel.id)
     enqueueEpisode(byHand.id)
 
+    // Dated while it's still downloading, not just once it's ready.
+    const downloading = await vi.waitFor(async () => {
+      const row = await getRow(fromChannel.id)
+      if (!row.publishedAt) throw new Error('Not dated yet')
+      return row
+    })
+    expect(downloading).toMatchObject({ status: 'processing', publishedAt: new Date('2026-01-15T00:00:00Z') })
     expect((await processed(fromChannel.id)).publishedAt).toEqual(new Date('2026-01-15T00:00:00Z'))
     expect((await processed(byHand.id)).publishedAt!.getTime()).toBeGreaterThan(Date.now() - 60_000)
   })

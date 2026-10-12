@@ -174,6 +174,7 @@ export function listEpisodes(userId: string, podcastId: string, page?: Page) {
       private: episodes.private,
       likeCount,
       createdAt: episodes.createdAt,
+      publishedAt: episodes.publishedAt,
       positionSeconds: playbackPositions.positionSeconds,
     })
     .from(episodes)
@@ -182,7 +183,8 @@ export function listEpisodes(userId: string, podcastId: string, page?: Page) {
       and(eq(playbackPositions.episodeId, episodes.id), eq(playbackPositions.userId, userId)),
     )
     .where(eq(episodes.podcastId, podcastId))
-    .orderBy(desc(episodes.createdAt), desc(episodes.id))
+    // As the feed has them, so a channel's back catalogue is in upload order.
+    .orderBy(newestPublishedFirst, desc(episodes.id))
   return page ? query.offset(page.offset).limit(page.limit) : query
 }
 

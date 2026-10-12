@@ -58,6 +58,7 @@ const details = {
   description: param('description'),
   duration: duration ? Number(duration) : undefined,
   thumbnail: param('thumbnail'),
+  upload_date: param('upload_date'),
 }
 // Looked up before the download starts.
 console.log(`DETAILS ${JSON.stringify(details)}`)
@@ -72,4 +73,4 @@ await hold()
 
 const filepath = output.replace('%(ext)s', 'mp3')
 copyFileSync(process.env.FAKE_YTDLP_AUDIO, filepath)
-console.log(`INFO ${JSON.stringify({ ...details, upload_date: param('upload_date'), filepath })}`)
+console.log(`INFO ${JSON.stringify({ ...details, filepath })}`)
