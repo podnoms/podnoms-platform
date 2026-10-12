@@ -425,6 +425,9 @@ export const liveBroadcasts = pgTable(
     // When MediaMTX last listed the stream, so a dropped connection that comes
     // back soon continues the same broadcast.
     lastSeenAt: timestamp('lastSeenAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+    // When MediaMTX stopped listing the stream, while it's gone: OBS may be
+    // reconnecting, or the show may be over, which its owner is asked.
+    interruptedAt: timestamp('interruptedAt', { mode: 'date', withTimezone: true }),
     endedAt: timestamp('endedAt', { mode: 'date', withTimezone: true }),
     // The episode made from its recording.
     episodeId: text('episodeId').references(() => episodes.id, { onDelete: 'set null' }),

@@ -8,7 +8,11 @@ import type { ChatMessage, OpenBroadcast } from '~/server/live.server'
 type Wire<T> = { [K in keyof T]: T[K] extends Date ? string : T[K] extends Date | null ? string | null : T[K] }
 
 const broadcastFrom = (broadcast: Wire<OpenBroadcast> | null): OpenBroadcast | null =>
-  broadcast && { ...broadcast, startedAt: new Date(broadcast.startedAt) }
+  broadcast && {
+    ...broadcast,
+    startedAt: new Date(broadcast.startedAt),
+    interruptedAt: broadcast.interruptedAt === null ? null : new Date(broadcast.interruptedAt),
+  }
 
 const messageFrom = (message: Wire<ChatMessage>): ChatMessage => ({ ...message, createdAt: new Date(message.createdAt) })
 
@@ -16,6 +20,8 @@ export function useLiveEvents(slug: string, initial: { broadcast: OpenBroadcast 
   const [broadcast, setBroadcast] = useState(initial.broadcast)
   const [chat, setChat] = useState(initial.chat)
   const [viewers, setViewers] = useState<number | null>(null)
+  // Whether the broadcast this page was showing has ended, for a word to its viewers.
+  const [ended, setEnded] = useState(false)
   const broadcastId = useRef(initial.broadcast?.id ?? null)
 
   useEffect(() => {
@@ -34,6 +40,8 @@ export function useLiveEvents(slug: string, initial: { broadcast: OpenBroadcast 
       const next = broadcastFrom(data<{ broadcast: Wire<OpenBroadcast> | null }>(event).broadcast)
       // A new broadcast has a new chat; one that ended keeps its chat on screen.
       if (next && next.id !== broadcastId.current) setChat([])
+      if (next) setEnded(false)
+      else if (broadcastId.current) setEnded(true)
       broadcastId.current = next?.id ?? null
       setBroadcast(next)
     })
@@ -50,22 +58,32 @@ export function useLiveEvents(slug: string, initial: { broadcast: OpenBroadcast 
     return () => source.close()
   }, [slug])
 
-  return { broadcast, chat, setChat, viewers }
+  return { broadcast, chat, setChat, viewers, ended }
 }
 
-// Calls `onStart` when the podcast starts broadcasting, while `active`: for
-// its page, to send visitors to the live page.
-export function useLiveStart(slug: string, active: boolean, onStart: () => void) {
+// Calls `onStart` when the podcast starts broadcasting while `active`: for
+// its pages, to take visitors to the live page. Only a start counts, from not
+// live to live, so a page opened during a broadcast stays where it is.
+// Returns whether it's live now, as the page loaded it and then as it changes.
+export function useLiveStart(slug: string, active: boolean, initiallyLive: boolean, onStart: () => void) {
   const latest = useRef(onStart)
   latest.current = onStart
+  const [live, setLive] = useState(initiallyLive)
+  useEffect(() => setLive(initiallyLive), [initiallyLive])
 
   useEffect(() => {
     if (!active) return
+    let wasLive = initiallyLive
     const source = new EventSource(`/api/podcasts/${encodeURIComponent(slug)}/live/events`)
     source.addEventListener('status', (event) => {
       const { broadcast } = JSON.parse((event as MessageEvent<string>).data) as { broadcast: unknown }
-      if (broadcast) latest.current()
+      const isLive = broadcast !== null
+      if (isLive && !wasLive) latest.current()
+      wasLive = isLive
+      setLive(isLive)
     })
     return () => source.close()
-  }, [slug, active])
+  }, [slug, active, initiallyLive])
+
+  return live
 }

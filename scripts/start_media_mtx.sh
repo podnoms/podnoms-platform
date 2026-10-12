@@ -19,7 +19,7 @@ It uses the host's network, so the app's .env needs:
   LIVE_RTMP_URL=rtmp://localhost/live
 
 Point OBS at rtmp://<this machine>/live with the stream key from the
-podcast's Live tab. HLS (8888) and the API (9997) only listen on localhost.
+podcast's Go live dialog. HLS (8888) and the API (9997) only listen on localhost.
 
 Environment:
   APP_URL  Where the dev server is (default: http://localhost:5173)

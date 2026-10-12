@@ -169,6 +169,13 @@
       "when": 1791829683585,
       "tag": "0023_auth_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791830734221,
+      "tag": "0024_live_interrupted",
+      "breakpoints": true
     }
   ]
 }

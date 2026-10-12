@@ -1,16 +1,17 @@
 // Live broadcasts. Owners stream from OBS to a MediaMTX server, which asks us
 // (through /api/live/auth) whether each stream may publish: OBS sends
 // "live/<podcast id>?key=<the podcast's live key>". The key is kept
-// encrypted, so its owner can see it again on the Live tab. MediaMTX records the stream and serves it as HLS, which only
-// the app may read; viewers get it through /api/podcasts/$slug/live/hls,
-// which applies the podcast's privacy. The app polls MediaMTX's API to see
+// encrypted, so its owner can see it again in the Go live dialog. MediaMTX
+// records the stream and serves it as HLS, which only the app may read;
+// viewers get it through /api/podcasts/$slug/live/hls, which applies the
+// podcast's privacy. The app polls MediaMTX's API to see
 // which podcasts are live, opening and ending live_broadcast rows; a
 // broadcast's recording becomes a private episode once it ends (see
 // live-recordings.server.ts). Like episode processing, this runs in-process,
 // so only a single app instance may run.
 import '@tanstack/react-start/server-only'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
-import { and, desc, eq, isNull, or } from 'drizzle-orm'
+import { and, desc, eq, isNotNull, isNull, or } from 'drizzle-orm'
 import { env } from '~/env'
 import { db } from '~/server/db/client.server'
 import { episodes, liveBroadcasts, liveChatMessages, podcasts, users, type LiveBroadcast } from '~/server/db/schema'
@@ -23,8 +24,9 @@ import { decryptSecret, encryptSecret } from '~/server/secrets.server'
 // How often MediaMTX is asked what's live.
 export const pollIntervalMs = 5000
 // A stream that drops out (OBS reconnecting, say) and comes back within this
-// long continues the same broadcast.
-export const reconnectGraceMs = 30_000
+// long continues the same broadcast; after it, the broadcast ends. The owner
+// is asked whether they've finished as soon as it drops, and can end it sooner.
+export const reconnectGraceMs = 5 * 60_000
 // Chat shown when the page opens.
 export const chatHistoryLimit = 200
 // The least time between one user's chat messages.
@@ -225,22 +227,65 @@ export async function syncLiveBroadcasts(now = new Date()) {
     }
   }
 
-  const ended: LiveBroadcast[] = []
   for (const broadcast of open) {
     if (live.has(broadcast.podcastId)) {
-      await db.update(liveBroadcasts).set({ lastSeenAt: now }).where(eq(liveBroadcasts.id, broadcast.id))
+      await db
+        .update(liveBroadcasts)
+        .set({ lastSeenAt: now, interruptedAt: null })
+        .where(eq(liveBroadcasts.id, broadcast.id))
+      if (broadcast.interruptedAt) {
+        logger.info({ broadcastId: broadcast.id }, 'Broadcast reconnected')
+        publishLiveEvent({ type: 'status', podcastId: broadcast.podcastId })
+      }
     } else if (now.getTime() - broadcast.lastSeenAt.getTime() > reconnectGraceMs) {
-      await db.update(liveBroadcasts).set({ endedAt: broadcast.lastSeenAt }).where(eq(liveBroadcasts.id, broadcast.id))
-      logger.info({ podcastId: broadcast.podcastId, broadcastId: broadcast.id }, 'Broadcast ended')
+      await closeBroadcast(broadcast, broadcast.lastSeenAt)
+    } else if (!broadcast.interruptedAt) {
+      await db.update(liveBroadcasts).set({ interruptedAt: now }).where(eq(liveBroadcasts.id, broadcast.id))
+      logger.info({ broadcastId: broadcast.id }, 'Broadcast interrupted')
       publishLiveEvent({ type: 'status', podcastId: broadcast.podcastId })
-      ended.push(broadcast)
     }
   }
-  for (const broadcast of ended) {
-    await finishRecording(broadcast).catch((error: unknown) =>
-      reportError(error, { broadcastId: broadcast.id, msg: "Could not make a broadcast's recording into an episode" }),
+}
+
+// Ends an open broadcast, telling its viewers, and makes its recording an
+// episode in the background. Does nothing if it has already ended (the
+// owner and the poller may both get there). Returns whether it ended it.
+async function closeBroadcast(broadcast: LiveBroadcast, endedAt: Date) {
+  const closed = await db
+    .update(liveBroadcasts)
+    .set({ endedAt, interruptedAt: null })
+    .where(and(eq(liveBroadcasts.id, broadcast.id), isNull(liveBroadcasts.endedAt)))
+    .returning({ id: liveBroadcasts.id })
+  if (closed.length === 0) return false
+  logger.info({ podcastId: broadcast.podcastId, broadcastId: broadcast.id }, 'Broadcast ended')
+  publishLiveEvent({ type: 'status', podcastId: broadcast.podcastId })
+  // MediaMTX has finished writing the recording by now: the stream is gone.
+  void finishRecording(broadcast).catch((error: unknown) =>
+    reportError(error, { broadcastId: broadcast.id, msg: "Could not make a broadcast's recording into an episode" }),
+  )
+  return true
+}
+
+// The owner says they've finished: ends their broadcast now rather than after
+// the grace period. Only while its stream is gone, as one that's still coming
+// in would only start a new broadcast. Returns false unless the broadcast is
+// the user's, open and interrupted.
+export async function endBroadcast(userId: string, broadcastId: string) {
+  const [row] = await db
+    .select({ broadcast: liveBroadcasts })
+    .from(liveBroadcasts)
+    .innerJoin(podcasts, eq(podcasts.id, liveBroadcasts.podcastId))
+    .where(
+      and(
+        eq(liveBroadcasts.id, broadcastId),
+        eq(podcasts.userId, userId),
+        isNull(liveBroadcasts.endedAt),
+        isNotNull(liveBroadcasts.interruptedAt),
+      ),
     )
-  }
+    .limit(1)
+  if (!row) return false
+  return closeBroadcast(row.broadcast, row.broadcast.lastSeenAt)
 }
 
 // Kept across dev server reloads, which re-run this module.
@@ -279,10 +324,16 @@ export function startLivePoller() {
 
 // --- Status -------------------------------------------------------------------
 
-// The podcast's open broadcast, if it's live.
+// The podcast's open broadcast, if it's live (or interrupted, waiting for OBS).
 export async function getOpenBroadcast(podcastId: string) {
   const [broadcast] = await db
-    .select({ id: liveBroadcasts.id, title: liveBroadcasts.title, startedAt: liveBroadcasts.startedAt })
+    .select({
+      id: liveBroadcasts.id,
+      title: liveBroadcasts.title,
+      startedAt: liveBroadcasts.startedAt,
+      // Set while the stream is gone (see syncLiveBroadcasts).
+      interruptedAt: liveBroadcasts.interruptedAt,
+    })
     .from(liveBroadcasts)
     .where(and(eq(liveBroadcasts.podcastId, podcastId), isNull(liveBroadcasts.endedAt)))
     .limit(1)
@@ -307,7 +358,7 @@ export async function getWatchablePodcast(slug: string, viewerId: string | null)
   return podcast ?? null
 }
 
-// For the owner's Live tab: the stream key, what's on now, and the
+// For the owner's Go live dialog: the stream key, what's on now, and the
 // broadcasts so far with the episodes made from them.
 export async function getLiveSettings(userId: string, podcastId: string) {
   const [podcast] = await db

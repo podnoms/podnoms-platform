@@ -10,7 +10,7 @@ export function episodePath(slug: string, episodeSlug: string) {
 
 // The podcast's live page: its broadcast, when there is one, and its chat.
 export function livePath(slug: string) {
-  return `${podcastPath(slug)}/live`
+  return `/live/${slug}`
 }
 
 export function embedPath(slug: string, episodeSlug: string) {

@@ -8,16 +8,22 @@ import { imageSrc } from '~/lib/images'
 const retryMs = 3000
 
 // The podcast's live video while `broadcastId` is set, through the app's HLS
-// proxy; the artwork and a note while it isn't. hls.js is used where the
+// proxy; the artwork and a note while it isn't, saying so if the broadcast
+// the page was showing has ended. hls.js is used where the
 // browser can play it (most), and the browser's own HLS elsewhere (older iOS).
 export function LivePlayer({
   slug,
   broadcastId,
   artwork,
+  interrupted = false,
+  ended = false,
 }: {
   slug: string
   broadcastId: string | null
   artwork: string | null
+  // The stream has dropped out, and may come back.
+  interrupted?: boolean
+  ended?: boolean
 }) {
   const video = useRef<HTMLVideoElement>(null)
   const [state, setState] = useState<'loading' | 'playing' | 'waiting'>('loading')
@@ -89,18 +95,25 @@ export function LivePlayer({
   }, [slug, broadcastId])
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black shadow-lg ring-1 ring-black/10">
+    <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-muted shadow-lg ring-1 ring-border">
       {broadcastId ? (
         <>
           <video ref={video} className="size-full" controls playsInline autoPlay />
-          {state !== 'playing' && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-white/80">
-              {state === 'loading' ? 'Starting the stream…' : 'Waiting for the stream…'}
+          {interrupted ? (
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 bg-background/80 text-center text-foreground">
+              <p className="font-medium">The stream has stopped</p>
+              <p className="text-sm text-muted-foreground">Waiting for the host to reconnect…</p>
             </div>
+          ) : (
+            state !== 'playing' && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+                {state === 'loading' ? 'Starting the stream…' : 'Waiting for the stream…'}
+              </div>
+            )
           )}
         </>
       ) : (
-        <div className="relative flex size-full flex-col items-center justify-center gap-3 text-white">
+        <div className="relative flex size-full flex-col items-center justify-center gap-3 text-foreground">
           {artwork && (
             <img
               src={imageSrc(artwork, 192)}
@@ -110,8 +123,12 @@ export function LivePlayer({
             />
           )}
           <Icons.broadcast className="relative size-10 opacity-80" />
-          <p className="relative font-medium">Not live right now</p>
-          <p className="relative text-sm text-white/70">This page starts playing when the broadcast begins.</p>
+          <p className="relative font-medium">{ended ? 'This show has ended' : 'Not live right now'}</p>
+          <p className="relative text-sm text-muted-foreground">
+            {ended
+              ? 'Thanks for watching! The next broadcast will start playing here.'
+              : 'This page starts playing when the broadcast begins.'}
+          </p>
         </div>
       )}
     </div>

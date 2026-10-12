@@ -26,6 +26,7 @@ import { Route as ApiImagesRouteImport } from './routes/api/images'
 import { Route as ApiUploadsRouteImport } from './routes/api/uploads'
 import { Route as FeedSlugRouteImport } from './routes/feed/$slug'
 import { Route as ImagesFileRouteImport } from './routes/images/$file'
+import { Route as LiveSlugRouteImport } from './routes/live/$slug'
 import { Route as PodcastsSlugRouteImport } from './routes/podcasts/$slug'
 import { Route as SShortSlugRouteImport } from './routes/s/$shortSlug'
 import { Route as AuthedAdminIndexRouteImport } from './routes/_authed/admin/index'
@@ -39,7 +40,6 @@ import { Route as ApiLiveAuthRouteImport } from './routes/api/live/auth'
 import { Route as ApiTraefikConfigRouteImport } from './routes/api/traefik/config'
 import { Route as EmbedSlugEpisodeSlugRouteImport } from './routes/embed/$slug.$episodeSlug'
 import { Route as ListenSlugEpisodeSlugRouteImport } from './routes/listen/$slug.$episodeSlug'
-import { Route as PodcastsSlugLiveRouteImport } from './routes/podcasts/$slug_.live'
 import { Route as AuthedPodcastsSlugManageRouteImport } from './routes/_authed/podcasts/$slug.manage'
 import { Route as ApiEpisodesIdActivityRouteImport } from './routes/api/episodes/$id/activity'
 import { Route as ApiEpisodesIdAudioRouteImport } from './routes/api/episodes/$id/audio'
@@ -133,6 +133,11 @@ const ImagesFileRoute = ImagesFileRouteImport.update({
   path: '/images/$file',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LiveSlugRoute = LiveSlugRouteImport.update({
+  id: '/live/$slug',
+  path: '/live/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PodcastsSlugRoute = PodcastsSlugRouteImport.update({
   id: '/podcasts/$slug',
   path: '/podcasts/$slug',
@@ -199,11 +204,6 @@ const ListenSlugEpisodeSlugRoute = ListenSlugEpisodeSlugRouteImport.update({
   path: '/listen/$slug/$episodeSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PodcastsSlugLiveRoute = PodcastsSlugLiveRouteImport.update({
-  id: '/podcasts/$slug_/live',
-  path: '/podcasts/$slug/live',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthedPodcastsSlugManageRoute =
   AuthedPodcastsSlugManageRouteImport.update({
     id: '/podcasts/$slug/manage',
@@ -267,6 +267,7 @@ export interface FileRoutesByFullPath {
   '/api/uploads': typeof ApiUploadsRoute
   '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
+  '/live/$slug': typeof LiveSlugRoute
   '/podcasts/$slug': typeof PodcastsSlugRoute
   '/s/$shortSlug': typeof SShortSlugRoute
   '/settings/notifications': typeof AuthedSettingsNotificationsRoute
@@ -278,7 +279,6 @@ export interface FileRoutesByFullPath {
   '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
-  '/podcasts/$slug/live': typeof PodcastsSlugLiveRoute
   '/admin/': typeof AuthedAdminIndexRoute
   '/settings/': typeof AuthedSettingsIndexRoute
   '/podcasts/$slug/manage': typeof AuthedPodcastsSlugManageRoute
@@ -306,6 +306,7 @@ export interface FileRoutesByTo {
   '/api/uploads': typeof ApiUploadsRoute
   '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
+  '/live/$slug': typeof LiveSlugRoute
   '/podcasts/$slug': typeof PodcastsSlugRoute
   '/s/$shortSlug': typeof SShortSlugRoute
   '/settings/notifications': typeof AuthedSettingsNotificationsRoute
@@ -317,7 +318,6 @@ export interface FileRoutesByTo {
   '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
-  '/podcasts/$slug/live': typeof PodcastsSlugLiveRoute
   '/admin': typeof AuthedAdminIndexRoute
   '/settings': typeof AuthedSettingsIndexRoute
   '/podcasts/$slug/manage': typeof AuthedPodcastsSlugManageRoute
@@ -348,6 +348,7 @@ export interface FileRoutesById {
   '/api/uploads': typeof ApiUploadsRoute
   '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
+  '/live/$slug': typeof LiveSlugRoute
   '/podcasts/$slug': typeof PodcastsSlugRoute
   '/s/$shortSlug': typeof SShortSlugRoute
   '/_authed/settings/notifications': typeof AuthedSettingsNotificationsRoute
@@ -359,7 +360,6 @@ export interface FileRoutesById {
   '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
-  '/podcasts/$slug_/live': typeof PodcastsSlugLiveRoute
   '/_authed/admin/': typeof AuthedAdminIndexRoute
   '/_authed/settings/': typeof AuthedSettingsIndexRoute
   '/_authed/podcasts/$slug/manage': typeof AuthedPodcastsSlugManageRoute
@@ -390,6 +390,7 @@ export interface FileRouteTypes {
     | '/api/uploads'
     | '/feed/$slug'
     | '/images/$file'
+    | '/live/$slug'
     | '/podcasts/$slug'
     | '/s/$shortSlug'
     | '/settings/notifications'
@@ -401,7 +402,6 @@ export interface FileRouteTypes {
     | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
     | '/listen/$slug/$episodeSlug'
-    | '/podcasts/$slug/live'
     | '/admin/'
     | '/settings/'
     | '/podcasts/$slug/manage'
@@ -429,6 +429,7 @@ export interface FileRouteTypes {
     | '/api/uploads'
     | '/feed/$slug'
     | '/images/$file'
+    | '/live/$slug'
     | '/podcasts/$slug'
     | '/s/$shortSlug'
     | '/settings/notifications'
@@ -440,7 +441,6 @@ export interface FileRouteTypes {
     | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
     | '/listen/$slug/$episodeSlug'
-    | '/podcasts/$slug/live'
     | '/admin'
     | '/settings'
     | '/podcasts/$slug/manage'
@@ -470,6 +470,7 @@ export interface FileRouteTypes {
     | '/api/uploads'
     | '/feed/$slug'
     | '/images/$file'
+    | '/live/$slug'
     | '/podcasts/$slug'
     | '/s/$shortSlug'
     | '/_authed/settings/notifications'
@@ -481,7 +482,6 @@ export interface FileRouteTypes {
     | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
     | '/listen/$slug/$episodeSlug'
-    | '/podcasts/$slug_/live'
     | '/_authed/admin/'
     | '/_authed/settings/'
     | '/_authed/podcasts/$slug/manage'
@@ -508,6 +508,7 @@ export interface RootRouteChildren {
   ApiUploadsRoute: typeof ApiUploadsRoute
   FeedSlugRoute: typeof FeedSlugRoute
   ImagesFileRoute: typeof ImagesFileRoute
+  LiveSlugRoute: typeof LiveSlugRoute
   PodcastsSlugRoute: typeof PodcastsSlugRoute
   SShortSlugRoute: typeof SShortSlugRoute
   AdminQueuesSplatRoute: typeof AdminQueuesSplatRoute
@@ -517,7 +518,6 @@ export interface RootRouteChildren {
   ApiTraefikConfigRoute: typeof ApiTraefikConfigRoute
   EmbedSlugEpisodeSlugRoute: typeof EmbedSlugEpisodeSlugRoute
   ListenSlugEpisodeSlugRoute: typeof ListenSlugEpisodeSlugRoute
-  PodcastsSlugLiveRoute: typeof PodcastsSlugLiveRoute
   ApiEpisodesIdActivityRoute: typeof ApiEpisodesIdActivityRoute
   ApiEpisodesIdAudioRoute: typeof ApiEpisodesIdAudioRoute
   ApiPodcastsSlugEventsRoute: typeof ApiPodcastsSlugEventsRoute
@@ -647,6 +647,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ImagesFileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/live/$slug': {
+      id: '/live/$slug'
+      path: '/live/$slug'
+      fullPath: '/live/$slug'
+      preLoaderRoute: typeof LiveSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/podcasts/$slug': {
       id: '/podcasts/$slug'
       path: '/podcasts/$slug'
@@ -736,13 +743,6 @@ declare module '@tanstack/react-router' {
       path: '/listen/$slug/$episodeSlug'
       fullPath: '/listen/$slug/$episodeSlug'
       preLoaderRoute: typeof ListenSlugEpisodeSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/podcasts/$slug_/live': {
-      id: '/podcasts/$slug_/live'
-      path: '/podcasts/$slug/live'
-      fullPath: '/podcasts/$slug/live'
-      preLoaderRoute: typeof PodcastsSlugLiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/podcasts/$slug/manage': {
@@ -858,6 +858,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUploadsRoute: ApiUploadsRoute,
   FeedSlugRoute: FeedSlugRoute,
   ImagesFileRoute: ImagesFileRoute,
+  LiveSlugRoute: LiveSlugRoute,
   PodcastsSlugRoute: PodcastsSlugRoute,
   SShortSlugRoute: SShortSlugRoute,
   AdminQueuesSplatRoute: AdminQueuesSplatRoute,
@@ -867,7 +868,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiTraefikConfigRoute: ApiTraefikConfigRoute,
   EmbedSlugEpisodeSlugRoute: EmbedSlugEpisodeSlugRoute,
   ListenSlugEpisodeSlugRoute: ListenSlugEpisodeSlugRoute,
-  PodcastsSlugLiveRoute: PodcastsSlugLiveRoute,
   ApiEpisodesIdActivityRoute: ApiEpisodesIdActivityRoute,
   ApiEpisodesIdAudioRoute: ApiEpisodesIdAudioRoute,
   ApiPodcastsSlugEventsRoute: ApiPodcastsSlugEventsRoute,

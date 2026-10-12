@@ -16,4 +16,6 @@ export const postChatSchema = z.object({
   body: z.string().trim().min(1, 'Write something first').max(chatMessageMaxLength),
 })
 
+export const endBroadcastSchema = z.object({ broadcastId: z.string().min(1) })
+
 export const deleteChatSchema = z.object({ messageId: z.string().min(1) })

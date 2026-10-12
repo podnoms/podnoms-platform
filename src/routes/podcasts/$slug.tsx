@@ -53,8 +53,8 @@ function PodcastPage() {
   // When a broadcast starts, visitors are taken to it. One that's already on
   // when the page opens only gets the Watch live button, so the episodes can
   // still be reached.
-  useLiveStart(podcast.slug, podcast.liveEnabled && !podcast.live, () =>
-    navigate({ to: '/podcasts/$slug/live', params: { slug: podcast.slug } }),
+  const live = useLiveStart(podcast.slug, podcast.liveEnabled, podcast.live, () =>
+    navigate({ to: '/live/$slug', params: { slug: podcast.slug } }),
   )
   const { summary } = podcast
   const { totalSeconds, latestAt } = summary
@@ -104,9 +104,9 @@ function PodcastPage() {
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex items-center gap-2">
               <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Podcast</p>
-              {podcast.live && (
-                <Badge className="bg-red-600 text-white">
-                  <span className="size-1.5 animate-pulse rounded-full bg-white" />
+              {live && (
+                <Badge className="bg-destructive text-destructive-foreground">
+                  <span className="size-1.5 animate-pulse rounded-full bg-destructive-foreground" />
                   Live now
                 </Badge>
               )}
@@ -119,9 +119,9 @@ function PodcastPage() {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 pt-3">
               <p className="text-sm text-muted-foreground">{stats.join(' · ')}</p>
               <div className="flex flex-wrap gap-2 sm:ml-auto">
-                {podcast.live && (
-                  <Button className="bg-red-600 text-white hover:bg-red-700" asChild>
-                    <Link to="/podcasts/$slug/live" params={{ slug: podcast.slug }}>
+                {live && (
+                  <Button className="bg-destructive text-destructive-foreground hover:bg-destructive/90" asChild>
+                    <Link to="/live/$slug" params={{ slug: podcast.slug }}>
                       <Icons.broadcast />
                       Watch live
                     </Link>

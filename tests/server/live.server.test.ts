@@ -9,7 +9,9 @@ import {
   ChatTooFastError,
   createLiveKey,
   deleteChatMessage,
+  endBroadcast,
   getLiveSettings,
+  getOpenBroadcast,
   getWatchablePodcast,
   listChat,
   liveTokenFrom,
@@ -201,6 +203,29 @@ describe('syncLiveBroadcasts', () => {
     expect(finishRecording).toHaveBeenCalledWith(expect.objectContaining({ id: broadcast!.id }))
   })
 
+  it('marks a broadcast interrupted as soon as its stream goes, telling viewers, and clears it when it comes back', async () => {
+    const podcast = await createPodcast((await createUser()).id)
+    const start = new Date('2026-10-12T20:00:00Z')
+    const fetch = mediamtx([live(podcast.id)])
+    await syncLiveBroadcasts(start)
+
+    fetch.mockImplementation(async () => Response.json({ pageCount: 1, items: [] }))
+    let { events, unsubscribe } = recordEvents()
+    await syncLiveBroadcasts(new Date(start.getTime() + 5000))
+    // Not again on the next poll.
+    await syncLiveBroadcasts(new Date(start.getTime() + 10_000))
+    unsubscribe()
+    expect(events).toEqual([{ type: 'status', podcastId: podcast.id }])
+    expect((await getOpenBroadcast(podcast.id))!.interruptedAt).toEqual(new Date(start.getTime() + 5000))
+
+    fetch.mockImplementation(async () => Response.json({ pageCount: 1, items: [live(podcast.id)] }))
+    ;({ events, unsubscribe } = recordEvents())
+    await syncLiveBroadcasts(new Date(start.getTime() + 15_000))
+    unsubscribe()
+    expect(events).toEqual([{ type: 'status', podcastId: podcast.id }])
+    expect((await getOpenBroadcast(podcast.id))!.interruptedAt).toBeNull()
+  })
+
   it("changes nothing when MediaMTX can't be reached", async () => {
     const podcast = await createPodcast((await createUser()).id)
     await openBroadcast(podcast.id, { lastSeenAt: new Date(Date.now() - 10 * reconnectGraceMs) })
@@ -218,6 +243,40 @@ describe('syncLiveBroadcasts', () => {
     })
     await syncLiveBroadcasts()
     expect(await db.select({ podcastId: liveBroadcasts.podcastId }).from(liveBroadcasts)).toEqual([{ podcastId: podcast.id }])
+  })
+})
+
+describe('endBroadcast', () => {
+  it('lets the owner end an interrupted broadcast at once, telling viewers and making the episode', async () => {
+    const owner = await createUser()
+    const podcast = await createPodcast(owner.id)
+    const lastSeenAt = new Date(Date.now() - 20_000)
+    const broadcast = await openBroadcast(podcast.id, { lastSeenAt, interruptedAt: new Date(Date.now() - 15_000) })
+    const { events, unsubscribe } = recordEvents()
+
+    expect(await endBroadcast(owner.id, broadcast.id)).toBe(true)
+    unsubscribe()
+
+    const [ended] = await db.select().from(liveBroadcasts)
+    expect(ended).toMatchObject({ endedAt: lastSeenAt, interruptedAt: null })
+    expect(events).toEqual([{ type: 'status', podcastId: podcast.id }])
+    expect(finishRecording).toHaveBeenCalledWith(expect.objectContaining({ id: broadcast.id }))
+    expect(await getOpenBroadcast(podcast.id)).toBeNull()
+    // Once only, even if the poller gets there too.
+    expect(await endBroadcast(owner.id, broadcast.id)).toBe(false)
+    expect(finishRecording).toHaveBeenCalledTimes(1)
+  })
+
+  it("won't end someone else's broadcast, or one whose stream is still coming in", async () => {
+    const owner = await createUser()
+    const podcast = await createPodcast(owner.id)
+    const streaming = await openBroadcast(podcast.id)
+    expect(await endBroadcast(owner.id, streaming.id)).toBe(false)
+
+    await db.update(liveBroadcasts).set({ interruptedAt: new Date() }).where(eq(liveBroadcasts.id, streaming.id))
+    expect(await endBroadcast((await createUser()).id, streaming.id)).toBe(false)
+    expect(await getOpenBroadcast(podcast.id)).not.toBeNull()
+    expect(finishRecording).not.toHaveBeenCalled()
   })
 })
 

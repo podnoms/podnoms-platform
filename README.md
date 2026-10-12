@@ -257,13 +257,13 @@ On a custom domain, anything other than the podcast's pages and the files they l
 
 ### Live broadcasts
 
-Owners can broadcast video live from [OBS](https://obsproject.com) on a podcast's **Live** tab. Listeners watch at `/podcasts/<slug>/live` (`/live` on a custom domain), which a **Watch live** button on the podcast's page links to while it's on, and chat there once they've signed in. The owner and each message's writer can delete messages. A private podcast's broadcast and chat are only for its owner. When a broadcast ends, its recording becomes a **private episode** (audio only, through the usual conversion) for the owner to check and publish.
+Owners can broadcast video live from [OBS](https://obsproject.com) with the **Go live** button on a podcast's page. Listeners watch at `/live/<slug>` (`/live` on a custom domain), which a **Watch live** button on the podcast's page links to while it's on, and chat there once they've signed in. The owner and each message's writer can delete messages. A private podcast's broadcast and chat are only for its owner. When a broadcast ends, its recording becomes a **private episode** (audio only, through the usual conversion) for the owner to check and publish.
 
 **Streams go to [MediaMTX](https://github.com/bluenviron/mediamtx), not the app.** [`docker/mediamtx/mediamtx.yml`](docker/mediamtx/mediamtx.yml) runs it as the `mediamtx` service (the `live` profile in `compose.yml`):
 
-- **Who may publish:** OBS sends `live/<podcast id>?key=<key>`. MediaMTX asks the app (`/api/live/auth`, with `LIVE_SECRET`) whether the key is that podcast's. Keys are made on the **Live** tab, which keeps showing them (masked until shown); they're stored encrypted with a key derived from `AUTH_SECRET`. Making a new one (or turning streaming off) stops the old one working for the next broadcast.
+- **Who may publish:** OBS sends `live/<podcast id>?key=<key>`. MediaMTX asks the app (`/api/live/auth`, with `LIVE_SECRET`) whether the key is that podcast's. Keys are made in the **Go live** dialog, which keeps showing them (masked until shown); they're stored encrypted with a key derived from `AUTH_SECRET`. Making a new one (or turning streaming off) stops the old one working for the next broadcast.
 - **Watching:** MediaMTX serves HLS that only the app may read. Viewers get it through `/api/podcasts/<slug>/live/hls/…`, which applies the podcast's privacy.
-- **Who's live:** the app checks MediaMTX's API every 5 seconds. A stream that drops out and comes back within 30 seconds (OBS reconnecting) continues the same broadcast.
+- **Who's live:** the app checks MediaMTX's API every 5 seconds. When the stream stops, the broadcast is marked interrupted and viewers see that the host is reconnecting. The owner is asked on the live page whether they've finished: **Yes** ends the show for everyone at once (and makes the episode), **No** waits for OBS. A stream that comes back within 5 minutes continues the same broadcast; after that, it ends by itself.
 - **Recording:** MediaMTX records into `MEDIA_DIR/live-recordings`, so it must share the app's media volume and run as the app's user (`1000:1000`).
 
 Like episode processing, this runs in the app process, so only one app instance may run.
@@ -299,7 +299,7 @@ tcp:
 | `LIVE_HLS_URL` | MediaMTX's HLS server, e.g. `http://mediamtx:8888`. Keep it private. |
 | `LIVE_RTMP_URL` | The server owners put in OBS, e.g. `rtmp://live.podnoms.com/live`. |
 
-To try it without OBS, stream a test pattern with ffmpeg, using the stream key from the **Live** tab:
+To try it without OBS, stream a test pattern with ffmpeg, using the stream key from the **Go live** dialog:
 
 ```sh
 ffmpeg -re -f lavfi -i testsrc2=size=1280x720:rate=30 -f lavfi -i sine \

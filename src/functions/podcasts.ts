@@ -13,7 +13,7 @@ import {
   newPodcastSchema,
 } from '~/lib/podcast-schema'
 import { getSession } from '~/server/auth.server'
-import { liveEnabled } from '~/server/live.server'
+import { getOpenBroadcast, liveEnabled } from '~/server/live.server'
 import { publicUrl } from '~/server/site-url.server'
 import { getPodcastChannel } from '~/server/channels.server'
 import {
@@ -77,15 +77,16 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
     void resumeUnfinishedEpisodes()
     void localiseRemoteImages()
     void backfillWaveforms()
-    const [episodes, summary, channel, readiness, profile, followerCount] = await Promise.all([
+    const [episodes, summary, channel, readiness, profile, followerCount, broadcast] = await Promise.all([
       listEpisodes(userId, podcast.id, { offset: 0, limit: episodePageSize }),
       summariseEpisodes(podcast.id),
       getPodcastChannel(podcast.id),
       getDirectoryReadiness(userId, podcast.id),
       getProfile(userId),
       countFollowers(podcast.id),
+      liveEnabled() ? getOpenBroadcast(podcast.id) : null,
     ])
-    // The stream key is only read on the Live tab.
+    // The stream key is only read in the Go live dialog.
     const { liveKey: _liveKey, ...details } = podcast
     return {
       ...details,
@@ -108,8 +109,10 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
       },
       // Where owners point their domain's CNAME; null when custom domains are off.
       customDomainTarget: customDomainTarget(),
-      // Whether the Live tab is offered: MediaMTX is set up.
+      // Whether the Go live button is offered (MediaMTX is set up), and whether it's
+      // broadcasting now.
       liveEnabled: liveEnabled(),
+      live: broadcast !== null,
     }
   })
 

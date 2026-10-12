@@ -1,18 +1,20 @@
 // Server functions for live broadcasts: the public live page and its chat,
-// and the owner's Live tab (see live.server.ts).
+// and the owner's Go live dialog (see live.server.ts).
 import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
-import { deleteChatSchema, livePodcastSchema, liveTitleSchema, postChatSchema } from '~/lib/live-schema'
+import { deleteChatSchema, endBroadcastSchema, livePodcastSchema, liveTitleSchema, postChatSchema } from '~/lib/live-schema'
 import { getSession } from '~/server/auth.server'
 import {
   addChatMessage,
   createLiveKey,
   deleteChatMessage,
+  endBroadcast,
   getLiveSettings,
   getOpenBroadcast,
   liveEnabled,
+  reconnectGraceMs,
   listChat,
   revokeLiveKey,
   setLiveTitle,
@@ -52,6 +54,8 @@ export const fetchLivePage = createServerFn({ method: 'GET' })
       chat: broadcast ? await listChat(podcast, broadcast.id, userId) : [],
       isOwner: userId === podcast.userId,
       signedIn: userId !== null,
+      // How long a dropped stream is waited for before the show ends by itself.
+      reconnectGraceMinutes: reconnectGraceMs / 60_000,
     }
   })
 
@@ -79,7 +83,14 @@ export const removeLiveChat = createServerFn({ method: 'POST' })
     if (!(await deleteChatMessage(await requireUserId(), data.messageId))) throw notFound()
   })
 
-// The owner's Live tab.
+// The owner has finished: ends their interrupted broadcast now, telling viewers.
+export const endMyBroadcast = createServerFn({ method: 'POST' })
+  .validator(endBroadcastSchema)
+  .handler(async ({ data }) => {
+    if (!(await endBroadcast(await requireUserId(), data.broadcastId))) throw notFound()
+  })
+
+// The owner's Go live dialog.
 export const fetchMyLive = createServerFn({ method: 'GET' })
   .validator(livePodcastSchema)
   .handler(async ({ data }) => {
