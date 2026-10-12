@@ -6,16 +6,20 @@ import { createMiddleware, createStart } from '@tanstack/react-start'
 import { noindexPath } from '~/lib/robots'
 
 // Served often enough that a line each would drown out everything else.
-const quietPaths = [/^\/images\//, /^\/api\/episodes\/[^/]+\/audio/, /^\/assets\//, /^\/@/, /^\/node_modules\//, /\.\w+$/]
+const quietPaths = [/^\/images\//, /^\/api\/episodes\/[^/]+\/audio/, /^\/api\/podcasts\/[^/]+\/live\/hls\//, /^\/assets\//, /^\/@/, /^\/node_modules\//, /\.\w+$/]
 
 // Errors that are part of normal control flow, or the caller's fault.
 const expected = (error: unknown) =>
-  isRedirect(error) || isNotFound(error) || (error instanceof Error && error.name === 'ZodError')
+  isRedirect(error) ||
+  isNotFound(error) ||
+  (error instanceof Error && (error.name === 'ZodError' || error.name === 'ChatTooFastError'))
 
 const loggingMiddleware = createMiddleware().server(async ({ request, pathname, next, handlerType, serverFnMeta }) => {
   const { logger, reportError } = await import('~/server/logger.server')
   // Background jobs start with the first request; later calls do nothing.
   void import('~/server/jobs.server').then(({ startJobs }) => startJobs())
+  // So does watching MediaMTX for live broadcasts, when it's set up.
+  void import('~/server/live.server').then(({ startLivePoller }) => startLivePoller())
   const started = Date.now()
   const fields = {
     method: request.method,

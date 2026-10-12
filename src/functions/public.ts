@@ -20,6 +20,7 @@ import {
   summarisePublishedEpisodes,
 } from '~/server/episodes.server'
 import { feedPath } from '~/server/feed.server'
+import { getOpenBroadcast, liveEnabled } from '~/server/live.server'
 import { getPublicPodcast } from '~/server/podcasts.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import { readWaveform, withWaveforms } from '~/server/waveforms.server'
@@ -52,9 +53,10 @@ export const fetchPodcastPage = createServerFn({ method: 'GET' })
     const { userId, absolute } = await visitor()
     const podcast = await getPublicPodcast(data.slug, userId)
     if (!podcast) throw notFound()
-    const [episodes, summary] = await Promise.all([
+    const [episodes, summary, broadcast] = await Promise.all([
       listPublishedEpisodes(podcast.id, userId, { offset: 0, limit: episodePageSize }),
       summarisePublishedEpisodes(podcast.id),
+      liveEnabled() ? getOpenBroadcast(podcast.id) : null,
     ])
     const { userId: ownerId, feedKey, ...rest } = podcast
     return {
@@ -71,6 +73,10 @@ export const fetchPodcastPage = createServerFn({ method: 'GET' })
         episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) })),
       ),
       summary,
+      // Whether it's broadcasting right now, for a link to its live page.
+      live: broadcast !== null,
+      // Whether to listen for a broadcast starting.
+      liveEnabled: liveEnabled(),
     }
   })
 

@@ -1,13 +1,14 @@
 // Removes media files nothing needs any more: files no podcast, episode or
 // user refers to, uploads that never became an episode, and the kept upload of
-// an episode that has been failed for a week. Run daily as a job (see
+// an episode that has been failed for a week, and live recordings that were
+// never made into episodes. Run daily as a job (see
 // jobs.server.ts); safe to run at any time, and to run again.
 import '@tanstack/react-start/server-only'
 import { readdir, rm, rmdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { and, eq, isNotNull, isNull, lt } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
-import { episodes, podcasts, users } from '~/server/db/schema'
+import { episodes, liveBroadcasts, podcasts, users } from '~/server/db/schema'
 import { localImageUrl } from '~/server/images.server'
 import { logger } from '~/server/logger.server'
 import { notifyEpisodeFailed } from '~/server/notifications.server'
@@ -19,6 +20,8 @@ const day = 24 * 60 * 60 * 1000
 export const orphanGraceMs = day
 // How long a failed upload's file is kept for retrying.
 export const failedSourceMaxAgeMs = 7 * day
+// How long a live recording is kept if making it into an episode failed.
+export const liveRecordingMaxAgeMs = 7 * day
 
 export const failedSourceRemovedError =
   'The uploaded file was removed after a week. Replace the audio to try again.'
@@ -91,6 +94,29 @@ async function removeOldFailedSources(now: number) {
   return removed
 }
 
+// A broadcast's recording is removed once it's an episode; one that failed is
+// kept a week, in case it's wanted. Never while the podcast is live.
+async function removeOldLiveRecordings(now: number) {
+  const live = new Set(
+    (await db.select({ podcastId: liveBroadcasts.podcastId }).from(liveBroadcasts).where(isNull(liveBroadcasts.endedAt))).map(
+      (row) => row.podcastId,
+    ),
+  )
+  const root = join(mediaDirs.liveRecordings, 'live')
+  let removed = 0
+  for (const podcastDir of await readdir(root, { withFileTypes: true }).catch(() => [])) {
+    if (!podcastDir.isDirectory() || live.has(podcastDir.name)) continue
+    const path = join(root, podcastDir.name)
+    for (const file of await filesIn(path)) {
+      if (now - file.modified < liveRecordingMaxAgeMs) continue
+      await rm(file.path, { force: true })
+      removed++
+    }
+    if ((await readdir(path).catch(() => ['?'])).length === 0) await rmdir(path).catch(() => {})
+  }
+  return removed
+}
+
 export async function cleanUpMedia(now = Date.now()) {
   const episodeIds = new Set((await db.select({ id: episodes.id }).from(episodes)).map((row) => row.id))
 
@@ -119,6 +145,7 @@ export async function cleanUpMedia(now = Date.now()) {
     imageVariants: await removeUnwanted(mediaDirs.imageVariants, now, (name) => name.slice(0, 36), (id) => imageIds.has(id)),
     stagedUploads: await removeStaleStaged(mediaDirs.uploads, now),
     stagedImages: await removeStaleStaged(mediaDirs.stagedImages, now),
+    liveRecordings: await removeOldLiveRecordings(now),
   }
   return removed
 }

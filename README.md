@@ -13,6 +13,7 @@ Paste a link or upload a file. PodNoms downloads or converts it to MP3 in the ba
 - **RSS feeds:** one per podcast at `/feed/<slug>`, with the iTunes tags podcast apps expect.
 - **Artwork:** for podcasts and episodes, stored as square JPEGs that meet Apple's artwork rules. Resized copies are served on request.
 - **Rich text descriptions:** edited in the browser and sanitised on the server.
+- **Live broadcasts:** stream video from OBS to a podcast's live page, with a chat for signed-in listeners. The recording becomes a private episode when the broadcast ends.
 - **Built-in player:** keeps playing as you move between pages and remembers where you left off on each episode, on any device.
 - **Sign-in:** email and password, or GitHub, Google or Facebook.
 
@@ -59,6 +60,7 @@ Settings are read from `.env` and checked at startup by [`src/env.ts`](src/env.t
 | `PODCASTINDEX_API_KEY`, `PODCASTINDEX_API_SECRET` | No | A free [Podcast Index API key](https://api.podcastindex.org/) **with write access**. With it, owners can submit their podcast to Podcast Index with one click from its Distribution tab; without it, they're sent to podcastindex.org/add. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SECURE`, `EMAIL_FROM` | No | An SMTP server for email (password resets and notifications). When `SMTP_HOST` is set these are used and the admin page's email settings are locked; otherwise admins can enter a server there, with a button to send a test. `SMTP_PORT` defaults to 587; set `SMTP_SECURE=true` for TLS from the start (usually port 465). Links in emails use `SITE_URL`. The server must be allowed to send for the domain in `EMAIL_FROM` (verify the domain with your provider and add its SPF/DKIM DNS records); that's set up with your email provider, not in podnoms. |
 | `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION` | No | The `content` of the verification meta tag that Google Search Console or Bing Webmaster Tools gives you, to prove you own the site before submitting `/sitemap.xml`. |
+| `LIVE_SECRET`, `LIVE_API_URL`, `LIVE_HLS_URL`, `LIVE_RTMP_URL` | No | Live broadcasts through MediaMTX, on when all four are set. See [Live broadcasts](#live-broadcasts). |
 | `SENTRY_DSN` | No | Sentry-compatible DSN (e.g. a GlitchTip project) that server and browser errors are reported to. See [Logs and errors](#logs-and-errors). |
 
 ### Media folder
@@ -195,7 +197,7 @@ Jobs are queued in Redis with [BullMQ](https://docs.bullmq.io/) and run by a wor
 | --- | --- | --- |
 | `custom-domain-check` | Daily, 05:15 | Checks the DNS records of podcasts' verified custom domains again; a domain whose records have been wrong for 3 days stops being served |
 | `geoip-update` | Wednesdays, 04:00 | Downloads the latest GeoLite2 database, if a MaxMind account is configured |
-| `media-cleanup` | Daily, 03:30 | Removes files in `MEDIA_DIR` that no podcast, episode or user refers to (once they're a day old), uploads and images that were never saved (after a day), and the kept upload of an episode that has been failed for a week, telling its owner to upload it again |
+| `media-cleanup` | Daily, 03:30 | Removes files in `MEDIA_DIR` that no podcast, episode or user refers to (once they're a day old), uploads and images that were never saved (after a day), the kept upload of an episode that has been failed for a week, telling its owner to upload it again, and live recordings that weren't made into episodes (after a week) |
 
 Admins can watch, retry and clean up jobs at `/admin/queues` ([Bull Board](https://github.com/felixmosh/bull-board)), linked from the account menu as **Jobs**.
 
@@ -252,6 +254,57 @@ providers:
 | `TRAEFIK_CONFIG_TOKEN` | Optional. When set, Traefik must send it as a bearer token to read `/api/traefik/config`. |
 
 On a custom domain, anything other than the podcast's pages and the files they load (sign-in, settings, other podcasts) redirects to the site. A domain that isn't verified also redirects to the site.
+
+### Live broadcasts
+
+Owners can broadcast video live from [OBS](https://obsproject.com) on a podcast's **Live** tab. Listeners watch at `/podcasts/<slug>/live` (`/live` on a custom domain), which a **Watch live** button on the podcast's page links to while it's on, and chat there once they've signed in. The owner and each message's writer can delete messages. A private podcast's broadcast and chat are only for its owner. When a broadcast ends, its recording becomes a **private episode** (audio only, through the usual conversion) for the owner to check and publish.
+
+**Streams go to [MediaMTX](https://github.com/bluenviron/mediamtx), not the app.** [`docker/mediamtx/mediamtx.yml`](docker/mediamtx/mediamtx.yml) runs it as the `mediamtx` service (the `live` profile in `compose.yml`):
+
+- **Who may publish:** OBS sends `live/<podcast id>?key=<key>`. MediaMTX asks the app (`/api/live/auth`, with `LIVE_SECRET`) whether the key is that podcast's. Keys are made on the **Live** tab, which keeps showing them (masked until shown); they're stored encrypted with a key derived from `AUTH_SECRET`. Making a new one (or turning streaming off) stops the old one working for the next broadcast.
+- **Watching:** MediaMTX serves HLS that only the app may read. Viewers get it through `/api/podcasts/<slug>/live/hls/…`, which applies the podcast's privacy.
+- **Who's live:** the app checks MediaMTX's API every 5 seconds. A stream that drops out and comes back within 30 seconds (OBS reconnecting) continues the same broadcast.
+- **Recording:** MediaMTX records into `MEDIA_DIR/live-recordings`, so it must share the app's media volume and run as the app's user (`1000:1000`).
+
+Like episode processing, this runs in the app process, so only one app instance may run.
+
+**Only RTMP (port 1935) needs to be reachable from outside.** Publish it from the `mediamtx` container directly (`RTMP_PORT`), or pass it through Traefik with a TCP entry point:
+
+```yaml
+# Traefik static configuration
+entryPoints:
+  rtmp:
+    address: ":1935"
+```
+
+```yaml
+# Traefik dynamic configuration
+tcp:
+  routers:
+    podnoms-rtmp:
+      entryPoints: [rtmp]
+      rule: HostSNI(`*`)
+      service: podnoms-rtmp
+  services:
+    podnoms-rtmp:
+      loadBalancer:
+        servers:
+          - address: mediamtx:1935
+```
+
+| Variable | Description |
+| --- | --- |
+| `LIVE_SECRET` | At least 32 characters, shared with MediaMTX (`MTX_AUTHHTTPADDRESS` in `compose.yml`). MediaMTX sends it to `/api/live/auth`, and the app uses it to read the video. |
+| `LIVE_API_URL` | MediaMTX's API, e.g. `http://mediamtx:9997`. Keep it private. |
+| `LIVE_HLS_URL` | MediaMTX's HLS server, e.g. `http://mediamtx:8888`. Keep it private. |
+| `LIVE_RTMP_URL` | The server owners put in OBS, e.g. `rtmp://live.podnoms.com/live`. |
+
+To try it without OBS, stream a test pattern with ffmpeg, using the stream key from the **Live** tab:
+
+```sh
+ffmpeg -re -f lavfi -i testsrc2=size=1280x720:rate=30 -f lavfi -i sine \
+  -c:v libx264 -preset veryfast -g 60 -c:a aac -f flv "rtmp://localhost/live/<podcast id>?key=<key>"
+```
 
 ### Admins
 

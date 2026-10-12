@@ -28,7 +28,9 @@ export async function createTestDb() {
   await migrate(db, { migrationsFolder: 'drizzle' })
   // Downloads start without the polite pause between them, which would only
   // slow the tests down; tests of the pause set it themselves.
-  await db.execute(sql`update site_setting set "downloadDelaySeconds" = 0`)
+  await db.execute(
+    sql`insert into site_settings (key, value) values ('downloadDelaySeconds', '0') on conflict (key) do update set value = excluded.value`,
+  )
   return db
 }
 
@@ -50,5 +52,7 @@ export async function resetDb(db: TestDb) {
   if (!(db.$client instanceof PGlite)) {
     throw new Error('resetDb was given a real database; run the tests with `bun run test`')
   }
-  await db.execute(sql`truncate "user", "account", "session", "verification_token", "podcast", "episode", "playback_position", "visitor_salt" cascade`)
+  await db.execute(sql`truncate "user", auth."account", auth."session", auth."verification_token", "podcast", "episode", "playback_position" cascade`)
+  // The settings stay (tests put back what they change); the app's own values go.
+  await db.execute(sql`delete from site_settings where starts_with(key, '__')`)
 }

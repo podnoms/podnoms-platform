@@ -63,8 +63,10 @@ export function NewPodcastDialog({ children }: { children: ReactNode }) {
       const podcast = created.value
       setOpen(false)
       // Reload route data so the sidebar and home page list the new podcast.
-      await router.invalidate()
-      await navigate({ to: '/podcasts/$slug/manage', params: { slug: podcast.slug } })
+      // `sync` waits for the reload: otherwise it runs in the background and
+      // the navigation below aborts it, leaving the sidebar without the podcast.
+      await router.invalidate({ sync: true })
+      await navigate({ to: '/podcasts/$slug', params: { slug: podcast.slug } })
     } catch {
       setError('Something went wrong creating your podcast. Please try again.')
     } finally {

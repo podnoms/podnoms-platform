@@ -1,13 +1,15 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { EpisodeListEnd } from '~/components/episode-list-end'
 import { FeedUrlButton } from '~/components/feed-url-button'
 import { FollowButton } from '~/components/follow-button'
 import { Icons } from '~/components/icons'
 import { PublicEpisodeList, PublicEpisodeRow } from '~/components/public-episode-row'
+import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '~/components/ui/empty'
 import { fetchPodcastEpisodes, fetchPodcastPage } from '~/functions/public'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
+import { useLiveStart } from '~/hooks/use-live-events'
 import { formatDate, formatLength, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { directories } from '~/lib/podcast-directories'
@@ -47,6 +49,13 @@ export const Route = createFileRoute('/podcasts/$slug')({
 
 function PodcastPage() {
   const podcast = Route.useLoaderData()
+  const navigate = useNavigate()
+  // When a broadcast starts, visitors are taken to it. One that's already on
+  // when the page opens only gets the Watch live button, so the episodes can
+  // still be reached.
+  useLiveStart(podcast.slug, podcast.liveEnabled && !podcast.live, () =>
+    navigate({ to: '/podcasts/$slug/live', params: { slug: podcast.slug } }),
+  )
   const { summary } = podcast
   const { totalSeconds, latestAt } = summary
   const { episodes, ...more } = useEpisodePages({
@@ -93,7 +102,15 @@ function PodcastPage() {
             </div>
           )}
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Podcast</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Podcast</p>
+              {podcast.live && (
+                <Badge className="bg-red-600 text-white">
+                  <span className="size-1.5 animate-pulse rounded-full bg-white" />
+                  Live now
+                </Badge>
+              )}
+            </div>
             <h1 className="text-3xl font-bold tracking-tight text-balance md:text-5xl">{podcast.title}</h1>
             {/* On wide screens the full description is in the About column instead. */}
             {podcast.description && (
@@ -102,6 +119,14 @@ function PodcastPage() {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 pt-3">
               <p className="text-sm text-muted-foreground">{stats.join(' · ')}</p>
               <div className="flex flex-wrap gap-2 sm:ml-auto">
+                {podcast.live && (
+                  <Button className="bg-red-600 text-white hover:bg-red-700" asChild>
+                    <Link to="/podcasts/$slug/live" params={{ slug: podcast.slug }}>
+                      <Icons.broadcast />
+                      Watch live
+                    </Link>
+                  </Button>
+                )}
                 {podcast.isOwner && (
                   <Button variant="outline" asChild>
                     <Link to="/podcasts/$slug/manage" params={{ slug: podcast.slug }}>

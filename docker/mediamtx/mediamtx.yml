@@ -1,0 +1,44 @@
+# MediaMTX for live broadcasts (see "Live broadcasts" in README.md). OBS
+# streams to it over RTMP; podnoms decides who may publish, reads the video as
+# HLS for its live pages, and polls the API to see who's live. Only RTMP
+# (1935) needs to be reachable from outside; HLS and the API are for the app.
+logLevel: info
+
+# Every publish and read is checked by podnoms. The address carries
+# LIVE_SECRET, so it's set with MTX_AUTHHTTPADDRESS in compose.yml.
+authMethod: http
+authHTTPAddress: http://app:3000/api/live/auth?token=set-in-compose
+authHTTPExclude:
+  - action: api
+  - action: metrics
+  - action: pprof
+
+api: yes
+apiAddress: :9997
+
+rtmp: yes
+rtmpAddress: :1935
+
+hls: yes
+hlsAddress: :8888
+# Start making HLS as soon as a stream arrives, so the first viewer doesn't wait.
+hlsAlwaysRemux: yes
+hlsVariant: lowLatency
+
+rtsp: no
+webrtc: no
+srt: no
+
+pathDefaults:
+  # Recorded into the media volume the app shares, which makes each broadcast
+  # an episode when it ends and deletes the files; recordDeleteAfter is a
+  # backstop. The path is "live/<podcast id>".
+  record: yes
+  recordPath: /app/media/live-recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+  recordFormat: fmp4
+  recordSegmentDuration: 24h
+  recordDeleteAfter: 7d
+
+paths:
+  # Only podcasts' paths: OBS's stream key is "<podcast id>?key=<key>".
+  "~^live/[0-9a-f-]{36}$":

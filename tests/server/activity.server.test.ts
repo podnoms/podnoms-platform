@@ -1,6 +1,7 @@
+import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { clientIp, recordActivity, saltFor, summariseActivity, visitorHash } from '~/server/activity.server'
-import { episodeActivity, visitorSalts } from '~/server/db/schema'
+import { clientIp, recordActivity, saltFor, summariseActivity, visitorHash, visitorSaltKey } from '~/server/activity.server'
+import { episodeActivity, siteSettings } from '~/server/db/schema'
 import { lookupLocation } from '~/server/geoip.server'
 import { resetDb } from '../db'
 import { createEpisode, createPodcast, createUser, db } from '../helpers'
@@ -115,7 +116,19 @@ describe('visitor salts', () => {
 
     const next = await saltFor('2026-10-02')
     expect(next).not.toBe(first)
-    expect(await db.select({ day: visitorSalts.day }).from(visitorSalts)).toEqual([{ day: '2026-10-02' }])
+    // Only today's is kept, as the app's own setting.
+    expect(await db.select({ key: siteSettings.key, value: siteSettings.value }).from(siteSettings).where(eq(siteSettings.key, visitorSaltKey))).toEqual([
+      { key: '__visitorSalt', value: { day: '2026-10-02', salt: next } },
+    ])
+  })
+
+  it("never goes back to an earlier day's salt, or replaces today's", async () => {
+    const today = await saltFor('2026-10-05')
+    delete (globalThis as { podnomsVisitorSalt?: unknown }).podnomsVisitorSalt
+    // A server whose clock is behind uses the newer salt rather than making an older one.
+    expect(await saltFor('2026-10-04')).toBe(today)
+    delete (globalThis as { podnomsVisitorSalt?: unknown }).podnomsVisitorSalt
+    expect(await saltFor('2026-10-05')).toBe(today)
   })
 
   it('hashes the same visitor differently with a different salt', () => {

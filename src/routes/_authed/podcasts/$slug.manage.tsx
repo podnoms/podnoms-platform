@@ -11,6 +11,7 @@ import { EpisodeListEnd } from '~/components/episode-list-end'
 import { EpisodeRow } from '~/components/episode-row'
 import { FeedUrlButton } from '~/components/feed-url-button'
 import { Icons } from '~/components/icons'
+import { LiveStreamCard } from '~/components/live-stream-card'
 import { NewEpisodeDialog } from '~/components/new-episode-dialog'
 import { PodcastPrivacyCard } from '~/components/podcast-privacy-card'
 import { Badge } from '~/components/ui/badge'
@@ -178,6 +179,7 @@ function PodcastPage() {
                 {summary.count > 0 && <span className="text-muted-foreground tabular-nums">{summary.count}</span>}
               </TabsTrigger>
               <TabsTrigger value="activity">Activity</TabsTrigger>
+              {podcast.liveEnabled && <TabsTrigger value="live">Live</TabsTrigger>}
               <TabsTrigger value="distribution">
                 Distribution
                 {!isReady(podcast.distribution.readiness) && <span className="size-1.5 rounded-full bg-destructive" />}
@@ -211,6 +213,11 @@ function PodcastPage() {
             <TabsContent value="activity">
               <ActivityPanel slug={podcast.slug} />
             </TabsContent>
+            {podcast.liveEnabled && (
+              <TabsContent value="live" className="flex flex-col gap-6">
+                <LiveStreamCard podcast={podcast} />
+              </TabsContent>
+            )}
             <TabsContent value="distribution" className="flex flex-col gap-6">
               <PodcastPrivacyCard
                 podcast={podcast}

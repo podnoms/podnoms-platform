@@ -13,5 +13,7 @@ export default defineConfig({
   dialect: 'postgresql',
   schema: './src/server/db/schema.ts',
   out: './drizzle',
+  // The sign-in tables are in their own schema (see authSchema in schema.ts).
+  schemaFilter: ['public', 'auth'],
   dbCredentials: { url: url.toString() },
 })

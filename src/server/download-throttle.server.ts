@@ -14,9 +14,8 @@
 // memory, as the app runs as a single instance.
 import '@tanstack/react-start/server-only'
 import type { Platform } from '~/lib/platforms'
-import type { SiteSettings } from '~/server/db/schema'
 import { logger, reportError } from '~/server/logger.server'
-import { getSiteSettings } from '~/server/site-settings.server'
+import { getSiteSettings, type SiteSettings } from '~/server/site-settings.server'
 
 // Thrown by a download when the platform is refusing us, rather than just
 // failing this download.

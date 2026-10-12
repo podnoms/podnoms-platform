@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { episodes } from '~/server/db/schema'
+import { episodes, liveBroadcasts } from '~/server/db/schema'
 import { cleanUpMedia, failedSourceRemovedError } from '~/server/media-cleanup.server'
 import {
   episodeAudioPath,
@@ -11,6 +11,7 @@ import {
   imagePath,
   imageVariantPath,
   mediaDirs,
+  podcastLiveRecordingsDir,
   replacementAudioPath,
   stagedImagePath,
   stagedUploadPath,
@@ -135,6 +136,23 @@ describe('cleanUpMedia', () => {
       imageVariants: 0,
       stagedUploads: 0,
       stagedImages: 0,
+      liveRecordings: 0,
     })
+  })
+
+  it("removes live recordings after a week, unless their podcast is live", async () => {
+    const user = await createUser()
+    const quiet = await createPodcast(user.id)
+    const onAir = await createPodcast(user.id)
+    await db.insert(liveBroadcasts).values({ podcastId: onAir.id, title: 'On air' })
+    const quietFile = join(podcastLiveRecordingsDir(quiet.id), '2026-10-01_20-00-00-000000.mp4')
+    const onAirFile = join(podcastLiveRecordingsDir(onAir.id), '2026-10-01_20-00-00-000000.mp4')
+    for (const path of [quietFile, onAirFile]) await touch(path)
+
+    expect(await cleanUpMedia(later(6 * day))).toMatchObject({ liveRecordings: 0 })
+    expect(await cleanUpMedia(later(8 * day))).toMatchObject({ liveRecordings: 1 })
+    expect(await exists(quietFile)).toBe(false)
+    expect(await exists(dirname(quietFile))).toBe(false)
+    expect(await exists(onAirFile)).toBe(true)
   })
 })

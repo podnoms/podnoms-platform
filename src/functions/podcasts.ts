@@ -13,6 +13,7 @@ import {
   newPodcastSchema,
 } from '~/lib/podcast-schema'
 import { getSession } from '~/server/auth.server'
+import { liveEnabled } from '~/server/live.server'
 import { publicUrl } from '~/server/site-url.server'
 import { getPodcastChannel } from '~/server/channels.server'
 import {
@@ -84,8 +85,10 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
       getProfile(userId),
       countFollowers(podcast.id),
     ])
+    // The stream key is only read on the Live tab.
+    const { liveKey: _liveKey, ...details } = podcast
     return {
-      ...podcast,
+      ...details,
       // Sanitised when saved; again here, as it's rendered as HTML.
       description: sanitizeDescription(podcast.description),
       // A private podcast's carries its feed key, for its owner to hand out.
@@ -105,6 +108,8 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
       },
       // Where owners point their domain's CNAME; null when custom domains are off.
       customDomainTarget: customDomainTarget(),
+      // Whether the Live tab is offered: MediaMTX is set up.
+      liveEnabled: liveEnabled(),
     }
   })
 

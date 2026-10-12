@@ -1,11 +1,13 @@
 // A podcast served from its owner's own domain (see custom-domains.server.ts).
 // On such a domain the podcast's pages have short paths: "/" for the podcast,
-// "/episodes/<slug>" for an episode and "/feed" for its RSS feed. The router
+// "/episodes/<slug>" for an episode, "/live" for its live page and "/feed"
+// for its RSS feed. The router
 // maps them to the usual routes and back (see src/router.tsx), so the pages
 // and their links work unchanged.
-import { episodePath, podcastPath } from '~/lib/paths'
+import { episodePath, livePath, podcastPath } from '~/lib/paths'
 
 export const domainFeedPath = '/feed'
+export const domainLivePath = '/live'
 
 // Paths a custom domain serves as they are: server functions, audio, images,
 // embeds and the like, which the podcast's pages load or link to.
@@ -23,6 +25,7 @@ const episodeOnDomain = /^\/episodes\/([^/]+)\/?$/
 // if the domain has no page there.
 export function toSitePath(pathname: string, slug: string) {
   if (pathname === '/') return podcastPath(slug)
+  if (pathname === domainLivePath || pathname === `${domainLivePath}/`) return livePath(slug)
   const episode = episodeOnDomain.exec(pathname)
   return episode ? episodePath(slug, episode[1]!) : null
 }
@@ -33,6 +36,7 @@ export function toDomainPath(pathname: string, slug: string) {
   const podcast = podcastPath(slug)
   if (pathname === podcast || pathname === `${podcast}/`) return '/'
   if (pathname === `/feed/${slug}`) return domainFeedPath
+  if (pathname === livePath(slug) || pathname === `${livePath(slug)}/`) return domainLivePath
   const episode = new RegExp(`^${podcast.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/episodes/([^/]+)/?$`).exec(pathname)
   return episode ? `/episodes/${episode[1]}` : null
 }

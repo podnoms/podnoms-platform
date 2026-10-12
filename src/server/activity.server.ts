@@ -14,8 +14,10 @@ import { getRequestIP } from '@tanstack/react-start/server'
 import { and, count, desc, eq, gte, inArray, isNotNull, lt, sql, type SQL } from 'drizzle-orm'
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 import { db } from '~/server/db/client.server'
-import { episodeActivity, episodes, podcasts, visitorSalts, type ActivitySource, type ActivityType } from '~/server/db/schema'
+import { z } from 'zod'
+import { episodeActivity, episodes, podcasts, siteSettings, type ActivitySource, type ActivityType } from '~/server/db/schema'
 import { lookupLocation } from '~/server/geoip.server'
+import { internalKeyPrefix } from '~/server/site-settings.server'
 import { describeUserAgent, isBot } from '~/server/user-agent.server'
 
 export type ActivityInput = {
@@ -92,21 +94,31 @@ export function visitorHash(salt: string, ip: string | null, userAgent: string |
 // The day, in UTC, as YYYY-MM-DD.
 const today = () => new Date().toISOString().slice(0, 10)
 
+// The day's salt is kept as the app's own "__visitorSalt" in site_settings,
+// replaced on the first visit of each day: once yesterday's is gone, nobody
+// can tell which hashes came from which address.
+export const visitorSaltKey = `${internalKeyPrefix}visitorSalt`
+const storedSalt = z.object({ day: z.string(), salt: z.string() })
+
 // Kept in memory for the day, across dev server reloads.
 const cache = globalThis as { podnomsVisitorSalt?: { day: string; salt: Promise<string> } }
 
-// The day's salt, made on first use; making it deletes earlier days'.
+// The day's salt, made on first use; making it replaces earlier days'.
 export function saltFor(day: string) {
   if (cache.podnomsVisitorSalt?.day !== day) {
     const salt = (async () => {
-      await db.delete(visitorSalts).where(lt(visitorSalts.day, day))
+      // Only an earlier day's salt is replaced: when two requests (or
+      // servers) make one at once, the first wins and both use it.
       await db
-        .insert(visitorSalts)
-        .values({ day, salt: randomBytes(32).toString('base64url') })
-        .onConflictDoNothing()
-      // Another request (or server) may have made it first.
-      const [row] = await db.select({ salt: visitorSalts.salt }).from(visitorSalts).where(eq(visitorSalts.day, day))
-      return row!.salt
+        .insert(siteSettings)
+        .values({ key: visitorSaltKey, value: { day, salt: randomBytes(32).toString('base64url') } })
+        .onConflictDoUpdate({
+          target: siteSettings.key,
+          set: { value: sql`excluded.value`, updatedAt: new Date() },
+          setWhere: sql`coalesce(${siteSettings.value}->>'day', '') < ${day}`,
+        })
+      const [row] = await db.select({ value: siteSettings.value }).from(siteSettings).where(eq(siteSettings.key, visitorSaltKey))
+      return storedSalt.parse(row!.value).salt
     })()
     cache.podnomsVisitorSalt = { day, salt }
     salt.catch(() => {

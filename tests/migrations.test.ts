@@ -26,25 +26,89 @@ describe('migrations', () => {
     await migrateUntil(pg)
     const { rows } = await pg.query<{ tablename: string }>(`select tablename from pg_tables where schemaname = 'public' order by 1`)
     expect(rows.map((r) => r.tablename)).toEqual([
-      'account',
       'channel',
       'channel_item',
       'episode',
       'episode_activity',
       'episode_comment',
       'episode_like',
-      'password_reset_token',
+      'live_broadcast',
+      'live_chat_message',
       'playback_position',
       'podcast',
       'podcast_follow',
+      'site_settings',
+      'user',
+    ])
+    const { rows: auth } = await pg.query<{ tablename: string }>(`select tablename from pg_tables where schemaname = 'auth' order by 1`)
+    expect(auth.map((r) => r.tablename)).toEqual([
+      'account',
+      'password_reset_token',
       'recovery_code',
       'security_key',
       'session',
-      'site_setting',
-      'user',
       'verification_token',
-      'visitor_salt',
     ])
+  })
+
+  it('0023 moves the sign-in tables to the auth schema, keeping their rows and links to users', async () => {
+    const pg = new PGlite()
+    await migrateUntil(pg, tagOf('0023'))
+    await pg.query(`insert into "user" (id, email) values ('u1', 'u@example.com')`)
+    await pg.query(`insert into account ("userId", type, provider, "providerAccountId") values ('u1', 'oauth', 'github', '42')`)
+    await pg.query(`insert into recovery_code ("userId", "codeHash") values ('u1', 'hash')`)
+    await runMigration(pg, tagOf('0023'))
+
+    const { rows: accounts } = await pg.query(`select provider from auth.account`)
+    expect(accounts).toEqual([{ provider: 'github' }])
+    // Deleting the user still takes their sign-in rows with them.
+    await pg.query(`delete from "user" where id = 'u1'`)
+    const { rows: codes } = await pg.query(`select * from auth.recovery_code`)
+    expect(codes).toEqual([])
+  })
+
+  it('0022 renames the settings table and moves the latest visitor salt into it', async () => {
+    const pg = new PGlite()
+    await migrateUntil(pg, tagOf('0022'))
+    await pg.query(`insert into visitor_salt (day, salt) values ('2026-10-11', 'old'), ('2026-10-12', 'today')`)
+    await runMigration(pg, tagOf('0022'))
+
+    const { rows } = await pg.query(`select value from site_settings where key = '__visitorSalt'`)
+    expect(rows).toEqual([{ value: { day: '2026-10-12', salt: 'today' } }])
+    const { rows: tables } = await pg.query(`select tablename from pg_tables where tablename in ('site_setting', 'visitor_salt')`)
+    expect(tables).toEqual([])
+    const { rows: keys } = await pg.query(`select conname from pg_constraint where conrelid = 'site_settings'::regclass and contype = 'p'`)
+    expect(keys).toEqual([{ conname: 'site_settings_pkey' }])
+  })
+
+  it('0022 makes no salt when there was none', async () => {
+    const pg = new PGlite()
+    await migrateUntil(pg, tagOf('0022'))
+    await runMigration(pg, tagOf('0022'))
+    const { rows } = await pg.query(`select key from site_settings where key = '__visitorSalt'`)
+    expect(rows).toEqual([])
+  })
+
+  it('0021 moves the site settings into a row each, keeping the values saved', async () => {
+    const pg = new PGlite()
+    await migrateUntil(pg, tagOf('0021'))
+    await pg.query(`update site_setting set "downloadConcurrency" = 5, "downloadRateLimit" = '2M', "smtpSecure" = true`)
+    await runMigration(pg, tagOf('0021'))
+
+    const { rows } = await pg.query<{ key: string; value: unknown }>(`select key, value from site_setting order by key`)
+    expect(Object.fromEntries(rows.map((row) => [row.key, row.value]))).toEqual({
+      channelCheckHours: 6,
+      downloadConcurrency: 5,
+      downloadDelaySeconds: 10,
+      downloadRateLimit: '2M',
+      perPlatformConcurrency: 2,
+      smtpPort: 587,
+      smtpSecure: true,
+    })
+    const { rows: tables } = await pg.query(`select tablename from pg_tables where tablename = 'site_setting_old'`)
+    expect(tables).toEqual([])
+    const { rows: keys } = await pg.query(`select conname from pg_constraint where conrelid = 'site_setting'::regclass and contype = 'p'`)
+    expect(keys).toEqual([{ conname: 'site_setting_pkey' }])
   })
 
   it('0016 gives each private podcast its own feed key, and public ones none', async () => {
