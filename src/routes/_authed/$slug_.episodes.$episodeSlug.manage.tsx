@@ -171,32 +171,10 @@ function EpisodePage() {
           <p className="text-sm text-muted-foreground">{meta.join(' · ')}</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {ready && (
-              <>
-                <Button size="icon-lg" className="size-14 rounded-full [&_svg]:size-6!" onClick={() => play()}>
-                  {isPlaying ? <Icons.pause /> : <Icons.play />}
-                  <span className="sr-only">{isPlaying ? 'Pause' : 'Play'}</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={!isCurrent}
-                  onClick={() => player.skip(-15)}
-                  title="Back 15 seconds"
-                >
-                  <Icons.skipBack />
-                  <span className="sr-only">Back 15 seconds</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={!isCurrent}
-                  onClick={() => player.skip(30)}
-                  title="Forward 30 seconds"
-                >
-                  <Icons.skipForward />
-                  <span className="sr-only">Forward 30 seconds</span>
-                </Button>
-              </>
+              <Button size="icon-lg" className="size-14 rounded-full [&_svg]:size-6!" onClick={() => play()}>
+                {isPlaying ? <Icons.pause /> : <Icons.play />}
+                <span className="sr-only">{isPlaying ? 'Pause' : 'Play'}</span>
+              </Button>
             )}
             <div className="flex gap-1 sm:ml-auto">
               {/* A private episode's or podcast's share link only works for its owner. */}

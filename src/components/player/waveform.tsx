@@ -12,11 +12,12 @@ export type WaveformMarker = { id: string; seconds: number; image: string | null
 const barWidth = 3
 const barGap = 1
 // The bars, and their reflection below at a fraction of the height: full
-// size on an episode's page, compact in lists, mini in the player bar.
+// size on an episode's page, compact in lists. Mini, in the player bar, has
+// no reflection: at that size it reads as a split down the middle.
 const sizes = {
   default: { barsHeight: 88, reflectionHeight: 28 },
   compact: { barsHeight: 40, reflectionHeight: 14 },
-  mini: { barsHeight: 26, reflectionHeight: 8 },
+  mini: { barsHeight: 32, reflectionHeight: 0 },
 }
 
 const tones = {
@@ -51,7 +52,7 @@ export function Waveform({
   className?: string
 }) {
   const { barsHeight, reflectionHeight } = sizes[size]
-  const height = barsHeight + 1 + reflectionHeight
+  const height = reflectionHeight ? barsHeight + 1 + reflectionHeight : barsHeight
   const id = useId()
   const container = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
@@ -100,7 +101,7 @@ export function Waveform({
       })
       .join('')
   const upper = paths(barsHeight, barsHeight, 1)
-  const lower = paths(reflectionHeight, barsHeight + 1, -1)
+  const lower = reflectionHeight ? paths(reflectionHeight, barsHeight + 1, -1) : ''
 
   return (
     <div

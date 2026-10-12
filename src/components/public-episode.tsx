@@ -100,26 +100,6 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
               {isPlaying ? <Icons.pause /> : <Icons.play />}
               <span className="sr-only">{isPlaying ? 'Pause' : 'Play'}</span>
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              disabled={!isCurrent}
-              onClick={() => player.skip(-15)}
-              title="Back 15 seconds"
-            >
-              <Icons.skipBack />
-              <span className="sr-only">Back 15 seconds</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              disabled={!isCurrent}
-              onClick={() => player.skip(30)}
-              title="Forward 30 seconds"
-            >
-              <Icons.skipForward />
-              <span className="sr-only">Forward 30 seconds</span>
-            </Button>
             <div className="flex flex-wrap gap-1 sm:ml-auto">
               <LikeButton
                 variant="outline"

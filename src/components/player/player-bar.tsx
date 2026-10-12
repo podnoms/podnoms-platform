@@ -82,17 +82,9 @@ export function PlayerBar() {
         </Button>
       </div>
       <div className="flex flex-1 items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={() => player.skip(-15)} title="Back 15 seconds">
-          <Icons.skipBack />
-          <span className="sr-only">Back 15 seconds</span>
-        </Button>
         <Button size="icon-lg" className="rounded-full" onClick={player.toggle}>
           {player.playing ? <Icons.pause /> : <Icons.play />}
           <span className="sr-only">{player.playing ? 'Pause' : 'Play'}</span>
-        </Button>
-        <Button variant="ghost" size="icon" onClick={() => player.skip(30)} title="Forward 30 seconds">
-          <Icons.skipForward />
-          <span className="sr-only">Forward 30 seconds</span>
         </Button>
         <span className="w-14 text-right text-xs text-muted-foreground tabular-nums">
           {formatClock(player.currentTime)}
