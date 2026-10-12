@@ -22,7 +22,11 @@ hls: yes
 hlsAddress: :8888
 # Start making HLS as soon as a stream arrives, so the first viewer doesn't wait.
 hlsAlwaysRemux: yes
-hlsVariant: lowLatency
+# Standard HLS in 2s segments rather than low-latency HLS: a request every
+# couple of seconds per viewer instead of several a second, which Cloudflare
+# and the app's proxy pass on smoothly. Viewers are about 6-8s behind.
+hlsVariant: fmp4
+hlsSegmentDuration: 2s
 
 rtsp: no
 webrtc: no

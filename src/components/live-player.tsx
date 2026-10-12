@@ -52,7 +52,9 @@ export function LivePlayer({
       const { default: Hls } = await import('hls.js')
       if (stopped) return
       if (Hls.isSupported()) {
-        hls = new Hls({ lowLatencyMode: true, backBufferLength: 30 })
+        // Standard HLS in 2s segments, played 3 segments behind live: smooth
+        // through Cloudflare and the app's proxy, at a few seconds' delay.
+        hls = new Hls({ lowLatencyMode: false, liveSyncDurationCount: 3, backBufferLength: 30 })
         hls.on(Hls.Events.MANIFEST_PARSED, play)
         hls.on(Hls.Events.ERROR, (_event, error) => {
           if (!error.fatal) return
