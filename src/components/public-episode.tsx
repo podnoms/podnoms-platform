@@ -33,10 +33,11 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
   const position = isCurrent ? player.currentTime : player.positionOf(episode.id, episode.positionSeconds)
   const duration = (isCurrent && player.duration) || episode.durationSeconds || 0
   const artwork = episode.imageUrl ?? podcast.imageUrl
+  // The share page leaves out the date and length; the waveform shows the length.
   const meta = [
     podcast.author ? `by ${podcast.author}` : null,
-    formatDate(episode.publishedAt ?? episode.createdAt),
-    episode.durationSeconds != null ? formatClock(episode.durationSeconds) : null,
+    standalone ? null : formatDate(episode.publishedAt ?? episode.createdAt),
+    !standalone && episode.durationSeconds != null ? formatClock(episode.durationSeconds) : null,
     likeCount > 0 ? pluralise(likeCount, 'like') : null,
   ].filter(Boolean)
 
