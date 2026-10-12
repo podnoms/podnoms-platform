@@ -129,13 +129,16 @@ describe('authorizeLive', () => {
     expect(await authorizeLive(publish(podcast.id, 'anything'))).toBe(false)
   })
 
-  it('only lets the app read streams', async () => {
+  it('only lets the app read streams and use the API', async () => {
     const read = { action: 'read', path: `live/${crypto.randomUUID()}`, protocol: 'hls' }
     expect(await authorizeLive({ ...read, user: 'podnoms', password: process.env.LIVE_SECRET })).toBe(true)
     expect(await authorizeLive({ ...read, user: 'podnoms', password: 'wrong' })).toBe(false)
     expect(await authorizeLive({ ...read, user: 'someone', password: process.env.LIVE_SECRET })).toBe(false)
     expect(await authorizeLive(read)).toBe(false)
-    expect(await authorizeLive({ action: 'api', user: 'podnoms', password: process.env.LIVE_SECRET })).toBe(false)
+    expect(await authorizeLive({ action: 'api', user: 'podnoms', password: process.env.LIVE_SECRET })).toBe(true)
+    expect(await authorizeLive({ action: 'api', user: 'podnoms', password: 'wrong' })).toBe(false)
+    expect(await authorizeLive({ action: 'api' })).toBe(false)
+    expect(await authorizeLive({ action: 'metrics', user: 'podnoms', password: process.env.LIVE_SECRET })).toBe(false)
   })
 })
 
@@ -233,6 +236,14 @@ describe('syncLiveBroadcasts', () => {
 
     await expect(syncLiveBroadcasts()).rejects.toThrow('fetch failed')
     expect((await db.select().from(liveBroadcasts))[0]!.endedAt).toBeNull()
+  })
+
+  it('calls the API as the app, which MediaMTX checks with /api/live/auth', async () => {
+    const fetch = mediamtx([])
+    await syncLiveBroadcasts()
+    const [url, init] = fetch.mock.calls[0]!
+    expect(String(url)).toMatch(/^http:\/\/mediamtx\.test:9997\/v3\/paths\/list/)
+    expect(new Headers(init?.headers).get('authorization')).toBe(`Basic ${btoa(`podnoms:${process.env.LIVE_SECRET}`)}`)
   })
 
   it('reads every page of paths', async () => {

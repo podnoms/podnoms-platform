@@ -262,7 +262,7 @@ Owners can broadcast video live from [OBS](https://obsproject.com) with the **Go
 **Streams go to [MediaMTX](https://github.com/bluenviron/mediamtx), not the app.** [`docker/mediamtx/mediamtx.yml`](docker/mediamtx/mediamtx.yml) runs it as the `mediamtx` service (the `live` profile in `compose.yml`):
 
 - **Who may publish:** OBS sends `live/<podcast id>?key=<key>`. MediaMTX asks the app (`/api/live/auth`, with `LIVE_SECRET`) whether the key is that podcast's. Keys are made in the **Go live** dialog, which keeps showing them (masked until shown); they're stored encrypted with a key derived from `AUTH_SECRET`. Making a new one (or turning streaming off) stops the old one working for the next broadcast.
-- **Watching:** MediaMTX serves HLS that only the app may read. Viewers get it through `/api/podcasts/<slug>/live/hls/…`, which applies the podcast's privacy.
+- **Watching:** MediaMTX serves HLS that only the app may read (and only the app may use its API: MediaMTX asks `/api/live/auth` about those requests too, and the app sends its own credentials). Viewers get it through `/api/podcasts/<slug>/live/hls/…`, which applies the podcast's privacy.
 - **Who's live:** the app checks MediaMTX's API every 5 seconds. When the stream stops, the broadcast is marked interrupted and viewers see that the host is reconnecting. The owner is asked on the live page whether they've finished: **Yes** ends the show for everyone at once (and makes the episode), **No** waits for OBS. A stream that comes back within 5 minutes continues the same broadcast; after that, it ends by itself.
 - **Recording:** MediaMTX records into `MEDIA_DIR/live-recordings`, so it must share the app's media volume and run as the app's user (`1000:1000`).
 

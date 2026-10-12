@@ -32,8 +32,12 @@ export const chatHistoryLimit = 200
 // The least time between one user's chat messages.
 export const chatIntervalMs = 1000
 
-// The user MediaMTX expects the app to read streams as; LIVE_SECRET is its password.
+// The user the app reads streams and calls MediaMTX's API as; LIVE_SECRET is
+// its password. MediaMTX asks /api/live/auth about those requests too (its
+// defaults don't exempt the API everywhere), which lets them through.
 export const liveReader = 'podnoms'
+
+const readerAuthorization = () => `Basic ${Buffer.from(`${liveReader}:${env.LIVE_SECRET}`).toString('base64')}`
 
 export function liveEnabled() {
   return Boolean(env.LIVE_SECRET && env.LIVE_API_URL && env.LIVE_HLS_URL && env.LIVE_RTMP_URL)
@@ -145,7 +149,7 @@ export type LiveAuthRequest = {
 }
 
 // Whether MediaMTX may let the request through: a stream publishing with its
-// podcast's key, or the app reading one.
+// podcast's key, or the app reading one or calling the API.
 export async function authorizeLive(request: LiveAuthRequest) {
   if (!liveEnabled()) return false
   switch (request.action) {
@@ -173,6 +177,7 @@ export async function authorizeLive(request: LiveAuthRequest) {
     }
     case 'read':
     case 'playback':
+    case 'api':
       return request.user === liveReader && isLiveSecret(request.password)
     default:
       return false
@@ -186,7 +191,10 @@ export async function listLivePodcastIds() {
   const live = new Set<string>()
   for (let page = 0, pages = 1; page < pages; page++) {
     const url = new URL(`/v3/paths/list?itemsPerPage=500&page=${page}`, env.LIVE_API_URL)
-    const response = await fetch(url, { signal: AbortSignal.timeout(4000) })
+    const response = await fetch(url, {
+      headers: { Authorization: readerAuthorization() },
+      signal: AbortSignal.timeout(4000),
+    })
     if (!response.ok) throw new Error(`MediaMTX said ${response.status} ${response.statusText}`)
     const list = (await response.json()) as PathList
     pages = list.pageCount ?? 1
@@ -508,7 +516,7 @@ export async function fetchLiveHls(podcastId: string, file: string, search: stri
   let upstream: Response
   try {
     upstream = await fetch(url, {
-      headers: { Authorization: `Basic ${Buffer.from(`${liveReader}:${env.LIVE_SECRET}`).toString('base64')}` },
+      headers: { Authorization: readerAuthorization() },
       signal,
     })
   } catch (error) {
