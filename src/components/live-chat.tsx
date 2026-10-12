@@ -1,13 +1,18 @@
 import { useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useRouteContext } from '@tanstack/react-router'
+import { GifPicker } from '~/components/gif-picker'
 import { Icons } from '~/components/icons'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { Button } from '~/components/ui/button'
+import { EmojiPicker, EmojiPickerContent, EmojiPickerFooter, EmojiPickerSearch } from '~/components/ui/emoji-picker'
 import { Input } from '~/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
 import { postLiveChat, removeLiveChat } from '~/functions/live'
+import type { ChatGif, GifConfig } from '~/lib/gifs'
 import { chatMessageMaxLength } from '~/lib/live-schema'
 import { initials } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
+import { insertText } from '~/lib/text'
 import { cn } from '~/lib/utils'
 import type { ChatMessage } from '~/server/live.server'
 
@@ -23,11 +28,14 @@ export function LiveChat({
   broadcastId,
   messages,
   onChange,
+  gifs,
   className,
 }: {
   // Null while not live: the chat so far stays, but no one can write.
   broadcastId: string | null
   messages: ChatMessage[]
+  // The GIF provider to search, if one is set up.
+  gifs: GifConfig | null
   onChange: (update: (messages: ChatMessage[]) => ChatMessage[]) => void
   className?: string
 }) {
@@ -37,6 +45,8 @@ export function LiveChat({
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const list = useRef<HTMLOListElement>(null)
+  const input = useRef<HTMLInputElement>(null)
+  const [picking, setPicking] = useState(false)
   const following = useRef(true)
 
   useLayoutEffect(() => {
@@ -44,22 +54,50 @@ export function LiveChat({
     if (element && following.current) element.scrollTop = element.scrollHeight
   }, [messages])
 
-  async function submit(event: FormEvent) {
-    event.preventDefault()
-    if (!broadcastId || !body.trim()) return
+  // Posts some text or a GIF, returning whether it went.
+  async function send(message: { body?: string; gif?: ChatGif }) {
+    if (!broadcastId) return false
     setSending(true)
     setError(null)
     try {
-      const message = await postLiveChat({ data: { broadcastId, body } })
+      const sent = await postLiveChat({ data: { broadcastId, ...message } })
       // The event stream brings it too; whichever comes first is kept.
-      onChange((current) => (current.some((m) => m.id === message.id) ? current : [...current, message]))
-      setBody('')
+      onChange((current) => (current.some((m) => m.id === sent.id) ? current : [...current, sent]))
       following.current = true
+      return true
     } catch (caught) {
       setError(caught instanceof Error && caught.message === 'Slow down a little' ? caught.message : "Your message wasn't sent. Try again.")
+      return false
     } finally {
       setSending(false)
     }
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    if (!body.trim()) return
+    if (await send({ body })) setBody('')
+  }
+
+  // Puts the emoji where the cursor was in the message (or at its end), then
+  // goes back to typing just after it. Ignored if the message is full.
+  function insertEmoji(emoji: string) {
+    const field = input.current
+    const inserted = insertText(
+      body,
+      emoji,
+      field?.selectionStart ?? body.length,
+      field?.selectionEnd ?? body.length,
+      chatMessageMaxLength,
+    )
+    setPicking(false)
+    if (!inserted) return
+    setBody(inserted.text)
+    setError(null)
+    requestAnimationFrame(() => {
+      field?.focus()
+      field?.setSelectionRange(inserted.cursor, inserted.cursor)
+    })
   }
 
   async function remove(messageId: string) {
@@ -114,7 +152,18 @@ export function LiveChat({
                   {timeFormat.format(message.createdAt)}
                 </time>
               </p>
-              <p className="text-sm break-words whitespace-pre-line">{message.body}</p>
+              {message.body && <p className="text-sm break-words whitespace-pre-line">{message.body}</p>}
+              {message.gif && (
+                // Loaded straight from the provider, as its terms require.
+                <img
+                  src={message.gif.url}
+                  width={message.gif.width}
+                  height={message.gif.height}
+                  alt={message.gif.title || 'GIF'}
+                  loading="lazy"
+                  className="mt-1 h-auto w-full max-w-48 rounded-md"
+                />
+              )}
             </div>
             {message.canDelete && (
               <Button
@@ -145,6 +194,7 @@ export function LiveChat({
           <form onSubmit={submit} className="flex flex-col gap-1.5">
             <div className="flex gap-2">
               <Input
+                ref={input}
                 aria-label="Message"
                 placeholder={broadcastId ? 'Say something…' : 'Not live right now'}
                 value={body}
@@ -155,6 +205,22 @@ export function LiveChat({
                   setError(null)
                 }}
               />
+              <Popover open={picking} onOpenChange={setPicking}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="ghost" size="icon" disabled={!broadcastId} title="Add an emoji">
+                    <Icons.emoji />
+                    <span className="sr-only">Add an emoji</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="end" className="w-fit p-0">
+                  <EmojiPicker className="h-80" onEmojiSelect={({ emoji }) => insertEmoji(emoji)}>
+                    <EmojiPickerSearch placeholder="Search emoji…" />
+                    <EmojiPickerContent />
+                    <EmojiPickerFooter />
+                  </EmojiPicker>
+                </PopoverContent>
+              </Popover>
+              {gifs && <GifPicker config={gifs} disabled={!broadcastId || sending} onPick={(gif) => void send({ gif })} />}
               <Button type="submit" size="icon" disabled={!broadcastId || sending || !body.trim()} title="Send">
                 <Icons.send />
                 <span className="sr-only">Send</span>

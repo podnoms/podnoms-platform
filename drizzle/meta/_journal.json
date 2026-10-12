@@ -176,6 +176,20 @@
       "when": 1791830734221,
       "tag": "0024_live_interrupted",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791841072453,
+      "tag": "0025_chat_gifs",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791841265869,
+      "tag": "0026_channel_kind",
+      "breakpoints": true
     }
   ]
 }

@@ -4,12 +4,13 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { channelItems, channels, episodes, podcasts } from '~/server/db/schema'
+import { channelItems, channels, episodes, podcasts, users } from '~/server/db/schema'
 import {
   checkChannel,
   checkChannelNow,
   checkDueChannels,
   createChannelPodcast,
+  createPlaylistPodcast,
   followChannel,
   getPodcastChannel,
   setChannelEnabled,
@@ -173,6 +174,60 @@ describe('checking a channel again', () => {
     const [one, two] = await Promise.all([checkChannel(channel.id), checkChannel(channel.id)])
     expect(one).toEqual({ added: 1 })
     expect(two).toBe(one)
+  })
+})
+
+describe('following a playlist', () => {
+  // Follows the playlist, and waits for its first check.
+  async function followPlaylist(params: Record<string, string>, userValues: Parameters<typeof createUser>[0] = {}) {
+    const user = await createUser({ isAdmin: true, channelEpisodeLimit: 2, ...userValues })
+    const podcast = await followChannel(user.id, { platform: 'youtube', url: channelUrl(params) }, null, 'playlist')
+    const [channel] = await db.select().from(channels).where(eq(channels.podcastId, podcast.id))
+    await checkChannel(channel!.id)
+    return { user, podcast, channel: (await getChannel(channel!.id))! }
+  }
+
+  it("queues every item, past the user's channel limit, in the playlist's order", async () => {
+    const { podcast, channel } = await followPlaylist({ entries: 'a,b,c,d,e', title: 'My Playlist' })
+    expect(channel).toMatchObject({ kind: 'playlist', title: 'My Playlist', lastError: null })
+    expect((await episodesOf(podcast.id)).map((e) => e.title)).toEqual(['Video a', 'Video b', 'Video c', 'Video d', 'Video e'])
+    const args = JSON.parse(await readFile(join(media, 'yt-dlp-args.json'), 'utf8')) as string[]
+    expect(args).not.toContain('--playlist-end')
+  })
+
+  it('adds items added anywhere in the playlist later, but not ones seen before', async () => {
+    const { podcast, channel } = await followPlaylist({ entries: 'a,b' })
+    await setEntries(channel.id, { entries: 'x,a,b,c' })
+    expect(await checkChannel(channel.id)).toEqual({ added: 2 })
+    expect((await episodesOf(podcast.id)).map((e) => e.title)).toEqual(['Video a', 'Video b', 'Video x', 'Video c'])
+  })
+
+  it("stops importing once its owner isn't an admin", async () => {
+    const { user, podcast, channel } = await followPlaylist({ entries: 'a' })
+    await db.update(users).set({ isAdmin: false }).where(eq(users.id, user.id))
+    await setEntries(channel.id, { entries: 'a,b' })
+    expect(await checkChannel(channel.id)).toEqual({ error: 'Only admins can import playlists' })
+    expect(await episodesOf(podcast.id)).toHaveLength(1)
+  })
+
+  it('can only be made by admins', async () => {
+    const url = 'https://www.youtube.com/playlist?list=PL123'
+    const user = await createUser()
+    await expect(createPlaylistPodcast(user.id, { url })).rejects.toThrow('Admins only')
+    expect(await db.select().from(podcasts)).toEqual([])
+
+    const admin = await createUser({ isAdmin: true })
+    const podcast = await createPlaylistPodcast(admin.id, { url })
+    expect(podcast.title).toBe('PL123')
+    const [channel] = await db.select().from(channels).where(eq(channels.podcastId, podcast.id))
+    expect(channel).toMatchObject({ kind: 'playlist', platform: 'youtube', url })
+    await checkChannel(channel!.id)
+  })
+
+  it('only accepts links to playlists', async () => {
+    const admin = await createUser({ isAdmin: true })
+    await expect(createPlaylistPodcast(admin.id, { url: 'https://www.youtube.com/@someone' })).rejects.toThrow()
+    expect(await db.select().from(podcasts)).toEqual([])
   })
 })
 

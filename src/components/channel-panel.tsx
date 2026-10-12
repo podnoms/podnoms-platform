@@ -10,6 +10,7 @@ import { channelProviders } from '~/lib/platforms'
 
 type Channel = {
   platform: string
+  kind: string
   url: string
   title: string | null
   enabled: boolean
@@ -27,6 +28,7 @@ export function ChannelPanel({ podcastId, channel }: { podcastId: string; channe
   const [message, setMessage] = useState<string>()
   const checking = channel.checking || !channel.lastCheckedAt
   const platform = channelProviders.find((p) => p.platform === channel.platform)?.label ?? hostname(channel.url)
+  const noun = channel.kind === 'playlist' ? 'playlist' : 'channel'
 
   // A check can take a while behind other downloads, and may add nothing, so
   // there's no episode event to wait for: look again now and then until it's done.
@@ -55,7 +57,7 @@ export function ChannelPanel({ podcastId, channel }: { podcastId: string; channe
         <p className="flex items-center gap-2 font-medium">
           <Icons.broadcast className="size-4 shrink-0 text-muted-foreground" />
           <span className="truncate">
-            Following{' '}
+            Following {noun === 'playlist' && 'the playlist '}
             <a href={channel.url} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">
               {channel.title ?? channel.url}
             </a>{' '}
@@ -75,7 +77,7 @@ export function ChannelPanel({ podcastId, channel }: { podcastId: string; channe
             </>
           )}
         </p>
-        {channel.lastError && !checking && <p className="text-destructive">Couldn't check the channel: {channel.lastError}</p>}
+        {channel.lastError && !checking && <p className="text-destructive">Couldn't check the {noun}: {channel.lastError}</p>}
         {message && <p className="text-destructive">{message}</p>}
       </div>
       <div className="flex shrink-0 items-center gap-4">

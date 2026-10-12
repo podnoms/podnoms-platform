@@ -1,0 +1,1 @@
+ALTER TABLE "channel" ADD COLUMN "kind" text DEFAULT 'channel' NOT NULL;

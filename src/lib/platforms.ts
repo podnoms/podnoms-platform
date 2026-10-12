@@ -89,3 +89,34 @@ export function parseChannelUrl(url: string) {
   }
   return null
 }
+
+// The platforms whose playlists admins can import whole (see
+// createPlaylistPodcast in channels.server.ts). yt-dlp lists them all.
+export const playlistPlatforms = 'YouTube, Mixcloud or SoundCloud'
+
+// A playlist's platform and normalised URL, or null if the link isn't to one.
+export function parsePlaylistUrl(url: string): { platform: Platform; url: string } | null {
+  const parsed = parseUrl(url)
+  if (!parsed) return null
+  const host = parsed.hostname.toLowerCase()
+  const parts = parsed.pathname.split('/').filter(Boolean)
+  if (onHost(host, 'youtube.com') || onHost(host, 'youtu.be')) {
+    // /playlist?list=…, or a video played from a playlist (watch?v=…&list=…).
+    const list = parsed.searchParams.get('list')
+    // Mixes (RD…) are made up as they play and never end; Watch later and
+    // Liked videos (WL, LL) are private.
+    if (!list || !/^[\w-]+$/.test(list) || /^(RD|WL$|LL$)/.test(list)) return null
+    return { platform: 'youtube', url: `https://www.youtube.com/playlist?list=${list}` }
+  }
+  if (onHost(host, 'mixcloud.com')) {
+    const [user, tab, name, ...rest] = parts
+    if (!user || tab !== 'playlists' || !name || rest.length) return null
+    return { platform: 'mixcloud', url: `https://www.mixcloud.com/${user}/playlists/${name}/` }
+  }
+  if (onHost(host, 'soundcloud.com')) {
+    const [user, tab, name, ...rest] = parts
+    if (!user || tab !== 'sets' || !name || rest.length) return null
+    return { platform: 'soundcloud', url: `https://soundcloud.com/${user}/sets/${name}` }
+  }
+  return null
+}

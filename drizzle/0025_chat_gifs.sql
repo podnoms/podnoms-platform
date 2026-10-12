@@ -1,0 +1,1 @@
+ALTER TABLE "live_chat_message" ADD COLUMN "gif" jsonb;

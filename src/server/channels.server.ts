@@ -4,10 +4,13 @@
 //
 // Listing a channel (see channel-listing.server.ts) asks the platform for just
 // its newest uploads, through the download throttle like the downloads.
+//
+// Admins can also make a podcast from a playlist, which is followed the same
+// way but listed whole, so every item becomes an episode.
 import '@tanstack/react-start/server-only'
 import { and, asc, eq, isNull, lte } from 'drizzle-orm'
-import type { NewChannelPodcastInput } from '~/lib/channel-schema'
-import { parseChannelUrl, type Platform } from '~/lib/platforms'
+import type { NewChannelPodcastInput, NewPlaylistPodcastInput } from '~/lib/channel-schema'
+import { parseChannelUrl, parsePlaylistUrl, type Platform } from '~/lib/platforms'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
 import { channelItems, channels, podcasts, users, type Channel } from '~/server/db/schema'
@@ -22,6 +25,7 @@ import { notifyNewEpisodes } from '~/server/notifications.server'
 import { createPodcast } from '~/server/podcasts.server'
 import { listChannel, type ChannelEntry, type ChannelListing } from '~/server/channel-listing.server'
 import { getSiteSettings } from '~/server/site-settings.server'
+import { isAdmin } from '~/server/users.server'
 
 // Users can ask for a check this often at most.
 export const manualCheckIntervalMs = 15 * 60_000
@@ -30,14 +34,26 @@ const checkJitter = 0.1
 // Uploads shorter than this are Shorts or trailers, not episodes.
 const minDurationSeconds = 60
 
+// What YouTube playlists list in place of videos that have gone.
+const unavailableTitles = ['[Private video]', '[Deleted video]']
+
 // Uploads worth making episodes of.
 const isEpisode = (entry: ChannelEntry) =>
-  !entry.live && (entry.durationSeconds == null || entry.durationSeconds >= minDurationSeconds)
+  !entry.live &&
+  (entry.durationSeconds == null || entry.durationSeconds >= minDurationSeconds) &&
+  !unavailableTitles.includes(entry.title ?? '')
+
+export type ChannelKind = 'channel' | 'playlist'
 
 // A name for the channel from its link, e.g. "@someone", until its own title is known.
 export function nameFromChannelUrl(url: string) {
-  const parts = new URL(url).pathname.split('/').filter(Boolean)
-  return parts.find((part) => !['channel', 'c', 'user', 'videos', 'uploads'].includes(part)) ?? url
+  const parsed = new URL(url)
+  const parts = parsed.pathname.split('/').filter(Boolean)
+  return (
+    parsed.searchParams.get('list') ??
+    parts.filter((part) => !['channel', 'c', 'user', 'videos', 'uploads', 'playlist', 'playlists', 'sets'].includes(part)).at(-1) ??
+    url
+  )
 }
 
 // Makes a podcast that follows the channel. Its uploads are listed and
@@ -48,17 +64,27 @@ export async function createChannelPodcast(userId: string, input: NewChannelPodc
   return followChannel(userId, source, input.customDomain)
 }
 
+// Makes a podcast of every item in a playlist, and adds ones added to it
+// later. Admins only: there's no limit to how many it downloads.
+export async function createPlaylistPodcast(userId: string, input: NewPlaylistPodcastInput) {
+  if (!(await isAdmin(userId))) throw new Error('Admins only')
+  const source = parsePlaylistUrl(input.url)
+  if (!source) throw new Error("That isn't a link to a playlist")
+  return followChannel(userId, source, input.customDomain, 'playlist')
+}
+
 export async function followChannel(
   userId: string,
   source: { platform: Platform; url: string },
   customDomain?: string | null,
+  kind: ChannelKind = 'channel',
 ) {
   const podcast = await createPodcast(userId, { title: nameFromChannelUrl(source.url), customDomain })
   const [channel] = await db
     .insert(channels)
-    .values({ podcastId: podcast.id, platform: source.platform, url: source.url })
+    .values({ podcastId: podcast.id, platform: source.platform, kind, url: source.url })
     .returning()
-  logger.info({ channelId: channel!.id, podcastId: podcast.id, url: source.url }, 'Podcast is following a channel')
+  logger.info({ channelId: channel!.id, podcastId: podcast.id, kind, url: source.url }, 'Podcast is following a channel')
   void checkChannel(channel!.id, { priority: 2 })
   return podcast
 }
@@ -85,21 +111,26 @@ export function checkChannel(channelId: string, { priority = 0 } = {}) {
 
 async function runCheck(channelId: string, priority: number): Promise<CheckResult> {
   const [row] = await db
-    .select({ channel: channels, podcast: { id: podcasts.id }, limit: users.channelEpisodeLimit })
+    .select({ channel: channels, podcast: { id: podcasts.id }, limit: users.channelEpisodeLimit, ownerIsAdmin: users.isAdmin })
     .from(channels)
     .innerJoin(podcasts, eq(podcasts.id, channels.podcastId))
     .innerJoin(users, eq(users.id, podcasts.userId))
     .where(eq(channels.id, channelId))
     .limit(1)
   if (!row) return { error: 'The channel no longer exists' }
-  const { channel, podcast, limit } = row
+  const { channel, podcast, ownerIsAdmin } = row
+  const playlist = channel.kind === 'playlist'
   const { channelCheckHours } = await getSiteSettings()
   const spread = 1 + checkJitter * (Math.random() * 2 - 1)
   const nextCheckAt = new Date(Date.now() + channelCheckHours * 60 * 60_000 * spread)
   const context = { channelId, podcastId: podcast.id, url: channel.url }
 
   try {
-    if (limit <= 0) throw new Error("Your account can't import episodes from channels")
+    // Checked every time, in case the owner is no longer an admin.
+    if (playlist && !ownerIsAdmin) throw new Error('Only admins can import playlists')
+    // A playlist is listed whole.
+    const limit = playlist ? null : row.limit
+    if (limit !== null && limit <= 0) throw new Error("Your account can't import episodes from channels")
     const first = !channel.lastCheckedAt
     const listing = await withDownloadSlot(
       channel.platform as Platform,
@@ -107,7 +138,7 @@ async function runCheck(channelId: string, priority: number): Promise<CheckResul
       () => listChannel(channel.platform as Platform, channel.url, limit, { details: first }),
     )
     if (first) await fillInPodcast(channel, podcast.id, listing)
-    const added = await addNewEntries(channel, podcast.id, listing.entries)
+    const added = await addNewEntries(channel, podcast.id, listing.entries, playlist)
     await db
       .update(channels)
       .set({ title: listing.title ?? channel.title, lastCheckedAt: new Date(), nextCheckAt, lastError: null })
@@ -162,16 +193,18 @@ async function fillInPodcast(channel: Channel, podcastId: string, listing: Chann
 // Queues the uploads not seen before as episodes, oldest first. Once the
 // channel's been listed, only uploads newer than the newest one seen count as
 // new: an older one coming into view (as a newer one is removed) is not.
-async function addNewEntries(channel: Channel, podcastId: string, entries: ChannelEntry[]) {
+// A playlist is listed whole and in its own order, so anything not seen
+// before is new, wherever it is, and they're queued in the playlist's order.
+async function addNewEntries(channel: Channel, podcastId: string, entries: ChannelEntry[], playlist: boolean) {
   const seen = new Set(
     (await db.select({ key: channelItems.sourceKey }).from(channelItems).where(eq(channelItems.channelId, channel.id))).map(
       (item) => item.key,
     ),
   )
-  const newestSeen = entries.findIndex((entry) => seen.has(entry.key))
-  const candidates = newestSeen === -1 ? entries : entries.slice(0, newestSeen)
+  const newestSeen = playlist ? -1 : entries.findIndex((entry) => seen.has(entry.key))
+  const candidates = (newestSeen === -1 ? entries : entries.slice(0, newestSeen)).filter((e) => !seen.has(e.key) && isEpisode(e))
   let added = 0
-  for (const entry of candidates.filter((e) => !seen.has(e.key) && isEpisode(e)).reverse()) {
+  for (const entry of playlist ? candidates : candidates.reverse()) {
     const item = and(eq(channelItems.channelId, channel.id), eq(channelItems.sourceKey, entry.key))
     // Claims the upload first, so it can only ever become one episode.
     const [claimed] = await db
@@ -238,6 +271,7 @@ export async function getPodcastChannel(podcastId: string) {
     .select({
       id: channels.id,
       platform: channels.platform,
+      kind: channels.kind,
       url: channels.url,
       title: channels.title,
       enabled: channels.enabled,

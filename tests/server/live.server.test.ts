@@ -329,6 +329,18 @@ describe('chat', () => {
     expect(anyone.map((m) => [m.body, m.canDelete])).toEqual([['Hello!', false]])
   })
 
+  it('stores a GIF with a message, for everyone to see', async () => {
+    const owner = await createUser()
+    const podcast = await createPodcast(owner.id)
+    const broadcast = await openBroadcast(podcast.id)
+    const gif = { provider: 'klipy' as const, id: 'happy', title: 'Happy', url: 'https://static.klipy.com/a.webp', width: 220, height: 124 }
+
+    const message = await addChatMessage(owner.id, broadcast.id, '', gif)
+
+    expect(message).toMatchObject({ body: '', gif })
+    expect((await listChat(podcast, broadcast.id, null)).map((m) => m.gif)).toEqual([gif])
+  })
+
   it('only lists a broadcast with the podcast it belongs to', async () => {
     const user = await createUser()
     const secret = await createPodcast(user.id, { private: true })

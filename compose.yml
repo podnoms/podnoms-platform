@@ -37,6 +37,9 @@ services:
       LIVE_API_URL: ${LIVE_API_URL:-}
       LIVE_HLS_URL: ${LIVE_HLS_URL:-}
       LIVE_RTMP_URL: ${LIVE_RTMP_URL:-}
+      # GIFs in live chat, from KLIPY or GIPHY (see README.md).
+      KLIPY_API_KEY: ${KLIPY_API_KEY:-}
+      GIPHY_API_KEY: ${GIPHY_API_KEY:-}
     volumes:
       - media:/app/media
     # Picked up by Grafana Alloy (see deploy/observability). Docker keeps a

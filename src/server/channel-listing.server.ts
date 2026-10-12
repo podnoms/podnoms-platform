@@ -30,14 +30,17 @@ export type ChannelListing = {
 }
 
 // `details` asks for the channel's title, description and artwork too, where
-// they cost another request; they're only needed the first time.
+// they cost another request; they're only needed the first time. Without a
+// limit (a playlist), everything is listed, always by yt-dlp.
 export async function listChannel(
   platform: Platform,
   url: string,
-  limit: number,
+  limit: number | null,
   { details = true } = {},
 ): Promise<ChannelListing> {
-  return platform === 'mixcloud' ? listMixcloud(url, limit, details) : listWithYtDlp(platform, url, limit)
+  return platform === 'mixcloud' && limit !== null
+    ? listMixcloud(url, limit, details)
+    : listWithYtDlp(platform, url, limit)
 }
 
 type YtDlpEntry = { id?: string; url?: string; webpage_url?: string; title?: string; duration?: number; live_status?: string }
@@ -47,15 +50,14 @@ type YtDlpPlaylist = {
   thumbnails?: { url?: string; id?: string; width?: number; height?: number }[]
 }
 
-async function listWithYtDlp(platform: Platform, url: string, limit: number): Promise<ChannelListing> {
+async function listWithYtDlp(platform: Platform, url: string, limit: number | null): Promise<ChannelListing> {
   const entries: ChannelEntry[] = []
   let playlist: YtDlpPlaylist | undefined
   const args = [
     '--flat-playlist',
     // Stops fetching pages once it has enough, rather than listing them all first.
     '--lazy-playlist',
-    '--playlist-end',
-    String(limit),
+    ...(limit === null ? [] : ['--playlist-end', String(limit)]),
     '--print',
     'ENTRY %(.{id,url,webpage_url,title,duration,live_status})j',
     '--print',

@@ -87,6 +87,12 @@ export const env = createEnv({
     LIVE_SECRET: z.string().min(32).optional(),
     LIVE_API_URL: z.url().optional(),
     LIVE_HLS_URL: z.url().optional(),
+    // GIFs in live chat (see src/lib/gifs.ts), from KLIPY (free key from
+    // partner.klipy.com) or GIPHY (developers.giphy.com); KLIPY if both are
+    // set, and no GIFs without either. Browsers use the key directly, as both
+    // providers require, so it isn't secret.
+    KLIPY_API_KEY: z.string().optional(),
+    GIPHY_API_KEY: z.string().optional(),
     LIVE_RTMP_URL: z.string().regex(/^rtmps?:\/\//, 'Must be an rtmp:// or rtmps:// URL').optional(),
   },
   clientPrefix: 'VITE_',

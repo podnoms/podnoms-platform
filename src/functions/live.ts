@@ -13,6 +13,7 @@ import {
   endBroadcast,
   getLiveSettings,
   getOpenBroadcast,
+  gifConfig,
   liveEnabled,
   reconnectGraceMs,
   listChat,
@@ -54,6 +55,8 @@ export const fetchLivePage = createServerFn({ method: 'GET' })
       chat: broadcast ? await listChat(podcast, broadcast.id, userId) : [],
       isOwner: userId === podcast.userId,
       signedIn: userId !== null,
+      // The GIF provider viewers search, if one is set up.
+      gifs: gifConfig(),
       // How long a dropped stream is waited for before the show ends by itself.
       reconnectGraceMinutes: reconnectGraceMs / 60_000,
     }
@@ -72,7 +75,7 @@ export const fetchLiveChat = createServerFn({ method: 'GET' })
 export const postLiveChat = createServerFn({ method: 'POST' })
   .validator(postChatSchema)
   .handler(async ({ data }) => {
-    const message = await addChatMessage(await requireUserId(), data.broadcastId, data.body)
+    const message = await addChatMessage(await requireUserId(), data.broadcastId, data.body, data.gif)
     if (!message) throw notFound()
     return message
   })

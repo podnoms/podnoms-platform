@@ -13,6 +13,7 @@ import '@tanstack/react-start/server-only'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { and, desc, eq, isNotNull, isNull, or } from 'drizzle-orm'
 import { env } from '~/env'
+import type { ChatGif, GifConfig } from '~/lib/gifs'
 import { db } from '~/server/db/client.server'
 import { episodes, liveBroadcasts, liveChatMessages, podcasts, users, type LiveBroadcast } from '~/server/db/schema'
 import { ExpiringStore } from '~/server/expiring-store.server'
@@ -399,6 +400,14 @@ export async function getLiveSettings(userId: string, podcastId: string) {
   }
 }
 
+// Which GIF provider the chat uses, and its key for browsers to search with:
+// KLIPY if it has a key, else GIPHY, else none (no GIF button).
+export function gifConfig(): GifConfig | null {
+  if (env.KLIPY_API_KEY) return { provider: 'klipy', key: env.KLIPY_API_KEY }
+  if (env.GIPHY_API_KEY) return { provider: 'giphy', key: env.GIPHY_API_KEY }
+  return null
+}
+
 // --- Chat -----------------------------------------------------------------------
 
 const chatColumns = {
@@ -407,6 +416,7 @@ const chatColumns = {
   createdAt: liveChatMessages.createdAt,
   userId: liveChatMessages.userId,
   author: { name: users.name, image: users.image },
+  gif: liveChatMessages.gif,
 }
 
 // What a viewer is shown of a message: who wrote it by name (their id stays
@@ -446,7 +456,7 @@ const lastMessageAt = new ExpiringStore<true>(chatIntervalMs)
 
 // Posts to the chat of a broadcast that's live, if the user may watch it.
 // Returns the message, or null if there's no such broadcast for them.
-export async function addChatMessage(userId: string, broadcastId: string, body: string) {
+export async function addChatMessage(userId: string, broadcastId: string, body: string, gif?: ChatGif) {
   const [broadcast] = await db
     .select({ podcastId: liveBroadcasts.podcastId, ownerId: podcasts.userId })
     .from(liveBroadcasts)
@@ -464,7 +474,7 @@ export async function addChatMessage(userId: string, broadcastId: string, body: 
   lastMessageAt.set(userId, true)
   const [inserted] = await db
     .insert(liveChatMessages)
-    .values({ broadcastId, userId, body: body.trim() })
+    .values({ broadcastId, userId, body: body.trim(), gif: gif ?? null })
     .returning({ id: liveChatMessages.id })
   const [message] = await db
     .select(chatColumns)

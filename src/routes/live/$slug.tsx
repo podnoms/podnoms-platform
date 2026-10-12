@@ -99,6 +99,7 @@ function LivePage() {
         broadcastId={broadcast?.id ?? null}
         messages={chat}
         onChange={setChat}
+        gifs={page.gifs}
         className="h-[28rem] xl:h-auto"
       />
       {page.isOwner && <LiveEndDialog broadcast={broadcast} graceMinutes={page.reconnectGraceMinutes} />}

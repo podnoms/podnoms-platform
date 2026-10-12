@@ -3,6 +3,7 @@
 // and chat messages. In memory, like episode events.
 import '@tanstack/react-start/server-only'
 import { EventEmitter } from 'node:events'
+import type { ChatGif } from '~/lib/gifs'
 
 // A chat message as it's stored, with who wrote it; each stream works out
 // whether its viewer may delete it, and passes on the rest.
@@ -12,6 +13,7 @@ export type ChatMessageRecord = {
   createdAt: Date
   userId: string
   author: { name: string | null; image: string | null }
+  gif: ChatGif | null
 }
 
 export type LiveEvent =

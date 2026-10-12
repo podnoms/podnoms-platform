@@ -18,6 +18,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
 import type { AdapterAccountType } from '@auth/core/adapters'
+import type { ChatGif } from '../../lib/gifs'
 import type { DirectoryLinks } from '../../lib/podcast-directories'
 import { randomShortSlug } from '../../lib/slug'
 
@@ -271,6 +272,9 @@ export const channels = pgTable(
       .references(() => podcasts.id, { onDelete: 'cascade' }),
     // Which of channelProviders (src/lib/platforms.ts) it's on.
     platform: text('platform').notNull(),
+    // 'channel' (its newest uploads) or 'playlist' (every item, which only
+    // admins can import, see createPlaylistPodcast).
+    kind: text('kind').notNull().default('channel'),
     // Normalised to the list of uploads, as yt-dlp is given it.
     url: text('url').notNull(),
     title: text('title'),
@@ -452,7 +456,10 @@ export const liveChatMessages = pgTable(
     userId: text('userId')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
+    // Empty for a message that's only a GIF.
     body: text('body').notNull(),
+    // A GIF sent with (or as) the message, as the provider gave it.
+    gif: jsonb('gif').$type<ChatGif>(),
     createdAt: timestamps.createdAt,
   },
   (table) => [index('live_chat_message_broadcastId_createdAt_idx').on(table.broadcastId, table.createdAt)],
