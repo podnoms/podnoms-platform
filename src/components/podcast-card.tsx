@@ -23,7 +23,7 @@ export function PodcastCard({ podcast }: { podcast: PodcastCardData }) {
   ].filter(Boolean)
   return (
     <Link
-      to="/podcasts/$slug"
+      to="/$slug"
       params={{ slug: podcast.slug }}
       className="group flex min-w-0 flex-col gap-3 rounded-xl p-2 transition-colors outline-none hover:bg-muted/60 focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >

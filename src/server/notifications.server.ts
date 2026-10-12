@@ -5,6 +5,7 @@
 // kept in memory and lost if the app restarts.
 import '@tanstack/react-start/server-only'
 import { eq } from 'drizzle-orm'
+import { episodePath, podcastPath } from '~/lib/paths'
 import { db } from '~/server/db/client.server'
 import { episodes, podcasts, users } from '~/server/db/schema'
 import { emailEnabled, emailOrigin, sendEmail } from '~/server/email.server'
@@ -79,7 +80,7 @@ export function notifyEpisodeFailed(episodeId: string, error: string | null) {
         podcastTitle: row.podcastTitle,
         episodeTitle: row.episodeTitle,
         error,
-        link: link(`/podcasts/${row.podcastSlug}/episodes/${row.episodeSlug}/manage`),
+        link: link(`${episodePath(row.podcastSlug, row.episodeSlug)}/manage`),
       })
     })(),
   )
@@ -99,7 +100,7 @@ export function notifyNewEpisodes(podcastId: string, count: number) {
         type: 'newEpisodes',
         podcastTitle: podcast.title,
         count,
-        link: link(`/podcasts/${podcast.slug}/manage`),
+        link: link(`${podcastPath(podcast.slug)}/manage`),
       })
     })(),
   )

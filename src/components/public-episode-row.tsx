@@ -54,7 +54,7 @@ export function PublicEpisodeRow({
   const position = isCurrent ? player.currentTime : player.positionOf(episode.id, episode.positionSeconds)
   const duration = (isCurrent && player.duration) || episode.durationSeconds || 0
   const published = episode.publishedAt ?? episode.createdAt
-  const episodeLink = { to: '/podcasts/$slug/episodes/$episodeSlug', params: { slug: podcastSlug, episodeSlug: episode.slug } } as const
+  const episodeLink = { to: '/$slug/episodes/$episodeSlug', params: { slug: podcastSlug, episodeSlug: episode.slug } } as const
 
   function play(startAt?: number) {
     if (!episode.audioUrl) return
@@ -113,7 +113,7 @@ export function PublicEpisodeRow({
             <p className="truncate text-sm text-muted-foreground">
               {showPodcast && (
                 <Separated>
-                  <Link to="/podcasts/$slug" params={{ slug: podcastSlug }} className="hover:text-foreground hover:underline">
+                  <Link to="/$slug" params={{ slug: podcastSlug }} className="hover:text-foreground hover:underline">
                     {podcastTitle}
                   </Link>
                 </Separated>

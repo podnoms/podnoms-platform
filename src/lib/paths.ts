@@ -1,12 +1,45 @@
 // Public pages, by slug. Absolute versions (for feeds, Open Graph and embed
 // snippets) are built against the site's public URL on the server.
+// Podcasts are at the top level, so their slugs can't be any of
+// reservedPodcastSlugs.
 export function podcastPath(slug: string) {
-  return `/podcasts/${slug}`
+  return `/${slug}`
 }
 
 export function episodePath(slug: string, episodeSlug: string) {
-  return `/podcasts/${slug}/episodes/${episodeSlug}`
+  return `/${slug}/episodes/${episodeSlug}`
 }
+
+// The site's own top-level paths, which a podcast slug would clash with
+// (tests/lib/paths.test.ts checks every route in src/routes is here). Some
+// are spare, for pages to come.
+export const reservedPodcastSlugs = new Set([
+  'about',
+  'admin',
+  'api',
+  'assets',
+  'embed',
+  'explore',
+  'feed',
+  'following',
+  'help',
+  'images',
+  'likes',
+  'listen',
+  'live',
+  'login',
+  'logout',
+  'podcasts',
+  'privacy',
+  'reset-password',
+  's',
+  'search',
+  'security',
+  'settings',
+  'signup',
+  'src',
+  'tos',
+])
 
 // The podcast's live page: its broadcast, when there is one, and its chat.
 export function livePath(slug: string) {

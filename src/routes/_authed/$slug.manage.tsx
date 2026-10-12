@@ -41,7 +41,7 @@ import { imageSrc } from '~/lib/images'
 import { isReady } from '~/lib/podcast-directories'
 import { htmlToText } from '~/lib/rich-text'
 
-export const Route = createFileRoute('/_authed/podcasts/$slug/manage')({
+export const Route = createFileRoute('/_authed/$slug/manage')({
   loader: ({ params }) => fetchMyPodcast({ data: { slug: params.slug } }),
   head: ({ loaderData }) => ({ meta: loaderData ? [{ title: `${loaderData.title} · podnoms` }] : [] }),
   component: PodcastPage,
@@ -149,7 +149,7 @@ function PodcastPage() {
                   Edit
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link to="/podcasts/$slug" target='_blank' params={{ slug: podcast.slug }} >
+                  <Link to="/$slug" target='_blank' params={{ slug: podcast.slug }} >
                     <Icons.externalLink />
                     Public page
                   </Link>

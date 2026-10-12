@@ -68,7 +68,7 @@ export function NewPodcastDialog({ children }: { children: ReactNode }) {
       // `sync` waits for the reload: otherwise it runs in the background and
       // the navigation below aborts it, leaving the sidebar without the podcast.
       await router.invalidate({ sync: true })
-      await navigate({ to: '/podcasts/$slug', params: { slug: podcast.slug } })
+      await navigate({ to: '/$slug', params: { slug: podcast.slug } })
     } catch {
       setError('Something went wrong creating your podcast. Please try again.')
     } finally {

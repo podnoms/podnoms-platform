@@ -115,11 +115,11 @@ function EpisodeTitle({ episode }: { episode: PlayerEpisode }) {
   if (!episode.slug || !episode.podcastSlug) return <p className={className}>{episode.title}</p>
   const params = { slug: episode.podcastSlug, episodeSlug: episode.slug }
   return session && episode.isOwner ? (
-    <Link to="/podcasts/$slug/episodes/$episodeSlug/manage" params={params} className={`${className} hover:underline`}>
+    <Link to="/$slug/episodes/$episodeSlug/manage" params={params} className={`${className} hover:underline`}>
       {episode.title}
     </Link>
   ) : (
-    <Link to="/podcasts/$slug/episodes/$episodeSlug" params={params} className={`${className} hover:underline`}>
+    <Link to="/$slug/episodes/$episodeSlug" params={params} className={`${className} hover:underline`}>
       {episode.title}
     </Link>
   )

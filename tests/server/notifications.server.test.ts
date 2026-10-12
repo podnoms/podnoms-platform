@@ -59,7 +59,7 @@ describe('notifications', () => {
     expect(sent.to).toBe('owner@example.com')
     expect(sent.subject).toBe('1 episode failed, 2 new')
     const { text } = await renderEmail(sent, 'https://pods.example')
-    expect(text).toContain('https://pods.example/podcasts/my-show/episodes/ep-1/manage')
+    expect(text).toContain('https://pods.example/my-show/episodes/ep-1/manage')
   })
 
   it('sends after the batch delay', async () => {

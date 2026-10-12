@@ -3,28 +3,28 @@ import { isSharedPath, normalizeDomain, toDomainPath, toSitePath, txtRecordName,
 
 describe('custom domain paths', () => {
   it("map the domain's pages to the podcast's routes", () => {
-    expect(toSitePath('/', 'show')).toBe('/podcasts/show')
-    expect(toSitePath('/episodes/ep-1', 'show')).toBe('/podcasts/show/episodes/ep-1')
-    expect(toSitePath('/episodes/ep-1/', 'show')).toBe('/podcasts/show/episodes/ep-1')
+    expect(toSitePath('/', 'show')).toBe('/show')
+    expect(toSitePath('/episodes/ep-1', 'show')).toBe('/show/episodes/ep-1')
+    expect(toSitePath('/episodes/ep-1/', 'show')).toBe('/show/episodes/ep-1')
     expect(toSitePath('/live', 'show')).toBe('/live/show')
   })
 
   it("leave paths the domain has no page for alone", () => {
-    for (const path of ['/settings', '/podcasts/show', '/episodes', '/episodes/a/b', '/feed']) {
+    for (const path of ['/settings', '/show', '/episodes', '/episodes/a/b', '/feed']) {
       expect(toSitePath(path, 'show')).toBeNull()
     }
   })
 
   it("map the podcast's routes back to the domain's short paths", () => {
-    expect(toDomainPath('/podcasts/show', 'show')).toBe('/')
-    expect(toDomainPath('/podcasts/show/', 'show')).toBe('/')
-    expect(toDomainPath('/podcasts/show/episodes/ep-1', 'show')).toBe('/episodes/ep-1')
+    expect(toDomainPath('/show', 'show')).toBe('/')
+    expect(toDomainPath('/show/', 'show')).toBe('/')
+    expect(toDomainPath('/show/episodes/ep-1', 'show')).toBe('/episodes/ep-1')
     expect(toDomainPath('/feed/show', 'show')).toBe('/feed')
     expect(toDomainPath('/live/show', 'show')).toBe('/live')
   })
 
   it("leave other podcasts' and the app's paths alone", () => {
-    for (const path of ['/podcasts/other', '/podcasts/show/manage', '/live/other', '/live/showy', '/podcasts/showy/episodes/x', '/feed/other', '/']) {
+    for (const path of ['/other', '/show/manage', '/live/other', '/live/showy', '/showy/episodes/x', '/feed/other', '/']) {
       expect(toDomainPath(path, 'show')).toBeNull()
     }
   })
@@ -39,7 +39,7 @@ describe('custom domain paths', () => {
     for (const path of ['/_serverFn/abc', '/api/episodes/1/audio', '/images/x.jpg', '/assets/app.js', '/embed/a/b', '/robots.txt', '/favicon-32x32.png']) {
       expect(isSharedPath(path)).toBe(true)
     }
-    for (const path of ['/', '/settings', '/podcasts/show', '/feed']) expect(isSharedPath(path)).toBe(false)
+    for (const path of ['/', '/settings', '/show', '/feed']) expect(isSharedPath(path)).toBe(false)
   })
 })
 

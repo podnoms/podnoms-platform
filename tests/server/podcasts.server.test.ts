@@ -55,6 +55,12 @@ describe('createPodcast', () => {
   it('falls back to "podcast" when the title has no usable characters', async () => {
     expect((await createPodcast((await createUser()).id, { title: '🎙️' })).slug).toBe('podcast')
   })
+
+  it("doesn't take the name of one of the site's own pages", async () => {
+    const user = await createUser()
+    expect((await createPodcast(user.id, { title: 'Explore' })).slug).toBe('explore-2')
+    expect((await createPodcast(user.id, { title: 'Settings' })).slug).toBe('settings-2')
+  })
 })
 
 describe('listPodcasts', () => {

@@ -2,6 +2,7 @@ import '@tanstack/react-start/server-only'
 import { and, asc, eq, like, or, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
 import { episodes, podcastFollows, podcasts, users } from '~/server/db/schema'
+import { reservedPodcastSlugs } from '~/lib/paths'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { firstFreeSlug, slugify } from '~/lib/slug'
 import { customDomainValues, withDomainConflict } from '~/server/custom-domains.server'
@@ -135,13 +136,14 @@ export async function resetFeedKey(userId: string, podcastId: string) {
 }
 
 // Slugs are unique across all users: "my-show", then "my-show-2", "my-show-3"…
+// The site's own top-level paths count as taken, as podcasts are served there.
 async function availableSlug(title: string) {
   const base = slugify(title, 'podcast')
   const taken = await db
     .select({ slug: podcasts.slug })
     .from(podcasts)
     .where(or(eq(podcasts.slug, base), like(podcasts.slug, `${base}-%`)))
-  return firstFreeSlug(base, new Set(taken.map((row) => row.slug)))
+  return firstFreeSlug(base, new Set([...reservedPodcastSlugs, ...taken.map((row) => row.slug)]))
 }
 
 export async function createPodcast(userId: string, input: NewPodcastInput) {

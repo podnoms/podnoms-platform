@@ -45,7 +45,7 @@ export function AppSidebar() {
   const podcasts = useMemo(() => sortPodcasts(loaded, sort), [loaded, sort])
   const pathname = useLocation({ select: (location) => location.pathname })
   // A podcast's public and management pages, and its episodes', all count as its.
-  const isActive = (slug: string) => pathname === `/podcasts/${slug}` || pathname.startsWith(`/podcasts/${slug}/`)
+  const isActive = (slug: string) => pathname === `/${slug}` || pathname.startsWith(`/${slug}/`)
   // A long list gets a filter box.
   const filterable = podcasts.length > 8
   const [query, setQuery] = useState('')
@@ -97,7 +97,7 @@ export function AppSidebar() {
                 {following.slice(0, maxFollowedShown).map((podcast) => (
                   <SidebarMenuItem key={podcast.id}>
                     <SidebarMenuButton asChild className="h-10 gap-3 px-2">
-                      <Link to="/podcasts/$slug" params={{ slug: podcast.slug }} {...(isActive(podcast.slug) && { 'data-active': '' })}>
+                      <Link to="/$slug" params={{ slug: podcast.slug }} {...(isActive(podcast.slug) && { 'data-active': '' })}>
                         <PodcastThumb imageUrl={podcast.imageUrl} className="size-6" />
                         <span className="truncate">{podcast.title}</span>
                       </Link>
@@ -166,7 +166,7 @@ export function AppSidebar() {
                 <SidebarMenuItem key={podcast.id}>
                   <SidebarMenuButton asChild className="h-12 gap-3 px-2">
                     <Link
-                      to="/podcasts/$slug/manage"
+                      to="/$slug/manage"
                       params={{ slug: podcast.slug }}
                       // The attribute's presence is what styles it, so leave it off otherwise.
                       {...(isActive(podcast.slug) && { 'data-active': '' })}

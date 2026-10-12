@@ -17,9 +17,10 @@ import { publicPageHead } from '~/lib/page-meta'
 import { htmlToText } from '~/lib/rich-text'
 import { jsonLdMeta, podcastSeriesJsonLd } from '~/lib/structured-data'
 
-// A podcast's public page, which anyone can visit. Its owner manages it at
-// /podcasts/:slug/manage.
-export const Route = createFileRoute('/podcasts/$slug')({
+// A podcast's public page, at /:slug, which anyone can visit. Its owner
+// manages it at /:slug/manage. Static routes win over this one, which is why
+// slugs can't be any of reservedPodcastSlugs (src/lib/paths.ts).
+export const Route = createFileRoute('/$slug')({
   staticData: { publicPage: true },
   loader: ({ params }) => fetchPodcastPage({ data: { slug: params.slug } }),
   head: ({ loaderData: podcast }) => {
@@ -129,7 +130,7 @@ function PodcastPage() {
                 )}
                 {podcast.isOwner && (
                   <Button variant="outline" asChild>
-                    <Link to="/podcasts/$slug/manage" params={{ slug: podcast.slug }}>
+                    <Link to="/$slug/manage" params={{ slug: podcast.slug }}>
                       <Icons.settings />
                       Manage
                     </Link>

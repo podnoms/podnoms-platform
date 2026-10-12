@@ -68,7 +68,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
     <div className="flex flex-col gap-8">
       {!standalone && (
         <Link
-          to="/podcasts/$slug"
+          to="/$slug"
           params={{ slug: podcast.slug }}
           className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
@@ -132,7 +132,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
               {isOwner && !standalone && (
                 <Button variant="outline" asChild>
                   <Link
-                    to="/podcasts/$slug/episodes/$episodeSlug/manage"
+                    to="/$slug/episodes/$episodeSlug/manage"
                     params={{ slug: podcast.slug, episodeSlug: episode.slug }}
                   >
                     <Icons.settings />

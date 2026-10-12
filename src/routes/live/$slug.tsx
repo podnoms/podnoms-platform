@@ -80,14 +80,14 @@ function LivePage() {
           <div className="flex gap-2">
             {page.isOwner && (
               <Button variant="outline" asChild>
-                <Link to="/podcasts/$slug/manage" params={{ slug: podcast.slug }}>
+                <Link to="/$slug/manage" params={{ slug: podcast.slug }}>
                   <Icons.settings />
                   Manage
                 </Link>
               </Button>
             )}
             <Button variant="outline" asChild>
-              <Link to="/podcasts/$slug" params={{ slug: podcast.slug }}>
+              <Link to="/$slug" params={{ slug: podcast.slug }}>
                 <Icons.logo />
                 Episodes
               </Link>

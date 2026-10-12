@@ -26,6 +26,6 @@ describe('GET /sitemap.xml', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('application/xml; charset=utf-8')
     const xml = await response.text()
-    expect(xml).toContain('<loc>https://pods.example/podcasts/show/episodes/ep-1</loc>')
+    expect(xml).toContain('<loc>https://pods.example/show/episodes/ep-1</loc>')
   })
 })
