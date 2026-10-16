@@ -42,6 +42,11 @@ function PrivacyPage() {
             salted with a random value that changes daily and is then deleted. We don't keep IP addresses.
           </li>
           <li>
+            <strong>Tracked links:</strong> a podcast's owner can make a link to an episode for a particular person. When
+            that link is opened, or the episode played from it, we count it and note when, and the owner can see this.
+            Nothing else about whoever opened it is kept with the link.
+          </li>
+          <li>
             <strong>Technical data:</strong> server logs and error reports, used to keep the site running and fix
             problems, and privacy-friendly, cookie-free visitor statistics.
           </li>

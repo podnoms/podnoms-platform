@@ -55,6 +55,11 @@ export function shortPath(shortSlug: string) {
   return `/s/${shortSlug}`
 }
 
+// An episode's share page through a tracked link, which counts its opens and plays.
+export function trackedSharePath(shortSlug: string, token: string) {
+  return `${shortPath(shortSlug)}?t=${encodeURIComponent(token)}`
+}
+
 // A URL or path with a private podcast's feed key added, so its feed and audio
 // links work in podcast apps, which can't sign in. Unchanged without a key.
 export function withFeedKey(url: string, feedKey: string | null | undefined) {

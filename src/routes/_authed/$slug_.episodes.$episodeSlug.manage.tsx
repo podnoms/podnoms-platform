@@ -7,6 +7,7 @@ import { usePlayer } from '~/components/player/player-provider'
 import { Waveform } from '~/components/player/waveform'
 import { ReplaceAudioDialog } from '~/components/replace-audio-dialog'
 import { ShareButton } from '~/components/share-buttons'
+import { TrackedLinksCard } from '~/components/tracked-links-card'
 import { ActivityPanel } from '~/components/activity-panel'
 import {
   AlertDialog,
@@ -322,6 +323,15 @@ function EpisodePage() {
           {/* Sanitised on the server (see rich-text.server.ts). */}
           <div className="rich-text max-w-prose" dangerouslySetInnerHTML={{ __html: episode.description }} />
         </section>
+      )}
+
+      {/* Like the Share button, only while the share page works for others. */}
+      {ready && !episode.private && !podcast.private && (
+        <TrackedLinksCard
+          episodeId={episode.id}
+          links={loaded.trackedLinks}
+          onChange={() => router.invalidate({ filter: (match) => match.routeId === Route.id })}
+        />
       )}
 
       {ready && <ActivityPanel slug={podcast.slug} episodeSlug={episode.slug} />}

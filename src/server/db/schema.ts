@@ -517,6 +517,35 @@ export const episodeActivity = pgTable(
   ],
 )
 
+// A link to an episode's share page (/s/<shortSlug>?t=<token>) that its
+// owner made for someone, so they can see whether it was opened (see
+// tracked-links.server.ts). Only counts and times are kept, nothing about
+// the visitor; who it was is only what the owner wrote in the label.
+export const trackedLinks = pgTable(
+  'tracked_link',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    episodeId: text('episodeId')
+      .notNull()
+      .references(() => episodes.id, { onDelete: 'cascade' }),
+    // In the link; unique across the site.
+    token: text('token')
+      .notNull()
+      .$defaultFn(() => randomShortSlug(10)),
+    // Who it's for, as the owner put it.
+    label: text('label').notNull(),
+    openCount: integer('openCount').notNull().default(0),
+    firstOpenedAt: timestamp('firstOpenedAt', { mode: 'date', withTimezone: true }),
+    lastOpenedAt: timestamp('lastOpenedAt', { mode: 'date', withTimezone: true }),
+    playCount: integer('playCount').notNull().default(0),
+    lastPlayedAt: timestamp('lastPlayedAt', { mode: 'date', withTimezone: true }),
+    createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('tracked_link_token_idx').on(table.token), index('tracked_link_episodeId_idx').on(table.episodeId)],
+)
+
 export const usersRelations = relations(users, ({ many }) => ({
   podcasts: many(podcasts),
 }))

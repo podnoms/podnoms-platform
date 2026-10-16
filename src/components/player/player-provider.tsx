@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { saveMyPlaybackPosition } from '~/functions/podcasts'
-import { reportActivity } from '~/lib/activity'
+import { reportActivity, reportTrackedLinkVisit } from '~/lib/activity'
 import { readLastEpisode, storeLastEpisode } from '~/lib/last-episode'
 import { defaultVolume, readStoredVolume, storeVolume, type Volume } from '~/lib/volume'
 
@@ -48,13 +48,17 @@ const PlayerContext = createContext<PlayerContextValue | null>(null)
 // One audio element for the whole app, so playback carries on while you move
 // between pages. Signed-out listeners' positions are only kept in this browser.
 // `source` is where plays are reported as coming from, for the podcast's stats.
+// On a share page opened through a tracked link, `trackedLink` is that link,
+// whose episode's first play is reported to it too.
 export function PlayerProvider({
   signedIn,
   source = 'web',
+  trackedLink,
   children,
 }: {
   signedIn: boolean
   source?: 'web' | 'listen'
+  trackedLink?: { token: string; episodeId: string } | null
   children: ReactNode
 }) {
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -208,7 +212,8 @@ export function PlayerProvider({
     if (!playing || !episode || reported.current.has(episode.id)) return
     reported.current.add(episode.id)
     reportActivity(episode.id, { type: 'play', source })
-  }, [playing, episode, source])
+    if (trackedLink?.episodeId === episode.id) reportTrackedLinkVisit(trackedLink.token, { type: 'play', episodeId: episode.id })
+  }, [playing, episode, source, trackedLink])
 
   // While something plays, the left and right arrow keys skip back and forward
   // on any page, unless they're wanted where they're pressed: in a field, or

@@ -4,7 +4,7 @@ import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { episodePageSchema, episodePageSize } from '~/lib/episode-pages'
 import { bulkUploadEpisodesSchema, editEpisodeSchema, newEpisodeSchema, replaceAudioSchema } from '~/lib/episode-schema'
-import { shortPath } from '~/lib/paths'
+import { shortPath, trackedSharePath } from '~/lib/paths'
 import {
   customDomainSchema,
   directoryDetailsSchema,
@@ -55,6 +55,7 @@ import {
 } from '~/server/podcasts.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import { getProfile } from '~/server/users.server'
+import { listTrackedLinks } from '~/server/tracked-links.server'
 import { backfillWaveforms, readWaveform } from '~/server/waveforms.server'
 
 async function requireUserId() {
@@ -131,10 +132,15 @@ export const fetchMyPodcastEpisodes = createServerFn({ method: 'GET' })
 export const fetchMyEpisode = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: z.string(), episodeSlug: z.string() }))
   .handler(async ({ data }) => {
-    const found = await getEpisode(await requireUserId(), data.slug, data.episodeSlug)
+    const userId = await requireUserId()
+    const found = await getEpisode(userId, data.slug, data.episodeSlug)
     if (!found) throw notFound()
     const { episode, podcast } = found
-    const waveform = episode.status === 'ready' ? await readWaveform(episode.id) : null
+    const [waveform, trackedLinks] = await Promise.all([
+      episode.status === 'ready' ? readWaveform(episode.id) : null,
+      listTrackedLinks(userId, episode.id),
+    ])
+    const site = publicUrl(getRequest())
     return {
       podcast,
       episode: {
@@ -147,7 +153,12 @@ export const fetchMyEpisode = createServerFn({ method: 'GET' })
       waveform: waveform?.rms ?? null,
       // The short link to the standalone page listeners are sent to; only
       // reachable once the episode's ready.
-      shortUrl: new URL(shortPath(episode.shortSlug), publicUrl(getRequest())).toString(),
+      shortUrl: new URL(shortPath(episode.shortSlug), site).toString(),
+      // Short links made for particular people, to see whether they opened them.
+      trackedLinks: trackedLinks.map(({ token, ...link }) => ({
+        ...link,
+        url: new URL(trackedSharePath(episode.shortSlug, token), site).toString(),
+      })),
     }
   })
 

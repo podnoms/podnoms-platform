@@ -39,6 +39,7 @@ import { Route as AdminQueuesSplatRouteImport } from './routes/admin/queues/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiDomainsAllowedRouteImport } from './routes/api/domains/allowed'
 import { Route as ApiLiveAuthRouteImport } from './routes/api/live/auth'
+import { Route as ApiTrackedLinksTokenRouteImport } from './routes/api/tracked-links/$token'
 import { Route as ApiTraefikConfigRouteImport } from './routes/api/traefik/config'
 import { Route as EmbedSlugEpisodeSlugRouteImport } from './routes/embed/$slug.$episodeSlug'
 import { Route as ListenSlugEpisodeSlugRouteImport } from './routes/listen/$slug.$episodeSlug'
@@ -199,6 +200,11 @@ const ApiLiveAuthRoute = ApiLiveAuthRouteImport.update({
   path: '/api/live/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTrackedLinksTokenRoute = ApiTrackedLinksTokenRouteImport.update({
+  id: '/api/tracked-links/$token',
+  path: '/api/tracked-links/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTraefikConfigRoute = ApiTraefikConfigRouteImport.update({
   id: '/api/traefik/config',
   path: '/api/traefik/config',
@@ -276,6 +282,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/domains/allowed': typeof ApiDomainsAllowedRoute
   '/api/live/auth': typeof ApiLiveAuthRoute
+  '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
@@ -315,6 +322,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/domains/allowed': typeof ApiDomainsAllowedRoute
   '/api/live/auth': typeof ApiLiveAuthRoute
+  '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
@@ -357,6 +365,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/domains/allowed': typeof ApiDomainsAllowedRoute
   '/api/live/auth': typeof ApiLiveAuthRoute
+  '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
@@ -399,6 +408,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/domains/allowed'
     | '/api/live/auth'
+    | '/api/tracked-links/$token'
     | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
     | '/listen/$slug/$episodeSlug'
@@ -438,6 +448,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/domains/allowed'
     | '/api/live/auth'
+    | '/api/tracked-links/$token'
     | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
     | '/listen/$slug/$episodeSlug'
@@ -479,6 +490,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/domains/allowed'
     | '/api/live/auth'
+    | '/api/tracked-links/$token'
     | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
     | '/listen/$slug/$episodeSlug'
@@ -514,6 +526,7 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiDomainsAllowedRoute: typeof ApiDomainsAllowedRoute
   ApiLiveAuthRoute: typeof ApiLiveAuthRoute
+  ApiTrackedLinksTokenRoute: typeof ApiTrackedLinksTokenRoute
   ApiTraefikConfigRoute: typeof ApiTraefikConfigRoute
   EmbedSlugEpisodeSlugRoute: typeof EmbedSlugEpisodeSlugRoute
   ListenSlugEpisodeSlugRoute: typeof ListenSlugEpisodeSlugRoute
@@ -736,6 +749,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiLiveAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/tracked-links/$token': {
+      id: '/api/tracked-links/$token'
+      path: '/api/tracked-links/$token'
+      fullPath: '/api/tracked-links/$token'
+      preLoaderRoute: typeof ApiTrackedLinksTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/traefik/config': {
       id: '/api/traefik/config'
       path: '/api/traefik/config'
@@ -864,6 +884,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiDomainsAllowedRoute: ApiDomainsAllowedRoute,
   ApiLiveAuthRoute: ApiLiveAuthRoute,
+  ApiTrackedLinksTokenRoute: ApiTrackedLinksTokenRoute,
   ApiTraefikConfigRoute: ApiTraefikConfigRoute,
   EmbedSlugEpisodeSlugRoute: EmbedSlugEpisodeSlugRoute,
   ListenSlugEpisodeSlugRoute: ListenSlugEpisodeSlugRoute,

@@ -38,6 +38,7 @@ describe('migrations', () => {
       'podcast',
       'podcast_follow',
       'site_settings',
+      'tracked_link',
       'user',
     ])
     const { rows: auth } = await pg.query<{ tablename: string }>(`select tablename from pg_tables where schemaname = 'auth' order by 1`)
