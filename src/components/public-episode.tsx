@@ -6,6 +6,7 @@ import { LikeButton } from '~/components/like-button'
 import { usePlayer } from '~/components/player/player-provider'
 import { Waveform } from '~/components/player/waveform'
 import { EmbedButton, ShareButton } from '~/components/share-buttons'
+import { TagList } from '~/components/tag-list'
 import { Button } from '~/components/ui/button'
 import { Slider } from '~/components/ui/slider'
 import type { fetchEpisodePage } from '~/functions/public'
@@ -95,6 +96,8 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-balance">{episode.title}</h1>
           <p className="text-sm text-muted-foreground">{meta.join(' · ')}</p>
+          <TagList tags={episode.tags} />
+          <TagList tags={podcast.tags.filter((tag) => !episode.tags.some((own) => own.id === tag.id))} label="Show tags" />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Button size="icon-lg" className="size-14 rounded-full [&_svg]:size-6!" onClick={() => play()}>
               {isPlaying ? <Icons.pause /> : <Icons.play />}

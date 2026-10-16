@@ -15,6 +15,7 @@ import {
   setChannelEnabled,
 } from '~/server/channels.server'
 import { enqueueEpisode } from '~/server/episode-processor.server'
+import { getPodcastTags } from '~/server/tags-store.server'
 import { resetDb } from '../db'
 import { createUser, db, makeImage } from '../helpers'
 
@@ -131,11 +132,12 @@ describe('following a channel', () => {
 
   it("starts from the link's name, until the channel's own is known", async () => {
     const user = await createUser()
-    const podcast = await createChannelPodcast(user.id, { url: 'https://www.youtube.com/@someone' })
+    const podcast = await createChannelPodcast(user.id, { url: 'https://www.youtube.com/@someone', tags: ['house'] })
     expect(podcast.title).toBe('@someone')
     const [channel] = await db.select().from(channels).where(eq(channels.podcastId, podcast.id))
     expect(channel).toMatchObject({ platform: 'youtube', url: 'https://www.youtube.com/@someone/videos' })
     await checkChannel(channel!.id)
+    expect((await getPodcastTags(podcast.id)).map((tag) => tag.name)).toEqual(['house'])
   })
 })
 
@@ -211,11 +213,12 @@ describe('following a playlist', () => {
   it('is made from a playlist link on the channel form', async () => {
     const url = 'https://www.youtube.com/playlist?list=PL123'
     const user = await createUser()
-    const podcast = await createChannelPodcast(user.id, { url })
+    const podcast = await createChannelPodcast(user.id, { url, tags: ['techno'] })
     expect(podcast.title).toBe('PL123')
     const [channel] = await db.select().from(channels).where(eq(channels.podcastId, podcast.id))
     expect(channel).toMatchObject({ kind: 'playlist', platform: 'youtube', url })
     await checkChannel(channel!.id)
+    expect((await getPodcastTags(podcast.id)).map((tag) => tag.name)).toEqual(['techno'])
   })
 })
 

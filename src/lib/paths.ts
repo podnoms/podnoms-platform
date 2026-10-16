@@ -38,6 +38,7 @@ export const reservedPodcastSlugs = new Set([
   'settings',
   'signup',
   'src',
+  'tags',
   'tos',
 ])
 

@@ -15,6 +15,7 @@ import { findUpload, moveUploadToEpisode, type UploadedAudio } from '~/server/up
 import { plainTextToHtml } from '~/lib/rich-text'
 import { commitImage, deleteImage } from '~/server/images.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
+import { syncEpisodeTags } from '~/server/tags-store.server'
 import { podcastAuthor } from '~/server/podcasts.server'
 import { deleteWaveform, readWaveform } from '~/server/waveforms.server'
 import { resample } from '~/lib/waveform'
@@ -249,13 +250,16 @@ export async function getEpisode(userId: string, podcastSlug: string, episodeSlu
 }
 
 // Saves a new episode, choosing another slug if its was taken meanwhile.
-export async function insertEpisode(values: NewEpisode & { slug: string }) {
+export async function insertEpisode(values: NewEpisode & { slug: string }, tags?: string[]) {
   const insert = (slug: string) =>
-    db
-      .insert(episodes)
-      .values({ ...values, slug })
-      .returning({ id: episodes.id, slug: episodes.slug })
-      .then(([episode]) => episode!)
+    db.transaction(async (tx) => {
+      const [episode] = await tx
+        .insert(episodes)
+        .values({ ...values, slug })
+        .returning({ id: episodes.id, slug: episodes.slug })
+      if (tags !== undefined) await syncEpisodeTags(tx, episode!.id, tags)
+      return episode!
+    })
   try {
     return await insert(values.slug)
   } catch (error) {
@@ -280,7 +284,7 @@ export async function createEpisode(userId: string, input: NewEpisodeInput) {
   const imageUrl = input.imageId ? await commitImage(userId, input.imageId) : null
 
   if ('uploadId' in input) {
-    return insertUploadedEpisode(userId, podcast.id, upload!, { title: input.title, description, imageUrl })
+    return insertUploadedEpisode(userId, podcast.id, upload!, { title: input.title, description, imageUrl }, input.tags)
   }
 
   const episode = await insertEpisode({
@@ -294,7 +298,7 @@ export async function createEpisode(userId: string, input: NewEpisodeInput) {
     imageUrl,
     // Someone's waiting for it, so it goes ahead of channels' uploads.
     priority: 1,
-  })
+  }, input.tags)
   enqueueEpisode(episode.id)
   return episode
 }
@@ -306,6 +310,7 @@ async function insertUploadedEpisode(
   podcastId: string,
   upload: UploadedAudio,
   details: Pick<NewEpisode, 'description' | 'imageUrl' | 'publishedAt'> & { title?: string },
+  tags?: string[],
 ) {
   const title = details.title ?? upload.title
   const episode = await insertEpisode({
@@ -314,7 +319,7 @@ async function insertUploadedEpisode(
     title,
     slug: await availableEpisodeSlug(podcastId, title),
     durationSeconds: upload.durationSeconds,
-  })
+  }, tags)
   await moveUploadToEpisode(userId, upload.uploadId, episode.id)
   enqueueEpisode(episode.id)
   return episode
@@ -467,10 +472,13 @@ export async function updateEpisode(userId: string, input: EditEpisodeInput) {
   if (!episode || episode.status === 'pending' || episode.status === 'processing') return false
   const imageUrl =
     input.imageId === undefined ? episode.imageUrl : input.imageId ? await commitImage(userId, input.imageId) : null
-  await db
-    .update(episodes)
-    .set({ title: input.title, description: sanitizeDescription(input.description), imageUrl })
-    .where(eq(episodes.id, episode.id))
+  await db.transaction(async (tx) => {
+    await tx
+      .update(episodes)
+      .set({ title: input.title, description: sanitizeDescription(input.description), imageUrl })
+      .where(eq(episodes.id, episode.id))
+    if (input.tags !== undefined) await syncEpisodeTags(tx, episode.id, input.tags)
+  })
   if (imageUrl !== episode.imageUrl) await deleteImage(episode.imageUrl)
   return true
 }

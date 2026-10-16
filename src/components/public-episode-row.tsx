@@ -5,10 +5,12 @@ import { LikeButton } from '~/components/like-button'
 import { usePlayer } from '~/components/player/player-provider'
 import { Waveform } from '~/components/player/waveform'
 import { ShareButton } from '~/components/share-buttons'
+import { TagList } from '~/components/tag-list'
 import { Button } from '~/components/ui/button'
 import { formatClock, formatDate, formatRelative } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { shortPath } from '~/lib/paths'
+import type { Tag } from '~/lib/tag-schema'
 import { cn } from '~/lib/utils'
 
 export type PublicEpisodeRowData = {
@@ -24,6 +26,7 @@ export type PublicEpisodeRowData = {
   positionSeconds: number | null
   likeCount: number
   liked: boolean
+  tags?: Tag[]
   // Bar heights for the row's waveform; null until it's been made.
   waveform: number[] | null
 }
@@ -129,6 +132,7 @@ export function PublicEpisodeRow({
             </h3>
           </div>
         </div>
+        <TagList tags={episode.tags} />
         <div className="flex items-center gap-3">
           {episode.waveform ? (
             <Waveform

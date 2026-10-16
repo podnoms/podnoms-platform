@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { descriptionHtml, imageChange } from '~/lib/podcast-schema'
+import { tagNamesSchema } from '~/lib/tag-schema'
 
 const optionalText = (max: number, message: string) =>
   z
@@ -19,6 +20,7 @@ const episodeDetails = {
   description: optionalText(4000, 'Keep the description under 4000 characters'),
   // An uploaded image (see /api/images). Left out, the source's artwork is used.
   imageId: z.uuid().optional(),
+  tags: tagNamesSchema.optional(),
 }
 
 // The video or audio to turn into an episode, e.g. a YouTube link.
@@ -58,6 +60,7 @@ export const editEpisodeSchema = z.object({
   title: z.string().trim().min(1, 'Give the episode a title').max(200, 'Keep the title under 200 characters'),
   description: descriptionHtml,
   imageId: imageChange,
+  tags: tagNamesSchema.optional(),
 })
 export type EditEpisodeInput = z.infer<typeof editEpisodeSchema>
 

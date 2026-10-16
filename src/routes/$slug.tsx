@@ -4,6 +4,7 @@ import { FeedUrlButton } from '~/components/feed-url-button'
 import { FollowButton } from '~/components/follow-button'
 import { Icons } from '~/components/icons'
 import { PublicEpisodeList, PublicEpisodeRow } from '~/components/public-episode-row'
+import { TagList } from '~/components/tag-list'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '~/components/ui/empty'
@@ -113,6 +114,7 @@ function PodcastPage() {
               )}
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-balance md:text-5xl">{podcast.title}</h1>
+            <TagList tags={podcast.tags} />
             {/* On wide screens the full description is in the About column instead. */}
             {podcast.description && (
               <p className="line-clamp-2 max-w-3xl text-muted-foreground xl:hidden">{htmlToText(podcast.description)}</p>

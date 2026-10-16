@@ -63,9 +63,9 @@ export function nameFromChannelUrl(url: string) {
 // listed and queued in the background, as the platform may keep us waiting.
 export async function createChannelPodcast(userId: string, input: NewChannelPodcastInput) {
   const channel = parseChannelUrl(input.url)
-  if (channel) return followChannel(userId, channel, input.customDomain)
+  if (channel) return followChannel(userId, channel, input.customDomain, 'channel', input.tags)
   const playlist = parsePlaylistUrl(input.url)
-  if (playlist) return followChannel(userId, playlist, input.customDomain, 'playlist')
+  if (playlist) return followChannel(userId, playlist, input.customDomain, 'playlist', input.tags)
   throw new Error("That isn't a link to a channel or playlist")
 }
 
@@ -74,8 +74,9 @@ export async function followChannel(
   source: { platform: Platform; url: string },
   customDomain?: string | null,
   kind: ChannelKind = 'channel',
+  tags?: string[],
 ) {
-  const podcast = await createPodcast(userId, { title: nameFromChannelUrl(source.url), customDomain })
+  const podcast = await createPodcast(userId, { title: nameFromChannelUrl(source.url), customDomain, tags })
   const [channel] = await db
     .insert(channels)
     .values({ podcastId: podcast.id, platform: source.platform, kind, url: source.url })

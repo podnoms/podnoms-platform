@@ -13,6 +13,7 @@ import {
 } from '~/components/ui/dialog'
 import { ChoiceCards } from '~/components/choice-cards'
 import { Icons } from '~/components/icons'
+import { TagInput } from '~/components/tag-input'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
 import { Textarea } from '~/components/ui/textarea'
@@ -34,6 +35,7 @@ export function NewPodcastDialog({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string>()
   const [start, setStart] = useState<Start>('blank')
+  const [tags, setTags] = useState<string[]>([])
   // How many uploads a channel podcast starts with; fetched when it's chosen.
   const [channelLimit, setChannelLimit] = useState<number>()
 
@@ -45,7 +47,7 @@ export function NewPodcastDialog({ children }: { children: ReactNode }) {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const form = Object.fromEntries(new FormData(event.currentTarget))
+    const form = { ...Object.fromEntries(new FormData(event.currentTarget)), tags }
     const parsed = start === 'channel' ? newChannelPodcastSchema.safeParse(form) : newPodcastSchema.safeParse(form)
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message)
@@ -83,6 +85,7 @@ export function NewPodcastDialog({ children }: { children: ReactNode }) {
         setOpen(next)
         if (next) {
           setError(undefined)
+          setTags([])
           // The limit may have been changed by an admin since.
           setChannelLimit(undefined)
         }
@@ -145,6 +148,7 @@ export function NewPodcastDialog({ children }: { children: ReactNode }) {
                 </FieldDescription>
               </Field>
             )}
+            <TagInput id="podcast-tags" value={tags} onChange={setTags} disabled={pending} />
             <Field>
               <FieldLabel htmlFor="podcast-domain">
                 Custom domain <span className="font-normal text-muted-foreground">(optional)</span>

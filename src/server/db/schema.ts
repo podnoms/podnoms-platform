@@ -256,6 +256,46 @@ export const episodes = pgTable(
   ],
 )
 
+// One shared vocabulary for shows and episodes. Names are normalised by the
+// tag helpers; the index also prevents differently cased names in the database.
+export const tags = pgTable(
+  'tag',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text('name').notNull(),
+    slug: text('slug').notNull(),
+  },
+  (table) => [uniqueIndex('tag_name_lower_idx').on(sql`lower(${table.name})`), uniqueIndex('tag_slug_idx').on(table.slug)],
+)
+
+export const podcastTags = pgTable(
+  'podcast_tag',
+  {
+    podcastId: text('podcastId')
+      .notNull()
+      .references(() => podcasts.id, { onDelete: 'cascade' }),
+    tagId: text('tagId')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+  },
+  (table) => [primaryKey({ columns: [table.podcastId, table.tagId] }), index('podcast_tag_tagId_idx').on(table.tagId)],
+)
+
+export const episodeTags = pgTable(
+  'episode_tag',
+  {
+    episodeId: text('episodeId')
+      .notNull()
+      .references(() => episodes.id, { onDelete: 'cascade' }),
+    tagId: text('tagId')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+  },
+  (table) => [primaryKey({ columns: [table.episodeId, table.tagId] }), index('episode_tag_tagId_idx').on(table.tagId)],
+)
+
 // --- Channels ---------------------------------------------------------------
 
 // A YouTube channel, Mixcloud user or the like that a podcast follows: its

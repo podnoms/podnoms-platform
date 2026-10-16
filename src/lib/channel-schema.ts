@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { channelProviders, parseChannelUrl, parsePlaylistUrl, playlistPlatforms } from '~/lib/platforms'
 import { customDomainField } from '~/lib/podcast-schema'
+import { tagNamesSchema } from '~/lib/tag-schema'
 
 const platformNames = channelProviders.map((provider) => provider.label).join(' or ')
 
@@ -16,6 +17,7 @@ export const newChannelPodcastSchema = z.object({
       `That isn't a link to a ${platformNames} channel, or a ${playlistPlatforms} playlist`,
     ),
   customDomain: customDomainField.optional(),
+  tags: tagNamesSchema.optional(),
 })
 export type NewChannelPodcastInput = z.infer<typeof newChannelPodcastSchema>
 

@@ -1,7 +1,7 @@
 // An in-process Postgres (PGlite) with the app's migrations applied, standing
 // in for the real database client in tests.
 import { readFileSync } from 'node:fs'
-import { PGlite } from '@electric-sql/pglite'
+import { PGlite, type Transaction } from '@electric-sql/pglite'
 import { sql } from 'drizzle-orm'
 import { drizzle, type PgliteDatabase } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
@@ -16,11 +16,28 @@ class PostgresJsLikePGlite extends PGlite {
     try {
       return await super.query<T>(...args)
     } catch (error) {
-      const { constraint } = error as { constraint?: string }
-      if (constraint) Object.assign(error as object, { constraint_name: constraint })
+      postgresConstraint(error)
       throw error
     }
   }
+
+  // Transaction queries bypass this client's query method. Translate wrapped
+  // errors too, so conflict handling behaves like the production driver.
+  override async transaction<T>(callback: (tx: Transaction) => Promise<T>): Promise<T> {
+    try {
+      return await super.transaction(callback)
+    } catch (error) {
+      postgresConstraint(error)
+      throw error
+    }
+  }
+}
+
+function postgresConstraint(error: unknown) {
+  if (typeof error !== 'object' || error === null) return
+  if ('cause' in error) postgresConstraint(error.cause)
+  const { constraint } = error as { constraint?: string }
+  if (constraint) Object.assign(error, { constraint_name: constraint })
 }
 
 export async function createTestDb() {
@@ -52,7 +69,7 @@ export async function resetDb(db: TestDb) {
   if (!(db.$client instanceof PGlite)) {
     throw new Error('resetDb was given a real database; run the tests with `bun run test`')
   }
-  await db.execute(sql`truncate "user", auth."account", auth."session", auth."verification_token", "podcast", "episode", "playback_position" cascade`)
+  await db.execute(sql`truncate "user", auth."account", auth."session", auth."verification_token", "podcast", "episode", "playback_position", "tag" cascade`)
   // The settings stay (tests put back what they change); the app's own values go.
   await db.execute(sql`delete from site_settings where starts_with(key, '__')`)
 }

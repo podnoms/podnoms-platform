@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { normalizeDomain } from '~/lib/custom-domain'
+import { tagNamesSchema } from '~/lib/tag-schema'
 import {
   categoryNames,
   directoryIds,
@@ -35,6 +36,7 @@ export const newPodcastSchema = z.object({
     .transform((value) => value || undefined)
     .optional(),
   customDomain: customDomainField.optional(),
+  tags: tagNamesSchema.optional(),
 })
 export type NewPodcastInput = z.infer<typeof newPodcastSchema>
 
@@ -50,6 +52,7 @@ export const editPodcastSchema = z.object({
   title: newPodcastSchema.shape.title,
   description: descriptionHtml,
   imageId: imageChange,
+  tags: tagNamesSchema.optional(),
 })
 export type EditPodcastInput = z.infer<typeof editPodcastSchema>
 

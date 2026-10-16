@@ -21,6 +21,11 @@ import {
   setPodcastFollow,
 } from '~/server/library.server'
 import { withWaveforms } from '~/server/waveforms.server'
+import { withEpisodeTags } from '~/server/tags-store.server'
+
+async function withListenerDetails<T extends { id: string }>(episodes: T[]) {
+  return withWaveforms(await withEpisodeTags(episodes))
+}
 
 async function viewerId() {
   const session = await getSession(getRequest())
@@ -61,10 +66,10 @@ export const fetchFollowedPodcasts = createServerFn({ method: 'GET' }).handler(a
 export const fetchListenerHome = createServerFn({ method: 'GET' }).handler(async () => {
   const userId = await requireUserId()
   const [continueListening, newEpisodes, liked, popular] = await Promise.all([
-    listContinueListening(userId).then(withWaveforms),
-    listFollowingEpisodes(userId, { offset: 0, limit: 6 }).then(withWaveforms),
-    listLikedEpisodes(userId, { offset: 0, limit: 4 }).then(withWaveforms),
-    listPopularEpisodes(userId, 4).then(withWaveforms),
+    listContinueListening(userId).then(withListenerDetails),
+    listFollowingEpisodes(userId, { offset: 0, limit: 6 }).then(withListenerDetails),
+    listLikedEpisodes(userId, { offset: 0, limit: 4 }).then(withListenerDetails),
+    listPopularEpisodes(userId, 4).then(withListenerDetails),
   ])
   return { continueListening, newEpisodes, liked, popular }
 })
@@ -72,7 +77,7 @@ export const fetchListenerHome = createServerFn({ method: 'GET' }).handler(async
 export const fetchLikes = createServerFn({ method: 'GET' }).handler(async () => {
   const userId = await requireUserId()
   const [episodes, total] = await Promise.all([
-    listLikedEpisodes(userId, firstPage).then(withWaveforms),
+    listLikedEpisodes(userId, firstPage).then(withListenerDetails),
     countLikedEpisodes(userId),
   ])
   return { episodes, total }
@@ -80,20 +85,20 @@ export const fetchLikes = createServerFn({ method: 'GET' }).handler(async () => 
 
 export const fetchMoreLikes = createServerFn({ method: 'GET' })
   .validator(listPageSchema)
-  .handler(async ({ data }) => withWaveforms(await listLikedEpisodes(await requireUserId(), data)))
+  .handler(async ({ data }) => withListenerDetails(await listLikedEpisodes(await requireUserId(), data)))
 
 export const fetchFollowing = createServerFn({ method: 'GET' }).handler(async () => {
   const userId = await requireUserId()
   const [podcasts, episodes] = await Promise.all([
     listFollowedPodcasts(userId),
-    listFollowingEpisodes(userId, firstPage).then(withWaveforms),
+    listFollowingEpisodes(userId, firstPage).then(withListenerDetails),
   ])
   return { podcasts, episodes }
 })
 
 export const fetchMoreFollowingEpisodes = createServerFn({ method: 'GET' })
   .validator(listPageSchema)
-  .handler(async ({ data }) => withWaveforms(await listFollowingEpisodes(await requireUserId(), data)))
+  .handler(async ({ data }) => withListenerDetails(await listFollowingEpisodes(await requireUserId(), data)))
 
 // How many shows Explore shows at first, and loads each time after.
 export const explorePodcastPageSize = 12
@@ -101,10 +106,10 @@ export const explorePodcastPageSize = 12
 export const fetchExplore = createServerFn({ method: 'GET' }).handler(async () => {
   const userId = await viewerId()
   const [popular, podcasts, podcastCount, latest] = await Promise.all([
-    listPopularEpisodes(userId).then(withWaveforms),
+    listPopularEpisodes(userId).then(withListenerDetails),
     listExplorePodcasts(userId, { offset: 0, limit: explorePodcastPageSize }),
     countExplorePodcasts(),
-    listLatestEpisodes(userId, firstPage).then(withWaveforms),
+    listLatestEpisodes(userId, firstPage).then(withListenerDetails),
   ])
   return { popular, podcasts, podcastCount, latest }
 })
@@ -115,4 +120,4 @@ export const fetchMoreExplorePodcasts = createServerFn({ method: 'GET' })
 
 export const fetchMoreLatestEpisodes = createServerFn({ method: 'GET' })
   .validator(listPageSchema)
-  .handler(async ({ data }) => withWaveforms(await listLatestEpisodes(await viewerId(), data)))
+  .handler(async ({ data }) => withListenerDetails(await listLatestEpisodes(await viewerId(), data)))

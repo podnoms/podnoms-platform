@@ -14,6 +14,7 @@ import { Icons } from '~/components/icons'
 import { GoLiveButton } from '~/components/go-live-dialog'
 import { NewEpisodeDialog } from '~/components/new-episode-dialog'
 import { PodcastPrivacyCard } from '~/components/podcast-privacy-card'
+import { TagList } from '~/components/tag-list'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import {
@@ -136,6 +137,7 @@ function PodcastPage() {
               )}
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-balance md:text-5xl">{podcast.title}</h1>
+            <TagList tags={podcast.tags} />
             {/* On wide screens the full description is in the About column instead. */}
             {podcast.description && (
               <p className="line-clamp-2 max-w-3xl text-muted-foreground xl:hidden">{htmlToText(podcast.description)}</p>
@@ -279,7 +281,7 @@ function PodcastPage() {
         onOpenChange={setEditing}
         heading="Edit podcast"
         description="Changes show in podcast apps the next time they check the feed. The feed URL stays the same."
-        details={{ title: podcast.title, description: podcast.description, imageUrl: podcast.imageUrl }}
+        details={{ title: podcast.title, description: podcast.description, imageUrl: podcast.imageUrl, tags: podcast.tags }}
         maxTitleLength={100}
         onSave={async (change) => {
           await updateMyPodcast({ data: { id: podcast.id, ...change } })

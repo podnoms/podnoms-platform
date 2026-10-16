@@ -21,6 +21,34 @@ async function runMigration(pg: PGlite, tag: string) {
 const tagOf = (prefix: string) => migrationStatements().find((m) => m.tag.startsWith(prefix))!.tag
 
 describe('migrations', () => {
+  it('0029 gives existing tags unique readable slugs while preserving associations', async () => {
+    const pg = new PGlite()
+    try {
+      await migrateUntil(pg, tagOf('0029'))
+      const names = ['deep house', 'deep-house', 'deep-house-2', 'café', 'cafe', '🎵', '🎶', 'house']
+      for (const [i, name] of names.entries()) {
+        await pg.query('insert into tag (id, name) values ($1, $2)', [`t${i}`, name])
+      }
+      await pg.exec(`insert into "user" (id, email) values ('u1', 'tags@example.com');
+        insert into podcast (id, "userId", title, slug) values ('p1', 'u1', 'Show', 'show');
+        insert into podcast_tag ("podcastId", "tagId") values ('p1', 't0');`)
+      await runMigration(pg, tagOf('0029'))
+      const { rows } = await pg.query<{ id: string; name: string; slug: string }>('select * from tag')
+      expect(rows).toHaveLength(names.length)
+      expect(new Set(rows.map((tag) => tag.slug)).size).toBe(names.length)
+      expect(rows.find((tag) => tag.name === 'deep house')!.slug).toBe('deep-house')
+      expect(rows.find((tag) => tag.name === 'house')!.slug).toBe('house')
+      for (const tag of rows) {
+        const base = slugify(tag.name, 'tag')
+        expect(tag.slug === base || new RegExp(`^${base}-[0-9]+$`).test(tag.slug)).toBe(true)
+      }
+      expect((await pg.query('select * from podcast_tag')).rows).toEqual([{ podcastId: 'p1', tagId: 't0' }])
+      await expect(pg.query("insert into tag (id, name, slug) values ('dup', 'different', 'house')")).rejects.toThrow()
+    } finally {
+      await pg.close()
+    }
+  })
+
   it('apply cleanly to an empty database', async () => {
     const pg = new PGlite()
     await migrateUntil(pg)
@@ -32,12 +60,15 @@ describe('migrations', () => {
       'episode_activity',
       'episode_comment',
       'episode_like',
+      'episode_tag',
       'live_broadcast',
       'live_chat_message',
       'playback_position',
       'podcast',
       'podcast_follow',
+      'podcast_tag',
       'site_settings',
+      'tag',
       'tracked_link',
       'user',
     ])

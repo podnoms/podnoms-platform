@@ -56,6 +56,7 @@ import {
 import { sanitizeDescription } from '~/server/rich-text.server'
 import { getProfile } from '~/server/users.server'
 import { listTrackedLinks } from '~/server/tracked-links.server'
+import { getEpisodeTags, getPodcastTags } from '~/server/tags-store.server'
 import { backfillWaveforms, readWaveform } from '~/server/waveforms.server'
 
 async function requireUserId() {
@@ -78,7 +79,7 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
     void resumeUnfinishedEpisodes()
     void localiseRemoteImages()
     void backfillWaveforms()
-    const [episodes, summary, channel, readiness, profile, followerCount, broadcast] = await Promise.all([
+    const [episodes, summary, channel, readiness, profile, followerCount, broadcast, tags] = await Promise.all([
       listEpisodes(userId, podcast.id, { offset: 0, limit: episodePageSize }),
       summariseEpisodes(podcast.id),
       getPodcastChannel(podcast.id),
@@ -86,11 +87,13 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
       getProfile(userId),
       countFollowers(podcast.id),
       liveEnabled() ? getOpenBroadcast(podcast.id) : null,
+      getPodcastTags(podcast.id),
     ])
     // The stream key is only read in the Go live dialog.
     const { liveKey: _liveKey, ...details } = podcast
     return {
       ...details,
+      tags,
       // Sanitised when saved; again here, as it's rendered as HTML.
       description: sanitizeDescription(podcast.description),
       // A private podcast's carries its feed key, for its owner to hand out.
@@ -136,15 +139,18 @@ export const fetchMyEpisode = createServerFn({ method: 'GET' })
     const found = await getEpisode(userId, data.slug, data.episodeSlug)
     if (!found) throw notFound()
     const { episode, podcast } = found
-    const [waveform, trackedLinks] = await Promise.all([
+    const [waveform, trackedLinks, episodeTags, podcastTags] = await Promise.all([
       episode.status === 'ready' ? readWaveform(episode.id) : null,
       listTrackedLinks(userId, episode.id),
+      getEpisodeTags(episode.id),
+      getPodcastTags(podcast.id),
     ])
     const site = publicUrl(getRequest())
     return {
-      podcast,
+      podcast: { ...podcast, tags: podcastTags },
       episode: {
         ...episode,
+        tags: episodeTags,
         // Sanitised when saved; again here, as it's rendered as HTML.
         description: sanitizeDescription(episode.description),
         progress: getEpisodeProgress(episode.id),

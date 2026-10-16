@@ -7,6 +7,7 @@ import { usePlayer } from '~/components/player/player-provider'
 import { Waveform } from '~/components/player/waveform'
 import { ReplaceAudioDialog } from '~/components/replace-audio-dialog'
 import { ShareButton } from '~/components/share-buttons'
+import { TagList } from '~/components/tag-list'
 import { TrackedLinksCard } from '~/components/tracked-links-card'
 import { ActivityPanel } from '~/components/activity-panel'
 import {
@@ -170,6 +171,7 @@ function EpisodePage() {
           </div>
           <h1 className="text-3xl font-semibold tracking-tight text-balance">{title}</h1>
           <p className="text-sm text-muted-foreground">{meta.join(' · ')}</p>
+          <TagList tags={episode.tags} />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {ready && (
               <Button size="icon-lg" className="size-14 rounded-full [&_svg]:size-6!" onClick={() => play()}>
@@ -364,7 +366,7 @@ function EpisodePage() {
         heading="Edit episode"
         description={`An episode of ${podcast.title}.`}
         imageContext={podcast.title}
-        details={{ title: episode.title, description: episode.description, imageUrl: episode.imageUrl }}
+        details={{ title: episode.title, description: episode.description, imageUrl: episode.imageUrl, tags: episode.tags }}
         maxTitleLength={200}
         onSave={async (change) => {
           await updateMyEpisode({ data: { id: episode.id, ...change } })

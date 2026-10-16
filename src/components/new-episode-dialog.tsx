@@ -3,6 +3,7 @@ import { useRouter } from '@tanstack/react-router'
 import { AudioFileField, audioSourceChoices, useAudioUpload, type AudioSource } from '~/components/audio-file-field'
 import { ChoiceCards } from '~/components/choice-cards'
 import { ImageField, imageIdToSave, type ImageValue } from '~/components/image-field'
+import { TagInput } from '~/components/tag-input'
 import { Button } from '~/components/ui/button'
 import {
   Dialog,
@@ -37,6 +38,7 @@ export function NewEpisodeDialog({
   const [source, setSource] = useState<AudioSource>('link')
   const [title, setTitle] = useState('')
   const [image, setImage] = useState<ImageValue>({ kind: 'keep' })
+  const [tags, setTags] = useState<string[]>([])
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string>()
   // The title filled in from the last upload, replaced by the next one unless edited.
@@ -50,7 +52,7 @@ export function NewEpisodeDialog({
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const fields = { ...Object.fromEntries(new FormData(event.currentTarget)), podcastId, imageId: imageIdToSave(image) ?? undefined }
+    const fields = { ...Object.fromEntries(new FormData(event.currentTarget)), podcastId, imageId: imageIdToSave(image) ?? undefined, tags }
     const parsed =
       source === 'link'
         ? linkEpisodeSchema.safeParse(fields)
@@ -85,6 +87,7 @@ export function NewEpisodeDialog({
           setError(undefined)
           setTitle('')
           setImage({ kind: 'keep' })
+          setTags([])
           autoTitle.current = ''
         } else {
           uploadState.clear()
@@ -157,6 +160,7 @@ export function NewEpisodeDialog({
               <Textarea ref={descriptionInput} id="episode-description" name="description" maxLength={4000} />
               {source === 'link' && <FieldDescription>Leave blank to use the video's description.</FieldDescription>}
             </Field>
+            <TagInput id="episode-tags" value={tags} onChange={setTags} disabled={pending} />
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
         </form>

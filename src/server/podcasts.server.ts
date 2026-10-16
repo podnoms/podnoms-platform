@@ -8,6 +8,7 @@ import { firstFreeSlug, slugify } from '~/lib/slug'
 import { customDomainValues, withDomainConflict } from '~/server/custom-domains.server'
 import { commitImage, deleteImage } from '~/server/images.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
+import { syncPodcastTags } from '~/server/tags-store.server'
 import type { DirectoryLinks } from '~/lib/podcast-directories'
 import type { DirectoryDetailsInput, DirectoryLinkInput, EditPodcastInput, NewPodcastInput } from '~/lib/podcast-schema'
 
@@ -152,21 +153,25 @@ export async function createPodcast(userId: string, input: NewPodcastInput) {
   // Its own domain, if one was given, is checked later from the Distribution tab.
   const domain = input.customDomain ? customDomainValues(input.customDomain) : {}
   const values = { userId, title: input.title, description, slug, ...domain }
-  return withDomainConflict(async () => {
-    const [podcast] = await db
+  return withDomainConflict(() => db.transaction(async (tx) => {
+    const [podcast] = await tx
       .insert(podcasts)
       .values(values)
       .onConflictDoNothing({ target: podcasts.slug })
       .returning(summaryColumns)
-    if (podcast) return podcast
+    if (podcast) {
+      if (input.tags !== undefined) await syncPodcastTags(tx, podcast.id, input.tags)
+      return podcast
+    }
     // Someone took the slug in the meantime; fall back to a random suffix.
     const suffix = crypto.randomUUID().slice(0, 6)
-    const [retry] = await db
+    const [retry] = await tx
       .insert(podcasts)
       .values({ ...values, slug: `${slug}-${suffix}` })
       .returning(summaryColumns)
+    if (input.tags !== undefined) await syncPodcastTags(tx, retry!.id, input.tags)
     return retry!
-  })
+  }))
 }
 
 // Returns false unless the podcast belongs to the user. The slug (and so the
@@ -180,10 +185,13 @@ export async function updatePodcast(userId: string, input: EditPodcastInput) {
   if (!podcast) return false
   const imageUrl =
     input.imageId === undefined ? podcast.imageUrl : input.imageId ? await commitImage(userId, input.imageId) : null
-  await db
-    .update(podcasts)
-    .set({ title: input.title, description: sanitizeDescription(input.description), imageUrl })
-    .where(eq(podcasts.id, podcast.id))
+  await db.transaction(async (tx) => {
+    await tx
+      .update(podcasts)
+      .set({ title: input.title, description: sanitizeDescription(input.description), imageUrl })
+      .where(eq(podcasts.id, podcast.id))
+    if (input.tags !== undefined) await syncPodcastTags(tx, podcast.id, input.tags)
+  })
   if (imageUrl !== podcast.imageUrl) await deleteImage(podcast.imageUrl)
   return true
 }

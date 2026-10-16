@@ -24,6 +24,7 @@ import { feedPath } from '~/server/feed.server'
 import { getOpenBroadcast, liveEnabled } from '~/server/live.server'
 import { getPublicPodcast } from '~/server/podcasts.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
+import { getEpisodeTags, getPodcastTags, withEpisodeTags } from '~/server/tags-store.server'
 import { readWaveform, withWaveforms } from '~/server/waveforms.server'
 
 async function visitor() {
@@ -54,14 +55,16 @@ export const fetchPodcastPage = createServerFn({ method: 'GET' })
     const { userId, absolute } = await visitor()
     const podcast = await getPublicPodcast(data.slug, userId)
     if (!podcast) throw notFound()
-    const [episodes, summary, broadcast] = await Promise.all([
-      listPublishedEpisodes(podcast.id, userId, { offset: 0, limit: episodePageSize }),
+    const [episodes, summary, broadcast, tags] = await Promise.all([
+      listPublishedEpisodes(podcast.id, userId, { offset: 0, limit: episodePageSize }).then(withEpisodeTags),
       summarisePublishedEpisodes(podcast.id),
       liveEnabled() ? getOpenBroadcast(podcast.id) : null,
+      getPodcastTags(podcast.id),
     ])
     const { userId: ownerId, feedKey, ...rest } = podcast
     return {
       ...rest,
+      tags,
       // Sanitised when saved; again here, as it's rendered as HTML.
       description: sanitizeDescription(podcast.description),
       isOwner: userId === ownerId,
@@ -88,7 +91,7 @@ export const fetchPodcastEpisodes = createServerFn({ method: 'GET' })
     const { userId } = await visitor()
     const podcast = await getPublicPodcast(data.slug, userId)
     if (!podcast) throw notFound()
-    const episodes = await listPublishedEpisodes(podcast.id, userId, data)
+    const episodes = await listPublishedEpisodes(podcast.id, userId, data).then(withEpisodeTags)
     // Sanitised when saved; again here, as they're rendered as HTML.
     return withWaveforms(
       episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) })),
@@ -120,11 +123,17 @@ async function episodePage(slug: string, episodeSlug: string) {
   const { userId: ownerId, feedKey, ...podcast } = found.podcast
   const { episode } = found
   const artwork = episode.imageUrl ?? podcast.imageUrl
-  const [waveform, comments] = await Promise.all([readWaveform(episode.id), listComments(episode.id, userId)])
+  const [waveform, comments, episodeTags, podcastTags] = await Promise.all([
+    readWaveform(episode.id),
+    listComments(episode.id, userId),
+    getEpisodeTags(episode.id),
+    getPodcastTags(podcast.id),
+  ])
   return {
-    podcast,
+    podcast: { ...podcast, tags: podcastTags },
     episode: {
       ...episode,
+      tags: episodeTags,
       // Sanitised when saved; again here, as it's rendered as HTML.
       description: sanitizeDescription(episode.description),
     },

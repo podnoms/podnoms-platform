@@ -202,6 +202,18 @@ Jobs are queued in Redis with [BullMQ](https://docs.bullmq.io/) and run by a wor
 
 Admins can watch, retry and clean up jobs at `/admin/queues` ([Bull Board](https://github.com/felixmosh/bull-board)), linked from the account menu as **Jobs**.
 
+### Tags
+
+Add tags when creating or editing a show or episode. The tag input searches the
+shared tag library; choose a suggestion or press Enter to add a new name. Names
+are case-insensitive, and each show or episode can have up to 10 tags.
+
+Click a tag to browse its readable URL (such as `/tags/deep-house`) and public,
+playable mixes tagged directly or belonging to a
+show with that tag. Show tags apply to existing and future episodes without
+copying them onto each episode. Sort by upload date (the source upload date when
+available) or popularity (likes in the last 30 days, then total likes).
+
 ### Activity
 
 Podcast owners see plays, downloads and shares on the **Activity** tab of a podcast's page, and on each episode's page: totals, a count per day, and the top countries, apps and referring sites.

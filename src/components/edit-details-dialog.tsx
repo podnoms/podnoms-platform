@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { ImageField, imageIdToSave, type ImageValue } from '~/components/image-field'
 import { RichTextEditor } from '~/components/rich-text-editor'
+import { TagInput } from '~/components/tag-input'
 import { Button } from '~/components/ui/button'
 import {
   Dialog,
@@ -18,16 +19,18 @@ export type Details = {
   title: string
   description: string | null
   imageUrl: string | null
+  tags?: { id: string; name: string }[]
 }
 
 export type DetailsChange = {
   title: string
   description: string
+  tags: string[]
   // Left out to keep the image, null to remove it.
   imageId: string | null | undefined
 }
 
-// Edits the title, artwork and description of a podcast or an episode.
+// Edits the title, artwork, description and tags of a podcast or an episode.
 export function EditDetailsDialog({
   open,
   onOpenChange,
@@ -85,6 +88,7 @@ function DetailsForm({
   const [title, setTitle] = useState(details.title)
   const [descriptionHtml, setDescriptionHtml] = useState(details.description ?? '')
   const [image, setImage] = useState<ImageValue>({ kind: 'keep' })
+  const [tags, setTags] = useState(details.tags?.map((tag) => tag.name) ?? [])
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string>()
 
@@ -97,7 +101,7 @@ function DetailsForm({
     setError(undefined)
     setPending(true)
     try {
-      await onSave({ title: title.trim(), description: descriptionHtml, imageId: imageIdToSave(image) })
+      await onSave({ title: title.trim(), description: descriptionHtml, imageId: imageIdToSave(image), tags })
       onSaved()
     } catch {
       setError('Something went wrong saving your changes. Please try again.')
@@ -141,6 +145,7 @@ function DetailsForm({
                 placeholder="What's it about?"
               />
             </Field>
+            <TagInput id="details-tags" value={tags} onChange={setTags} disabled={pending} />
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
         </div>
