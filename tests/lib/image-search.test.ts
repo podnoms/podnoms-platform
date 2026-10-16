@@ -8,14 +8,27 @@ describe('searchWords', () => {
 })
 
 describe('imageSearchQueries', () => {
-  it('goes from the title, to the description, to the context, to music', () => {
+  it('mixes the title with the description, then narrows to single words, the context and music', () => {
     expect(
       imageSearchQueries({
         title: 'Deep House Sunset',
         description: '<p>Recorded on the beach. The beach was <strong>packed</strong>, beach party!</p>',
         context: "Fergal's Mixyboos",
       }),
-    ).toEqual(['deep house', 'deep', 'house', 'sunset', 'beach', 'recorded', 'fergal', 'mixyboos', 'music'])
+    ).toEqual([
+      'deep house beach',
+      'deep house',
+      'deep beach',
+      'beach recorded',
+      'deep',
+      'beach',
+      'house',
+      'recorded',
+      'sunset',
+      'fergal',
+      'mixyboos',
+      'music',
+    ])
   })
 
   it('falls back to music when there is nothing to go on', () => {
@@ -25,7 +38,9 @@ describe('imageSearchQueries', () => {
 
   it("leaves out description words already in the title, and doesn't repeat searches", () => {
     expect(imageSearchQueries({ title: 'September', description: 'September in September, mostly rain', context: 'Rain' })).toEqual([
+      'september mostly',
       'september',
+      'mostly rain',
       'mostly',
       'rain',
       'music',

@@ -206,7 +206,7 @@ export function ImageField({
               by {credit.authorUrl ? <ExternalLink href={credit.authorUrl}>{credit.author}</ExternalLink> : credit.author}
             </>
           )}{' '}
-          {credit.source === 'Pexels' ? 'on' : 'via'} <ExternalLink href={credit.sourceUrl}>{credit.source}</ExternalLink>
+          {credit.preposition} <ExternalLink href={credit.sourceUrl}>{credit.source}</ExternalLink>
         </p>
       )}
       {error && <p className="text-xs text-destructive">{error}</p>}

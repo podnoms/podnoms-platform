@@ -19,8 +19,9 @@ const suggestion = (id: number) => ({
       author: `Photographer ${id}`,
       authorUrl: `https://www.pexels.com/@p${id}`,
       pageUrl: `https://www.pexels.com/photo/${id}/`,
-      source: 'Pexels' as const,
+      source: 'Pexels',
       sourceUrl: 'https://www.pexels.com',
+      preposition: 'on' as const,
     },
   },
 })
@@ -41,20 +42,20 @@ function Field({ suggest, onValue }: { suggest?: () => { title: string }; onValu
 }
 
 describe('ImageField random image', () => {
-  it('credits Openverse photos, with or without a named photographer', async () => {
+  it('credits photos without a named photographer', async () => {
     vi.mocked(suggestArtwork).mockResolvedValueOnce({
       ok: true,
       suggestion: {
         imageId: 'image-x',
-        previewUrl: 'https://api.openverse.org/v1/images/x/thumb/',
+        previewUrl: 'https://upload.wikimedia.test/x/1400px.jpg',
         photoId: 'x',
-        credit: { author: null, authorUrl: null, pageUrl: 'https://photos.test/x', source: 'Openverse', sourceUrl: 'https://openverse.org' },
+        credit: { author: null, authorUrl: null, pageUrl: 'https://commons.wikimedia.org/wiki/File:x.jpg', source: 'Wikimedia Commons', sourceUrl: 'https://commons.wikimedia.org', preposition: 'on' },
       },
     })
     render(<Field suggest={() => ({ title: 'x' })} />)
     await userEvent.click(screen.getByRole('button', { name: 'Random image' }))
-    await waitFor(() => expect(screen.getByRole('link', { name: 'Openverse' })).toBeTruthy())
-    expect(screen.getByText(/via/).textContent).toBe('Photo via Openverse')
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Wikimedia Commons' })).toBeTruthy())
+    expect(screen.getByRole('link', { name: 'Wikimedia Commons' }).closest('p')?.textContent).toBe('Photo on Wikimedia Commons')
   })
 
   it('is only offered when the form can suggest images', () => {
