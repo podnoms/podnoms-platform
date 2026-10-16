@@ -41,6 +41,7 @@ import { formatDate, formatLength, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { isReady } from '~/lib/podcast-directories'
 import { htmlToText } from '~/lib/rich-text'
+import { cn } from '~/lib/utils'
 
 export const Route = createFileRoute('/_authed/$slug/manage')({
   loader: ({ params }) => fetchMyPodcast({ data: { slug: params.slug } }),
@@ -84,10 +85,14 @@ function PodcastPage() {
     podcast.followerCount > 0 ? pluralise(podcast.followerCount, 'follower') : null,
   ].filter(Boolean)
 
+  // Square, label-less buttons below md, so the header's actions fit one row.
+  const iconOnMobile = 'max-md:w-8 max-md:px-0'
+
   const newEpisodeButtons = (
     <>
+      {/* Picking a folder of audio isn't something people do on a phone. */}
       <BulkUploadDialog podcastId={podcast.id}>
-        <Button variant="outline">
+        <Button variant="outline" className="max-md:hidden">
           <Icons.uploadFolder />
           Upload folder
         </Button>
@@ -144,19 +149,28 @@ function PodcastPage() {
             )}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 pt-3">
               <p className="text-sm text-muted-foreground">{stats.join(' · ')}</p>
-              <div className="flex flex-wrap gap-2 sm:ml-auto">
-                {podcast.liveEnabled && <GoLiveButton podcast={podcast} live={broadcasting} />}
-                <Button variant="outline" onClick={() => setEditing(true)}>
+              <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                {/* Nobody streams from OBS on a phone, so only a broadcast already on air shows there. */}
+                {podcast.liveEnabled && (
+                  <div className={cn('contents', !broadcasting && 'max-md:hidden')}>
+                    <GoLiveButton podcast={podcast} live={broadcasting} />
+                  </div>
+                )}
+                <Button variant="outline" className={iconOnMobile} onClick={() => setEditing(true)}>
                   <Icons.edit />
-                  Edit
+                  <span className="max-md:sr-only">Edit</span>
                 </Button>
-                <Button variant="outline" asChild>
+                <Button variant="outline" className={iconOnMobile} asChild>
                   <Link to="/$slug" target='_blank' params={{ slug: podcast.slug }} >
                     <Icons.externalLink />
-                    Public page
+                    <span className="max-md:sr-only">Public page</span>
                   </Link>
                 </Button>
-                <FeedUrlButton feedUrl={podcast.feedUrl} label={podcast.private ? 'Private RSS URL' : undefined} />
+                <FeedUrlButton
+                  feedUrl={podcast.feedUrl}
+                  label={podcast.private ? 'Private RSS URL' : undefined}
+                  iconOnMobile
+                />
                 {episodes.length > 0 && newEpisodeButtons}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -165,7 +179,7 @@ function PodcastPage() {
                       <span className="sr-only">Podcast actions</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="w-auto">
                     <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
                       <Icons.delete />
                       Delete podcast

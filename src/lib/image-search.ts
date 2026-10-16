@@ -48,17 +48,12 @@ function commonWords(text: string) {
 }
 
 // Searches to try in turn, most specific first, until one finds something.
-// Image search matches every word, so later searches use fewer.
+// The first ones mix the title with the description's main word, so the photo
+// suits both; image search matches every word, so later searches use fewer.
 export function imageSearchQueries({ title = '', description = '', context = '' }: ImageSuggestionInput) {
-  const titleWords = searchWords(title)
-  const descriptionWords = commonWords(htmlToText(description)).filter((word) => !titleWords.includes(word))
-  const contextWords = searchWords(context)
-  const queries = [
-    titleWords.slice(0, 2).join(' '),
-    ...titleWords.slice(0, 3),
-    ...descriptionWords.slice(0, 2),
-    ...contextWords.slice(0, 2),
-    'music',
-  ]
-  return [...new Set(queries.filter(Boolean))]
+  const [t1, t2, t3] = searchWords(title)
+  const [d1, d2] = commonWords(htmlToText(description)).filter((word) => word !== t1 && word !== t2 && word !== t3)
+  const [c1, c2] = searchWords(context)
+  const queries = [[t1, t2, d1], [t1, t2], [t1, d1], [d1, d2], [t1], [d1], [t2], [d2], [t3], [c1], [c2], ['music']]
+  return [...new Set(queries.map((words) => words.filter(Boolean).join(' ')).filter(Boolean))]
 }

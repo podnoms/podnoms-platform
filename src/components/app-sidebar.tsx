@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type MouseEvent } from 'react'
 import { Link, useLoaderData, useLocation } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { NewPodcastDialog } from '~/components/new-podcast-dialog'
@@ -23,6 +23,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from '~/components/ui/sidebar'
 import { imageSrc } from '~/lib/images'
 import { cn } from '~/lib/utils'
@@ -51,12 +52,18 @@ export function AppSidebar() {
   const [query, setQuery] = useState('')
   const needle = query.trim().toLowerCase()
   const shown = filterable && needle ? podcasts.filter((p) => p.title.toLowerCase().includes(needle)) : podcasts
+  // On phones the sidebar is a sheet over the page, so following one of its
+  // links closes it (even a link to the page already showing).
+  const { isMobile, setOpenMobile } = useSidebar()
+  const closeOnLink = (event: MouseEvent) => {
+    if (isMobile && (event.target as HTMLElement).closest('a')) setOpenMobile(false)
+  }
 
   return (
     // Ends above the player bar rather than running behind it, with no border
     // between it and the page.
     <Sidebar className="bottom-(--player-height) h-auto group-data-[side=left]:border-r-0">
-      <SidebarHeader>
+      <SidebarHeader onClick={closeOnLink}>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
@@ -71,7 +78,7 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent onClick={closeOnLink}>
         <SidebarGroup>
           <SidebarGroupLabel>Library</SidebarGroupLabel>
           <SidebarGroupContent>

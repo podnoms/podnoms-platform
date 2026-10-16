@@ -222,3 +222,14 @@
   ) {
   cursor: pointer;
 }
+/* Menus and popovers are the colour of cards, and the theme's shadows are
+   faint, so in the dark they'd blend into a card or the header behind them.
+   An outline and a deep shadow lift them off the page. */
+.dark :is(
+    [data-slot='dropdown-menu-content'],
+    [data-slot='dropdown-menu-sub-content'],
+    [data-slot='popover-content'],
+    [data-slot='select-content']
+  ) {
+  @apply ring-border shadow-[0_12px_32px_-4px_var(--background)];
+}

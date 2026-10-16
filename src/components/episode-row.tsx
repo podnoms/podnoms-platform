@@ -204,7 +204,7 @@ export function EpisodeRow({
               <span className="sr-only">Episode actions</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-auto">
             <DropdownMenuItem disabled={inProgress} onSelect={() => setEditing(true)}>
               <Icons.edit />
               Edit episode

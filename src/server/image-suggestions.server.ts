@@ -1,31 +1,19 @@
 // Finds artwork to suggest for a podcast or episode and stages it as if it
 // had been uploaded: it's kept only if the form is saved with it (see
-// images.server.ts). Photos come from Pexels when PEXELS_API_KEY is set, and
-// otherwise from Openverse, which needs no key, limited to public-domain and
-// CC0 photos so they're free to keep without credit.
+// images.server.ts). Photos come from the first source in `imageSources`
+// that's configured (see image-sources/).
 import '@tanstack/react-start/server-only'
 import { env } from '~/env'
 import { imageSearchQueries, type ImageSuggestionInput } from '~/lib/image-search'
 import { ExpiringStore } from '~/server/expiring-store.server'
+import { commons } from '~/server/image-sources/commons.server'
+import { flickr } from '~/server/image-sources/flickr.server'
+import { userAgent, type ImageCredit, type ImageSource, type Photo } from '~/server/image-sources/image-source.server'
+import { pexels } from '~/server/image-sources/pexels.server'
 import { stageImage } from '~/server/images.server'
+import { reportError } from '~/server/logger.server'
 
-export type ImageCredit = {
-  author: string | null
-  authorUrl: string | null
-  pageUrl: string
-  source: 'Pexels' | 'Openverse'
-  sourceUrl: string
-}
-
-type Photo = {
-  id: string
-  // A copy suitable for artwork, to download and keep.
-  downloadUrl: string
-  previewUrl: string
-  credit: ImageCredit
-}
-
-type ImageSource = { name: string; search: (query: string) => Promise<Photo[]> }
+export type { ImageCredit }
 
 export type ImageSuggestion = {
   imageId: string
@@ -37,86 +25,21 @@ export type ImageSuggestion = {
 
 export class ImageSuggestionError extends Error {}
 
-const userAgent = 'PodNoms (https://podnoms.com)'
+type SourceConfig = Pick<typeof env, 'PEXELS_API_KEY' | 'FLICKR_API_KEY'>
 
-export function pexels(apiKey: string): ImageSource {
-  type PexelsPhoto = {
-    id: number
-    url: string
-    photographer: string
-    photographer_url: string
-    src: { original: string; medium: string }
-  }
-  return {
-    name: 'pexels',
-    async search(query) {
-      const url = new URL('https://api.pexels.com/v1/search')
-      url.search = new URLSearchParams({ query, per_page: '80', size: 'large' }).toString()
-      const response = await fetch(url, { headers: { Authorization: apiKey }, signal: AbortSignal.timeout(15_000) })
-      if (!response.ok) throw new Error(`Pexels search failed: ${response.status} ${(await response.text()).slice(0, 200)}`)
-      const { photos } = (await response.json()) as { photos: PexelsPhoto[] }
-      return photos.map((photo) => {
-        // Pexels crops and resizes on request: square, at the size podcast apps want.
-        const download = new URL(photo.src.original)
-        download.search = new URLSearchParams({ auto: 'compress', cs: 'tinysrgb', fit: 'crop', w: '1400', h: '1400' }).toString()
-        return {
-          id: String(photo.id),
-          downloadUrl: download.toString(),
-          previewUrl: photo.src.medium,
-          credit: {
-            author: photo.photographer,
-            authorUrl: photo.photographer_url,
-            pageUrl: photo.url,
-            source: 'Pexels',
-            sourceUrl: 'https://www.pexels.com',
-          },
-        }
-      })
-    },
-  }
+// Sources in order of preference, each null when it isn't configured. To
+// change source, set a different key or reorder this list.
+const imageSources: ((config: SourceConfig) => ImageSource | null)[] = [
+  (config) => (config.PEXELS_API_KEY ? pexels(config.PEXELS_API_KEY) : null),
+  (config) => (config.FLICKR_API_KEY ? flickr(config.FLICKR_API_KEY) : null),
+  () => commons,
+]
+
+export function imageSource(config: SourceConfig = env): ImageSource {
+  return imageSources.map((source) => source(config)).find((source) => source !== null) ?? commons
 }
 
-export const openverse: ImageSource = {
-  name: 'openverse',
-  async search(query) {
-    type OpenverseImage = {
-      id: string
-      url: string
-      thumbnail: string
-      foreign_landing_url: string
-      creator: string | null
-      creator_url: string | null
-    }
-    const url = new URL('https://api.openverse.org/v1/images/')
-    url.search = new URLSearchParams({
-      q: query,
-      // Free to use and keep without credit.
-      license: 'cc0,pdm',
-      category: 'photograph',
-      size: 'large',
-      mature: 'false',
-      page_size: '20',
-    }).toString()
-    const response = await fetch(url, { headers: { 'User-Agent': userAgent }, signal: AbortSignal.timeout(15_000) })
-    if (!response.ok) throw new Error(`Openverse search failed: ${response.status} ${(await response.text()).slice(0, 200)}`)
-    const { results } = (await response.json()) as { results: OpenverseImage[] }
-    return results.map((image) => ({
-      id: image.id,
-      downloadUrl: image.url,
-      previewUrl: image.thumbnail,
-      credit: {
-        author: image.creator,
-        authorUrl: image.creator_url,
-        pageUrl: image.foreign_landing_url,
-        source: 'Openverse',
-        sourceUrl: 'https://openverse.org',
-      },
-    }))
-  },
-}
-
-// Searches are kept for a day, saving the sources' quotas (Openverse allows
-// 200 searches a day without a key, Pexels 200 an hour).
+// Searches are kept for a day, saving the sources' quotas.
 const searches = new ExpiringStore<Photo[]>(24 * 60 * 60 * 1000)
 
 async function search(source: ImageSource, query: string) {
@@ -128,9 +51,9 @@ async function search(source: ImageSource, query: string) {
   return photos
 }
 
-export function imageSource(): ImageSource {
-  return env.PEXELS_API_KEY ? pexels(env.PEXELS_API_KEY) : openverse
-}
+// Sources list the best matches first, so the pick is from the top few, to
+// keep it on topic.
+const poolSize = 15
 
 // Photos are fetched from wherever the source keeps them, which sometimes
 // fails (gone, too big, not an image); a few others are tried before giving up.
@@ -145,7 +68,15 @@ export async function suggestImage(
   const exclude = new Set(input.exclude ?? [])
   let attempts = 0
   for (const query of imageSearchQueries(input)) {
-    const photos = (await search(source, query)).filter((photo) => !exclude.has(photo.id))
+    let found: Photo[]
+    try {
+      found = await search(source, query)
+    } catch (error) {
+      // Usually a missing or refused key, or the source limiting us.
+      reportError(error, { source: source.name, query, msg: 'Image search failed' })
+      throw new ImageSuggestionError("Image search isn't available just now. Please try again later.")
+    }
+    const photos = found.filter((photo) => !exclude.has(photo.id)).slice(0, poolSize)
     while (photos.length > 0 && attempts < downloadAttempts) {
       const [photo] = photos.splice(Math.floor(Math.random() * photos.length), 1)
       attempts++
@@ -157,7 +88,8 @@ export async function suggestImage(
         if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
         const { imageId } = await stageImage(userId, response.body)
         return { imageId, previewUrl: photo!.previewUrl, photoId: photo!.id, credit: photo!.credit }
-      } catch {
+      } catch (error) {
+        reportError(error, { source: source.name, url: photo!.downloadUrl, msg: 'Could not download a suggested image' })
         exclude.add(photo!.id)
       }
     }

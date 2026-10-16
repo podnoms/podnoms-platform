@@ -83,7 +83,7 @@ function SignInButton() {
 // A mock of a link becoming an episode. Decorative only, so hidden from screen readers.
 function HeroPreview() {
   return (
-    <div aria-hidden="true" className="relative">
+    <div aria-hidden="true" className="relative min-w-0">
       <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-primary/20 blur-3xl" />
       <div className="flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-2xl sm:p-5">
         <div className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm">
@@ -103,7 +103,7 @@ function HeroPreview() {
               <p className="truncate font-medium">Late night mix, vol. 12</p>
               <p className="text-xs text-muted-foreground">My Mixes · 58:21</p>
             </div>
-            <div className="flex h-10 items-center gap-[2px]">
+            <div className="flex h-10 items-center gap-px sm:gap-[2px]">
               {bars.map((height, i) => (
                 <span
                   key={i}
@@ -139,8 +139,8 @@ export function LandingPage() {
         className="absolute inset-x-0 top-0 -z-10 h-[40rem] bg-[radial-gradient(60%_50%_at_50%_0%,color-mix(in_oklch,var(--primary)_22%,transparent),transparent)]"
       />
 
-      <section className="mx-auto grid w-full max-w-6xl items-center gap-12 px-4 pt-16 pb-20 md:pt-24 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
-        <div className="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
+      <section className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 px-4 pt-16 pb-20 md:pt-24 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16">
+        <div className="flex min-w-0 flex-col items-center gap-6 text-center lg:items-start lg:text-left">
           <Badge variant="outline" className="gap-1.5 px-3 py-1 text-sm">
             <img src="/logo.png" alt="" className="size-4 rounded-sm" />
             Robot powered podcasts
@@ -219,7 +219,7 @@ export function LandingPage() {
       </section>
 
       <footer className="border-t">
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-2 px-4 py-6 text-sm text-muted-foreground">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-2 gap-y-3 px-4 py-6 text-sm text-muted-foreground">
           <img src="/logo.png" alt="" className="size-5 rounded" />
           podnoms
           <Link to="/privacy" className="ml-4 hover:text-foreground">
@@ -228,7 +228,7 @@ export function LandingPage() {
           <Link to="/tos" className="hover:text-foreground">
             Terms
           </Link>
-          <span className="ml-auto">Robot powered podcasts</span>
+          <span className="basis-full sm:ml-auto sm:basis-auto">Robot powered podcasts</span>
         </div>
       </footer>
     </main>

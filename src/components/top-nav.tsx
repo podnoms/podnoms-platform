@@ -9,14 +9,16 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
 } from '~/components/ui/navigation-menu'
-import { SidebarTrigger } from '~/components/ui/sidebar'
+import { Icons } from '~/components/icons'
+import { Button } from '~/components/ui/button'
+import { useSidebar } from '~/components/ui/sidebar'
 import { UserMenu } from '~/components/user-menu'
 import { navLinks } from '~/lib/nav-links'
 
 export function TopNav() {
   return (
     <header className="sticky top-0 z-10 flex h-(--top-nav-height) shrink-0 items-center gap-2 bg-background px-4">
-      <SidebarTrigger className="-ml-1" />
+      <MenuButton />
       <NavigationMenu viewport={false}>
         <NavigationMenuList>
           {navLinks.map(([to, label]) => (
@@ -38,5 +40,18 @@ export function TopNav() {
         <UserMenu />
       </div>
     </header>
+  )
+}
+
+// Opens the sidebar on phones, where it's a sheet over the page (which covers
+// this button while it's open). Hidden by CSS rather than `isMobile`, which is
+// only known after hydration; md matches the sidebar's own breakpoint.
+function MenuButton() {
+  const { setOpenMobile } = useSidebar()
+  return (
+    <Button variant="ghost" size="icon-sm" className="-ml-1 md:hidden" onClick={() => setOpenMobile(true)}>
+      <Icons.menu />
+      <span className="sr-only">Open menu</span>
+    </Button>
   )
 }
