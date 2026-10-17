@@ -86,8 +86,8 @@ async function listWithYtDlp(platform: Platform, url: string, limit: number | nu
     thumbnails.filter((t) => t.width && t.width === t.height).at(-1) ??
     thumbnails.at(-1)
   return {
-    // YouTube names the tab: "Someone - Videos".
-    title: playlist.title?.replace(/ - (Videos|Uploads)$/, '').trim() || null,
+    // YouTube and SoundCloud name the tab: "Someone - Videos", "Someone (Tracks)".
+    title: playlist.title?.replace(/( - (Videos|Uploads)| \(Tracks\))$/, '').trim() || null,
     description: playlist.description?.trim() || null,
     thumbnail: thumbnail?.url ?? null,
     entries,

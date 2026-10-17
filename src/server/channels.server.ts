@@ -54,7 +54,7 @@ export function nameFromChannelUrl(url: string) {
   const parts = parsed.pathname.split('/').filter(Boolean)
   return (
     parsed.searchParams.get('list') ??
-    parts.filter((part) => !['channel', 'c', 'user', 'videos', 'uploads', 'playlist', 'playlists', 'sets'].includes(part)).at(-1) ??
+    parts.filter((part) => !['channel', 'c', 'user', 'videos', 'uploads', 'playlist', 'playlists', 'sets', 'tracks'].includes(part)).at(-1) ??
     url
   )
 }

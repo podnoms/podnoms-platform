@@ -38,6 +38,14 @@ describe('parseChannelUrl', () => {
   })
 
   it.each([
+    ['https://soundcloud.com/someone', 'https://soundcloud.com/someone/tracks'],
+    ['https://m.soundcloud.com/someone/', 'https://soundcloud.com/someone/tracks'],
+    ['https://soundcloud.com/someone/tracks', 'https://soundcloud.com/someone/tracks'],
+  ])('normalises the SoundCloud user %s', (url, normalised) => {
+    expect(parseChannelUrl(url)).toEqual({ platform: 'soundcloud', url: normalised })
+  })
+
+  it.each([
     'https://www.youtube.com/watch?v=abc',
     'https://www.youtube.com/',
     'https://www.youtube.com/channel/',
@@ -45,7 +53,9 @@ describe('parseChannelUrl', () => {
     'https://www.mixcloud.com/someone/a-mix/',
     'https://www.mixcloud.com/someone/playlists/',
     'https://www.mixcloud.com/discover/house/',
-    'https://soundcloud.com/someone',
+    'https://soundcloud.com/someone/a-track',
+    'https://soundcloud.com/someone/sets/a-set',
+    'https://soundcloud.com/discover',
     'ftp://www.youtube.com/@someone',
     'nonsense',
   ])("doesn't take %s as a channel", (url) => {

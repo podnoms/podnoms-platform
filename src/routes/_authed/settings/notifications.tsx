@@ -23,7 +23,7 @@ const options: { pref: Pref; label: string; description: string }[] = [
   {
     pref: 'notifyNewEpisodes',
     label: 'New episodes from channels',
-    description: 'When a podcast that follows a YouTube channel or Mixcloud account picks up new uploads.',
+    description: 'When a podcast that follows a YouTube channel, or a Mixcloud or SoundCloud account, picks up new uploads.',
   },
 ]
 

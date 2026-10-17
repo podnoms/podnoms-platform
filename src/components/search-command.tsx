@@ -116,10 +116,10 @@ function SearchPalette({ close }: { close: () => void }) {
   return (
     // Filtering is done by the server.
     <Command shouldFilter={false}>
-      <CommandInput value={query} onValueChange={setQuery} placeholder="Search podcasts and episodes…" />
+      <CommandInput value={query} onValueChange={setQuery} placeholder="Search shows and episodes…" />
       <CommandList className="max-h-[min(60vh,28rem)]">
         {!trimmed && podcasts.length > 0 && (
-          <CommandGroup heading="Your podcasts">
+          <CommandGroup heading="Your shows">
             {podcasts.map((podcast) => (
               <CommandItem key={podcast.id} value={`podcast-${podcast.id}`} onSelect={() => openPodcast(podcast.slug)}>
                 <Artwork url={podcast.imageUrl} />

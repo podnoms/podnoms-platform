@@ -77,6 +77,26 @@ export const channelProviders: ChannelProvider[] = [
       return `https://www.mixcloud.com/${user}/uploads/`
     },
   },
+  {
+    platform: 'soundcloud',
+    label: 'SoundCloud',
+    example: 'https://soundcloud.com/user',
+    parseChannelUrl(url) {
+      if (!onHost(url.hostname.toLowerCase(), 'soundcloud.com')) return null
+      const [user, tab, ...rest] = url.pathname.split('/').filter(Boolean)
+      // A user's page or their tracks tab; /<user>/<name> is a single track and
+      // /<user>/sets/<name> a playlist.
+      if (!user || rest.length || (tab && tab !== 'tracks')) return null
+      // SoundCloud's own pages, not users.
+      if (soundcloudPages.includes(user)) return null
+      return `https://soundcloud.com/${user}/tracks`
+    },
+  },
+]
+
+const soundcloudPages = [
+  'discover', 'stream', 'upload', 'you', 'search', 'charts', 'pages', 'settings',
+  'messages', 'notifications', 'people', 'tags', 'feed', 'signin', 'mobile', 'terms-of-use',
 ]
 
 // Which provider recognises the link, and the channel's normalised URL.

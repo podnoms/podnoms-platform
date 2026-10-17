@@ -123,7 +123,7 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
         <SidebarGroup>
-          <SidebarGroupLabel>Your podcasts</SidebarGroupLabel>
+          <SidebarGroupLabel>Your shows</SidebarGroupLabel>
           {podcasts.length > 1 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

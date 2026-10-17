@@ -47,7 +47,7 @@ describe('SearchCommand', () => {
   it('opens from the button, listing the podcasts before anything is typed', async () => {
     render(<SearchCommand />)
     await userEvent.click(screen.getByRole('button', { name: /search/i }))
-    expect(screen.getByText('Your podcasts')).toBeTruthy()
+    expect(screen.getByText('Your shows')).toBeTruthy()
     expect(screen.getByText('Deep House Sessions')).toBeTruthy()
     expect(searchMyLibrary).not.toHaveBeenCalled()
   })
@@ -83,7 +83,7 @@ describe('SearchCommand', () => {
     expect(screen.getByText('Podcasts')).toBeTruthy()
     expect(screen.getByText('Episodes')).toBeTruthy()
     expect(screen.getByText('…recorded at a house party…')).toBeTruthy()
-    expect(screen.queryByText('Your podcasts')).toBeNull()
+    expect(screen.queryByText('Your shows')).toBeNull()
   })
 
   it('opens the chosen episode and closes', async () => {
