@@ -294,11 +294,15 @@ function PodcastPage() {
         open={editing}
         onOpenChange={setEditing}
         heading="Edit podcast"
-        description="Changes show in podcast apps the next time they check the feed. The feed URL stays the same."
-        details={{ title: podcast.title, description: podcast.description, imageUrl: podcast.imageUrl, tags: podcast.tags }}
+        description="Changes show in podcast apps the next time they check the feed."
+        details={{ title: podcast.title, description: podcast.description, imageUrl: podcast.imageUrl, tags: podcast.tags, slug: podcast.slug }}
         maxTitleLength={100}
         onSave={async (change) => {
-          await updateMyPodcast({ data: { id: podcast.id, ...change } })
+          const result = await updateMyPodcast({ data: { id: podcast.id, ...change } })
+          if (result.error) return result.error
+          // To the new address first, as the old one has gone.
+          if (change.slug) await navigate({ to: '/$slug/manage', params: { slug: change.slug }, replace: true })
+          // The sidebar's podcasts are reloaded too, for their links.
           await router.invalidate()
         }}
       />

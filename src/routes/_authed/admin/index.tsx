@@ -21,7 +21,7 @@ import {
   sendAdminTestEmail,
 } from '~/functions/admin'
 import { formatDateTime } from '~/lib/format'
-import type { Platform } from '~/lib/platforms'
+import { platformNames, type Platform } from '~/lib/platforms'
 import { emailSettingsSchema, siteSettingsSchema } from '~/lib/site-settings-schema'
 
 export const Route = createFileRoute('/_authed/admin/')({
@@ -153,7 +153,7 @@ function DownloadQueue({ throttle }: { throttle: Overview['throttle'] }) {
       <CardContent className="flex flex-col gap-4">
         {throttle.cooldowns.map(({ platform, until }) => (
           <Alert key={platform} variant="destructive">
-            <AlertTitle>Paused downloads from {platform}</AlertTitle>
+            <AlertTitle>Paused downloads from {platformNames[platform as Platform]}</AlertTitle>
             <AlertDescription className="flex flex-wrap items-center gap-3">
               It refused a request, so nothing more is sent to it until {formatDateTime(until)}.
               <Button

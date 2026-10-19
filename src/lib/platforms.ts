@@ -4,6 +4,13 @@
 
 export type Platform = 'youtube' | 'mixcloud' | 'soundcloud' | 'other'
 
+export const platformNames: Record<Platform, string> = {
+  youtube: 'YouTube',
+  mixcloud: 'Mixcloud',
+  soundcloud: 'SoundCloud',
+  other: 'The site',
+}
+
 const hosts: Record<Exclude<Platform, 'other'>, string[]> = {
   youtube: ['youtube.com', 'youtu.be', 'youtube-nocookie.com'],
   mixcloud: ['mixcloud.com'],

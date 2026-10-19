@@ -1,5 +1,5 @@
 import '@tanstack/react-start/server-only'
-import { and, asc, eq, like, or, sql } from 'drizzle-orm'
+import { and, asc, eq, like, ne, or, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
 import { episodes, podcastFollows, podcasts, users } from '~/server/db/schema'
 import { reservedPodcastSlugs } from '~/lib/paths'
@@ -174,8 +174,24 @@ export async function createPodcast(userId: string, input: NewPodcastInput) {
   }))
 }
 
+// Thrown when a podcast can't have the slug asked for, with why, for the form.
+export class PodcastSlugError extends Error {
+  override name = 'PodcastSlugError'
+}
+
+const slugTaken = () => new PodcastSlugError('That address is taken. Try another.')
+
+function isPodcastSlugConflict(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false
+  // Drizzle wraps the database's error in its own.
+  if ('cause' in error && isPodcastSlugConflict(error.cause)) return true
+  const { code, constraint_name } = error as { code?: string; constraint_name?: string }
+  return code === '23505' && constraint_name === 'podcast_slug_unique'
+}
+
 // Returns false unless the podcast belongs to the user. The slug (and so the
-// feed URL) stays the same when the title changes.
+// feed URL) stays the same when the title changes, and only changes when a
+// new one is given; throws a PodcastSlugError if another podcast has it.
 export async function updatePodcast(userId: string, input: EditPodcastInput) {
   const [podcast] = await db
     .select({ id: podcasts.id, imageUrl: podcasts.imageUrl })
@@ -183,14 +199,26 @@ export async function updatePodcast(userId: string, input: EditPodcastInput) {
     .where(and(eq(podcasts.id, input.id), eq(podcasts.userId, userId)))
     .limit(1)
   if (!podcast) return false
+  // Checked before the image is kept, so a refusal leaves nothing behind.
+  if (input.slug) {
+    const [other] = await db
+      .select({ id: podcasts.id })
+      .from(podcasts)
+      .where(and(eq(podcasts.slug, input.slug), ne(podcasts.id, podcast.id)))
+      .limit(1)
+    if (other) throw slugTaken()
+  }
   const imageUrl =
     input.imageId === undefined ? podcast.imageUrl : input.imageId ? await commitImage(userId, input.imageId) : null
   await db.transaction(async (tx) => {
     await tx
       .update(podcasts)
-      .set({ title: input.title, description: sanitizeDescription(input.description), imageUrl })
+      .set({ title: input.title, description: sanitizeDescription(input.description), imageUrl, ...(input.slug && { slug: input.slug }) })
       .where(eq(podcasts.id, podcast.id))
     if (input.tags !== undefined) await syncPodcastTags(tx, podcast.id, input.tags)
+  }).catch((error: unknown) => {
+    // Taken by another podcast meanwhile.
+    throw isPodcastSlugConflict(error) ? slugTaken() : error
   })
   if (imageUrl !== podcast.imageUrl) await deleteImage(podcast.imageUrl)
   return true

@@ -13,9 +13,9 @@ import { join } from 'node:path'
 import { eq, inArray, isNotNull, or } from 'drizzle-orm'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
-import { platformOf } from '~/lib/platforms'
+import { platformOf, type Platform } from '~/lib/platforms'
 import { channelItems, episodes, type Episode, type EpisodeReplacement } from '~/server/db/schema'
-import { onThrottleChange, placeInQueue, RateLimitedError, withDownloadSlot } from '~/server/download-throttle.server'
+import { onThrottleChange, pausedFor, placeInQueue, RateLimitedError, withDownloadSlot } from '~/server/download-throttle.server'
 import { publishEpisodeEvent } from '~/server/episode-events.server'
 import { availableEpisodeSlug, isSlugConflict, withRandomSuffix } from '~/server/episode-slugs.server'
 import { downloadImage } from '~/server/images.server'
@@ -36,7 +36,9 @@ import {
 // Live progress of queued and running jobs, kept in memory: it changes many
 // times a second and is only interesting while a job is running.
 export type EpisodeProgress =
-  | { stage: 'queued'; ahead: number }
+  // `paused` when its platform is refusing us; `until` is an ISO time, as
+  // this also goes out as JSON.
+  | { stage: 'queued'; ahead: number; paused?: { platform: Platform; until: string } }
   | { stage: 'fetching' }
   | {
     stage: 'downloading'
@@ -432,7 +434,9 @@ export function getEpisodeProgress(episodeId: string): EpisodeProgress | null {
   const lane = jobs.get(episodeId)
   if (lane === 'download') {
     const ahead = placeInQueue(episodeId)
-    return ahead === null ? null : { stage: 'queued', ahead }
+    if (ahead === null) return null
+    const paused = pausedFor(episodeId)
+    return paused ? { stage: 'queued', ahead, paused } : { stage: 'queued', ahead }
   }
   if (lane === 'local') {
     const index = localQueue.indexOf(episodeId)

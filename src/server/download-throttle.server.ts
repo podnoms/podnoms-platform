@@ -189,6 +189,14 @@ export function placeInQueue(id: string) {
   return index === -1 ? null : index + running.size
 }
 
+// The platform the waiter with this id is held back by and until when, if
+// that platform is refusing us.
+export function pausedFor(id: string) {
+  const waiter = waiting.find((w) => w.id === id)
+  const until = waiter ? cooldowns.get(waiter.platform)?.until : undefined
+  return waiter && until && Date.now() < until ? { platform: waiter.platform, until: new Date(until).toISOString() } : null
+}
+
 // For the admin page.
 export function throttleStatus() {
   const now = Date.now()

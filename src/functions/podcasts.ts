@@ -52,6 +52,7 @@ import {
   setPodcastPrivacy,
   updateDirectoryDetails,
   updateDirectoryLink,
+  PodcastSlugError,
   updatePodcast,
 } from '~/server/podcasts.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
@@ -188,7 +189,13 @@ export const createMyPodcast = createServerFn({ method: 'POST' })
 export const updateMyPodcast = createServerFn({ method: 'POST' })
   .validator(editPodcastSchema)
   .handler(async ({ data }) => {
-    if (!(await updatePodcast(await requireUserId(), data))) throw notFound()
+    try {
+      if (!(await updatePodcast(await requireUserId(), data))) throw notFound()
+      return {}
+    } catch (error) {
+      if (error instanceof PodcastSlugError) return { error: error.message }
+      throw error
+    }
   })
 
 // Deletes one of the user's podcasts, with all its episodes.

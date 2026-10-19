@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { normalizeDomain } from '~/lib/custom-domain'
+import { reservedPodcastSlugs } from '~/lib/paths'
 import { tagNamesSchema } from '~/lib/tag-schema'
 import {
   categoryNames,
@@ -47,9 +48,21 @@ export const descriptionHtml = z.string().max(20000, 'That description is too lo
 // use, null to remove the image, or left out to keep it.
 export const imageChange = z.uuid().nullable().optional()
 
+// A podcast's slug, which its page and feed are addressed by (/<slug>).
+export const podcastSlugField = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(1, 'Give your podcast an address')
+  .max(60, 'Keep the address under 60 characters')
+  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Use only letters, numbers and single hyphens between them')
+  .refine((slug) => !reservedPodcastSlugs.has(slug), "That address is one of the site's own pages")
+
 export const editPodcastSchema = z.object({
   id: z.string().min(1),
   title: newPodcastSchema.shape.title,
+  // Left out to keep it.
+  slug: podcastSlugField.optional(),
   description: descriptionHtml,
   imageId: imageChange,
   tags: tagNamesSchema.optional(),

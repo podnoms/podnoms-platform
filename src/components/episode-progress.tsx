@@ -1,5 +1,6 @@
 import { Progress } from '~/components/ui/progress'
-import { formatBytes, formatTimeLeft } from '~/lib/format'
+import { formatBytes, formatDateTime, formatTimeLeft } from '~/lib/format'
+import { platformNames } from '~/lib/platforms'
 import type { EpisodeProgress as ProgressInfo } from '~/server/episode-processor.server'
 
 export const stageLabels: Record<ProgressInfo['stage'], string> = {
@@ -37,6 +38,18 @@ export function EpisodeProgress({ progress }: { progress: ProgressInfo | null })
       <div className="flex w-full flex-col gap-1.5">
         <p className="text-sm text-muted-foreground">Converting audio · {progress.percent}%</p>
         <Progress value={progress.percent} />
+      </div>
+    )
+  }
+  if (progress.stage === 'queued' && progress.paused) {
+    const { platform, until } = progress.paused
+    return (
+      <div className="flex w-full flex-col gap-1.5">
+        <p className="text-sm text-destructive">
+          {platformNames[platform]} is refusing downloads from this server for now. It'll be tried again after{' '}
+          {formatDateTime(new Date(until))}.
+        </p>
+        <Progress value={0} />
       </div>
     )
   }

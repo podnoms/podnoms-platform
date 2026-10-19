@@ -10,6 +10,7 @@ import {
   setPodcastPrivacy,
   updateDirectoryDetails,
   updateDirectoryLink,
+  PodcastSlugError,
   updatePodcast,
 } from '~/server/podcasts.server'
 import { imagePath } from '~/server/storage.server'
@@ -126,6 +127,27 @@ describe('updatePodcast', () => {
     expect(ok).toBe(true)
     const row = await getRow(podcast.id)
     expect(row).toMatchObject({ title: 'New', slug: 'old', description: '<p>Hi</p>' })
+  })
+
+  it('changes the slug when a new one is given', async () => {
+    const user = await createUser()
+    const podcast = await insertPodcast(user.id, { title: 'Show', slug: 'old' })
+    expect(await updatePodcast(user.id, { id: podcast.id, title: 'Show', slug: 'new-name' })).toBe(true)
+    expect((await getRow(podcast.id)).slug).toBe('new-name')
+  })
+
+  it("refuses a slug another podcast has, changing nothing", async () => {
+    const user = await createUser()
+    await insertPodcast((await createUser()).id, { slug: 'taken' })
+    const podcast = await insertPodcast(user.id, { title: 'Old', slug: 'mine' })
+    await expect(updatePodcast(user.id, { id: podcast.id, title: 'New', slug: 'taken' })).rejects.toThrow(PodcastSlugError)
+    expect(await getRow(podcast.id)).toMatchObject({ title: 'Old', slug: 'mine' })
+  })
+
+  it('keeps its own slug when given it again', async () => {
+    const user = await createUser()
+    const podcast = await insertPodcast(user.id, { slug: 'same' })
+    expect(await updatePodcast(user.id, { id: podcast.id, title: 'T', slug: 'same' })).toBe(true)
   })
 
   it("refuses to update another user's podcast", async () => {

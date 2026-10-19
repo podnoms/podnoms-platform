@@ -251,7 +251,7 @@ describe.skipIf(!hasFfmpeg)('when the platform refuses us', () => {
     const episode = await linkEpisode({ sourceUrl: link('/rate-limited') })
     enqueueEpisode(episode.id)
     await vi.waitFor(() => expect(throttleStatus().cooldowns.map((c) => c.platform)).toEqual(['other']))
-    await vi.waitFor(() => expect(getEpisodeProgress(episode.id)).toMatchObject({ stage: 'queued' }))
+    await vi.waitFor(() => expect(getEpisodeProgress(episode.id)).toMatchObject({ stage: 'queued', paused: { platform: 'other' } }))
     expect(await getRow(episode.id)).toMatchObject({ status: 'pending', error: null })
     expect(reportError).not.toHaveBeenCalled()
   })
