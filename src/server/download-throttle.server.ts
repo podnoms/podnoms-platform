@@ -83,6 +83,11 @@ function startCooldown(platform: Platform) {
   logger.warn({ platform, cooldownMinutes: ms / 60_000 }, 'Platform is rate-limiting us; pausing downloads from it')
 }
 
+// Whether the platform is refusing us, so nothing should be sent to it.
+export function isCoolingDown(platform: Platform) {
+  return Date.now() < (cooldowns.get(platform)?.until ?? 0)
+}
+
 // Lets downloads from the platform go ahead again, e.g. from the admin page.
 export function clearCooldown(platform: Platform) {
   cooldowns.delete(platform)

@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { episodes, playbackPositions, podcasts } from '~/server/db/schema'
 import { enqueueEpisode } from '~/server/episode-processor.server'
+import { saveLinkArtwork } from '~/server/link-details.server'
 import {
   createEpisode,
   createUploadedEpisodes,
@@ -39,9 +40,12 @@ import {
 
 // Processing is tested in episode-processor.server.test.ts.
 vi.mock('~/server/episode-processor.server', () => ({ enqueueEpisode: vi.fn() }))
+// Tested in link-details.server.test.ts.
+vi.mock('~/server/link-details.server', () => ({ saveLinkArtwork: vi.fn() }))
 
 beforeEach(async () => {
   vi.mocked(enqueueEpisode).mockClear()
+  vi.mocked(saveLinkArtwork).mockClear()
   await resetDb(db)
 })
 
@@ -73,6 +77,8 @@ describe('createEpisode from a link', () => {
       description: null,
     })
     expect(enqueueEpisode).toHaveBeenCalledWith(episode!.id)
+    // Fetched straight away rather than when its download starts.
+    expect(saveLinkArtwork).toHaveBeenCalledWith(episode!.id, 'https://youtu.be/abc')
   })
 
   it('uses a given title for the title and slug, and stores the description as HTML', async () => {
@@ -100,6 +106,13 @@ describe('createEpisode from a link', () => {
     const episode = await createEpisode(user.id, { podcastId: podcast.id, sourceUrl: 'https://video.test/watch', imageId })
     expect((await getRow(episode!.id))!.imageUrl).toBe(`/images/${imageId}.jpg`)
     expect(await exists(imagePath(imageId))).toBe(true)
+  })
+
+  it("doesn't fetch the link's artwork when the form has some", async () => {
+    const { user, podcast } = await setup()
+    const imageId = await stageTestImage(user.id)
+    await createEpisode(user.id, { podcastId: podcast.id, sourceUrl: 'https://youtu.be/abc', imageId })
+    expect(saveLinkArtwork).not.toHaveBeenCalled()
   })
 
   it("returns null for another user's podcast", async () => {

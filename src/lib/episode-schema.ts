@@ -36,6 +36,9 @@ const uploadId = z.uuid('Choose an audio file to upload')
 // An episode made from a link, which is downloaded.
 export const linkEpisodeSchema = z.object({ ...episodeDetails, sourceUrl })
 
+// A link pasted into the new episode form, to fill the form in from.
+export const linkLookupSchema = z.object({ sourceUrl })
+
 // An episode made from a file the user has uploaded.
 export const uploadEpisodeSchema = z.object({ ...episodeDetails, uploadId })
 

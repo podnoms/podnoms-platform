@@ -3,7 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { episodePageSchema, episodePageSize } from '~/lib/episode-pages'
-import { bulkUploadEpisodesSchema, editEpisodeSchema, newEpisodeSchema, replaceAudioSchema } from '~/lib/episode-schema'
+import { bulkUploadEpisodesSchema, editEpisodeSchema, linkLookupSchema, newEpisodeSchema, replaceAudioSchema } from '~/lib/episode-schema'
 import { shortPath, trackedSharePath } from '~/lib/paths'
 import {
   customDomainSchema,
@@ -27,6 +27,7 @@ import { getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-p
 import { feedPath } from '~/server/feed.server'
 import { localiseRemoteImages } from '~/server/images.server'
 import { countFollowers } from '~/server/library.server'
+import { lookUpLink } from '~/server/link-details.server'
 import {
   createEpisode,
   createUploadedEpisodes,
@@ -257,6 +258,11 @@ export const createMyEpisode = createServerFn({ method: 'POST' })
     if (!episode) throw notFound()
     return episode
   })
+
+// What a pasted link says about itself, to fill in the new episode form.
+export const lookUpEpisodeLink = createServerFn({ method: 'POST' })
+  .validator(linkLookupSchema)
+  .handler(async ({ data }) => lookUpLink(await requireUserId(), data.sourceUrl))
 
 export const createMyEpisodes = createServerFn({ method: 'POST' })
   .validator(bulkUploadEpisodesSchema)

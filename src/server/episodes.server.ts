@@ -4,6 +4,7 @@ import { and, count, desc, eq, isNotNull, isNull, max, or, sql } from 'drizzle-o
 import { db } from '~/server/db/client.server'
 import { episodeLikes, episodes, playbackPositions, podcasts, users, type NewEpisode } from '~/server/db/schema'
 import { enqueueEpisode } from '~/server/episode-processor.server'
+import { saveLinkArtwork } from '~/server/link-details.server'
 import {
   availableEpisodeSlug,
   isSlugConflict,
@@ -300,6 +301,8 @@ export async function createEpisode(userId: string, input: NewEpisodeInput) {
     priority: 1,
   }, input.tags)
   enqueueEpisode(episode.id)
+  // Shown while it waits its turn to download.
+  if (!imageUrl) void saveLinkArtwork(episode.id, input.sourceUrl)
   return episode
 }
 
