@@ -16,6 +16,7 @@
 // memory, as the app runs as a single instance.
 import '@tanstack/react-start/server-only'
 import type { Platform } from '~/lib/platforms'
+import { alertIfBotCheck } from '~/server/admin-alerts.server'
 import { logger, reportError } from '~/server/logger.server'
 import { getSiteSettings, type SiteSettings } from '~/server/site-settings.server'
 
@@ -79,7 +80,11 @@ export async function withDownloadSlot<T>(platform: Platform, options: SlotOptio
     if (cooldown && Date.now() >= cooldown.until) cooldowns.delete(platform)
     return result
   } catch (error) {
-    if (error instanceof RateLimitedError) startCooldown(platform, error instanceof FetcherUnavailableError ? 'fetcher' : 'platform')
+    if (error instanceof RateLimitedError) {
+      startCooldown(platform, error instanceof FetcherUnavailableError ? 'fetcher' : 'platform')
+      // Fresh cookies need someone to fetch them; tell the admins.
+      alertIfBotCheck(platform, error)
+    }
     throw error
   } finally {
     running.delete(slot)

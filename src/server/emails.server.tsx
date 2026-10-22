@@ -4,6 +4,7 @@
 import '@tanstack/react-start/server-only'
 import type { ReactNode } from 'react'
 import { render } from '@react-email/components'
+import { platformNames, type Platform } from '~/lib/platforms'
 import {
   colors,
   EmailButton,
@@ -155,5 +156,35 @@ export function notificationDigestEmail(events: NotificationEvent[], settingsLin
     ) : (
       'You get these emails about your podcasts. Choose which ones in your podnoms settings.'
     ),
+  }
+}
+
+// To admins, when a platform starts asking us to prove we're not a bot (see
+// admin-alerts.server.ts).
+export function botCheckEmail(platform: Platform, error: string, adminLink: string | null): EmailMessage {
+  const name = platformNames[platform]
+  return {
+    subject: `${name} is asking podnoms to prove it isn’t a bot`,
+    preview: `Downloads from ${name} have stopped for everyone until yt-dlp has fresh cookies.`,
+    content: (
+      <>
+        <EmailHeading>{name} wants podnoms to sign in</EmailHeading>
+        <EmailText>
+          {name} is refusing downloads with a “confirm you’re not a bot” check, so downloads from it are paused for every
+          user. They’ll be tried again later, but will probably keep failing until it’s fixed.
+        </EmailText>
+        <EmailText>
+          Usually the cookies in YTDLP_COOKIES_FILE have expired (or it isn’t set). Export fresh ones from a signed-in
+          throwaway account (see{' '}
+          <EmailLink href="https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies">
+            exporting YouTube cookies
+          </EmailLink>
+          ), replace the file, then clear the pause on the admin page.
+        </EmailText>
+        {adminLink && <EmailButton href={adminLink}>Open the admin page</EmailButton>}
+        <EmailText muted>{error}</EmailText>
+      </>
+    ),
+    footer: 'You get this as a podnoms admin, at most every 6 hours while it keeps happening.',
   }
 }
