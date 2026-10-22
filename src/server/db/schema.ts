@@ -53,6 +53,10 @@ export const users = pgTable(
     // Which emails the user gets about their podcasts (see notifications.server.ts).
     notifyEpisodeFailed: boolean('notifyEpisodeFailed').notNull().default(true),
     notifyNewEpisodes: boolean('notifyNewEpisodes').notNull().default(true),
+    // Which desktop notifications the user gets about the podcasts they
+    // follow (see push.server.ts), on every browser they've turned them on in.
+    pushLive: boolean('pushLive').notNull().default(true),
+    pushNewEpisodes: boolean('pushNewEpisodes').notNull().default(true),
     // How many of a channel's newest uploads are imported when the user makes
     // a podcast from it, and considered on each check. Set by admins.
     channelEpisodeLimit: integer('channelEpisodeLimit').notNull().default(10),
@@ -419,12 +423,36 @@ export const podcastFollows = pgTable(
     podcastId: text('podcastId')
       .notNull()
       .references(() => podcasts.id, { onDelete: 'cascade' }),
+    // Whether the user gets desktop notifications about this podcast.
+    notify: boolean('notify').notNull().default(true),
     createdAt: timestamps.createdAt,
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.podcastId] }),
     index('podcast_follow_podcastId_idx').on(table.podcastId),
   ],
+)
+
+// The browsers a user has turned desktop notifications on in: each one's Web
+// Push subscription (see push.server.ts). Dropped when the push service says
+// it has gone.
+export const pushSubscriptions = pgTable(
+  'push_subscription',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull().unique(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    // The browser and system, e.g. "Firefox on Linux", for the settings page.
+    label: text('label').notNull(),
+    createdAt: timestamps.createdAt,
+  },
+  (table) => [index('push_subscription_userId_idx').on(table.userId)],
 )
 
 // Comments on an episode, each at a point in it, listed in that order on the

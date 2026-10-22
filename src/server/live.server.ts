@@ -20,6 +20,7 @@ import { ExpiringStore } from '~/server/expiring-store.server'
 import { publishLiveEvent, type ChatMessageRecord } from '~/server/live-events.server'
 import { finishRecording } from '~/server/live-recordings.server'
 import { logger, reportError } from '~/server/logger.server'
+import { notifyFollowersLive } from '~/server/push.server'
 import { decryptSecret, encryptSecret } from '~/server/secrets.server'
 
 // How often MediaMTX is asked what's live.
@@ -225,14 +226,16 @@ export async function syncLiveBroadcasts(now = new Date()) {
       .limit(1)
     // Deleted while it was live.
     if (!podcast) continue
+    const title = podcast.liveTitle ?? defaultLiveTitle(podcast.title, now)
     const started = await db
       .insert(liveBroadcasts)
-      .values({ podcastId, title: podcast.liveTitle ?? defaultLiveTitle(podcast.title, now), startedAt: now, lastSeenAt: now })
+      .values({ podcastId, title, startedAt: now, lastSeenAt: now })
       .onConflictDoNothing()
       .returning({ id: liveBroadcasts.id })
     if (started.length > 0) {
       logger.info({ podcastId }, 'Broadcast started')
       publishLiveEvent({ type: 'status', podcastId })
+      notifyFollowersLive(podcastId, title)
     }
   }
 

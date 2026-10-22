@@ -113,6 +113,7 @@ describe('migrations', () => {
       'podcast',
       'podcast_follow',
       'podcast_tag',
+      'push_subscription',
       'site_settings',
       'tag',
       'tracked_link',

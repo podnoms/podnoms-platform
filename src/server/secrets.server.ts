@@ -7,7 +7,7 @@ import '@tanstack/react-start/server-only'
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:crypto'
 import { env } from '~/env'
 
-export type SecretPurpose = 'podnoms totp secret' | 'podnoms smtp password' | 'podnoms live key'
+export type SecretPurpose = 'podnoms totp secret' | 'podnoms smtp password' | 'podnoms live key' | 'podnoms push key'
 
 const keys = new Map<SecretPurpose, Buffer>()
 

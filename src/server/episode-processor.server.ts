@@ -30,6 +30,7 @@ import { downloadImage } from '~/server/images.server'
 import { convertToMp3, probeAudio } from '~/server/media.server'
 import { logger, reportError } from '~/server/logger.server'
 import { notifyEpisodeFailed } from '~/server/notifications.server'
+import { notifyFollowersNewEpisode } from '~/server/push.server'
 import { saveWaveform } from '~/server/waveforms.server'
 import { runYtDlpLines } from '~/server/ytdlp.server'
 import {
@@ -311,6 +312,7 @@ async function markReady(episodeId: string, audio: ProcessedAudio) {
     audioSizeBytes: size,
     publishedAt,
   })
+  notifyFollowersNewEpisode(episode.id, episode.podcastId, publishedAt)
 }
 
 async function isFromChannel(episodeId: string) {

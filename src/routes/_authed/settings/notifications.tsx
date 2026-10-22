@@ -4,10 +4,15 @@ import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Switch } from '~/components/ui/switch'
+import { DesktopNotifications } from '~/components/desktop-notifications'
 import { fetchNotificationPrefs, saveNotificationPrefs } from '~/functions/profile'
+import { fetchPushSettings } from '~/functions/push'
 
 export const Route = createFileRoute('/_authed/settings/notifications')({
-  loader: () => fetchNotificationPrefs(),
+  loader: async () => {
+    const [prefs, push] = await Promise.all([fetchNotificationPrefs(), fetchPushSettings()])
+    return { ...prefs, push }
+  },
   head: () => ({ meta: [{ title: 'Notifications · Settings · podnoms' }] }),
   component: NotificationsPage,
 })
@@ -27,12 +32,15 @@ const options: { pref: Pref; label: string; description: string }[] = [
   },
 ]
 
-// Which emails the user gets about their podcasts. Emails are batched: a few
-// minutes' events come in one email.
+// Which emails the user gets about their podcasts (batched: a few minutes'
+// events come in one email), and desktop notifications about the podcasts
+// they follow.
 function NotificationsPage() {
   const prefs = Route.useLoaderData()
   const router = useRouter()
   const [error, setError] = useState<string>()
+
+  const reload = () => router.invalidate({ filter: (match) => match.routeId === Route.id })
 
   async function toggle(pref: Pref, value: boolean) {
     setError(undefined)
@@ -40,7 +48,7 @@ function NotificationsPage() {
       await saveNotificationPrefs({
         data: { notifyEpisodeFailed: prefs.notifyEpisodeFailed, notifyNewEpisodes: prefs.notifyNewEpisodes, [pref]: value },
       })
-      await router.invalidate({ filter: (match) => match.routeId === Route.id })
+      await reload()
     } catch {
       setError('Something went wrong saving that. Please try again.')
     }
@@ -78,6 +86,7 @@ function NotificationsPage() {
           </FieldGroup>
         </CardContent>
       </Card>
+      <DesktopNotifications settings={prefs.push} onChange={reload} />
     </div>
   )
 }

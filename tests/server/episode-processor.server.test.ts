@@ -10,12 +10,14 @@ import { subscribeToEpisodeEvents, type EpisodeEvent } from '~/server/episode-ev
 import { enqueueEpisode, getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
 import { fetcherConfig } from '~/server/fetcher.server'
 import { reportError } from '~/server/logger.server'
+import { notifyFollowersNewEpisode } from '~/server/push.server'
 import { ytDlpConfig } from '~/server/ytdlp.server'
 import { episodeAudioPath, episodeSourcePath, episodeWaveformPath, replacementAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import { startFakeFetcher } from '../fixtures/fake-fetcher'
 import { createEpisode, createPodcast, createUser, db, exists, hasFfmpeg, makeImage, makeTone } from '../helpers'
 
+vi.mock('~/server/push.server', () => ({ notifyFollowersNewEpisode: vi.fn() }))
 vi.mock('~/server/logger.server', async (importOriginal) => ({
   ...(await importOriginal<typeof import('~/server/logger.server')>()),
   reportError: vi.fn(),
@@ -203,6 +205,14 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     await processed(episode.id)
     const leftovers = (await readdir(join(media, 'audio'))).filter((name) => name.startsWith(`${episode.id}.download`))
     expect(leftovers).toEqual([])
+  })
+
+  it("tells the podcast's followers once the episode is ready", async () => {
+    vi.mocked(notifyFollowersNewEpisode).mockClear()
+    const episode = await linkEpisode({ sourceUrl: link('/watch') })
+    enqueueEpisode(episode.id)
+    const ready = await processed(episode.id)
+    expect(notifyFollowersNewEpisode).toHaveBeenCalledExactlyOnceWith(episode.id, episode.podcastId, ready.publishedAt)
   })
 
   it('asks yt-dlp for the audio alone, to convert itself', async () => {

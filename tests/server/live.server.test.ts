@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { liveBroadcasts, podcasts } from '~/server/db/schema'
 import { subscribeToLiveEvents, type LiveEvent } from '~/server/live-events.server'
 import { finishRecording } from '~/server/live-recordings.server'
+import { notifyFollowersLive } from '~/server/push.server'
 import {
   addChatMessage,
   authorizeLive,
@@ -24,10 +25,12 @@ import { resetDb } from '../db'
 import { createPodcast, createUser, db } from '../helpers'
 
 vi.mock('~/server/live-recordings.server', () => ({ finishRecording: vi.fn() }))
+vi.mock('~/server/push.server', () => ({ notifyFollowersLive: vi.fn() }))
 
 beforeEach(async () => {
   await resetDb(db)
   vi.mocked(finishRecording).mockReset().mockResolvedValue(null)
+  vi.mocked(notifyFollowersLive).mockReset()
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -166,6 +169,20 @@ describe('syncLiveBroadcasts', () => {
         { type: 'status', podcastId: plain.id },
       ]),
     )
+  })
+
+  it("tells the podcast's followers once when it goes live, not when it reconnects", async () => {
+    const podcast = await createPodcast((await createUser()).id, { title: 'The Show', liveTitle: 'Q&A night' })
+    const start = new Date('2026-10-12T20:00:00Z')
+    const fetch = mediamtx([live(podcast.id)])
+    await syncLiveBroadcasts(start)
+    expect(notifyFollowersLive).toHaveBeenCalledExactlyOnceWith(podcast.id, 'Q&A night')
+
+    fetch.mockImplementation(async () => Response.json({ pageCount: 1, items: [] }))
+    await syncLiveBroadcasts(new Date(start.getTime() + 1000))
+    fetch.mockImplementation(async () => Response.json({ pageCount: 1, items: [live(podcast.id)] }))
+    await syncLiveBroadcasts(new Date(start.getTime() + 2000))
+    expect(notifyFollowersLive).toHaveBeenCalledTimes(1)
   })
 
   it('ignores paths that are not ready yet', async () => {
