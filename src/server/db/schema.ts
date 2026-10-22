@@ -3,6 +3,7 @@
 // column for email/password sign-in.
 import { relations, sql } from 'drizzle-orm'
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   index,
@@ -34,6 +35,14 @@ export const users = pgTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     name: text('name'),
+    // Their handle: in their profile's address (/u/<slug>) and for @mentions
+    // in comments. Made from their name or email when they sign up (see
+    // assignUserSlug in users.server.ts), after starting as a placeholder;
+    // they can change it.
+    slug: text('slug')
+      .notNull()
+      .unique()
+      .$defaultFn(() => `user-${randomShortSlug()}`),
     email: text('email').unique(),
     emailVerified: timestamp('emailVerified', { mode: 'date' }),
     image: text('image'),
@@ -61,6 +70,9 @@ export const users = pgTable(
     pushNewEpisodes: boolean('pushNewEpisodes').notNull().default(true),
     emailLive: boolean('emailLive').notNull().default(false),
     emailFollowedEpisodes: boolean('emailFollowedEpisodes').notNull().default(false),
+    // Being @mentioned in a comment, or replied to (see comment-notifications.server.ts).
+    pushMentions: boolean('pushMentions').notNull().default(true),
+    emailMentions: boolean('emailMentions').notNull().default(true),
     // How many of a channel's newest uploads are imported when the user makes
     // a podcast from it, and considered on each check. Set by admins.
     channelEpisodeLimit: integer('channelEpisodeLimit').notNull().default(10),
@@ -474,13 +486,81 @@ export const episodeComments = pgTable(
     userId: text('userId')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    // Plain text, not HTML.
+    // The comment this replies to, always a top-level one: threads are one
+    // level deep. Replies go with it.
+    parentId: text('parentId').references((): AnyPgColumn => episodeComments.id, { onDelete: 'cascade' }),
+    // Plain text, not HTML, except that a mention is stored as <@userId> (see
+    // comment_mention), so it follows the user's slug if that changes. Empty
+    // when the comment is just a GIF.
     body: text('body').notNull(),
-    // How far into the episode it was made.
+    // A GIF from KLIPY or GIPHY, shown under the text (see src/lib/gifs.ts).
+    gif: jsonb('gif').$type<ChatGif>(),
+    // How far into the episode it was made; a reply's is its parent's.
     atSeconds: integer('atSeconds').notNull(),
     createdAt: timestamps.createdAt,
   },
-  (table) => [index('episode_comment_episodeId_atSeconds_idx').on(table.episodeId, table.atSeconds)],
+  (table) => [
+    index('episode_comment_episodeId_atSeconds_idx').on(table.episodeId, table.atSeconds),
+    index('episode_comment_parentId_idx').on(table.parentId),
+  ],
+)
+
+// Users who like a comment.
+export const commentLikes = pgTable(
+  'comment_like',
+  {
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    commentId: text('commentId')
+      .notNull()
+      .references(() => episodeComments.id, { onDelete: 'cascade' }),
+    createdAt: timestamps.createdAt,
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.commentId] }),
+    index('comment_like_commentId_idx').on(table.commentId),
+  ],
+)
+
+// The users a comment @mentions: only these <@userId> in its body are shown
+// as mentions.
+export const commentMentions = pgTable(
+  'comment_mention',
+  {
+    commentId: text('commentId')
+      .notNull()
+      .references(() => episodeComments.id, { onDelete: 'cascade' }),
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+  },
+  (table) => [primaryKey({ columns: [table.commentId, table.userId] }), index('comment_mention_userId_idx').on(table.userId)],
+)
+
+// What each user has been told about, or could have been, whatever they've
+// chosen for emails and desktop notifications: the notifications menu in the
+// top bar lists these (see inbox.server.ts). Kept for 90 days.
+export const notifications = pgTable(
+  'notification',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    // What it's about, for its icon: see NotificationKind in inbox.server.ts.
+    kind: text('kind').notNull(),
+    title: text('title').notNull(),
+    body: text('body'),
+    // Where it leads, a path on the site.
+    url: text('url').notNull(),
+    image: text('image'),
+    readAt: timestamp('readAt', { mode: 'date', withTimezone: true }),
+    createdAt: timestamps.createdAt,
+  },
+  (table) => [index('notification_userId_createdAt_idx').on(table.userId, table.createdAt)],
 )
 
 // --- Live -------------------------------------------------------------------

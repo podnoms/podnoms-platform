@@ -30,6 +30,7 @@ import { Route as ImagesFileRouteImport } from './routes/images/$file'
 import { Route as LiveSlugRouteImport } from './routes/live/$slug'
 import { Route as SShortSlugRouteImport } from './routes/s/$shortSlug'
 import { Route as TagsTagSlugRouteImport } from './routes/tags.$tagSlug'
+import { Route as USlugRouteImport } from './routes/u.$slug'
 import { Route as SlugEpisodesEpisodeSlugRouteImport } from './routes/$slug_.episodes.$episodeSlug'
 import { Route as AuthedSlugManageRouteImport } from './routes/_authed/$slug.manage'
 import { Route as AuthedAdminIndexRouteImport } from './routes/_authed/admin/index'
@@ -153,6 +154,11 @@ const SShortSlugRoute = SShortSlugRouteImport.update({
 const TagsTagSlugRoute = TagsTagSlugRouteImport.update({
   id: '/tags/$tagSlug',
   path: '/tags/$tagSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const USlugRoute = USlugRouteImport.update({
+  id: '/u/$slug',
+  path: '/u/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SlugEpisodesEpisodeSlugRoute = SlugEpisodesEpisodeSlugRouteImport.update({
@@ -281,6 +287,7 @@ export interface FileRoutesByFullPath {
   '/live/$slug': typeof LiveSlugRoute
   '/s/$shortSlug': typeof SShortSlugRoute
   '/tags/$tagSlug': typeof TagsTagSlugRoute
+  '/u/$slug': typeof USlugRoute
   '/$slug/episodes/$episodeSlug': typeof SlugEpisodesEpisodeSlugRoute
   '/$slug/manage': typeof AuthedSlugManageRoute
   '/settings/notifications': typeof AuthedSettingsNotificationsRoute
@@ -322,6 +329,7 @@ export interface FileRoutesByTo {
   '/live/$slug': typeof LiveSlugRoute
   '/s/$shortSlug': typeof SShortSlugRoute
   '/tags/$tagSlug': typeof TagsTagSlugRoute
+  '/u/$slug': typeof USlugRoute
   '/$slug/episodes/$episodeSlug': typeof SlugEpisodesEpisodeSlugRoute
   '/$slug/manage': typeof AuthedSlugManageRoute
   '/settings/notifications': typeof AuthedSettingsNotificationsRoute
@@ -366,6 +374,7 @@ export interface FileRoutesById {
   '/live/$slug': typeof LiveSlugRoute
   '/s/$shortSlug': typeof SShortSlugRoute
   '/tags/$tagSlug': typeof TagsTagSlugRoute
+  '/u/$slug': typeof USlugRoute
   '/$slug_/episodes/$episodeSlug': typeof SlugEpisodesEpisodeSlugRoute
   '/_authed/$slug/manage': typeof AuthedSlugManageRoute
   '/_authed/settings/notifications': typeof AuthedSettingsNotificationsRoute
@@ -410,6 +419,7 @@ export interface FileRouteTypes {
     | '/live/$slug'
     | '/s/$shortSlug'
     | '/tags/$tagSlug'
+    | '/u/$slug'
     | '/$slug/episodes/$episodeSlug'
     | '/$slug/manage'
     | '/settings/notifications'
@@ -451,6 +461,7 @@ export interface FileRouteTypes {
     | '/live/$slug'
     | '/s/$shortSlug'
     | '/tags/$tagSlug'
+    | '/u/$slug'
     | '/$slug/episodes/$episodeSlug'
     | '/$slug/manage'
     | '/settings/notifications'
@@ -494,6 +505,7 @@ export interface FileRouteTypes {
     | '/live/$slug'
     | '/s/$shortSlug'
     | '/tags/$tagSlug'
+    | '/u/$slug'
     | '/$slug_/episodes/$episodeSlug'
     | '/_authed/$slug/manage'
     | '/_authed/settings/notifications'
@@ -534,6 +546,7 @@ export interface RootRouteChildren {
   LiveSlugRoute: typeof LiveSlugRoute
   SShortSlugRoute: typeof SShortSlugRoute
   TagsTagSlugRoute: typeof TagsTagSlugRoute
+  USlugRoute: typeof USlugRoute
   SlugEpisodesEpisodeSlugRoute: typeof SlugEpisodesEpisodeSlugRoute
   AdminQueuesSplatRoute: typeof AdminQueuesSplatRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -697,6 +710,13 @@ declare module '@tanstack/react-router' {
       path: '/tags/$tagSlug'
       fullPath: '/tags/$tagSlug'
       preLoaderRoute: typeof TagsTagSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/u/$slug': {
+      id: '/u/$slug'
+      path: '/u/$slug'
+      fullPath: '/u/$slug'
+      preLoaderRoute: typeof USlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$slug_/episodes/$episodeSlug': {
@@ -900,6 +920,7 @@ const rootRouteChildren: RootRouteChildren = {
   LiveSlugRoute: LiveSlugRoute,
   SShortSlugRoute: SShortSlugRoute,
   TagsTagSlugRoute: TagsTagSlugRoute,
+  USlugRoute: USlugRoute,
   SlugEpisodesEpisodeSlugRoute: SlugEpisodesEpisodeSlugRoute,
   AdminQueuesSplatRoute: AdminQueuesSplatRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

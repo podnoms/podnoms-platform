@@ -1,7 +1,8 @@
 // Telling listeners about the podcasts they follow: when one goes live, and
 // when it has new episodes. Each follower gets a desktop notification
 // (push.server.ts) and an email (notifications.server.ts) for each kind
-// they've chosen, unless they've muted the podcast (podcast_follow.notify).
+// they've chosen, and it goes in their notifications menu (inbox.server.ts)
+// either way, unless they've muted the podcast (podcast_follow.notify).
 // Its owner and private podcasts are left out.
 //
 // New episodes are collected per podcast for a couple of minutes first, so a
@@ -13,6 +14,7 @@ import { episodePath, livePath, podcastPath } from '~/lib/paths'
 import { db } from '~/server/db/client.server'
 import { episodes, podcastFollows, podcasts, users } from '~/server/db/schema'
 import { isListed } from '~/server/episodes.server'
+import { recordNotification } from '~/server/inbox.server'
 import { reportError } from '~/server/logger.server'
 import { emailFollowedEpisodes, emailFollowerLive } from '~/server/notifications.server'
 import { sendPush } from '~/server/push.server'
@@ -35,6 +37,7 @@ async function followers(podcastId: string, ownerId: string, kind: 'live' | 'epi
     .innerJoin(users, eq(users.id, podcastFollows.userId))
     .where(and(eq(podcastFollows.podcastId, podcastId), eq(podcastFollows.notify, true), ne(podcastFollows.userId, ownerId)))
   return {
+    all: rows.map((row) => row.userId),
     push: rows.filter((row) => row.push).map((row) => row.userId),
     email: rows.filter((row) => row.email).map((row) => row.userId),
   }
@@ -50,14 +53,16 @@ export function notifyFollowersLive(podcastId: string, broadcastTitle: string) {
       const [podcast] = await db.select().from(podcasts).where(eq(podcasts.id, podcastId)).limit(1)
       if (!podcast || podcast.private) return
       const to = await followers(podcastId, podcast.userId, 'live')
-      for (const userId of to.email) emailFollowerLive(userId, podcast, broadcastTitle)
-      await sendPush(to.push, {
+      const message = {
         title: `${podcast.title} is live`,
         body: broadcastTitle,
         url: livePath(podcast.slug),
         icon: podcast.imageUrl,
         tag: `live-${podcastId}`,
-      })
+      }
+      await recordNotification(to.all, { kind: 'live', ...message, image: message.icon })
+      for (const userId of to.email) emailFollowerLive(userId, podcast, broadcastTitle)
+      await sendPush(to.push, message)
     })(),
   )
 }
@@ -92,8 +97,7 @@ async function flushEpisodes(podcastId: string) {
   const to = await followers(podcastId, podcast.userId, 'episodes')
   for (const userId of to.email) emailFollowedEpisodes(userId, podcast, ready)
   const [first] = ready
-  await sendPush(
-    to.push,
+  const message =
     ready.length === 1
       ? {
           title: `New from ${podcast.title}`,
@@ -108,8 +112,9 @@ async function flushEpisodes(podcastId: string) {
           url: podcastPath(podcast.slug),
           icon: podcast.imageUrl,
           tag: `episodes-${podcastId}`,
-        },
-  )
+        }
+  await recordNotification(to.all, { kind: 'followedEpisodes', ...message, image: message.icon })
+  await sendPush(to.push, message)
 }
 
 // For tests: sends every waiting batch now.

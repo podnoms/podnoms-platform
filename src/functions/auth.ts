@@ -21,7 +21,15 @@ export const fetchAuthState = createServerFn({ method: 'GET' }).handler(async ()
   const profile = session?.user?.id ? await getProfile(session.user.id) : null
   return {
     session: profile
-      ? { user: { name: profile.name, email: profile.email, image: profile.imageUrl, isAdmin: profile.isAdmin } }
+      ? {
+          user: {
+            name: profile.name,
+            slug: profile.slug,
+            email: profile.email,
+            image: profile.imageUrl,
+            isAdmin: profile.isAdmin,
+          },
+        }
       : null,
     twoFactor: null,
   }

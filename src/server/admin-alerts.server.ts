@@ -1,14 +1,15 @@
-// Emails to the site's admins about the site itself, rather than anyone's
-// podcasts: for now, a platform asking us to prove we're not a bot, which
+// Alerts to the site's admins about the site itself, rather than anyone's
+// podcasts, in their notifications menu and by email: for now, a platform asking us to prove we're not a bot, which
 // stops downloads from it for every user until someone gives yt-dlp fresh
 // cookies (YTDLP_COOKIES_FILE).
 import '@tanstack/react-start/server-only'
-import { and, eq, isNotNull, sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import type { Platform } from '~/lib/platforms'
 import { db } from '~/server/db/client.server'
 import { siteSettings, users } from '~/server/db/schema'
 import { emailEnabled, emailOrigin, sendEmail } from '~/server/email.server'
 import { botCheckEmail } from '~/server/emails.server'
+import { recordNotification } from '~/server/inbox.server'
 import { reportError } from '~/server/logger.server'
 import { internalKeyPrefix } from '~/server/site-settings.server'
 
@@ -37,18 +38,22 @@ async function claimBotCheckAlert(platform: Platform, now: Date) {
   return claimed.length > 0
 }
 
+// Goes in every admin's notifications menu, and is emailed to them when the
+// site can send email.
 export async function alertAdminsOfBotCheck(platform: Platform, error: string, now = new Date()) {
-  if (!(await emailEnabled())) return
-  const admins = await db
-    .select({ email: users.email })
-    .from(users)
-    .where(and(eq(users.isAdmin, true), isNotNull(users.email)))
+  const admins = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.isAdmin, true))
   if (!admins.length || !(await claimBotCheckAlert(platform, now))) return
   const origin = emailOrigin()
-  const message = botCheckEmail(platform, error, origin ? new URL('/admin', origin).toString() : null)
-  for (const { email } of admins) {
-    await sendEmail({ to: email!, ...message }).catch((sendError: unknown) =>
-      reportError(sendError, { msg: 'Sending a bot check alert failed', to: email }),
+  const email = botCheckEmail(platform, error, origin ? new URL('/admin', origin).toString() : null)
+  await recordNotification(
+    admins.map((admin) => admin.id),
+    { kind: 'botCheck', title: email.subject, body: email.preview, url: '/admin' },
+  )
+  if (!(await emailEnabled())) return
+  for (const { email: to } of admins) {
+    if (!to) continue
+    await sendEmail({ to, ...email }).catch((sendError: unknown) =>
+      reportError(sendError, { msg: 'Sending a bot check alert failed', to }),
     )
   }
 }

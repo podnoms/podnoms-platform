@@ -89,7 +89,11 @@ export async function deletePushSubscription(userId: string, which: { id: string
 // Everything on the settings page's desktop notifications card.
 export async function getPushSettings(userId: string) {
   const [[prefs], devices] = await Promise.all([
-    db.select({ pushLive: users.pushLive, pushNewEpisodes: users.pushNewEpisodes }).from(users).where(eq(users.id, userId)).limit(1),
+    db
+      .select({ pushLive: users.pushLive, pushNewEpisodes: users.pushNewEpisodes, pushMentions: users.pushMentions })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1),
     db
       .select({
         id: pushSubscriptions.id,
@@ -105,7 +109,10 @@ export async function getPushSettings(userId: string) {
   return { ...prefs, devices, publicKey: await pushPublicKey() }
 }
 
-export async function updatePushPrefs(userId: string, prefs: { pushLive: boolean; pushNewEpisodes: boolean }) {
+export async function updatePushPrefs(
+  userId: string,
+  prefs: { pushLive: boolean; pushNewEpisodes: boolean; pushMentions: boolean },
+) {
   await db.update(users).set(prefs).where(eq(users.id, userId))
 }
 

@@ -40,7 +40,13 @@ export const reservedPodcastSlugs = new Set([
   'src',
   'tags',
   'tos',
+  'u',
 ])
+
+// A user's public profile (see userSlugSchema).
+export function userPath(slug: string) {
+  return `/u/${slug}`
+}
 
 // The podcast's live page: its broadcast, when there is one, and its chat.
 export function livePath(slug: string) {

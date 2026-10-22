@@ -6,6 +6,7 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 import { htmlToText } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
 import { episodes, podcasts } from '~/server/db/schema'
+import { isPublished } from '~/server/episodes.server'
 
 const maxPodcasts = 5
 const maxEpisodes = 10
@@ -67,6 +68,8 @@ export async function searchLibrary(userId: string, query: string) {
         imageUrl: sql<string | null>`coalesce(${episodes.imageUrl}, ${podcasts.imageUrl})`,
         podcastTitle: podcasts.title,
         podcastSlug: podcasts.slug,
+        // Whether it has a public page yet.
+        ready: sql<boolean>`${isPublished}`,
       })
       .from(episodes)
       .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))

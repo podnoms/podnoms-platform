@@ -2,7 +2,18 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { users } from '~/server/db/schema'
 import { imagePath } from '~/server/storage.server'
-import { createUser, getProfile, hasPassword, isAdmin, setPassword, updateProfile, verifyUser } from '~/server/users.server'
+import {
+  assignUserSlug,
+  createUser,
+  getProfile,
+  getPublicProfile,
+  hasPassword,
+  isAdmin,
+  searchUsers,
+  setPassword,
+  updateProfile,
+  verifyUser,
+} from '~/server/users.server'
 import { resetDb } from '../db'
 import { createUser as insertUser, db, exists, stageTestImage, storeTestImage } from '../helpers'
 
@@ -108,6 +119,7 @@ describe('getProfile', () => {
     const user = await insertUser({ name: 'Ann', email: 'ann@example.com', image: 'https://example.com/a.png' })
     expect(await getProfile(user.id)).toEqual({
       name: 'Ann',
+      slug: user.slug,
       email: 'ann@example.com',
       description: null,
       imageUrl: 'https://example.com/a.png',
@@ -159,5 +171,51 @@ describe('updateProfile', () => {
 
   it('returns false for an unknown user', async () => {
     expect(await updateProfile('nobody', { name: 'X' })).toBe(false)
+  })
+})
+
+describe('user slugs', () => {
+  const slugOf = async (id: string) => (await db.select({ slug: users.slug }).from(users).where(eq(users.id, id)))[0]!.slug
+
+  it("gives someone who signs up a slug from their email, the first that's free", async () => {
+    await insertUser({ slug: 'ann' })
+    const user = await createUser('Ann@example.com', 'correct horse battery')
+    expect(await slugOf(user!.id)).toBe('ann-2')
+  })
+
+  it('makes one from a name, steering clear of reserved ones', async () => {
+    const first = await insertUser()
+    await assignUserSlug(first.id, 'Fergal Moran!')
+    expect(await slugOf(first.id)).toBe('fergal-moran')
+    const second = await insertUser()
+    await assignUserSlug(second.id, 'Admin')
+    expect(await slugOf(second.id)).toBe('admin-2')
+    const third = await insertUser()
+    await assignUserSlug(third.id, '✨')
+    expect(await slugOf(third.id)).toBe('user')
+  })
+
+  it("lets a user change theirs, unless someone has it", async () => {
+    await insertUser({ slug: 'taken' })
+    const user = await insertUser({ slug: 'mine' })
+    expect(await updateProfile(user.id, { name: null, slug: 'taken' })).toBe('slug-taken')
+    expect(await slugOf(user.id)).toBe('mine')
+    expect(await updateProfile(user.id, { name: null, slug: 'new-one' })).toBe(true)
+    expect(await slugOf(user.id)).toBe('new-one')
+  })
+
+  it('finds users to mention by the start of their slug, then by name', async () => {
+    await insertUser({ slug: 'bob', name: 'Annie Bobbins' })
+    await insertUser({ slug: 'ann', name: 'Ann' })
+    await insertUser({ slug: 'annette', name: null })
+    await insertUser({ slug: 'zed', name: 'Zed' })
+    expect((await searchUsers('ann')).map((user) => user.slug)).toEqual(['ann', 'annette', 'bob'])
+    expect(await searchUsers('%')).toEqual([])
+  })
+
+  it('shows a public profile by slug, whatever its case', async () => {
+    const user = await insertUser({ slug: 'ann', name: 'Ann', description: '<p>Hi</p>' })
+    expect(await getPublicProfile('ANN')).toEqual({ id: user.id, slug: 'ann', name: 'Ann', image: null, description: '<p>Hi</p>' })
+    expect(await getPublicProfile('nobody')).toBeNull()
   })
 })

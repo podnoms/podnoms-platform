@@ -1,4 +1,5 @@
-// Notification emails: to podcast owners about their podcasts (episodes that
+// Notification emails (each also goes in the notifications menu, see
+// inbox.server.ts, whether or not it's emailed): to podcast owners about their podcasts (episodes that
 // couldn't be processed, and new episodes from a channel), and to listeners
 // about the podcasts they follow (new episodes, and going live; see
 // follower-notifications.server.ts). Events are collected for a few minutes
@@ -12,11 +13,12 @@ import { db } from '~/server/db/client.server'
 import { episodes, podcasts, users } from '~/server/db/schema'
 import { emailEnabled, emailOrigin, sendEmail } from '~/server/email.server'
 import { liveEmail, notificationDigestEmail, type NotificationEvent } from '~/server/emails.server'
+import { recordNotification } from '~/server/inbox.server'
 import { reportError } from '~/server/logger.server'
 
 export const batchDelayMs = 5 * 60_000
 
-type Preference = 'notifyEpisodeFailed' | 'notifyNewEpisodes' | 'emailFollowedEpisodes' | 'emailLive'
+type Preference = 'notifyEpisodeFailed' | 'notifyNewEpisodes' | 'emailFollowedEpisodes' | 'emailLive' | 'emailMentions'
 
 const batches = new Map<string, NotificationEvent[]>()
 
@@ -83,6 +85,12 @@ export function notifyEpisodeFailed(episodeId: string, error: string | null) {
         .where(eq(episodes.id, episodeId))
         .limit(1)
       if (!row) return
+      await recordNotification([row.userId], {
+        kind: 'episodeFailed',
+        title: `${row.episodeTitle} couldn’t be processed`,
+        body: error ?? row.podcastTitle,
+        url: `${episodePath(row.podcastSlug, row.episodeSlug)}/manage`,
+      })
       await queue(row.userId, 'notifyEpisodeFailed', {
         type: 'episodeFailed',
         podcastTitle: row.podcastTitle,
@@ -104,6 +112,11 @@ export function notifyNewEpisodes(podcastId: string, count: number) {
         .where(eq(podcasts.id, podcastId))
         .limit(1)
       if (!podcast) return
+      await recordNotification([podcast.userId], {
+        kind: 'channelEpisodes',
+        title: `${count === 1 ? 'A new episode' : `${count} new episodes`} from ${podcast.title}’s channel`,
+        url: `${podcastPath(podcast.slug)}/manage`,
+      })
       await queue(podcast.userId, 'notifyNewEpisodes', {
         type: 'newEpisodes',
         podcastTitle: podcast.title,
@@ -143,6 +156,12 @@ export function emailFollowerLive(userId: string, podcast: { title: string; slug
       })
     })(),
   )
+}
+
+// Someone mentioned the user in a comment, or replied to theirs, for their
+// next email.
+export function emailCommentNotice(userId: string, event: Extract<NotificationEvent, { type: 'comment' }>) {
+  safely(queue(userId, 'emailMentions', event))
 }
 
 // For tests: sends every waiting batch now.

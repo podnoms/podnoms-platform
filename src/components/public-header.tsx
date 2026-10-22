@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { ModeToggle } from '~/components/mode-toggle'
+import { NotificationsMenu } from '~/components/notifications-menu'
 import { Button } from '~/components/ui/button'
 import { UserMenu } from '~/components/user-menu'
 
@@ -20,6 +21,7 @@ export function PublicHeader() {
           </Link>
         </Button>
         <ModeToggle />
+        <NotificationsMenu />
         <UserMenu />
       </div>
     </header>

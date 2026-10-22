@@ -1,9 +1,17 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { addComment, deleteComment, listComments } from '~/server/comments.server'
+import { eq } from 'drizzle-orm'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { notifyCommentRecipients } from '~/server/comment-notifications.server'
+import { addComment, deleteComment, listComments, setCommentLike } from '~/server/comments.server'
+import { users } from '~/server/db/schema'
 import { resetDb } from '../db'
 import { createEpisode, createPodcast, createUser, db } from '../helpers'
 
-beforeEach(() => resetDb(db))
+vi.mock('~/server/comment-notifications.server', () => ({ notifyCommentRecipients: vi.fn() }))
+
+beforeEach(async () => {
+  await resetDb(db)
+  vi.mocked(notifyCommentRecipients).mockReset()
+})
 
 const ready = { status: 'ready' as const, audioUrl: '/api/episodes/x/audio', durationSeconds: 600 }
 
@@ -72,3 +80,98 @@ describe('deleteComment', () => {
     expect(await listComments(episode.id, null)).toEqual([])
   })
 })
+
+describe('replies', () => {
+  it('lists replies under their comment, oldest first, at its time, and a reply to a reply joins the thread', async () => {
+    const { podcast } = await show()
+    const episode = await createEpisode(podcast.id, ready)
+    const ann = await createUser({ name: 'Ann' })
+    const bob = await createUser({ name: 'Bob' })
+    const [top] = (await addComment(ann.id, episode.id, 'Top', 120))!
+    const [withReply] = (await addComment(bob.id, episode.id, 'First reply', 5, top!.id))!
+    await addComment(ann.id, episode.id, 'Reply to the reply', 5, withReply!.replies[0]!.id)
+    const comments = await listComments(episode.id, null)
+    expect(comments).toHaveLength(1)
+    expect(comments[0]!.replies).toMatchObject([
+      { body: 'First reply', atSeconds: 120, parentId: top!.id, author: { name: 'Bob' } },
+      { body: 'Reply to the reply', atSeconds: 120, parentId: top!.id, author: { name: 'Ann' } },
+    ])
+  })
+
+  it("won't reply to a comment on another episode", async () => {
+    const { podcast } = await show()
+    const one = await createEpisode(podcast.id, ready)
+    const other = await createEpisode(podcast.id, ready)
+    const user = await createUser()
+    const [top] = (await addComment(user.id, one.id, 'Here', 1))!
+    expect(await addComment(user.id, other.id, 'There', 1, top!.id)).toBeNull()
+  })
+
+  it('goes with its comment when that is deleted', async () => {
+    const { podcast } = await show()
+    const episode = await createEpisode(podcast.id, ready)
+    const user = await createUser()
+    const [top] = (await addComment(user.id, episode.id, 'Top', 1))!
+    await addComment(user.id, episode.id, 'Reply', 1, top!.id)
+    await deleteComment(user.id, top!.id)
+    expect(await listComments(episode.id, null)).toEqual([])
+  })
+})
+
+describe('mentions', () => {
+  it("stores mentions of users who exist by their id, so they follow a new slug, and tells them", async () => {
+    const { podcast } = await show()
+    const episode = await createEpisode(podcast.id, ready)
+    const writer = await createUser()
+    const ann = await createUser({ slug: 'ann', name: 'Ann' })
+    const [comment] = (await addComment(writer.id, episode.id, 'Hey @Ann and @nobody, mail me at me@ann.ie', 1))!
+    expect(comment!.body).toBe(`Hey <@${ann.id}> and @nobody, mail me at me@ann.ie`)
+    expect(comment!.mentions).toEqual({ [ann.id]: { slug: 'ann', name: 'Ann' } })
+    expect(notifyCommentRecipients).toHaveBeenCalledOnce()
+
+    await db.update(users).set({ slug: 'annie' }).where(eq(users.id, ann.id))
+    const [again] = await listComments(episode.id, null)
+    expect(again!.mentions).toEqual({ [ann.id]: { slug: 'annie', name: 'Ann' } })
+  })
+})
+
+describe('likes', () => {
+  it('counts likes, says whether the viewer likes each, and likes once per user', async () => {
+    const { podcast } = await show()
+    const episode = await createEpisode(podcast.id, ready)
+    const ann = await createUser()
+    const bob = await createUser()
+    const [comment] = (await addComment(ann.id, episode.id, 'Like me', 1))!
+    expect(await setCommentLike(ann.id, comment!.id, true)).toEqual({ likeCount: 1, liked: true })
+    expect(await setCommentLike(ann.id, comment!.id, true)).toEqual({ likeCount: 1, liked: true })
+    expect(await setCommentLike(bob.id, comment!.id, true)).toEqual({ likeCount: 2, liked: true })
+    expect((await listComments(episode.id, ann.id))[0]).toMatchObject({ likeCount: 2, liked: true })
+    expect((await listComments(episode.id, null))[0]).toMatchObject({ likeCount: 2, liked: false })
+    expect(await setCommentLike(bob.id, comment!.id, false)).toEqual({ likeCount: 1, liked: false })
+  })
+
+  it("can't like a comment on an episode the user can't see", async () => {
+    const { owner, podcast } = await show()
+    const episode = await createEpisode(podcast.id, { ...ready, private: true })
+    const [comment] = (await addComment(owner.id, episode.id, 'Mine', 1))!
+    expect(await setCommentLike((await createUser()).id, comment!.id, true)).toBeNull()
+  })
+})
+
+describe('GIFs', () => {
+  const gif = { provider: 'giphy' as const, id: 'g1', title: 'Wave', url: 'https://media.giphy.com/media/g1/giphy.gif', width: 200, height: 150 }
+
+  it('takes a GIF with words, or alone, but not nothing at all', async () => {
+    const { podcast } = await show()
+    const episode = await createEpisode(podcast.id, ready)
+    const user = await createUser()
+    await addComment(user.id, episode.id, 'Ha', 5, null, gif)
+    await addComment(user.id, episode.id, '', 6, null, gif)
+    expect(await addComment(user.id, episode.id, '   ', 7)).toBeNull()
+    expect((await listComments(episode.id, null)).map((comment) => [comment.body, comment.gif])).toEqual([
+      ['Ha', gif],
+      ['', gif],
+    ])
+  })
+})
+

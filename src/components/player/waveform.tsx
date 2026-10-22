@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { cn } from 'cn'
+import { Icons } from '~/components/icons'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { formatClock } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
@@ -14,7 +15,7 @@ const barGap = 1
 // The bars, and their reflection below at a fraction of the height: full
 // size on an episode's page, compact in lists. Mini, in the player bar, has
 // no reflection: at that size it reads as a split down the middle.
-const sizes = {
+export const waveformSizes = {
   default: { barsHeight: 88, reflectionHeight: 28 },
   compact: { barsHeight: 40, reflectionHeight: 14 },
   mini: { barsHeight: 32, reflectionHeight: 0 },
@@ -28,13 +29,17 @@ const tones = {
 // A Mixcloud-style waveform that shows how far through the episode the
 // listener is. Click or drag to seek; arrow keys seek by 5 seconds, Page
 // Up/Down by 30. Markers (such as where comments were made) show as tiny
-// avatars along the bottom, with their title on hover.
+// avatars along the bottom, with their title on hover. With `onComment`, the
+// bottom band (the reflection) is for commenting, as on SoundCloud: hovering
+// it shows a + at the pointer, and clicking it calls onComment with that
+// time, though pressing a marker still seeks to it.
 export function Waveform({
   values,
   duration,
   position,
   onSeek,
   markers = [],
+  onComment,
   size = 'default',
   tone = 'primary',
   className,
@@ -45,13 +50,14 @@ export function Waveform({
   position: number
   onSeek: (seconds: number) => void
   markers?: WaveformMarker[]
-  size?: keyof typeof sizes
+  onComment?: (seconds: number) => void
+  size?: keyof typeof waveformSizes
   // The played part's colour: the theme's primary, or its foreground where
   // primary would be too loud (the player bar).
   tone?: keyof typeof tones
   className?: string
 }) {
-  const { barsHeight, reflectionHeight } = sizes[size]
+  const { barsHeight, reflectionHeight } = waveformSizes[size]
   const height = reflectionHeight ? barsHeight + 1 + reflectionHeight : barsHeight
   const id = useId()
   const container = useRef<HTMLDivElement>(null)
@@ -59,6 +65,10 @@ export function Waveform({
   // Where the pointer is, as a fraction of the width, while hovering or dragging.
   const [hover, setHover] = useState<number | null>(null)
   const [dragging, setDragging] = useState(false)
+  // Whether the pointer is in the comment band (and not on a marker), and
+  // whether it was pressed there.
+  const [commenting, setCommenting] = useState(false)
+  const [commentPressed, setCommentPressed] = useState(false)
 
   useEffect(() => {
     const element = container.current
@@ -80,6 +90,22 @@ export function Waveform({
   function fractionAt(event: PointerEvent<HTMLDivElement>) {
     const rect = event.currentTarget.getBoundingClientRect()
     return Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width))
+  }
+
+  // The time of the marker under the pointer, if any.
+  function markerAt(event: PointerEvent<HTMLDivElement>) {
+    const element = (event.target as Element).closest<HTMLElement>('[data-marker-seconds]')
+    return element ? Number(element.dataset.markerSeconds) : null
+  }
+
+  function inCommentBand(event: PointerEvent<HTMLDivElement>) {
+    if (!onComment || !reflectionHeight || !duration) return false
+    return event.clientY - event.currentTarget.getBoundingClientRect().top > barsHeight
+  }
+
+  function track(event: PointerEvent<HTMLDivElement>) {
+    setHover(fractionAt(event))
+    setCommenting(!dragging && inCommentBand(event) && markerAt(event) === null)
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -120,18 +146,35 @@ export function Waveform({
       style={{ height }}
       onKeyDown={onKeyDown}
       onPointerDown={(event) => {
+        if (inCommentBand(event)) {
+          setCommentPressed(true)
+          return
+        }
         event.currentTarget.setPointerCapture(event.pointerId)
         setDragging(true)
         setHover(fractionAt(event))
       }}
-      onPointerMove={(event) => setHover(fractionAt(event))}
+      onPointerMove={track}
       onPointerUp={(event) => {
+        if (commentPressed) {
+          setCommentPressed(false)
+          if (!inCommentBand(event)) return
+          const marker = markerAt(event)
+          if (marker !== null) onSeek(marker)
+          else onComment?.(fractionAt(event) * duration)
+          return
+        }
         if (!dragging) return
         setDragging(false)
         onSeek(fractionAt(event) * duration)
       }}
-      onPointerCancel={() => setDragging(false)}
+      onPointerCancel={() => {
+        setDragging(false)
+        setCommentPressed(false)
+      }}
       onPointerLeave={() => {
+        setCommentPressed(false)
+        setCommenting(false)
         if (!dragging) setHover(null)
       }}
     >
@@ -149,7 +192,7 @@ export function Waveform({
             <path d={upper} />
             <path d={lower} opacity={0.5} />
           </g>
-          {hover !== null && !dragging && (
+          {hover !== null && !dragging && !commenting && (
             <g className={tones[tone].hover} clipPath={`url(#${id}-hover)`}>
               <path d={upper} />
               <path d={lower} opacity={0.5} />
@@ -163,10 +206,11 @@ export function Waveform({
       )}
       {duration > 0 &&
         markers.map((marker) => (
-          // Pressing one seeks like anywhere else on the waveform.
+          // Pressing one seeks to it.
           <Avatar
             key={marker.id}
             aria-hidden="true"
+            data-marker-seconds={marker.seconds}
             title={`${formatClock(marker.seconds)} · ${marker.title}`}
             className="absolute bottom-0 size-5 -translate-x-1/2 ring-2 ring-card hover:z-10"
             style={{ left: `${Math.min(100, (marker.seconds / duration) * 100)}%` }}
@@ -175,12 +219,20 @@ export function Waveform({
             <AvatarFallback className="bg-primary text-[8px] text-primary-foreground">{marker.fallback}</AvatarFallback>
           </Avatar>
         ))}
+      {commenting && hover !== null && (
+        <div
+          className="pointer-events-none absolute flex size-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-foreground text-background shadow-sm"
+          style={{ left: `${hover * 100}%`, top: barsHeight }}
+        >
+          <Icons.add className="size-3.5" strokeWidth={3} />
+        </div>
+      )}
       {hover !== null && duration > 0 && (
         <div
-          className="pointer-events-none absolute top-0 -translate-x-1/2 rounded bg-foreground px-1.5 py-0.5 text-xs text-background tabular-nums"
-          style={{ left: `${Math.min(Math.max(hover * 100, 4), 96)}%` }}
+          className="pointer-events-none absolute top-0 -translate-x-1/2 rounded bg-foreground px-1.5 py-0.5 text-xs whitespace-nowrap text-background tabular-nums"
+          style={{ left: `${Math.min(Math.max(hover * 100, commenting ? 8 : 4), commenting ? 92 : 96)}%` }}
         >
-          {formatClock(hover * duration)}
+          {commenting ? `Comment at ${formatClock(hover * duration)}` : formatClock(hover * duration)}
         </div>
       )}
     </div>

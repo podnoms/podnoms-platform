@@ -22,9 +22,22 @@ describe('searchLibrary', () => {
           imageUrl: null,
           podcastTitle: 'Deep House Sessions',
           podcastSlug: 'deep-house',
+          ready: false,
           excerpt: null,
         },
       ],
+    })
+  })
+
+  it('says which episodes have a public page yet', async () => {
+    const user = await createUser()
+    const podcast = await createPodcast(user.id)
+    await createEpisode(podcast.id, { title: 'Ready mix', status: 'ready', audioUrl: '/a' })
+    await createEpisode(podcast.id, { title: 'Pending mix' })
+    const { episodes } = await searchLibrary(user.id, 'mix')
+    expect(Object.fromEntries(episodes.map((episode) => [episode.title, episode.ready]))).toEqual({
+      'Ready mix': true,
+      'Pending mix': false,
     })
   })
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { EpisodeComments } from '~/components/episode-comments'
+import { EpisodeComments, WaveformCommentBox } from '~/components/episode-comments'
 import { Icons } from '~/components/icons'
 import { LikeButton } from '~/components/like-button'
 import { usePlayer } from '~/components/player/player-provider'
@@ -8,10 +8,12 @@ import { Waveform } from '~/components/player/waveform'
 import { EmbedButton, ShareButton } from '~/components/share-buttons'
 import { TagList } from '~/components/tag-list'
 import { Button } from '~/components/ui/button'
+import { Popover, PopoverAnchor, PopoverContent } from '~/components/ui/popover'
 import { Slider } from '~/components/ui/slider'
 import type { fetchEpisodePage } from '~/functions/public'
 import { formatClock, formatDate, initials, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
+import { mentionsAsText } from '~/lib/user-slug'
 
 export type EpisodePageData = Awaited<ReturnType<typeof fetchEpisodePage>>
 
@@ -28,6 +30,8 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
   const [comments, setComments] = useState(page.comments)
   // Another episode, or a reload, brings its own.
   useEffect(() => setComments(page.comments), [page.comments])
+  // Where the listener clicked the waveform's comment band, while its box is open.
+  const [commentAt, setCommentAt] = useState<number | null>(null)
 
   const isCurrent = player.episode?.id === episode.id
   const isPlaying = isCurrent && player.playing
@@ -143,23 +147,48 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
 
       <section aria-label="Player" className="flex flex-col gap-2 rounded-xl border bg-card p-4">
         {waveform ? (
-          <Waveform
-            values={waveform}
-            duration={duration}
-            position={position}
-            onSeek={seek}
-            markers={
-              standalone
-                ? []
-                : comments.map((comment) => ({
-                    id: comment.id,
-                    seconds: comment.atSeconds,
-                    image: comment.author.image,
-                    fallback: initials(comment.author.name, null),
-                    title: `${comment.author.name ?? 'A listener'}: ${comment.body}`,
-                  }))
-            }
-          />
+          // Clicking the waveform's comment band opens a box there for a comment
+          // at that point.
+          <Popover open={commentAt !== null} onOpenChange={(open) => !open && setCommentAt(null)}>
+            <div className="relative">
+              <Waveform
+                values={waveform}
+                duration={duration}
+                position={position}
+                onSeek={seek}
+                onComment={standalone ? undefined : setCommentAt}
+                markers={
+                  standalone
+                    ? []
+                    : comments.map((comment) => ({
+                        id: comment.id,
+                        seconds: comment.atSeconds,
+                        image: comment.author.image,
+                        fallback: initials(comment.author.name, null),
+                        title: `${comment.author.name ?? `@${comment.author.slug}`}: ${mentionsAsText(comment.body, comment.mentions) || 'GIF'}`,
+                      }))
+                }
+              />
+              {commentAt !== null && duration > 0 && (
+                <PopoverAnchor
+                  className="pointer-events-none absolute top-full size-0"
+                  style={{ left: `${(commentAt / duration) * 100}%` }}
+                />
+              )}
+            </div>
+            <PopoverContent side="bottom" className="w-80">
+              {commentAt !== null && (
+                <WaveformCommentBox
+                  key={commentAt}
+                  episodeId={episode.id}
+                  atSeconds={commentAt}
+                  gifs={page.gifs}
+                  onChange={setComments}
+                  onDone={() => setCommentAt(null)}
+                />
+              )}
+            </PopoverContent>
+          </Popover>
         ) : (
           // Waveforms are made just after processing; until then, a plain seek bar.
           <Slider
@@ -213,6 +242,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
         <EpisodeComments
           episodeId={episode.id}
           comments={comments}
+          gifs={page.gifs}
           onChange={setComments}
           position={position}
           playing={isPlaying}

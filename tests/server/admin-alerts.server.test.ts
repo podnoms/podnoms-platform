@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { alertAdminsOfBotCheck, alertIfBotCheck, botCheckAlertIntervalMs } from '~/server/admin-alerts.server'
 import { RateLimitedError, resetThrottle, withDownloadSlot } from '~/server/download-throttle.server'
 import { renderEmail, type EmailMessage } from '~/server/emails.server'
+import { listNotifications } from '~/server/inbox.server'
 import { getSiteSettings } from '~/server/site-settings.server'
 import { resetDb } from '../db'
 import { createUser, db } from '../helpers'
@@ -65,13 +66,16 @@ describe('bot check alerts', () => {
     expect(email.sendEmail).toHaveBeenCalledTimes(1)
   })
 
-  it("doesn't use up its turn when email is off", async () => {
-    await createUser({ email: 'admin@example.com', isAdmin: true })
+  it("goes in every admin's notifications, emailed or not", async () => {
+    const admin = await createUser({ email: 'admin@example.com', isAdmin: true })
+    const listener = await createUser()
     email.enabled = false
     await alertAdminsOfBotCheck('youtube', botCheck)
-    email.enabled = true
-    await alertAdminsOfBotCheck('youtube', botCheck)
-    expect(email.sendEmail).toHaveBeenCalledTimes(1)
+    expect(email.sendEmail).not.toHaveBeenCalled()
+    expect((await listNotifications(admin.id)).items).toMatchObject([
+      { kind: 'botCheck', title: 'YouTube is asking podnoms to prove it isn’t a bot', url: '/admin', read: false },
+    ])
+    expect((await listNotifications(listener.id)).items).toEqual([])
   })
 
   it('ignores other failures', async () => {

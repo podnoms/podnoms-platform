@@ -106,8 +106,15 @@ function SearchPalette({ close }: { close: () => void }) {
     void to()
   }
   const openPodcast = (slug: string) => go(() => navigate({ to: '/$slug/manage', params: { slug } }))
-  const openEpisode = (slug: string, episodeSlug: string) =>
-    go(() => navigate({ to: '/$slug/episodes/$episodeSlug/manage', params: { slug, episodeSlug } }))
+  // Its public page once it's ready (which links on to managing it); until
+  // then, only its manage page shows it.
+  const openEpisode = (slug: string, episodeSlug: string, ready: boolean) =>
+    go(() =>
+      navigate({
+        to: ready ? '/$slug/episodes/$episodeSlug' : '/$slug/episodes/$episodeSlug/manage',
+        params: { slug, episodeSlug },
+      }),
+    )
 
   // Results for an earlier query stay up until the new ones arrive.
   const found = trimmed ? results?.found : null
@@ -157,7 +164,7 @@ function SearchPalette({ close }: { close: () => void }) {
                   <CommandItem
                     key={episode.id}
                     value={`episode-${episode.id}`}
-                    onSelect={() => openEpisode(episode.podcastSlug, episode.slug)}
+                    onSelect={() => openEpisode(episode.podcastSlug, episode.slug, episode.ready)}
                   >
                     <Artwork url={episode.imageUrl} />
                     <ResultText title={episode.title} detail={episode.excerpt ?? episode.podcastTitle} />

@@ -232,6 +232,20 @@
       "when": 1792706944219,
       "tag": "0032_follower_emails",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792708786602,
+      "tag": "0033_comment_threads",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792710826579,
+      "tag": "0034_comment_gifs_and_inbox",
+      "breakpoints": true
     }
   ]
 }

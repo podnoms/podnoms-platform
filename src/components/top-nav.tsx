@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { DiscordLink } from '~/components/discord-link'
 import { DonateDialog } from '~/components/donate-dialog'
 import { ModeToggle } from '~/components/mode-toggle'
+import { NotificationsMenu } from '~/components/notifications-menu'
 import { SearchCommand } from '~/components/search-command'
 import {
   NavigationMenu,
@@ -37,6 +38,7 @@ export function TopNav() {
         <DiscordLink />
         <SearchCommand />
         <ModeToggle />
+        <NotificationsMenu />
         <UserMenu />
       </div>
     </header>

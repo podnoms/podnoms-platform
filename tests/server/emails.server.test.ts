@@ -73,6 +73,24 @@ describe('notificationDigestEmail', () => {
     )
   })
 
+  it('says who mentioned or replied to the user', async () => {
+    const comment = {
+      type: 'comment' as const,
+      kind: 'mention' as const,
+      authorName: 'Ann',
+      episodeTitle: 'Ep 1',
+      podcastTitle: 'Show',
+      excerpt: 'Hey @you',
+      link: `${origin}/show/episodes/ep-1#comment-1`,
+    }
+    expect(notificationDigestEmail([comment], null).subject).toBe('Ann mentioned you')
+    expect(notificationDigestEmail([{ ...comment, kind: 'reply' }], null).subject).toBe('Ann replied to you')
+    expect(notificationDigestEmail([comment, comment], null).subject).toBe('2 mentions and replies on podnoms')
+    const { text } = await renderEmail(notificationDigestEmail([comment], null), origin)
+    expect(text).toContain('Hey @you')
+    expect(text).toContain(`${origin}/show/episodes/ep-1#comment-1`)
+  })
+
   it('lists the episodes of a podcast the user follows', async () => {
     const followed = { type: 'followedEpisodes' as const, podcastTitle: 'Loved', titles: ['One', 'Two'], link: `${origin}/loved` }
     const { text } = await renderEmail(notificationDigestEmail([followed], null), origin)

@@ -17,4 +17,5 @@ export const removePushSubscriptionSchema = z.union([
 export const pushPrefsSchema = z.object({
   pushLive: z.boolean(),
   pushNewEpisodes: z.boolean(),
+  pushMentions: z.boolean(),
 })

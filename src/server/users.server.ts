@@ -2,8 +2,10 @@
 import '@tanstack/react-start/server-only'
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto'
 import { promisify } from 'node:util'
-import { eq, sql } from 'drizzle-orm'
+import { asc, eq, ilike, inArray, like, or, sql } from 'drizzle-orm'
 import type { EditProfileInput } from '~/lib/profile-schema'
+import { firstFreeSlug } from '~/lib/slug'
+import { reservedUserSlugs, userSlugBase } from '~/lib/user-slug'
 import { db } from '~/server/db/client.server'
 import { users } from '~/server/db/schema'
 import { commitImage, deleteImage } from '~/server/images.server'
@@ -43,7 +45,36 @@ export async function createUser(email: string, password: string): Promise<User 
     .values({ email, passwordHash, isAdmin: firstUserIsAdmin })
     .onConflictDoNothing()
     .returning({ id: users.id, email: users.email })
-  return user?.email ? { id: user.id, email: user.email } : null
+  if (!user?.email) return null
+  await assignUserSlug(user.id, email.split('@')[0]!)
+  return { id: user.id, email: user.email }
+}
+
+// Whether the error is the database refusing a user slug that's taken.
+function isUserSlugConflict(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false
+  // Drizzle wraps the database's error in its own.
+  if ('cause' in error && isUserSlugConflict(error.cause)) return true
+  const { code, constraint_name } = error as { code?: string; constraint_name?: string }
+  return code === '23505' && constraint_name === 'user_slug_unique'
+}
+
+// Gives a new user a slug from `source` (their name, or their email's local
+// part) in place of the placeholder they start with: the first of base,
+// base-2, base-3... that's free. If someone takes it meanwhile, they keep the
+// placeholder, which they can change.
+export async function assignUserSlug(userId: string, source: string) {
+  const base = userSlugBase(source)
+  const taken = await db
+    .select({ slug: users.slug })
+    .from(users)
+    .where(or(eq(users.slug, base), like(users.slug, `${base}-%`)))
+  const slug = firstFreeSlug(base, new Set([...taken.map((row) => row.slug), ...reservedUserSlugs]))
+  try {
+    await db.update(users).set({ slug }).where(eq(users.id, userId))
+  } catch (error) {
+    if (!isUserSlugConflict(error)) throw error
+  }
 }
 
 export async function verifyUser(email: string, password: string): Promise<User | null> {
@@ -100,6 +131,7 @@ export async function getNotificationPrefs(userId: string) {
       notifyNewEpisodes: users.notifyNewEpisodes,
       emailLive: users.emailLive,
       emailFollowedEpisodes: users.emailFollowedEpisodes,
+      emailMentions: users.emailMentions,
     })
     .from(users)
     .where(eq(users.id, userId))
@@ -109,7 +141,13 @@ export async function getNotificationPrefs(userId: string) {
 
 export async function updateNotificationPrefs(
   userId: string,
-  prefs: { notifyEpisodeFailed: boolean; notifyNewEpisodes: boolean; emailLive: boolean; emailFollowedEpisodes: boolean },
+  prefs: {
+    notifyEpisodeFailed: boolean
+    notifyNewEpisodes: boolean
+    emailLive: boolean
+    emailFollowedEpisodes: boolean
+    emailMentions: boolean
+  },
 ) {
   await db.update(users).set(prefs).where(eq(users.id, userId))
 }
@@ -120,6 +158,7 @@ export async function getProfile(userId: string) {
   const [profile] = await db
     .select({
       name: users.name,
+      slug: users.slug,
       email: users.email,
       description: users.description,
       imageUrl: users.image,
@@ -131,10 +170,19 @@ export async function getProfile(userId: string) {
   return profile ?? null
 }
 
-// Returns false if the user doesn't exist.
-export async function updateProfile(userId: string, input: EditProfileInput) {
+// Returns false if the user doesn't exist, and 'slug-taken' (changing
+// nothing) if someone else has the slug.
+export async function updateProfile(userId: string, input: EditProfileInput): Promise<boolean | 'slug-taken'> {
   const profile = await getProfile(userId)
   if (!profile) return false
+  if (input.slug && input.slug !== profile.slug) {
+    try {
+      await db.update(users).set({ slug: input.slug }).where(eq(users.id, userId))
+    } catch (error) {
+      if (isUserSlugConflict(error)) return 'slug-taken'
+      throw error
+    }
+  }
   const imageUrl =
     input.imageId === undefined ? profile.imageUrl : input.imageId ? await commitImage(userId, input.imageId) : null
   await db
@@ -143,6 +191,39 @@ export async function updateProfile(userId: string, input: EditProfileInput) {
     .where(eq(users.id, userId))
   if (imageUrl !== profile.imageUrl) await deleteImage(profile.imageUrl)
   return true
+}
+
+// Users whose slug starts with, or name contains, `query`, for @mentioning
+// in comments: slug matches first, then by slug.
+export async function searchUsers(query: string, limit = 8) {
+  const q = query.trim().toLowerCase().replace(/[%_\\]/g, '')
+  if (!q) return []
+  const slugMatch = like(users.slug, `${q}%`)
+  return db
+    .select({ slug: users.slug, name: users.name, image: users.image })
+    .from(users)
+    .where(or(slugMatch, ilike(users.name, `%${q}%`)))
+    .orderBy(sql`case when ${slugMatch} then 0 else 1 end`, asc(users.slug))
+    .limit(limit)
+}
+
+// What anyone may see of a user, for their profile page (/u/<slug>).
+export async function getPublicProfile(slug: string) {
+  const [user] = await db
+    .select({ id: users.id, slug: users.slug, name: users.name, image: users.image, description: users.description })
+    .from(users)
+    .where(eq(users.slug, slug.toLowerCase()))
+    .limit(1)
+  return user ?? null
+}
+
+// The users with these slugs, for resolving @mentions.
+export async function usersBySlug(slugs: string[]) {
+  if (!slugs.length) return []
+  return db
+    .select({ id: users.id, slug: users.slug })
+    .from(users)
+    .where(inArray(users.slug, slugs))
 }
 
 export async function isAdmin(userId: string) {

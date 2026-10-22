@@ -22,10 +22,12 @@ import {
   summarisePublishedEpisodes,
 } from '~/server/episodes.server'
 import { feedPath } from '~/server/feed.server'
-import { getOpenBroadcast, liveEnabled } from '~/server/live.server'
+import { getOpenBroadcast, gifConfig, liveEnabled } from '~/server/live.server'
+import { listUserPodcasts } from '~/server/library.server'
 import { getPublicPodcast } from '~/server/podcasts.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import { getEpisodeTags, getPodcastTags, withEpisodeTags } from '~/server/tags-store.server'
+import { getPublicProfile } from '~/server/users.server'
 import { readWaveform, withWaveforms } from '~/server/waveforms.server'
 
 async function visitor() {
@@ -47,6 +49,23 @@ function previewImage(artwork: string | null, absolute: (path: string) => string
   const image = openGraphImage(artwork)
   return { ...image, url: absolute(image.url) }
 }
+
+// A user's public profile (/u/<slug>): who they are, and their public podcasts.
+export const fetchUserProfile = createServerFn({ method: 'GET' })
+  .validator(z.object({ slug: z.string() }))
+  .handler(async ({ data }) => {
+    const { userId } = await visitor()
+    const profile = await getPublicProfile(data.slug)
+    if (!profile) throw notFound()
+    const { id, ...rest } = profile
+    return {
+      ...rest,
+      // Sanitised when saved; again here, as it's rendered as HTML.
+      description: sanitizeDescription(profile.description),
+      isYou: userId === id,
+      podcasts: await listUserPodcasts(userId, id),
+    }
+  })
 
 // A podcast's public page, with its first page of episodes; the rest are
 // fetched with fetchPodcastEpisodes as the list is scrolled.
@@ -141,6 +160,8 @@ async function episodePage(slug: string, episodeSlug: string) {
     },
     isOwner: userId === ownerId,
     comments,
+    // For GIFs in comments: the provider and its public key, or null without one.
+    gifs: gifConfig(),
     // The episodes either side of this one, for "More from" the podcast.
     moreEpisodes,
     pageUrl: absolute(episodePath(podcast.slug, episode.slug)),

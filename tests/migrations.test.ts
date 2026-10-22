@@ -21,6 +21,32 @@ async function runMigration(pg: PGlite, tag: string) {
 const tagOf = (prefix: string) => migrationStatements().find((m) => m.tag.startsWith(prefix))!.tag
 
 describe('migrations', () => {
+  it('0033 gives every user a slug from their name or email, each unique', async () => {
+    const pg = new PGlite()
+    try {
+      await migrateUntil(pg, tagOf('0033'))
+      await pg.exec(`insert into "user" (id, name, email) values
+        ('a', 'Fergal Moran', 'f@example.com'),
+        ('b', 'Fergal  Moran!', 'other@example.com'),
+        ('c', null, 'Jo.Bloggs@example.com'),
+        ('d', '✨', 'x@example.com'),
+        ('e', null, null),
+        ('f', 'A very long name that goes on and on past thirty', null);`)
+      await runMigration(pg, tagOf('0033'))
+      const { rows } = await pg.query<{ id: string; slug: string }>('select id, slug from "user" order by id')
+      expect(Object.fromEntries(rows.map((row) => [row.id, row.slug]))).toEqual({
+        a: 'fergal-moran',
+        b: 'fergal-moran-2',
+        c: 'jo-bloggs',
+        d: 'user',
+        e: 'user-2',
+        f: 'a-very-long-name-that-goes-on',
+      })
+    } finally {
+      await pg.close()
+    }
+  })
+
   it("0030 re-keys yt-dlp's Mixcloud uploads by their page and deletes the episodes imported twice", async () => {
     const pg = new PGlite()
     try {
@@ -102,6 +128,8 @@ describe('migrations', () => {
     expect(rows.map((r) => r.tablename)).toEqual([
       'channel',
       'channel_item',
+      'comment_like',
+      'comment_mention',
       'episode',
       'episode_activity',
       'episode_comment',
@@ -109,6 +137,7 @@ describe('migrations', () => {
       'episode_tag',
       'live_broadcast',
       'live_chat_message',
+      'notification',
       'playback_position',
       'podcast',
       'podcast_follow',

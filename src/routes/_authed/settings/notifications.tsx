@@ -18,7 +18,7 @@ export const Route = createFileRoute('/_authed/settings/notifications')({
   component: NotificationsPage,
 })
 
-type Pref = 'notifyEpisodeFailed' | 'notifyNewEpisodes' | 'emailLive' | 'emailFollowedEpisodes'
+type Pref = 'notifyEpisodeFailed' | 'notifyNewEpisodes' | 'emailLive' | 'emailFollowedEpisodes' | 'emailMentions'
 type Option = { pref: Pref; label: string; description: string }
 
 const yourPodcasts: Option[] = [
@@ -31,6 +31,14 @@ const yourPodcasts: Option[] = [
     pref: 'notifyNewEpisodes',
     label: 'New episodes from channels',
     description: 'When a podcast that follows a YouTube channel, or a Mixcloud or SoundCloud account, picks up new uploads.',
+  },
+]
+
+const aboutYou: Option[] = [
+  {
+    pref: 'emailMentions',
+    label: 'Mentions and replies',
+    description: 'When someone @mentions you in a comment, or replies to yours.',
   },
 ]
 
@@ -53,9 +61,9 @@ function NotificationsPage() {
   async function toggle(pref: Pref, value: boolean) {
     setError(undefined)
     try {
-      const { notifyEpisodeFailed, notifyNewEpisodes, emailLive, emailFollowedEpisodes } = prefs
+      const { notifyEpisodeFailed, notifyNewEpisodes, emailLive, emailFollowedEpisodes, emailMentions } = prefs
       await saveNotificationPrefs({
-        data: { notifyEpisodeFailed, notifyNewEpisodes, emailLive, emailFollowedEpisodes, [pref]: value },
+        data: { notifyEpisodeFailed, notifyNewEpisodes, emailLive, emailFollowedEpisodes, emailMentions, [pref]: value },
       })
       await reload()
     } catch {
@@ -100,6 +108,7 @@ function NotificationsPage() {
         <CardContent>
           <FieldGroup>
             {switches('Your podcasts', yourPodcasts)}
+            {switches('You', aboutYou)}
             {switches('Podcasts you follow', followedPodcasts)}
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>

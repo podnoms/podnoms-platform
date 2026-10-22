@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { episodePageSchema, episodePageSize } from '~/lib/episode-pages'
 import { bulkUploadEpisodesSchema, editEpisodeSchema, linkLookupSchema, newEpisodeSchema, replaceAudioSchema } from '~/lib/episode-schema'
 import { shortPath, trackedSharePath } from '~/lib/paths'
+import { mentionsAsText } from '~/lib/user-slug'
 import {
   customDomainSchema,
   directoryDetailsSchema,
@@ -16,6 +17,7 @@ import { getSession } from '~/server/auth.server'
 import { getOpenBroadcast, liveEnabled } from '~/server/live.server'
 import { publicUrl } from '~/server/site-url.server'
 import { getPodcastChannel } from '~/server/channels.server'
+import { listComments } from '~/server/comments.server'
 import {
   catchDomainError,
   customDomainTarget,
@@ -141,11 +143,13 @@ export const fetchMyEpisode = createServerFn({ method: 'GET' })
     const found = await getEpisode(userId, data.slug, data.episodeSlug)
     if (!found) throw notFound()
     const { episode, podcast } = found
-    const [waveform, trackedLinks, episodeTags, podcastTags] = await Promise.all([
+    const [waveform, trackedLinks, episodeTags, podcastTags, comments] = await Promise.all([
       episode.status === 'ready' ? readWaveform(episode.id) : null,
       listTrackedLinks(userId, episode.id),
       getEpisodeTags(episode.id),
       getPodcastTags(podcast.id),
+      // Shown on its public page; here, marked on the waveform and counted.
+      episode.status === 'ready' ? listComments(episode.id, userId) : [],
     ])
     const site = publicUrl(getRequest())
     return {
@@ -159,6 +163,13 @@ export const fetchMyEpisode = createServerFn({ method: 'GET' })
       },
       // The smoother of the two shapes, as Mixcloud draws them.
       waveform: waveform?.rms ?? null,
+      comments: comments.map((comment) => ({
+        id: comment.id,
+        atSeconds: comment.atSeconds,
+        author: comment.author,
+        text: mentionsAsText(comment.body, comment.mentions) || 'GIF',
+      })),
+      commentCount: comments.reduce((sum, comment) => sum + 1 + comment.replies.length, 0),
       // The short link to the standalone page listeners are sent to; only
       // reachable once the episode's ready.
       shortUrl: new URL(shortPath(episode.shortSlug), site).toString(),

@@ -203,6 +203,15 @@ export function listExplorePodcasts(viewerId: string | null, page: Page) {
     .limit(page.limit)
 }
 
+// A user's public podcasts, for their profile page, newest episodes first.
+export function listUserPodcasts(viewerId: string | null, ownerId: string) {
+  const { query, latestAt } = podcastCards(viewerId)
+  return query
+    .where(and(eq(podcasts.private, false), eq(podcasts.userId, ownerId)))
+    .groupBy(podcasts.id, users.id)
+    .orderBy(desc(latestAt), desc(podcasts.id))
+}
+
 export async function countExplorePodcasts() {
   const [row] = await db
     .select({ count: sql<number>`count(distinct ${podcasts.id})`.mapWith(Number) })

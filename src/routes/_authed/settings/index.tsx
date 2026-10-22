@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react'
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { ImageField, imageIdToSave, type ImageValue } from '~/components/image-field'
 import { RichTextEditor } from '~/components/rich-text-editor'
 import { Button } from '~/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '~/components/ui/input-group'
 import { fetchProfile, saveProfile } from '~/functions/profile'
 import { editProfileSchema } from '~/lib/profile-schema'
 
@@ -18,6 +19,7 @@ function DetailsPage() {
   const profile = Route.useLoaderData()
   const router = useRouter()
   const [name, setName] = useState(profile.name ?? '')
+  const [slug, setSlug] = useState(profile.slug)
   const [descriptionHtml, setDescriptionHtml] = useState(profile.description ?? '')
   const [image, setImage] = useState<ImageValue>({ kind: 'keep' })
   const [pending, setPending] = useState(false)
@@ -26,7 +28,7 @@ function DetailsPage() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const change = { name, description: descriptionHtml, imageId: imageIdToSave(image) }
+    const change = { name, slug, description: descriptionHtml, imageId: imageIdToSave(image) }
     const parsed = editProfileSchema.safeParse(change)
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message)
@@ -36,7 +38,11 @@ function DetailsPage() {
     setSaved(false)
     setPending(true)
     try {
-      await saveProfile({ data: change })
+      const { slugTaken } = await saveProfile({ data: { ...change, slug: parsed.data.slug } })
+      if (slugTaken) {
+        setError(`Someone already has @${parsed.data.slug}. Try another.`)
+        return
+      }
       // Reloads this page and the session, so the avatar in the top nav updates too.
       await router.invalidate()
       setImage({ kind: 'keep' })
@@ -74,6 +80,29 @@ function DetailsPage() {
                 maxLength={100}
                 autoComplete="name"
               />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="profile-slug">Username</FieldLabel>
+              <InputGroup>
+                <InputGroupAddon>
+                  <InputGroupText>@</InputGroupText>
+                </InputGroupAddon>
+                <InputGroupInput
+                  id="profile-slug"
+                  value={slug}
+                  onChange={(event) => setSlug(event.target.value.toLowerCase())}
+                  maxLength={30}
+                  autoComplete="username"
+                  spellCheck={false}
+                />
+              </InputGroup>
+              <FieldDescription>
+                How people @mention you in comments, and your{' '}
+                <Link to="/u/$slug" params={{ slug: profile.slug }} className="text-primary hover:underline">
+                  profile
+                </Link>
+                's address.
+              </FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor="profile-email">Email</FieldLabel>

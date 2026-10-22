@@ -69,7 +69,7 @@ describe('subscriptions', () => {
   it("lists the user's choices and browsers for the settings page", async () => {
     const user = await createUser()
     await savePushSubscription(user.id, { endpoint: 'https://push.example/a', keys: { p256dh: 'p', auth: 'a' } }, firefox)
-    await updatePushPrefs(user.id, { pushLive: false, pushNewEpisodes: true })
+    await updatePushPrefs(user.id, { pushLive: false, pushNewEpisodes: true, pushMentions: false })
     expect(await getPushSettings(user.id)).toMatchObject({
       pushLive: false,
       pushNewEpisodes: true,

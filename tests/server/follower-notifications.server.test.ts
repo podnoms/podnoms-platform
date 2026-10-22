@@ -9,6 +9,7 @@ import {
   setFollowNotify,
 } from '~/server/follower-notifications.server'
 import { emailFollowedEpisodes, emailFollowerLive } from '~/server/notifications.server'
+import { listNotifications } from '~/server/inbox.server'
 import { sendPush } from '~/server/push.server'
 import { resetDb } from '../db'
 import { createEpisode, createPodcast, createUser, db } from '../helpers'
@@ -135,5 +136,22 @@ describe('muting', () => {
     expect(await listFollowNotify(user.id)).toEqual([
       { podcastId: podcast.id, title: 'The Show', slug: 'the-show', imageUrl: '/images/show.jpg', notify: false },
     ])
+  })
+})
+
+describe('the notifications menu', () => {
+  it("gets every follower's, whatever they chose for email and desktop, unless they muted the podcast", async () => {
+    const { owner, podcast } = await show()
+    await db.insert(podcastFollows).values({ userId: owner.id, podcastId: podcast.id })
+    const quiet = await follower(podcast.id, { pushLive: false, emailLive: false })
+    const muted = await follower(podcast.id)
+    await setFollowNotify(muted.id, podcast.id, false)
+    notifyFollowersLive(podcast.id, 'Q&A night')
+    await settle()
+    expect((await listNotifications(quiet.id)).items).toMatchObject([
+      { kind: 'live', title: 'The Show is live', body: 'Q&A night', url: '/live/the-show', image: '/images/show.jpg' },
+    ])
+    expect((await listNotifications(muted.id)).items).toEqual([])
+    expect((await listNotifications(owner.id)).items).toEqual([])
   })
 })

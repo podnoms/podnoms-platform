@@ -239,8 +239,9 @@ function GoLiveSettings({ podcast }: { podcast: Podcast }) {
                   </div>
                   {broadcast.episode ? (
                     <Button variant="outline" size="sm" asChild>
+                      {/* Until it's ready, only its manage page shows it. */}
                       <Link
-                        to="/$slug/episodes/$episodeSlug/manage"
+                        to={broadcast.episode.status === 'ready' ? '/$slug/episodes/$episodeSlug' : '/$slug/episodes/$episodeSlug/manage'}
                         params={{ slug: podcast.slug, episodeSlug: broadcast.episode.slug }}
                       >
                         {broadcast.episode.status === 'ready' ? 'Episode' : 'Episode (processing)'}

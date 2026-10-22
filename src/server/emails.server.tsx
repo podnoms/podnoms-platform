@@ -83,6 +83,17 @@ export type NotificationEvent =
   | { type: 'newEpisodes'; podcastTitle: string; count: number; link: string | null }
   // New episodes from a podcast the user follows (see follower-notifications.server.ts).
   | { type: 'followedEpisodes'; podcastTitle: string; titles: string[]; link: string | null }
+  // Someone mentioned the user in a comment, or replied to theirs (see
+  // comment-notifications.server.ts).
+  | {
+      type: 'comment'
+      kind: 'mention' | 'reply'
+      authorName: string
+      episodeTitle: string
+      podcastTitle: string
+      excerpt: string
+      link: string | null
+    }
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
 
@@ -106,6 +117,12 @@ function EventRow({ event }: { event: NotificationEvent }) {
                 <strong>{event.episodeTitle}</strong> in {event.podcastTitle} couldn’t be processed
                 {event.error ? <div style={{ fontSize: '13px', color: colors.muted }}>{event.error}</div> : null}
               </>
+            ) : event.type === 'comment' ? (
+              <>
+                <strong>{event.authorName}</strong> {event.kind === 'mention' ? 'mentioned you' : 'replied to you'} on{' '}
+                <strong>{event.episodeTitle}</strong> in {event.podcastTitle}
+                <div style={{ fontSize: '13px', color: colors.muted }}>{event.excerpt}</div>
+              </>
             ) : event.type === 'newEpisodes' ? (
               <>
                 <strong>{plural(event.count, 'new episode')}</strong> from {event.podcastTitle}’s channel
@@ -122,7 +139,13 @@ function EventRow({ event }: { event: NotificationEvent }) {
             {event.link && (
               <div style={{ fontSize: '13px' }}>
                 <EmailLink href={event.link}>
-                  {event.type === 'episodeFailed' ? 'Retry or upload it again' : event.type === 'newEpisodes' ? 'See them' : 'Listen'}
+                  {event.type === 'episodeFailed'
+                    ? 'Retry or upload it again'
+                    : event.type === 'newEpisodes'
+                      ? 'See them'
+                      : event.type === 'comment'
+                        ? 'See the comment'
+                        : 'Listen'}
                 </EmailLink>
               </div>
             )}
@@ -139,7 +162,9 @@ export function notificationDigestEmail(events: NotificationEvent[], settingsLin
   const failures = events.filter((event) => event.type === 'episodeFailed').length
   const added = events.reduce((sum, event) => sum + (event.type === 'newEpisodes' ? event.count : 0), 0)
   const followed = events.flatMap((event) => (event.type === 'followedEpisodes' ? [event] : []))
-  // About the user's own podcasts if there's anything, as that's more pressing.
+  const comments = events.flatMap((event) => (event.type === 'comment' ? [event] : []))
+  // About the user's own podcasts if there's anything, as that's more
+  // pressing, then about them, then the podcasts they follow.
   const subject =
     failures && added
       ? `${plural(failures, 'episode')} failed, ${added} new`
@@ -147,7 +172,11 @@ export function notificationDigestEmail(events: NotificationEvent[], settingsLin
         ? `${failures === 1 ? 'An episode' : `${failures} episodes`} couldn’t be processed`
         : added
           ? `${plural(added, 'new episode')} on podnoms`
-          : followed.length === 1 && followed[0]!.titles.length === 1
+          : comments.length === 1
+            ? `${comments[0]!.authorName} ${comments[0]!.kind === 'mention' ? 'mentioned you' : 'replied to you'}`
+            : comments.length > 1
+              ? `${comments.length} mentions and replies on podnoms`
+              : followed.length === 1 && followed[0]!.titles.length === 1
             ? `New from ${followed[0]!.podcastTitle}: ${followed[0]!.titles[0]}`
             : `${plural(followed.reduce((sum, event) => sum + event.titles.length, 0), 'new episode')} from podcasts you follow`
   const failed = events.filter((event) => event.type === 'episodeFailed')
@@ -165,7 +194,11 @@ export function notificationDigestEmail(events: NotificationEvent[], settingsLin
         {news.map((event, index) => (
           <EventRow key={`new-${index}`} event={event} />
         ))}
-        {failed.length + news.length > 0 && followed.length > 0 && <EmailDivider />}
+        {failed.length + news.length > 0 && comments.length > 0 && <EmailDivider />}
+        {comments.map((event, index) => (
+          <EventRow key={`comment-${index}`} event={event} />
+        ))}
+        {failed.length + news.length + comments.length > 0 && followed.length > 0 && <EmailDivider />}
         {followed.map((event, index) => (
           <EventRow key={`followed-${index}`} event={event} />
         ))}

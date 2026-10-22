@@ -43,7 +43,9 @@ export function GifPicker({
   )
 }
 
-function GifSearch({ config, onPick }: { config: GifConfig; onPick: (gif: ChatGif) => void }) {
+// Trending GIFs, or those matching what's typed: also in the comment
+// composer's emoji and GIF panel.
+export function GifSearch({ config, onPick }: { config: GifConfig; onPick: (gif: ChatGif) => void }) {
   const [query, setQuery] = useState('')
   const [searched, setSearched] = useState('')
   const [results, setResults] = useState<GifResult[]>([])

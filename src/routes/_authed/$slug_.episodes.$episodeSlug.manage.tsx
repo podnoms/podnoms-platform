@@ -33,7 +33,7 @@ import {
   updateMyEpisode,
 } from '~/functions/podcasts'
 import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
-import { formatClock, formatDate, hostname, pluralise } from '~/lib/format'
+import { formatClock, formatDate, hostname, initials, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 
 // An episode's management page, at /:slug/episodes/:episodeSlug/manage. The trailing
@@ -91,6 +91,14 @@ function EpisodePage() {
     episode.sourceUrl ? hostname(episode.sourceUrl) : null,
     episode.likeCount > 0 ? pluralise(episode.likeCount, 'like') : null,
   ].filter(Boolean)
+  // Who sees the public page, so it's clear this one is only the owner's.
+  const whoCanSee = !ready
+    ? 'Listeners see it once it’s ready.'
+    : episode.private
+      ? 'Private: only you can see it.'
+      : podcast.private
+        ? 'Only you can see its page; listeners hear it through the podcast’s private feed.'
+        : 'Listeners see it on its public page.'
 
   function play(startAt?: number) {
     if (!episode.audioUrl) return
@@ -161,7 +169,7 @@ function EpisodePage() {
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div className="flex items-center gap-2">
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Episode</p>
+            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Managing this episode</p>
             {episode.private && (
               <Badge variant="secondary">
                 <Icons.private />
@@ -171,12 +179,21 @@ function EpisodePage() {
           </div>
           <h1 className="text-3xl font-semibold tracking-tight text-balance">{title}</h1>
           <p className="text-sm text-muted-foreground">{meta.join(' · ')}</p>
+          <p className="text-sm text-muted-foreground">{whoCanSee}</p>
           <TagList tags={episode.tags} />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {ready && (
               <Button size="icon-lg" className="size-14 rounded-full [&_svg]:size-6!" onClick={() => play()}>
                 {isPlaying ? <Icons.pause /> : <Icons.play />}
                 <span className="sr-only">{isPlaying ? 'Pause' : 'Play'}</span>
+              </Button>
+            )}
+            {ready && (
+              <Button variant="outline" asChild>
+                <Link to="/$slug/episodes/$episodeSlug" params={{ slug: podcast.slug, episodeSlug: episode.slug }}>
+                  <Icons.externalLink />
+                  View public page
+                </Link>
               </Button>
             )}
             <div className="flex gap-1 sm:ml-auto">
@@ -246,7 +263,19 @@ function EpisodePage() {
       {ready && (
         <section aria-label="Player" className="flex flex-col gap-2 rounded-xl border bg-card p-4">
           {waveform ? (
-            <Waveform values={waveform} duration={duration} position={position} onSeek={seek} />
+            <Waveform
+              values={waveform}
+              duration={duration}
+              position={position}
+              onSeek={seek}
+              markers={loaded.comments.map((comment) => ({
+                id: comment.id,
+                seconds: comment.atSeconds,
+                image: comment.author.image,
+                fallback: initials(comment.author.name, null),
+                title: `${comment.author.name ?? `@${comment.author.slug}`}: ${comment.text}`,
+              }))}
+            />
           ) : (
             // Waveforms are made just after processing; until then, a plain seek bar.
             <Slider
@@ -263,6 +292,16 @@ function EpisodePage() {
             <span>{formatClock(position)}</span>
             <span>{duration ? formatClock(duration) : '--:--'}</span>
           </div>
+          {/* Comments are read, written and answered on the public page. */}
+          <Link
+            to="/$slug/episodes/$episodeSlug"
+            params={{ slug: podcast.slug, episodeSlug: episode.slug }}
+            hash="comments-heading"
+            className="flex w-fit items-center gap-1.5 text-sm text-primary hover:underline"
+          >
+            <Icons.comment className="size-4" />
+            {loaded.commentCount ? `${pluralise(loaded.commentCount, 'comment')} on the public page` : 'Comment on the public page'}
+          </Link>
         </section>
       )}
       {inProgress && (

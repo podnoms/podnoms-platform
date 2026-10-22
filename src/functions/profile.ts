@@ -26,10 +26,13 @@ export const fetchProfile = createServerFn({ method: 'GET' }).handler(async () =
   return profile
 })
 
+// Returns whether the slug was taken (in which case nothing was saved).
 export const saveProfile = createServerFn({ method: 'POST' })
   .validator(editProfileSchema)
   .handler(async ({ data }) => {
-    if (!(await updateProfile(await requireUserId(), data))) throw new Error('You need to be signed in')
+    const result = await updateProfile(await requireUserId(), data)
+    if (!result) throw new Error('You need to be signed in')
+    return { slugTaken: result === 'slug-taken' }
   })
 
 export const fetchHasPassword = createServerFn({ method: 'GET' }).handler(async () =>

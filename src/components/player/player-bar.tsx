@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import { Link, useRouteContext } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { usePlayer, type PlayerEpisode } from '~/components/player/player-provider'
 import { Waveform } from '~/components/player/waveform'
@@ -133,18 +133,13 @@ export function PlayerBar() {
   )
 }
 
-// The episode's title, linking to its page: the manage page for its owner,
-// else the public one. In the same tab, so playback carries on.
+// The episode's title, linking to its page (its owner too, who can manage it
+// from there). In the same tab, so playback carries on.
 function EpisodeTitle({ episode }: { episode: PlayerEpisode }) {
-  const { session } = useRouteContext({ from: '__root__' })
   const className = 'block truncate text-sm font-medium'
   if (!episode.slug || !episode.podcastSlug) return <p className={className}>{episode.title}</p>
   const params = { slug: episode.podcastSlug, episodeSlug: episode.slug }
-  return session && episode.isOwner ? (
-    <Link to="/$slug/episodes/$episodeSlug/manage" params={params} className={`${className} hover:underline`}>
-      {episode.title}
-    </Link>
-  ) : (
+  return (
     <Link to="/$slug/episodes/$episodeSlug" params={params} className={`${className} hover:underline`}>
       {episode.title}
     </Link>

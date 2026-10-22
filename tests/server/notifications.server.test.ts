@@ -9,6 +9,7 @@ import {
 } from '~/server/notifications.server'
 import { renderEmail, type EmailMessage } from '~/server/emails.server'
 import { resetDb } from '../db'
+import { listNotifications } from '~/server/inbox.server'
 import { createEpisode, createPodcast, createUser, db } from '../helpers'
 
 const email = vi.hoisted(() => ({
@@ -128,5 +129,17 @@ describe('emails about podcasts the user follows', () => {
     expect(email.sendEmail).toHaveBeenCalledTimes(1)
     const [sent] = email.sendEmail.mock.calls[0]!
     expect([sent.to, sent.subject]).toEqual(['wants@example.com', 'Loved is live now'])
+  })
+})
+
+describe('the notifications menu', () => {
+  it("gets owners' notices even when they're not emailed", async () => {
+    const { user, episode } = await failedEpisode({ notifyEpisodeFailed: false })
+    email.enabled = false
+    notifyEpisodeFailed(episode.id, 'Video unavailable')
+    await settle()
+    expect((await listNotifications(user.id)).items).toMatchObject([
+      { kind: 'episodeFailed', title: 'Ep 1 couldn’t be processed', body: 'Video unavailable', url: '/my-show/episodes/ep-1/manage' },
+    ])
   })
 })

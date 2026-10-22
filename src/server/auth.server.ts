@@ -17,7 +17,7 @@ import { logger, reportError } from '~/server/logger.server'
 import { publicUrl } from '~/server/site-url.server'
 import { accounts, sessions, users, verificationTokens } from '~/server/db/schema'
 import { hasTwoFactor, redeemTwoFactorTicket } from '~/server/two-factor.server'
-import { firstUserIsAdmin, verifyUser } from '~/server/users.server'
+import { assignUserSlug, firstUserIsAdmin, verifyUser } from '~/server/users.server'
 
 declare module '@auth/core/types' {
   interface Session {
@@ -55,12 +55,15 @@ const drizzleAdapter = DrizzleAdapter(db, {
 // of linking.
 const adapter: Adapter = {
   ...drizzleAdapter,
-  createUser: (user) =>
-    drizzleAdapter.createUser!({
+  async createUser(user) {
+    const created = await drizzleAdapter.createUser!({
       ...user,
       email: user.email.toLowerCase(),
       ...({ isAdmin: firstUserIsAdmin } as object),
-    }),
+    })
+    await assignUserSlug(created.id, created.name || created.email.split('@')[0]!)
+    return created
+  },
   async getUserByEmail(email) {
     const [user] = await db
       .select({

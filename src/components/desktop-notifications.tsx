@@ -14,11 +14,12 @@ import { formatDate } from '~/lib/format'
 import { currentPushSubscription, pushSupported, subscribeThisBrowser, unsubscribeThisBrowser } from '~/lib/push'
 
 type Settings = Awaited<ReturnType<typeof fetchPushSettings>>
-type Pref = 'pushLive' | 'pushNewEpisodes'
+type Pref = 'pushLive' | 'pushNewEpisodes' | 'pushMentions'
 
 const kinds: { pref: Pref; label: string; description: string }[] = [
   { pref: 'pushLive', label: 'Going live', description: 'When a podcast you follow starts a live broadcast.' },
   { pref: 'pushNewEpisodes', label: 'New episodes', description: 'When a podcast you follow has a new episode.' },
+  { pref: 'pushMentions', label: 'Mentions and replies', description: 'When someone @mentions you in a comment, or replies to yours.' },
 ]
 
 // What this browser can do: worked out once it has loaded, as the server
@@ -79,14 +80,17 @@ export function DesktopNotifications({ settings, onChange }: { settings: Setting
     })
 
   const setPref = (pref: Pref, value: boolean) =>
-    run(() => savePushPrefs({ data: { pushLive: settings.pushLive, pushNewEpisodes: settings.pushNewEpisodes, [pref]: value } }))
+    run(() => {
+      const { pushLive, pushNewEpisodes, pushMentions } = settings
+      return savePushPrefs({ data: { pushLive, pushNewEpisodes, pushMentions, [pref]: value } })
+    })
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Desktop notifications</CardTitle>
         <CardDescription>
-          About the podcasts you follow, shown by your browser even when podnoms isn't open.
+          About the podcasts you follow and your comments, shown by your browser even when podnoms isn't open.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">

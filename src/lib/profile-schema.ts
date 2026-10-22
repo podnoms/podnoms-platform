@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { descriptionHtml, imageChange } from '~/lib/podcast-schema'
+import { userSlugSchema } from '~/lib/user-slug'
 
 export const editProfileSchema = z.object({
   // Blank clears the name, so the email is shown instead.
@@ -8,6 +9,8 @@ export const editProfileSchema = z.object({
     .trim()
     .max(100, 'Keep your name under 100 characters')
     .transform((value) => value || null),
+  // Left out, it stays as it is.
+  slug: userSlugSchema.optional(),
   description: descriptionHtml,
   imageId: imageChange,
 })
@@ -19,6 +22,7 @@ export const notificationPrefsSchema = z.object({
   notifyNewEpisodes: z.boolean(),
   emailLive: z.boolean(),
   emailFollowedEpisodes: z.boolean(),
+  emailMentions: z.boolean(),
 })
 
 // Mutes or unmutes a podcast the user follows, for every kind of notification.

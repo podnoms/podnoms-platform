@@ -149,10 +149,11 @@ export function EpisodeRow({
       </ItemMedia>
       <ItemContent className="min-w-0">
         <ItemTitle className="line-clamp-1 text-base font-semibold">
-          {/* Stretched over the whole row, so clicking anywhere opens the episode;
-              the buttons sit above it. */}
+          {/* Stretched over the whole row, so clicking anywhere opens the episode
+              (as listeners see it, once it's ready; until then, only its manage
+              page shows it); the buttons sit above it. */}
           <Link
-            to="/$slug/episodes/$episodeSlug/manage"
+            to={episode.status === 'ready' ? '/$slug/episodes/$episodeSlug' : '/$slug/episodes/$episodeSlug/manage'}
             params={{ slug: podcastSlug, episodeSlug: episode.slug }}
             className="outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
           >
@@ -205,6 +206,12 @@ export function EpisodeRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-auto">
+            <DropdownMenuItem asChild>
+              <Link to="/$slug/episodes/$episodeSlug/manage" params={{ slug: podcastSlug, episodeSlug: episode.slug }}>
+                <Icons.settings />
+                Manage episode
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem disabled={inProgress} onSelect={() => setEditing(true)}>
               <Icons.edit />
               Edit episode
