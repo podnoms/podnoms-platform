@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { Icons, type Icon } from '~/components/icons'
+import { PodcastGrid, type PodcastCardData } from '~/components/podcast-card'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 
@@ -130,7 +131,9 @@ function HeroPreview() {
   )
 }
 
-export function LandingPage() {
+// `podcasts`: some of the site's public shows, so visitors (and search
+// engines) can go on to listen.
+export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
   return (
     <main className="relative isolate overflow-hidden">
       {/* Soft glow behind the hero. */}
@@ -200,6 +203,21 @@ export function LandingPage() {
           ))}
         </div>
       </section>
+
+      {podcasts.length > 0 && (
+        <section className="mx-auto w-full max-w-6xl px-4 pb-16 md:pb-24">
+          <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Listen on podnoms</h2>
+              <p className="mt-2 text-muted-foreground">Shows people have made here, for anyone to listen to.</p>
+            </div>
+            <Link to="/explore" className="text-sm font-medium text-primary hover:underline">
+              Explore all podcasts
+            </Link>
+          </div>
+          <PodcastGrid podcasts={podcasts} />
+        </section>
+      )}
 
       <section className="mx-auto w-full max-w-6xl px-4 pb-20">
         <div className="relative isolate overflow-hidden rounded-3xl border bg-card px-6 py-14 text-center">

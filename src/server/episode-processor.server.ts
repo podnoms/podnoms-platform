@@ -15,8 +15,16 @@ import { plainTextToHtml } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
 import { platformOf, type Platform } from '~/lib/platforms'
 import { channelItems, episodes, type Episode, type EpisodeReplacement } from '~/server/db/schema'
-import { onThrottleChange, pausedFor, placeInQueue, RateLimitedError, withDownloadSlot } from '~/server/download-throttle.server'
+import {
+  onThrottleChange,
+  pausedFor,
+  placeInQueue,
+  RateLimitedError,
+  withDownloadSlot,
+  type CooldownReason,
+} from '~/server/download-throttle.server'
 import { publishEpisodeEvent } from '~/server/episode-events.server'
+import { remoteDownload, usingFetcher } from '~/server/fetcher.server'
 import { availableEpisodeSlug, isSlugConflict, withRandomSuffix } from '~/server/episode-slugs.server'
 import { downloadImage } from '~/server/images.server'
 import { convertToMp3, probeAudio } from '~/server/media.server'
@@ -36,9 +44,9 @@ import {
 // Live progress of queued and running jobs, kept in memory: it changes many
 // times a second and is only interesting while a job is running.
 export type EpisodeProgress =
-  // `paused` when its platform is refusing us; `until` is an ISO time, as
-  // this also goes out as JSON.
-  | { stage: 'queued'; ahead: number; paused?: { platform: Platform; until: string } }
+  // `paused` when its platform is refusing us, or the fetcher can't be
+  // reached; `until` is an ISO time, as this also goes out as JSON.
+  | { stage: 'queued'; ahead: number; paused?: { platform: Platform; reason: CooldownReason; until: string } }
   | { stage: 'fetching' }
   | {
     stage: 'downloading'
@@ -114,12 +122,19 @@ async function runYtDlp(sourceUrl: string, outputTemplate: string, onLine: (line
     sourceUrl,
   ]
   let info: SourceInfo | undefined
-  await runYtDlpLines(args, (line) => {
+  const handle = (line: string) => {
     if (line.startsWith('INFO ')) info = JSON.parse(line.slice(5)) as SourceInfo
     else onLine(line)
-  })
-  if (!info) throw new Error('yt-dlp returned no information about the download')
-  return info
+  }
+  // The fetcher runs the same arguments, saving the file there; its
+  // `filepath` is where the copy here was saved.
+  const filepath = usingFetcher() ? await remoteDownload(sourceUrl, outputTemplate, handle) : null
+  if (!filepath) await runYtDlpLines(args, handle)
+  if (!info) {
+    if (filepath) await rm(filepath, { force: true })
+    throw new Error('yt-dlp returned no information about the download')
+  }
+  return filepath ? { ...info, filepath } : info
 }
 
 // What a download or conversion learnt about the episode's audio.

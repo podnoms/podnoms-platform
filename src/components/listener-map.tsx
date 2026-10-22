@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { geoEqualEarth, geoPath } from 'd3-geo'
 // CommonJS, so its exports are only on the default export when rendered on the server.
-import isoCountries from 'i18n-iso-countries'
+// The entry without locale data: the package's Node entry requires every
+// langs/*.json, which the server build doesn't ship, and only codes are needed.
+import isoCountries from 'i18n-iso-countries/index'
 import { feature } from 'topojson-client'
 import { countryName } from '~/components/activity-panel'
 import { Skeleton } from '~/components/ui/skeleton'

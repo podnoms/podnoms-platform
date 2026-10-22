@@ -6,7 +6,9 @@
 //   - at least `downloadDelaySeconds` (± 20%) between starting two on the
 //     same platform;
 //   - none on a platform that has started refusing us (a RateLimitedError),
-//     for 30 minutes, doubling each time up to 6 hours, until one succeeds.
+//     for 30 minutes, doubling each time up to 6 hours, until one succeeds;
+//     or, when the remote fetcher can't be reached (a FetcherUnavailableError,
+//     see fetcher.server.ts), for 2 minutes, doubling up to 30.
 // Waiters with a higher priority go first; among equals, keys (podcasts) take
 // turns, so one podcast's big import doesn't hold everyone else up.
 //
@@ -23,8 +25,20 @@ export class RateLimitedError extends Error {
   override name = 'RateLimitedError'
 }
 
+// The remote fetcher (see fetcher.server.ts) can't be reached: like a
+// refusal, nothing is the download's fault and it's tried again later.
+export class FetcherUnavailableError extends RateLimitedError {
+  override name = 'FetcherUnavailableError'
+}
+
+export type CooldownReason = 'platform' | 'fetcher'
+
 export const firstCooldownMs = 30 * 60_000
 export const maxCooldownMs = 6 * 60 * 60_000
+const backOff: Record<CooldownReason, { first: number; max: number }> = {
+  platform: { first: firstCooldownMs, max: maxCooldownMs },
+  fetcher: { first: 2 * 60_000, max: 30 * 60_000 },
+}
 const jitter = 0.2
 
 export type SlotOptions = {
@@ -48,7 +62,7 @@ let seq = 0
 // When each platform may next be sent a request.
 const nextStartAt = new Map<Platform, number>()
 const lastServedAt = new Map<string, number>()
-const cooldowns = new Map<Platform, { until: number; ms: number }>()
+const cooldowns = new Map<Platform, { until: number; ms: number; reason: CooldownReason }>()
 const listeners = new Set<() => void>()
 let timer: ReturnType<typeof setTimeout> | undefined
 
@@ -65,7 +79,7 @@ export async function withDownloadSlot<T>(platform: Platform, options: SlotOptio
     if (cooldown && Date.now() >= cooldown.until) cooldowns.delete(platform)
     return result
   } catch (error) {
-    if (error instanceof RateLimitedError) startCooldown(platform)
+    if (error instanceof RateLimitedError) startCooldown(platform, error instanceof FetcherUnavailableError ? 'fetcher' : 'platform')
     throw error
   } finally {
     running.delete(slot)
@@ -74,13 +88,17 @@ export async function withDownloadSlot<T>(platform: Platform, options: SlotOptio
   }
 }
 
-function startCooldown(platform: Platform) {
+function startCooldown(platform: Platform, reason: CooldownReason) {
   const previous = cooldowns.get(platform)
   // Several downloads can fail at once; that's one refusal, not several.
   if (previous && Date.now() < previous.until) return
-  const ms = previous ? Math.min(previous.ms * 2, maxCooldownMs) : firstCooldownMs
-  cooldowns.set(platform, { until: Date.now() + ms, ms })
-  logger.warn({ platform, cooldownMinutes: ms / 60_000 }, 'Platform is rate-limiting us; pausing downloads from it')
+  const { first, max } = backOff[reason]
+  const ms = previous?.reason === reason ? Math.min(previous.ms * 2, max) : first
+  cooldowns.set(platform, { until: Date.now() + ms, ms, reason })
+  logger.warn(
+    { platform, reason, cooldownMinutes: ms / 60_000 },
+    reason === 'fetcher' ? "Can't reach the fetcher; pausing downloads from the platform" : 'Platform is rate-limiting us; pausing downloads from it',
+  )
 }
 
 // Whether the platform is refusing us, so nothing should be sent to it.
@@ -189,12 +207,13 @@ export function placeInQueue(id: string) {
   return index === -1 ? null : index + running.size
 }
 
-// The platform the waiter with this id is held back by and until when, if
-// that platform is refusing us.
+// The platform the waiter with this id is held back by, why, and until when,
+// if that platform is paused.
 export function pausedFor(id: string) {
   const waiter = waiting.find((w) => w.id === id)
-  const until = waiter ? cooldowns.get(waiter.platform)?.until : undefined
-  return waiter && until && Date.now() < until ? { platform: waiter.platform, until: new Date(until).toISOString() } : null
+  const cooldown = waiter ? cooldowns.get(waiter.platform) : undefined
+  if (!waiter || !cooldown || Date.now() >= cooldown.until) return null
+  return { platform: waiter.platform, reason: cooldown.reason, until: new Date(cooldown.until).toISOString() }
 }
 
 // For the admin page.
@@ -205,7 +224,7 @@ export function throttleStatus() {
     waiting: [...waiting].sort(inTurn).map(({ platform, key, label, priority }) => ({ platform, key, label: label ?? null, priority })),
     cooldowns: [...cooldowns]
       .filter(([, cooldown]) => cooldown.until > now)
-      .map(([platform, { until }]) => ({ platform, until: new Date(until) })),
+      .map(([platform, { until, reason }]) => ({ platform, reason, until: new Date(until) })),
   }
 }
 

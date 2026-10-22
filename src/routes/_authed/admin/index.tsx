@@ -84,6 +84,7 @@ function AdminPage() {
               </AlertDescription>
             </Alert>
           )}
+          {overview.fetcher && <FetcherStatus fetcher={overview.fetcher} />}
           <DownloadSummary throttle={overview.throttle} settings={overview.settings} />
           <DownloadQueue throttle={overview.throttle} />
           <DownloadSettings settings={overview.settings} />
@@ -100,6 +101,29 @@ function AdminPage() {
 }
 
 type Overview = Awaited<ReturnType<typeof fetchAdminOverview>>
+
+// The remote fetcher, which runs yt-dlp on another host when FETCHER_URL is set.
+function FetcherStatus({ fetcher }: { fetcher: NonNullable<Overview['fetcher']> }) {
+  if (!fetcher.reachable) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>The download server can't be reached</AlertTitle>
+        <AlertDescription>
+          Downloads and channel checks wait until it's back. {fetcher.error}
+        </AlertDescription>
+      </Alert>
+    )
+  }
+  return (
+    <Alert>
+      <AlertTitle>Downloading through the download server</AlertTitle>
+      <AlertDescription>
+        yt-dlp {fetcher.ytDlpVersion ?? 'version unknown'} ·{' '}
+        {fetcher.publicIp ? `platforms see ${fetcher.publicIp}` : "its public IP isn't known (no VPN control set up)"}
+      </AlertDescription>
+    </Alert>
+  )
+}
 
 // At a glance: how busy the download slots are, and whether any platform has
 // paused us.
@@ -118,7 +142,9 @@ function DownloadSummary({ throttle, settings }: { throttle: Overview['throttle'
     {
       label: 'Paused platforms',
       value: String(throttle.cooldowns.length),
-      detail: throttle.cooldowns.length ? throttle.cooldowns.map((cooldown) => cooldown.platform).join(', ') : 'none',
+      detail: throttle.cooldowns.length
+        ? throttle.cooldowns.map((cooldown) => platformNames[cooldown.platform as Platform]).join(', ')
+        : 'none',
     },
   ]
   return (
@@ -151,11 +177,13 @@ function DownloadQueue({ throttle }: { throttle: Overview['throttle'] }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {throttle.cooldowns.map(({ platform, until }) => (
+        {throttle.cooldowns.map(({ platform, reason, until }) => (
           <Alert key={platform} variant="destructive">
             <AlertTitle>Paused downloads from {platformNames[platform as Platform]}</AlertTitle>
             <AlertDescription className="flex flex-wrap items-center gap-3">
-              It refused a request, so nothing more is sent to it until {formatDateTime(until)}.
+              {reason === 'fetcher'
+                ? `The download server couldn't be reached, so nothing more is sent to it until ${formatDateTime(until)}.`
+                : `It refused a request, so nothing more is sent to it until ${formatDateTime(until)}.`}
               <Button
                 size="sm"
                 variant="outline"

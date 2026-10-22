@@ -28,9 +28,22 @@ describe('EpisodeProgress', () => {
   })
 
   it('says when the platform is refusing us, and when it will be tried again', () => {
-    render(<EpisodeProgress progress={{ stage: 'queued', ahead: 0, paused: { platform: 'youtube', until: '2026-10-19T20:10:00.000Z' } }} />)
+    render(
+      <EpisodeProgress
+        progress={{ stage: 'queued', ahead: 0, paused: { platform: 'youtube', reason: 'platform', until: '2026-10-19T20:10:00.000Z' } }}
+      />,
+    )
     expect(screen.getByText(/YouTube is refusing downloads from this server for now/)).toBeTruthy()
     expect(screen.getByText(/19 Oct 2026, 20:10 UTC/)).toBeTruthy()
+  })
+
+  it("says when the download server can't be reached", () => {
+    render(
+      <EpisodeProgress
+        progress={{ stage: 'queued', ahead: 0, paused: { platform: 'youtube', reason: 'fetcher', until: '2026-10-19T20:10:00.000Z' } }}
+      />,
+    )
+    expect(screen.getByText(/The download server can't be reached right now/)).toBeTruthy()
   })
 
   it('shows fetching', () => {

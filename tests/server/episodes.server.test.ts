@@ -17,6 +17,7 @@ import {
   getEpisodeWaveform,
   getPublicEpisode,
   listEpisodes,
+  listNeighbouringEpisodes,
   listPublishedEpisodes,
   replaceEpisodeAudio,
   retryEpisode,
@@ -740,6 +741,30 @@ describe('public episode reads', () => {
       expect(await position(listener.id)).toBe(42)
       expect(await position(null)).toBeNull()
       expect(await position((await createUser()).id)).toBeNull()
+    })
+  })
+
+  describe('listNeighbouringEpisodes', () => {
+    it('lists the listed episodes either side of one, newest first', async () => {
+      const { podcast } = await showWithEpisodes()
+      const months = await Promise.all(
+        [3, 4, 5, 6, 7].map((month) =>
+          insertEpisode(podcast.id, { ...ready, slug: `m${month}`, publishedAt: new Date(`2026-0${month}-01T00:00:00Z`) }),
+        ),
+      )
+      const slugs = async (episode: (typeof months)[number], each?: number) =>
+        (await listNeighbouringEpisodes(episode, each)).map((e) => e.slug)
+      expect(await slugs(months[2]!, 2)).toEqual(['m7', 'm6', 'm4', 'm3'])
+      expect(await slugs(months[4]!)).toEqual(['m6', 'm5', 'm4'])
+      expect(await slugs(months[0]!)).toEqual(['m6', 'm5', 'm4', 'newer', 'older'])
+    })
+
+    it('tells apart episodes published at the same moment', async () => {
+      const podcast = await createPodcast((await createUser()).id)
+      const at = new Date('2026-03-01T00:00:00Z')
+      const [a, b] = await Promise.all(['a', 'b'].map((slug) => insertEpisode(podcast.id, { ...ready, slug, publishedAt: at })))
+      expect((await listNeighbouringEpisodes(a!)).map((e) => e.slug)).toEqual(['b'])
+      expect((await listNeighbouringEpisodes(b!)).map((e) => e.slug)).toEqual(['a'])
     })
   })
 

@@ -3,7 +3,9 @@ import type { Platform } from '~/lib/platforms'
 import type { SiteSettings } from '~/server/site-settings.server'
 import {
   clearCooldown,
+  FetcherUnavailableError,
   firstCooldownMs,
+  pausedFor,
   placeInQueue,
   RateLimitedError,
   resetThrottle,
@@ -160,7 +162,7 @@ describe('when a platform refuses us', () => {
     await settle()
     expect(waiting.started).toBe(false)
     expect(mixcloud.started).toBe(true)
-    expect(throttleStatus().cooldowns).toEqual([{ platform: 'youtube', until: new Date(Date.now() + firstCooldownMs) }])
+    expect(throttleStatus().cooldowns).toEqual([{ platform: 'youtube', reason: 'platform', until: new Date(Date.now() + firstCooldownMs) }])
 
     await settle(firstCooldownMs)
     expect(waiting.started).toBe(true)
@@ -212,6 +214,37 @@ describe('when a platform refuses us', () => {
     await settle()
     expect(waiting.started).toBe(true)
     expect(throttleStatus().cooldowns).toEqual([])
+  })
+})
+
+describe("when the fetcher can't be reached", () => {
+  it('pauses for 2 minutes, doubling up to 30, and says why', async () => {
+    const refused = job('youtube', { id: 'first' })
+    await settle()
+    refused.fail(new FetcherUnavailableError('connection refused'))
+    await settle()
+    const waiting = job('youtube', { id: 'waiting' })
+    await settle()
+    expect(throttleStatus().cooldowns).toEqual([{ platform: 'youtube', reason: 'fetcher', until: new Date(Date.now() + 2 * 60_000) }])
+    expect(pausedFor('waiting')).toEqual({ platform: 'youtube', reason: 'fetcher', until: new Date(Date.now() + 2 * 60_000).toISOString() })
+
+    await settle(2 * 60_000)
+    expect(waiting.started).toBe(true)
+    waiting.fail(new FetcherUnavailableError('connection refused'))
+    await settle()
+    expect(throttleStatus().cooldowns[0]!.until).toEqual(new Date(Date.now() + 4 * 60_000))
+  })
+
+  it("starts the platform's own pause afresh once the platform refuses us", async () => {
+    const unreachable = job('youtube')
+    await settle()
+    unreachable.fail(new FetcherUnavailableError('connection refused'))
+    await settle(2 * 60_000)
+    const refused = job('youtube')
+    await settle()
+    refused.fail(new RateLimitedError('429'))
+    await settle()
+    expect(throttleStatus().cooldowns).toEqual([{ platform: 'youtube', reason: 'platform', until: new Date(Date.now() + firstCooldownMs) }])
   })
 })
 

@@ -9,6 +9,7 @@ import '@tanstack/react-start/server-only'
 import { setTimeout as sleep } from 'node:timers/promises'
 import type { Platform } from '~/lib/platforms'
 import { RateLimitedError } from '~/server/download-throttle.server'
+import { remoteList, usingFetcher } from '~/server/fetcher.server'
 import { runYtDlpLines } from '~/server/ytdlp.server'
 
 export type ChannelEntry = {
@@ -50,6 +51,17 @@ type YtDlpPlaylist = {
   thumbnails?: { url?: string; id?: string; width?: number; height?: number }[]
 }
 
+// An upload's key in channel_item. A Mixcloud upload is keyed by its path, as
+// Mixcloud's API names it ("/user/mix/"), whichever lists it: an admin's
+// channel is listed whole by yt-dlp the first time and by the API after.
+function entryKey(platform: Platform, id: string, url: string) {
+  if (platform === 'mixcloud') {
+    const path = URL.parse(url)?.pathname.replace(/\/?$/, '/')
+    if (path && path.split('/').filter(Boolean).length === 2) return `mixcloud:${path}`
+  }
+  return `${platform}:${id}`
+}
+
 async function listWithYtDlp(platform: Platform, url: string, limit: number | null): Promise<ChannelListing> {
   const entries: ChannelEntry[] = []
   let playlist: YtDlpPlaylist | undefined
@@ -64,20 +76,22 @@ async function listWithYtDlp(platform: Platform, url: string, limit: number | nu
     'playlist:PLAYLIST %(.{title,description,thumbnails})j',
     url,
   ]
-  await runYtDlpLines(args, (line) => {
+  const onLine = (line: string) => {
     if (line.startsWith('PLAYLIST ')) playlist = JSON.parse(line.slice(9)) as YtDlpPlaylist
     if (!line.startsWith('ENTRY ')) return
     const entry = JSON.parse(line.slice(6)) as YtDlpEntry
     const entryUrl = entry.webpage_url ?? entry.url
     if (!entry.id || !entryUrl) return
     entries.push({
-      key: `${platform}:${entry.id}`,
+      key: entryKey(platform, entry.id, entryUrl),
       url: entryUrl,
       title: entry.title?.trim() || null,
       durationSeconds: entry.duration ?? null,
       live: entry.live_status === 'is_live' || entry.live_status === 'is_upcoming',
     })
-  })
+  }
+  // The fetcher runs the same arguments.
+  await (usingFetcher() ? remoteList(url, limit, onLine) : runYtDlpLines(args, onLine))
   if (!playlist) throw new Error("yt-dlp didn't list the channel")
   const thumbnails = (playlist.thumbnails ?? []).filter((t) => t.url)
   // YouTube lists banners too; the avatar (the square one) is the channel's artwork.

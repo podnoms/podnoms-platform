@@ -40,7 +40,7 @@ const results = {
 function openPalette() {
   render(<SearchCommand />)
   fireEvent.keyDown(document, { key: '/' })
-  return screen.getByPlaceholderText('Search podcasts and episodes…')
+  return screen.getByPlaceholderText('Search shows and episodes…')
 }
 
 describe('SearchCommand', () => {
@@ -70,7 +70,7 @@ describe('SearchCommand', () => {
     fireEvent.keyDown(screen.getByLabelText('Editor'), { key: '/' })
     fireEvent.keyDown(document, { key: '/', ctrlKey: true })
     fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
-    expect(screen.queryByPlaceholderText('Search podcasts and episodes…')).toBeNull()
+    expect(screen.queryByPlaceholderText('Search shows and episodes…')).toBeNull()
   })
 
   it('searches once typing pauses and groups the results by type', async () => {
@@ -95,7 +95,7 @@ describe('SearchCommand', () => {
       to: '/$slug/episodes/$episodeSlug/manage',
       params: { slug: 'deep-house', episodeSlug: 'late-night' },
     })
-    await waitFor(() => expect(screen.queryByPlaceholderText('Search podcasts and episodes…')).toBeNull())
+    await waitFor(() => expect(screen.queryByPlaceholderText('Search shows and episodes…')).toBeNull())
   })
 
   it('opens the chosen podcast', async () => {

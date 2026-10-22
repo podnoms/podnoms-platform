@@ -17,6 +17,7 @@ import {
   findShortLink,
   getEpisodeWaveform,
   getPublicEpisode,
+  listNeighbouringEpisodes,
   listPublishedEpisodes,
   summarisePublishedEpisodes,
 } from '~/server/episodes.server'
@@ -123,11 +124,12 @@ async function episodePage(slug: string, episodeSlug: string) {
   const { userId: ownerId, feedKey, ...podcast } = found.podcast
   const { episode } = found
   const artwork = episode.imageUrl ?? podcast.imageUrl
-  const [waveform, comments, episodeTags, podcastTags] = await Promise.all([
+  const [waveform, comments, episodeTags, podcastTags, moreEpisodes] = await Promise.all([
     readWaveform(episode.id),
     listComments(episode.id, userId),
     getEpisodeTags(episode.id),
     getPodcastTags(podcast.id),
+    listNeighbouringEpisodes({ ...episode, podcastId: podcast.id }),
   ])
   return {
     podcast: { ...podcast, tags: podcastTags },
@@ -139,6 +141,8 @@ async function episodePage(slug: string, episodeSlug: string) {
     },
     isOwner: userId === ownerId,
     comments,
+    // The episodes either side of this one, for "More from" the podcast.
+    moreEpisodes,
     pageUrl: absolute(episodePath(podcast.slug, episode.slug)),
     // The episode's share page, which the Share button gives out.
     shareUrl: absolute(shortPath(episode.shortSlug)),

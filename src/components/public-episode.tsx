@@ -186,6 +186,29 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
         </section>
       )}
 
+      {!standalone && page.moreEpisodes.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold">More from {podcast.title}</h2>
+          <ul className="flex flex-col divide-y rounded-lg border">
+            {page.moreEpisodes.map((other) => (
+              <li key={other.id}>
+                <Link
+                  to="/$slug/episodes/$episodeSlug"
+                  params={{ slug: podcast.slug, episodeSlug: other.slug }}
+                  className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm hover:bg-muted/50"
+                >
+                  <span className="min-w-0 truncate font-medium">{other.title}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                    {formatDate(other.publishedAt ?? other.createdAt)}
+                    {other.durationSeconds != null && ` · ${formatClock(other.durationSeconds)}`}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {!standalone && (
         <EpisodeComments
           episodeId={episode.id}

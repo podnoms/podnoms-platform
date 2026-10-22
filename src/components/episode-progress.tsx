@@ -42,12 +42,14 @@ export function EpisodeProgress({ progress }: { progress: ProgressInfo | null })
     )
   }
   if (progress.stage === 'queued' && progress.paused) {
-    const { platform, until } = progress.paused
+    const { platform, reason, until } = progress.paused
     return (
       <div className="flex w-full flex-col gap-1.5">
         <p className="text-sm text-destructive">
-          {platformNames[platform]} is refusing downloads from this server for now. It'll be tried again after{' '}
-          {formatDateTime(new Date(until))}.
+          {reason === 'fetcher'
+            ? "The download server can't be reached right now."
+            : `${platformNames[platform]} is refusing downloads from this server for now.`}{' '}
+          It'll be tried again after {formatDateTime(new Date(until))}.
         </p>
         <Progress value={0} />
       </div>

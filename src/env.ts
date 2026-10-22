@@ -10,6 +10,15 @@ export const env = createEnv({
     // are from the project root.
     MEDIA_DIR: z.string().default('media'),
     YTDLP_PATH: z.string().default('yt-dlp'),
+    // A cookies.txt from a signed-in YouTube account, for when YouTube asks
+    // yt-dlp to "confirm you're not a bot". yt-dlp writes refreshed cookies
+    // back to it, so it must be writable.
+    YTDLP_COOKIES_FILE: z.string().optional(),
+    // The remote fetcher (see fetcher.server.ts), which runs yt-dlp on another
+    // host, e.g. http://fetcher.tailnet:8080. Without it yt-dlp runs here.
+    // FETCHER_SECRET is shared with it (its FETCHER_SECRET).
+    FETCHER_URL: z.url().optional(),
+    FETCHER_SECRET: z.string().min(16).optional(),
     FFMPEG_PATH: z.string().default('ffmpeg'),
     FFPROBE_PATH: z.string().default('ffprobe'),
     AUTH_SECRET: z.string().min(32),

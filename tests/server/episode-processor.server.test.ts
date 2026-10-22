@@ -8,9 +8,12 @@ import { channelItems, channels, episodes, type Episode } from '~/server/db/sche
 import { resetThrottle, throttleStatus } from '~/server/download-throttle.server'
 import { subscribeToEpisodeEvents, type EpisodeEvent } from '~/server/episode-events.server'
 import { enqueueEpisode, getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
+import { fetcherConfig } from '~/server/fetcher.server'
 import { reportError } from '~/server/logger.server'
+import { ytDlpConfig } from '~/server/ytdlp.server'
 import { episodeAudioPath, episodeSourcePath, episodeWaveformPath, replacementAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
+import { startFakeFetcher } from '../fixtures/fake-fetcher'
 import { createEpisode, createPodcast, createUser, db, exists, hasFfmpeg, makeImage, makeTone } from '../helpers'
 
 vi.mock('~/server/logger.server', async (importOriginal) => ({
@@ -219,6 +222,20 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     expect(args[args.indexOf('--sleep-requests') + 1]).toBe('1')
     expect(args[args.indexOf('--retry-sleep') + 1]).toBe('exp=1:60')
     expect(args).not.toContain('--limit-rate')
+    expect(args).not.toContain('--cookies')
+  })
+
+  it('gives yt-dlp the cookies file when there is one', async () => {
+    ytDlpConfig.cookiesFile = '/data/cookies.txt'
+    try {
+      const episode = await linkEpisode({ sourceUrl: link('/watch') })
+      enqueueEpisode(episode.id)
+      await processed(episode.id)
+      const args = JSON.parse(await readFile(join(media, 'yt-dlp-args.json'), 'utf8')) as string[]
+      expect(args[args.indexOf('--cookies') + 1]).toBe('/data/cookies.txt')
+    } finally {
+      ytDlpConfig.cookiesFile = null
+    }
   })
 
   it("dates a channel's upload as the channel does, and anything else as now", async () => {
@@ -281,6 +298,37 @@ describe.skipIf(!hasFfmpeg)('when the platform refuses us', () => {
     await vi.waitFor(() => expect(throttleStatus().cooldowns).toHaveLength(1))
     await vi.waitFor(() => expect(getEpisodeProgress(episode.id)).toMatchObject({ stage: 'queued' }))
     expect(await getRow(episode.id)).toMatchObject({ status: 'ready', replacement: { sourceUrl: link('/rate-limited') }, error: null })
+  })
+})
+
+describe.skipIf(!hasFfmpeg)('through the remote fetcher', () => {
+  let fetcher: Awaited<ReturnType<typeof startFakeFetcher>>
+  beforeAll(async () => {
+    fetcher = await startFakeFetcher('fake-fetcher-secret-0123456789')
+    Object.assign(fetcherConfig, { url: fetcher.url, secret: 'fake-fetcher-secret-0123456789' })
+  })
+  afterAll(async () => {
+    Object.assign(fetcherConfig, { url: null, secret: null })
+    await fetcher.close()
+  })
+  afterEach(() => resetThrottle())
+
+  it('downloads the audio there and makes the episode here', async () => {
+    const episode = await linkEpisode({ sourceUrl: link('/watch', { title: 'From Afar', duration: '3' }) })
+    enqueueEpisode(episode.id)
+    const row = await processed(episode.id)
+    expect(row).toMatchObject({ status: 'ready', title: 'From Afar', slug: 'from-afar', durationSeconds: 3 })
+    expect(await exists(episodeAudioPath(episode.id))).toBe(true)
+    expect(await readdir(dirname(episodeAudioPath(episode.id)))).not.toContainEqual(expect.stringContaining('.download.'))
+    expect(fetcher.files.size).toBe(0)
+  })
+
+  it("keeps the episode pending while the fetcher can't be reached, and says so", async () => {
+    const episode = await linkEpisode({ sourceUrl: link('/hang-up') })
+    enqueueEpisode(episode.id)
+    await vi.waitFor(() => expect(getEpisodeProgress(episode.id)).toMatchObject({ stage: 'queued', paused: { reason: 'fetcher' } }))
+    expect(await getRow(episode.id)).toMatchObject({ status: 'pending', error: null })
+    expect(reportError).not.toHaveBeenCalled()
   })
 })
 

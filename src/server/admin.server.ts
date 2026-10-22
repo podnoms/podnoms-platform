@@ -8,13 +8,15 @@ import type { EmailSettingsInput, SiteSettingsInput } from '~/lib/site-settings-
 import { db } from '~/server/db/client.server'
 import { channels, podcasts, users } from '~/server/db/schema'
 import { clearCooldown, pump, throttleStatus } from '~/server/download-throttle.server'
+import { fetcherHealth } from '~/server/fetcher.server'
 import { configFromSettings, getEmailConfig, getEmailStatus, sendEmail, updateEmailSettings } from '~/server/email.server'
 import { testEmail } from '~/server/emails.server'
 import { getSiteSettings, updateSiteSettings } from '~/server/site-settings.server'
 
 export async function getAdminOverview() {
-  const [settings, userRows] = await Promise.all([
+  const [settings, fetcher, userRows] = await Promise.all([
     getSiteSettings(),
+    fetcherHealth(),
     db
       .select({
         id: users.id,
@@ -41,6 +43,8 @@ export async function getAdminOverview() {
     },
     email: await getEmailStatus(),
     throttle: throttleStatus(),
+    // The remote fetcher's state, or null when yt-dlp runs here.
+    fetcher,
     users: userRows,
     // Channels are only checked by the job queue.
     jobsRunning: Boolean(env.REDIS_URL),

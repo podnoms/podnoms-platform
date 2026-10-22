@@ -52,6 +52,8 @@ Settings are read from `.env` and checked at startup by [`src/env.ts`](src/env.t
 | `SITE_URL` | In production | The site's public address, e.g. `https://podnoms.com`. Used for every absolute link (RSS feeds, sign-in and OAuth callbacks, link previews) and for links in emails sent in the background, which have no request to take the address from. Without it, the address comes from each request. There's no `AUTH_URL`: sign-in uses this. |
 | `MEDIA_DIR` | No | Where all media is stored (default `./media`) |
 | `YTDLP_PATH`, `FFMPEG_PATH`, `FFPROBE_PATH` | No | Paths to the binaries (default: found on `PATH`) |
+| `YTDLP_COOKIES_FILE` | No | A writable cookies.txt from a signed-in YouTube account (use a throwaway one), passed to yt-dlp when YouTube asks it to "confirm you're not a bot". See [exporting YouTube cookies](https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies). Not sent to the fetcher. |
+| `FETCHER_URL`, `FETCHER_SECRET` | No | A [podnoms-fetcher](https://github.com/podnoms/podnoms-fetcher) to run yt-dlp on another host (e.g. behind a VPN); without them yt-dlp runs here |
 | `AUTH_GITHUB_ID` / `_SECRET`, `AUTH_GOOGLE_ID` / `_SECRET`, `AUTH_FACEBOOK_ID` / `_SECRET` | No | Each sign-in provider is enabled when both of its values are set. The OAuth callback URL is `<SITE_URL>/api/auth/callback/<provider>`. |
 | `LOG_LEVEL` | No | `trace`, `debug`, `info` (default), `warn`, `error`, `fatal` or `silent` |
 | `REDIS_URL` | No | Redis for background jobs, e.g. `redis://localhost:6379`. Without it, scheduled jobs (such as the media clean-up) don't run. See [Background jobs](#background-jobs). |

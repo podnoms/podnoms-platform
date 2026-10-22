@@ -114,6 +114,11 @@ export const fetchExplore = createServerFn({ method: 'GET' }).handler(async () =
   return { popular, podcasts, podcastCount, latest }
 })
 
+// A few of the site's public shows, for the landing page to link to.
+export const fetchLandingPodcasts = createServerFn({ method: 'GET' }).handler(() =>
+  listExplorePodcasts(null, { offset: 0, limit: 8 }),
+)
+
 export const fetchMoreExplorePodcasts = createServerFn({ method: 'GET' })
   .validator(listPageSchema)
   .handler(async ({ data }) => listExplorePodcasts(await viewerId(), data))

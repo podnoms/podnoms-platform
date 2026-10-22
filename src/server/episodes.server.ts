@@ -120,6 +120,41 @@ export async function summarisePublishedEpisodes(podcastId: string) {
   return { count: summary!.count, totalSeconds: summary!.totalSeconds, latestAt: summary!.latestAt as Date | null }
 }
 
+// The listed episodes either side of one in its podcast, up to `each` newer and
+// `each` older, newest first: the episode page links to them, so every
+// episode can be reached from the next.
+export async function listNeighbouringEpisodes(
+  episode: { id: string; podcastId: string; publishedAt: Date | null; createdAt: Date },
+  each = 3,
+) {
+  const at = sql`coalesce(${episodes.publishedAt}, ${episodes.createdAt})`
+  const position = sql`(${(episode.publishedAt ?? episode.createdAt).toISOString()}::timestamptz, ${episode.id})`
+  const columns = {
+    id: episodes.id,
+    slug: episodes.slug,
+    title: episodes.title,
+    publishedAt: episodes.publishedAt,
+    createdAt: episodes.createdAt,
+    durationSeconds: episodes.durationSeconds,
+  }
+  const ofPodcast = and(eq(episodes.podcastId, episode.podcastId), isListed)
+  const [newer, older] = await Promise.all([
+    db
+      .select(columns)
+      .from(episodes)
+      .where(and(ofPodcast, sql`(${at}, ${episodes.id}) > ${position}`))
+      .orderBy(at, episodes.id)
+      .limit(each),
+    db
+      .select(columns)
+      .from(episodes)
+      .where(and(ofPodcast, sql`(${at}, ${episodes.id}) < ${position}`))
+      .orderBy(newestPublishedFirst, desc(episodes.id))
+      .limit(each),
+  ])
+  return [...newer.reverse(), ...older]
+}
+
 // A published episode, by podcast and episode slug, with its podcast; null if
 // there's no such episode, it isn't ready, or it (or its podcast) is private
 // and the listener isn't its owner.

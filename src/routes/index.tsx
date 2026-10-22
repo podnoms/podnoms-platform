@@ -3,18 +3,19 @@ import { Dashboard } from '~/components/dashboard'
 import { LandingPage } from '~/components/landing-page'
 import { ContinueListening, ListenerHome } from '~/components/listener-home'
 import { fetchDashboard } from '~/functions/dashboard'
-import { fetchListenerHome } from '~/functions/library'
+import { fetchLandingPodcasts, fetchListenerHome } from '~/functions/library'
 import { siteHead } from '~/lib/page-meta'
 import { siteDescription, siteInfo } from '~/lib/site'
 import { jsonLdMeta, websiteJsonLd } from '~/lib/structured-data'
 
 export const Route = createFileRoute('/')({
   // For signed-in users: the dashboard (starting with the last 30 days), for
-  // those with podcasts, and what they're listening to, for everyone.
+  // those with podcasts, and what they're listening to, for everyone. Signed
+  // out, some of the site's shows, for the landing page.
   loader: async ({ context }) => {
-    if (!context.session) return null
+    if (!context.session) return { landing: await fetchLandingPodcasts() }
     const [dashboard, listening] = await Promise.all([fetchDashboard({ data: { days: 30 } }), fetchListenerHome()])
-    return { dashboard, listening }
+    return { home: { dashboard, listening } }
   },
   head: ({ matches }) => {
     const site = siteInfo(matches)
@@ -37,12 +38,13 @@ const rootRoute = getRouteApi('__root__')
 // dashboard, or, if they've none, a home page for listening.
 function Index() {
   const { session } = Route.useRouteContext()
-  return session ? <Home /> : <LandingPage />
+  const data = Route.useLoaderData()
+  return session ? <Home /> : <LandingPage podcasts={data.landing ?? []} />
 }
 
 function Home() {
   const { podcasts } = rootRoute.useLoaderData()
-  const data = Route.useLoaderData()
+  const data = Route.useLoaderData().home
   if (!data) return null
   if (podcasts.length === 0) return <ListenerHome data={data.listening} />
   return (

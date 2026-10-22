@@ -21,6 +21,52 @@ async function runMigration(pg: PGlite, tag: string) {
 const tagOf = (prefix: string) => migrationStatements().find((m) => m.tag.startsWith(prefix))!.tag
 
 describe('migrations', () => {
+  it("0030 re-keys yt-dlp's Mixcloud uploads by their page and deletes the episodes imported twice", async () => {
+    const pg = new PGlite()
+    try {
+      await migrateUntil(pg, tagOf('0030'))
+      await pg.exec(`insert into "user" (id, email) values ('u1', 'mixes@example.com');
+        insert into podcast (id, "userId", title, slug) values ('p1', 'u1', 'Mixes', 'mixes'), ('p2', 'u1', 'More mixes', 'more-mixes');
+        insert into channel (id, "podcastId", platform, url) values
+          ('mc', 'p1', 'mixcloud', 'https://www.mixcloud.com/someone/uploads/'),
+          ('yt', 'p1', 'youtube', 'https://www.youtube.com/@someone/videos'),
+          ('mc2', 'p2', 'mixcloud', 'https://www.mixcloud.com/someone/uploads/');
+        insert into episode (id, "podcastId", title, slug, "shortSlug", "sourceUrl") values
+          ('a', 'p1', 'A', 'a', 'sa', 'https://www.mixcloud.com/someone/a/'),
+          ('a2', 'p1', 'A', 'a-2', 'sa2', 'https://www.mixcloud.com/someone/a/'),
+          ('b', 'p1', 'B', 'b', 'sb', 'https://www.mixcloud.com/someone/b'),
+          ('c', 'p1', 'C', 'c', 'sc', 'https://www.mixcloud.com/someone/c/'),
+          ('v', 'p1', 'V', 'v', 'sv', 'https://www.youtube.com/watch?v=v'),
+          ('m', 'p1', 'A by hand', 'a-by-hand', 'sm', 'https://www.mixcloud.com/someone/a/'),
+          ('pa', 'p2', 'A', 'a', 'spa', 'https://www.mixcloud.com/someone/a/');
+        insert into channel_item ("channelId", "sourceKey", "episodeId") values
+          ('mc', 'mixcloud:someone_a', 'a'),
+          ('mc', 'mixcloud:/someone/a/', 'a2'),
+          ('mc', 'mixcloud:someone_b', 'b'),
+          ('mc', 'mixcloud:/someone/c/', 'c'),
+          ('mc', 'mixcloud:someone_gone', null),
+          ('yt', 'youtube:v', 'v'),
+          ('mc2', 'mixcloud:/someone/a/', 'pa');`)
+      await runMigration(pg, tagOf('0030'))
+      const items = await pg.query<{ channelId: string; sourceKey: string; episodeId: string | null }>(
+        'select "channelId", "sourceKey", "episodeId" from channel_item order by "channelId", "sourceKey"',
+      )
+      expect(items.rows).toEqual([
+        { channelId: 'mc', sourceKey: 'mixcloud:/someone/a/', episodeId: 'a' },
+        { channelId: 'mc', sourceKey: 'mixcloud:/someone/b/', episodeId: 'b' },
+        { channelId: 'mc', sourceKey: 'mixcloud:/someone/c/', episodeId: 'c' },
+        { channelId: 'mc', sourceKey: 'mixcloud:someone_gone', episodeId: null },
+        { channelId: 'mc2', sourceKey: 'mixcloud:/someone/a/', episodeId: 'pa' },
+        { channelId: 'yt', sourceKey: 'youtube:v', episodeId: 'v' },
+      ])
+      const left = await pg.query<{ id: string }>('select id from episode order by id')
+      // Another show's copy of the same upload, and one added by hand, stay.
+      expect(left.rows.map((row) => row.id)).toEqual(['a', 'b', 'c', 'm', 'pa', 'v'])
+    } finally {
+      await pg.close()
+    }
+  })
+
   it('0029 gives existing tags unique readable slugs while preserving associations', async () => {
     const pg = new PGlite()
     try {

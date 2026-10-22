@@ -11,6 +11,7 @@
 // Given --flat-playlist, it lists a channel instead:
 //   ?entries=c,b,a&title=…&thumbnail=…              its uploads' ids, newest first, and details
 //   &live=b&short=a                                 uploads that are live streams or Shorts
+//   &pages=https://www.mixcloud.com/someone/        uploads' pages are <pages><id>/ rather than video.test
 // The audio it "downloads" is a copy of FAKE_YTDLP_AUDIO.
 import { copyFileSync, writeFileSync } from 'node:fs'
 
@@ -35,7 +36,9 @@ if (args.includes('--flat-playlist')) {
   for (const [index, id] of list('entries').slice(0, end).entries()) {
     const entry = {
       id,
-      url: `https://video.test/watch?${new URLSearchParams({ title: `Video ${id}`, upload_date: `202601${String(28 - index).padStart(2, '0')}` })}`,
+      url: url.searchParams.has('pages')
+        ? `${url.searchParams.get('pages')}${id}/`
+        : `https://video.test/watch?${new URLSearchParams({ title: `Video ${id}`, upload_date: `202601${String(28 - index).padStart(2, '0')}` })}`,
       title: `Video ${id}`,
       duration: list('short').includes(id) ? 30 : 600,
       live_status: list('live').includes(id) ? 'is_live' : 'not_live',

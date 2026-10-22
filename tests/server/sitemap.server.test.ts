@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { buildSitemap, listSitemapEntries } from '~/server/sitemap.server'
 import { resetDb } from '../db'
+import { episodeTags, podcastTags, tags } from '~/server/db/schema'
 import { createEpisode, createPodcast, createUser, db } from '../helpers'
 
 beforeEach(() => resetDb(db))
@@ -11,13 +12,13 @@ const paths = async () => (await listSitemapEntries()).map((entry) => entry.path
 
 describe('listSitemapEntries', () => {
   it("lists the site's own pages", async () => {
-    expect(await paths()).toEqual(['/', '/privacy', '/tos'])
+    expect(await paths()).toEqual(['/', '/explore', '/privacy', '/tos'])
   })
 
   it('lists listed podcasts and their published episodes', async () => {
     const podcast = await createPodcast((await createUser()).id, { slug: 'show', imageUrl: '/images/a.jpg' })
     await createEpisode(podcast.id, { ...published, slug: 'ep-1' })
-    expect(await paths()).toEqual(['/', '/privacy', '/tos', '/show', '/show/episodes/ep-1'])
+    expect(await paths()).toEqual(['/', '/explore', '/privacy', '/tos', '/show', '/show/episodes/ep-1'])
     const entries = await listSitemapEntries()
     expect(entries.find((entry) => entry.path === '/show')?.image).toBe('/images/a.jpg')
   })
@@ -31,7 +32,30 @@ describe('listSitemapEntries', () => {
     await createEpisode(show.id, { ...published, slug: 'ready' })
     await createEpisode(show.id, { slug: 'pending', status: 'pending' })
     await createEpisode(show.id, { slug: 'failed', status: 'failed' })
-    expect(await paths()).toEqual(['/', '/privacy', '/tos', '/show', '/show/episodes/ready'])
+    expect(await paths()).toEqual(['/', '/explore', '/privacy', '/tos', '/show', '/show/episodes/ready'])
+  })
+
+  it('lists the tags of listed episodes and podcasts, once each', async () => {
+    const userId = (await createUser()).id
+    await db.insert(tags).values([
+      { id: 'house', name: 'house', slug: 'house' },
+      { id: 'dub', name: 'dub', slug: 'dub' },
+      { id: 'secret', name: 'secret', slug: 'secret' },
+      { id: 'unused', name: 'unused', slug: 'unused' },
+    ])
+    const show = await createPodcast(userId, { slug: 'show' })
+    const episode = await createEpisode(show.id, { ...published, slug: 'ep' })
+    const hidden = await createPodcast(userId, { slug: 'hidden', private: true })
+    await createEpisode(hidden.id, { ...published, slug: 'ep' })
+    await db.insert(podcastTags).values([
+      { podcastId: show.id, tagId: 'dub' },
+      { podcastId: hidden.id, tagId: 'secret' },
+    ])
+    await db.insert(episodeTags).values([
+      { episodeId: episode.id, tagId: 'house' },
+      { episodeId: episode.id, tagId: 'dub' },
+    ])
+    expect((await paths()).filter((path) => path.startsWith('/tags/'))).toEqual(['/tags/dub', '/tags/house'])
   })
 
   it('dates entries by when episodes were published, falling back to when they were added', async () => {

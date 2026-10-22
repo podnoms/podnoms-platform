@@ -1,10 +1,11 @@
 // The sitemap search engines are pointed to from robots.txt: the site's own
-// pages, and every listed podcast with published episodes, and those episodes.
+// pages, every listed podcast with published episodes, those episodes, and the
+// tags they have (or their podcasts have).
 import '@tanstack/react-start/server-only'
 import { and, desc, eq, max, sql } from 'drizzle-orm'
 import { episodePath, podcastPath } from '~/lib/paths'
 import { db } from '~/server/db/client.server'
-import { episodes, podcasts } from '~/server/db/schema'
+import { episodes, episodeTags, podcasts, podcastTags, tags } from '~/server/db/schema'
 import { escapeXml } from '~/server/feed.server'
 import { isListed, newestPublishedFirst } from '~/server/episodes.server'
 
@@ -14,7 +15,7 @@ export type SitemapEntry = { path: string; lastModified?: Date; image?: string }
 // sitemap index pointing at several sitemaps; until then, the newest win.
 const maxEntries = 50_000
 
-const sitePages = ['/', '/privacy', '/tos']
+const sitePages = ['/', '/explore', '/privacy', '/tos']
 
 const publishedAt = sql<Date>`coalesce(${episodes.publishedAt}, ${episodes.createdAt})`.mapWith(episodes.createdAt)
 
@@ -37,6 +38,24 @@ export async function listSitemapEntries(): Promise<SitemapEntry[]> {
     .where(and(eq(podcasts.private, false), isListed))
     .orderBy(newestPublishedFirst, desc(episodes.id))
     .limit(maxEntries)
+  const listed = and(eq(podcasts.private, false), isListed)
+  const tagged = [
+    ...(await db
+      .selectDistinct({ slug: tags.slug })
+      .from(tags)
+      .innerJoin(episodeTags, eq(episodeTags.tagId, tags.id))
+      .innerJoin(episodes, eq(episodes.id, episodeTags.episodeId))
+      .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+      .where(listed)),
+    ...(await db
+      .selectDistinct({ slug: tags.slug })
+      .from(tags)
+      .innerJoin(podcastTags, eq(podcastTags.tagId, tags.id))
+      .innerJoin(podcasts, eq(podcasts.id, podcastTags.podcastId))
+      .innerJoin(episodes, eq(episodes.podcastId, podcasts.id))
+      .where(listed)),
+  ]
+  const tagSlugs = [...new Set(tagged.map((tag) => tag.slug))].sort()
   return [
     ...sitePages.map((path) => ({ path })),
     ...shows.map((show) => ({
@@ -45,6 +64,7 @@ export async function listSitemapEntries(): Promise<SitemapEntry[]> {
       image: show.imageUrl ?? undefined,
     })),
     ...items.map((item) => ({ path: episodePath(item.podcastSlug, item.slug), lastModified: item.lastModified })),
+    ...tagSlugs.map((slug) => ({ path: `/tags/${encodeURIComponent(slug)}` })),
   ].slice(0, maxEntries)
 }
 

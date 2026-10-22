@@ -88,6 +88,16 @@ describe('listing with yt-dlp', () => {
     ])
   })
 
+  it("keys Mixcloud uploads as Mixcloud's API does, so an admin's channel isn't imported twice", async () => {
+    answer = (path) =>
+      path.startsWith('/someone/cloudcasts/') ? { status: 200, body: { data: [cloudcast('b'), cloudcast('a')] } } : { status: 404 }
+    const url = `https://video.test/someone/?${new URLSearchParams({ entries: 'b,a', pages: 'https://www.mixcloud.com/someone/' })}`
+    const whole = await listChannel('mixcloud', url, null)
+    const newest = await listChannel('mixcloud', url, 5, { details: false })
+    expect(whole.entries.map((entry) => entry.key)).toEqual(['mixcloud:/someone/b/', 'mixcloud:/someone/a/'])
+    expect(newest.entries.map((entry) => entry.key)).toEqual(whole.entries.map((entry) => entry.key))
+  })
+
   it("takes yt-dlp's refusal errors as the platform refusing us", async () => {
     await expect(listChannel('youtube', 'https://video.test/rate-limited', 10)).rejects.toBeInstanceOf(RateLimitedError)
   })

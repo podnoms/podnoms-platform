@@ -7,6 +7,11 @@ import { env } from '~/env'
 import { RateLimitedError } from '~/server/download-throttle.server'
 import { getSiteSettings } from '~/server/site-settings.server'
 
+// Overridable in tests.
+export const ytDlpConfig = {
+  cookiesFile: env.YTDLP_COOKIES_FILE ?? null,
+}
+
 export async function politeArgs() {
   const { downloadRateLimit } = await getSiteSettings()
   return [
@@ -19,6 +24,8 @@ export async function politeArgs() {
     '--retry-sleep',
     'exp=1:60',
     ...(downloadRateLimit ? ['--limit-rate', downloadRateLimit] : []),
+    // A signed-in account's cookies get past YouTube's "not a bot" check.
+    ...(ytDlpConfig.cookiesFile ? ['--cookies', ytDlpConfig.cookiesFile] : []),
   ]
 }
 
