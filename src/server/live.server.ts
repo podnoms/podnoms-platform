@@ -17,10 +17,10 @@ import type { ChatGif, GifConfig } from '~/lib/gifs'
 import { db } from '~/server/db/client.server'
 import { episodes, liveBroadcasts, liveChatMessages, podcasts, users, type LiveBroadcast } from '~/server/db/schema'
 import { ExpiringStore } from '~/server/expiring-store.server'
+import { notifyFollowersLive } from '~/server/follower-notifications.server'
 import { publishLiveEvent, type ChatMessageRecord } from '~/server/live-events.server'
 import { finishRecording } from '~/server/live-recordings.server'
 import { logger, reportError } from '~/server/logger.server'
-import { notifyFollowersLive } from '~/server/push.server'
 import { decryptSecret, encryptSecret } from '~/server/secrets.server'
 
 // How often MediaMTX is asked what's live.

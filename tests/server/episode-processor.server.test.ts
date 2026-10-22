@@ -9,15 +9,15 @@ import { resetThrottle, throttleStatus } from '~/server/download-throttle.server
 import { subscribeToEpisodeEvents, type EpisodeEvent } from '~/server/episode-events.server'
 import { enqueueEpisode, getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
 import { fetcherConfig } from '~/server/fetcher.server'
+import { notifyFollowersNewEpisode } from '~/server/follower-notifications.server'
 import { reportError } from '~/server/logger.server'
-import { notifyFollowersNewEpisode } from '~/server/push.server'
 import { ytDlpConfig } from '~/server/ytdlp.server'
 import { episodeAudioPath, episodeSourcePath, episodeWaveformPath, replacementAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import { startFakeFetcher } from '../fixtures/fake-fetcher'
 import { createEpisode, createPodcast, createUser, db, exists, hasFfmpeg, makeImage, makeTone } from '../helpers'
 
-vi.mock('~/server/push.server', () => ({ notifyFollowersNewEpisode: vi.fn() }))
+vi.mock('~/server/follower-notifications.server', () => ({ notifyFollowersNewEpisode: vi.fn() }))
 vi.mock('~/server/logger.server', async (importOriginal) => ({
   ...(await importOriginal<typeof import('~/server/logger.server')>()),
   reportError: vi.fn(),

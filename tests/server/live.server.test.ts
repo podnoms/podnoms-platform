@@ -1,9 +1,9 @@
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { liveBroadcasts, podcasts } from '~/server/db/schema'
+import { notifyFollowersLive } from '~/server/follower-notifications.server'
 import { subscribeToLiveEvents, type LiveEvent } from '~/server/live-events.server'
 import { finishRecording } from '~/server/live-recordings.server'
-import { notifyFollowersLive } from '~/server/push.server'
 import {
   addChatMessage,
   authorizeLive,
@@ -25,7 +25,7 @@ import { resetDb } from '../db'
 import { createPodcast, createUser, db } from '../helpers'
 
 vi.mock('~/server/live-recordings.server', () => ({ finishRecording: vi.fn() }))
-vi.mock('~/server/push.server', () => ({ notifyFollowersLive: vi.fn() }))
+vi.mock('~/server/follower-notifications.server', () => ({ notifyFollowersLive: vi.fn() }))
 
 beforeEach(async () => {
   await resetDb(db)

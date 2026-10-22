@@ -1,9 +1,10 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { setPasswordSchema } from '~/lib/auth-schema'
-import { editProfileSchema, notificationPrefsSchema } from '~/lib/profile-schema'
+import { editProfileSchema, followNotifySchema, notificationPrefsSchema } from '~/lib/profile-schema'
 import { getSession } from '~/server/auth.server'
 import { emailEnabled } from '~/server/email.server'
+import { listFollowNotify, setFollowNotify } from '~/server/follower-notifications.server'
 import {
   getNotificationPrefs,
   getProfile,
@@ -39,13 +40,21 @@ export const savePassword = createServerFn({ method: 'POST' })
   .validator(setPasswordSchema)
   .handler(async ({ data }) => setPassword(await requireUserId(), data.password, data.currentPassword))
 
-// The user's notification choices, and whether the site can send email at all.
+// The user's notification choices, the podcasts they follow (each of which
+// they can mute), and whether the site can send email at all.
 export const fetchNotificationPrefs = createServerFn({ method: 'GET' }).handler(async () => {
-  const prefs = await getNotificationPrefs(await requireUserId())
+  const userId = await requireUserId()
+  const prefs = await getNotificationPrefs(userId)
   if (!prefs) throw new Error('You need to be signed in')
-  return { ...prefs, emailEnabled: await emailEnabled() }
+  return { ...prefs, follows: await listFollowNotify(userId), emailEnabled: await emailEnabled() }
 })
 
 export const saveNotificationPrefs = createServerFn({ method: 'POST' })
   .validator(notificationPrefsSchema)
   .handler(async ({ data }) => updateNotificationPrefs(await requireUserId(), data))
+
+export const saveFollowNotify = createServerFn({ method: 'POST' })
+  .validator(followNotifySchema)
+  .handler(async ({ data }) => {
+    if (!(await setFollowNotify(await requireUserId(), data.podcastId, data.notify))) throw new Error("You don't follow that podcast")
+  })

@@ -95,7 +95,12 @@ export async function findUserByEmail(email: string) {
 
 export async function getNotificationPrefs(userId: string) {
   const [prefs] = await db
-    .select({ notifyEpisodeFailed: users.notifyEpisodeFailed, notifyNewEpisodes: users.notifyNewEpisodes })
+    .select({
+      notifyEpisodeFailed: users.notifyEpisodeFailed,
+      notifyNewEpisodes: users.notifyNewEpisodes,
+      emailLive: users.emailLive,
+      emailFollowedEpisodes: users.emailFollowedEpisodes,
+    })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1)
@@ -104,7 +109,7 @@ export async function getNotificationPrefs(userId: string) {
 
 export async function updateNotificationPrefs(
   userId: string,
-  prefs: { notifyEpisodeFailed: boolean; notifyNewEpisodes: boolean },
+  prefs: { notifyEpisodeFailed: boolean; notifyNewEpisodes: boolean; emailLive: boolean; emailFollowedEpisodes: boolean },
 ) {
   await db.update(users).set(prefs).where(eq(users.id, userId))
 }

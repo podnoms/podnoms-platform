@@ -53,10 +53,14 @@ export const users = pgTable(
     // Which emails the user gets about their podcasts (see notifications.server.ts).
     notifyEpisodeFailed: boolean('notifyEpisodeFailed').notNull().default(true),
     notifyNewEpisodes: boolean('notifyNewEpisodes').notNull().default(true),
-    // Which desktop notifications the user gets about the podcasts they
-    // follow (see push.server.ts), on every browser they've turned them on in.
+    // What the user hears about the podcasts they follow (see
+    // follower-notifications.server.ts): desktop notifications, on every
+    // browser they've turned them on in, and emails, which are off until
+    // they choose them.
     pushLive: boolean('pushLive').notNull().default(true),
     pushNewEpisodes: boolean('pushNewEpisodes').notNull().default(true),
+    emailLive: boolean('emailLive').notNull().default(false),
+    emailFollowedEpisodes: boolean('emailFollowedEpisodes').notNull().default(false),
     // How many of a channel's newest uploads are imported when the user makes
     // a podcast from it, and considered on each check. Set by admins.
     channelEpisodeLimit: integer('channelEpisodeLimit').notNull().default(10),
@@ -423,7 +427,8 @@ export const podcastFollows = pgTable(
     podcastId: text('podcastId')
       .notNull()
       .references(() => podcasts.id, { onDelete: 'cascade' }),
-    // Whether the user gets desktop notifications about this podcast.
+    // Whether the user hears about this podcast (desktop notifications and
+    // emails), or has muted it.
     notify: boolean('notify').notNull().default(true),
     createdAt: timestamps.createdAt,
   },

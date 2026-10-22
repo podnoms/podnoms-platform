@@ -2,15 +2,9 @@
 // them on and off in a browser, and choosing what they're about.
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
-import { followNotifySchema, pushPrefsSchema, pushSubscriptionSchema, removePushSubscriptionSchema } from '~/lib/push-schema'
+import { pushPrefsSchema, pushSubscriptionSchema, removePushSubscriptionSchema } from '~/lib/push-schema'
 import { getSession } from '~/server/auth.server'
-import {
-  deletePushSubscription,
-  getPushSettings,
-  savePushSubscription,
-  setFollowNotify,
-  updatePushPrefs,
-} from '~/server/push.server'
+import { deletePushSubscription, getPushSettings, savePushSubscription, updatePushPrefs } from '~/server/push.server'
 
 async function requireUserId() {
   const session = await getSession(getRequest())
@@ -37,9 +31,3 @@ export const unsubscribeFromPush = createServerFn({ method: 'POST' })
 export const savePushPrefs = createServerFn({ method: 'POST' })
   .validator(pushPrefsSchema)
   .handler(async ({ data }) => updatePushPrefs(await requireUserId(), data))
-
-export const saveFollowNotify = createServerFn({ method: 'POST' })
-  .validator(followNotifySchema)
-  .handler(async ({ data }) => {
-    if (!(await setFollowNotify(await requireUserId(), data.podcastId, data.notify))) throw new Error("You don't follow that podcast")
-  })

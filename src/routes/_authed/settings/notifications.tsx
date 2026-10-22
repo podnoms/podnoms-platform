@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
-import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
+import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '~/components/ui/field'
 import { Switch } from '~/components/ui/switch'
 import { DesktopNotifications } from '~/components/desktop-notifications'
+import { FollowedPodcastNotifications } from '~/components/followed-podcast-notifications'
 import { fetchNotificationPrefs, saveNotificationPrefs } from '~/functions/profile'
 import { fetchPushSettings } from '~/functions/push'
 
@@ -17,9 +18,10 @@ export const Route = createFileRoute('/_authed/settings/notifications')({
   component: NotificationsPage,
 })
 
-type Pref = 'notifyEpisodeFailed' | 'notifyNewEpisodes'
+type Pref = 'notifyEpisodeFailed' | 'notifyNewEpisodes' | 'emailLive' | 'emailFollowedEpisodes'
+type Option = { pref: Pref; label: string; description: string }
 
-const options: { pref: Pref; label: string; description: string }[] = [
+const yourPodcasts: Option[] = [
   {
     pref: 'notifyEpisodeFailed',
     label: 'Episodes that fail',
@@ -32,9 +34,15 @@ const options: { pref: Pref; label: string; description: string }[] = [
   },
 ]
 
-// Which emails the user gets about their podcasts (batched: a few minutes'
-// events come in one email), and desktop notifications about the podcasts
-// they follow.
+// The same kinds as desktop notifications.
+const followedPodcasts: Option[] = [
+  { pref: 'emailLive', label: 'Going live', description: 'When a podcast you follow starts a live broadcast. Sent straight away.' },
+  { pref: 'emailFollowedEpisodes', label: 'New episodes', description: 'When a podcast you follow has a new episode.' },
+]
+
+// Which emails the user gets about their podcasts and the ones they follow
+// (batched: a few minutes' events come in one email), desktop notifications,
+// and which of the podcasts they follow they hear about.
 function NotificationsPage() {
   const prefs = Route.useLoaderData()
   const router = useRouter()
@@ -45,14 +53,32 @@ function NotificationsPage() {
   async function toggle(pref: Pref, value: boolean) {
     setError(undefined)
     try {
+      const { notifyEpisodeFailed, notifyNewEpisodes, emailLive, emailFollowedEpisodes } = prefs
       await saveNotificationPrefs({
-        data: { notifyEpisodeFailed: prefs.notifyEpisodeFailed, notifyNewEpisodes: prefs.notifyNewEpisodes, [pref]: value },
+        data: { notifyEpisodeFailed, notifyNewEpisodes, emailLive, emailFollowedEpisodes, [pref]: value },
       })
       await reload()
     } catch {
       setError('Something went wrong saving that. Please try again.')
     }
   }
+
+  const switches = (legend: string, options: Option[]) => (
+    <FieldSet>
+      <FieldLegend variant="label">{legend}</FieldLegend>
+      <FieldGroup>
+        {options.map(({ pref, label, description }) => (
+          <Field key={pref} orientation="horizontal">
+            <FieldContent>
+              <FieldLabel htmlFor={pref}>{label}</FieldLabel>
+              <FieldDescription>{description}</FieldDescription>
+            </FieldContent>
+            <Switch id={pref} checked={prefs[pref]} onCheckedChange={(value) => void toggle(pref, value)} />
+          </Field>
+        ))}
+      </FieldGroup>
+    </FieldSet>
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -73,20 +99,14 @@ function NotificationsPage() {
         </CardHeader>
         <CardContent>
           <FieldGroup>
-            {options.map(({ pref, label, description }) => (
-              <Field key={pref} orientation="horizontal">
-                <FieldContent>
-                  <FieldLabel htmlFor={pref}>{label}</FieldLabel>
-                  <FieldDescription>{description}</FieldDescription>
-                </FieldContent>
-                <Switch id={pref} checked={prefs[pref]} onCheckedChange={(value) => void toggle(pref, value)} />
-              </Field>
-            ))}
+            {switches('Your podcasts', yourPodcasts)}
+            {switches('Podcasts you follow', followedPodcasts)}
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
         </CardContent>
       </Card>
       <DesktopNotifications settings={prefs.push} onChange={reload} />
+      <FollowedPodcastNotifications follows={prefs.follows} onChange={reload} />
     </div>
   )
 }

@@ -81,6 +81,8 @@ export function passwordResetEmail(link: string): EmailMessage {
 export type NotificationEvent =
   | { type: 'episodeFailed'; podcastTitle: string; episodeTitle: string; error: string | null; link: string | null }
   | { type: 'newEpisodes'; podcastTitle: string; count: number; link: string | null }
+  // New episodes from a podcast the user follows (see follower-notifications.server.ts).
+  | { type: 'followedEpisodes'; podcastTitle: string; titles: string[]; link: string | null }
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
 
@@ -99,19 +101,29 @@ function EventRow({ event }: { event: NotificationEvent }) {
               color: colors.text,
             }}
           >
-            {failed ? (
+            {event.type === 'episodeFailed' ? (
               <>
                 <strong>{event.episodeTitle}</strong> in {event.podcastTitle} couldn’t be processed
                 {event.error ? <div style={{ fontSize: '13px', color: colors.muted }}>{event.error}</div> : null}
               </>
-            ) : (
+            ) : event.type === 'newEpisodes' ? (
               <>
                 <strong>{plural(event.count, 'new episode')}</strong> from {event.podcastTitle}’s channel
+              </>
+            ) : (
+              <>
+                {event.titles.length === 1 ? <strong>{event.titles[0]}</strong> : <strong>{plural(event.titles.length, 'new episode')}</strong>}{' '}
+                from {event.podcastTitle}
+                {event.titles.length > 1 && (
+                  <div style={{ fontSize: '13px', color: colors.muted }}>{event.titles.join(' · ')}</div>
+                )}
               </>
             )}
             {event.link && (
               <div style={{ fontSize: '13px' }}>
-                <EmailLink href={event.link}>{failed ? 'Retry or upload it again' : 'See them'}</EmailLink>
+                <EmailLink href={event.link}>
+                  {event.type === 'episodeFailed' ? 'Retry or upload it again' : event.type === 'newEpisodes' ? 'See them' : 'Listen'}
+                </EmailLink>
               </div>
             )}
           </td>
@@ -121,17 +133,23 @@ function EventRow({ event }: { event: NotificationEvent }) {
   )
 }
 
-// Everything that happened to the user's podcasts in the last few minutes, in
-// one email.
+// Everything that happened to the user's podcasts, and the ones they follow,
+// in the last few minutes, in one email.
 export function notificationDigestEmail(events: NotificationEvent[], settingsLink: string | null): EmailMessage {
   const failures = events.filter((event) => event.type === 'episodeFailed').length
   const added = events.reduce((sum, event) => sum + (event.type === 'newEpisodes' ? event.count : 0), 0)
+  const followed = events.flatMap((event) => (event.type === 'followedEpisodes' ? [event] : []))
+  // About the user's own podcasts if there's anything, as that's more pressing.
   const subject =
     failures && added
       ? `${plural(failures, 'episode')} failed, ${added} new`
       : failures
         ? `${failures === 1 ? 'An episode' : `${failures} episodes`} couldn’t be processed`
-        : `${plural(added, 'new episode')} on podnoms`
+        : added
+          ? `${plural(added, 'new episode')} on podnoms`
+          : followed.length === 1 && followed[0]!.titles.length === 1
+            ? `New from ${followed[0]!.podcastTitle}: ${followed[0]!.titles[0]}`
+            : `${plural(followed.reduce((sum, event) => sum + event.titles.length, 0), 'new episode')} from podcasts you follow`
   const failed = events.filter((event) => event.type === 'episodeFailed')
   const news = events.filter((event) => event.type === 'newEpisodes')
   return {
@@ -147,15 +165,13 @@ export function notificationDigestEmail(events: NotificationEvent[], settingsLin
         {news.map((event, index) => (
           <EventRow key={`new-${index}`} event={event} />
         ))}
+        {failed.length + news.length > 0 && followed.length > 0 && <EmailDivider />}
+        {followed.map((event, index) => (
+          <EventRow key={`followed-${index}`} event={event} />
+        ))}
       </>
     ),
-    footer: settingsLink ? (
-      <>
-        You get these emails about your podcasts. <EmailLink href={settingsLink}>Choose which ones</EmailLink>.
-      </>
-    ) : (
-      'You get these emails about your podcasts. Choose which ones in your podnoms settings.'
-    ),
+    footer: <NotificationFooter settingsLink={settingsLink} />,
   }
 }
 
@@ -186,5 +202,39 @@ export function botCheckEmail(platform: Platform, error: string, adminLink: stri
       </>
     ),
     footer: 'You get this as a podnoms admin, at most every 6 hours while it keeps happening.',
+  }
+}
+
+// Why the reader got a notification email, and where to change it.
+function NotificationFooter({ settingsLink }: { settingsLink: string | null }) {
+  return settingsLink ? (
+    <>
+      You get these emails about your podcasts and the ones you follow.{' '}
+      <EmailLink href={settingsLink}>Choose which ones</EmailLink>.
+    </>
+  ) : (
+    'You get these emails about your podcasts and the ones you follow. Choose which ones in your podnoms settings.'
+  )
+}
+
+// To a follower, when a podcast they follow goes live: sent at once, rather
+// than with the next digest.
+export function liveEmail(
+  podcastTitle: string,
+  broadcastTitle: string,
+  link: string | null,
+  settingsLink: string | null,
+): EmailMessage {
+  return {
+    subject: `${podcastTitle} is live now`,
+    preview: broadcastTitle,
+    content: (
+      <>
+        <EmailHeading>{podcastTitle} is live</EmailHeading>
+        <EmailText>{broadcastTitle}</EmailText>
+        {link && <EmailButton href={link}>Watch and chat</EmailButton>}
+      </>
+    ),
+    footer: <NotificationFooter settingsLink={settingsLink} />,
   }
 }

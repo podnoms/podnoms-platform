@@ -1,20 +1,22 @@
-// Emails to podcast owners about their podcasts: episodes that couldn't be
-// processed, and new episodes from a channel. Events are collected for a few
-// minutes and sent as one email, so a bulk upload that fails doesn't send one
-// email per episode. Like episode progress, batches waiting to be sent are
-// kept in memory and lost if the app restarts.
+// Notification emails: to podcast owners about their podcasts (episodes that
+// couldn't be processed, and new episodes from a channel), and to listeners
+// about the podcasts they follow (new episodes, and going live; see
+// follower-notifications.server.ts). Events are collected for a few minutes
+// and sent as one email, so a bulk upload that fails doesn't send one email
+// per episode; going live is sent at once. Like episode progress, batches
+// waiting to be sent are kept in memory and lost if the app restarts.
 import '@tanstack/react-start/server-only'
 import { eq } from 'drizzle-orm'
-import { episodePath, podcastPath } from '~/lib/paths'
+import { episodePath, livePath, podcastPath } from '~/lib/paths'
 import { db } from '~/server/db/client.server'
 import { episodes, podcasts, users } from '~/server/db/schema'
 import { emailEnabled, emailOrigin, sendEmail } from '~/server/email.server'
-import { notificationDigestEmail, type NotificationEvent } from '~/server/emails.server'
+import { liveEmail, notificationDigestEmail, type NotificationEvent } from '~/server/emails.server'
 import { reportError } from '~/server/logger.server'
 
 export const batchDelayMs = 5 * 60_000
 
-type Preference = 'notifyEpisodeFailed' | 'notifyNewEpisodes'
+type Preference = 'notifyEpisodeFailed' | 'notifyNewEpisodes' | 'emailFollowedEpisodes' | 'emailLive'
 
 const batches = new Map<string, NotificationEvent[]>()
 
@@ -23,16 +25,22 @@ const link = (path: string) => {
   return origin ? new URL(path, origin).toString() : null
 }
 
-// Adds the event to the user's next email, if they want this kind and the site
-// can send email.
-async function queue(userId: string, preference: Preference, event: NotificationEvent) {
-  if (!(await emailEnabled())) return
+// The user's address, if they want this kind of email and the site can send
+// email.
+async function addressFor(userId: string, preference: Preference) {
+  if (!(await emailEnabled())) return null
   const [user] = await db
-    .select({ wants: users[preference] })
+    .select({ wants: users[preference], email: users.email })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1)
-  if (!user?.wants) return
+  return user?.wants ? user.email : null
+}
+
+// Adds the event to the user's next email, if they want this kind and the site
+// can send email.
+async function queue(userId: string, preference: Preference, event: NotificationEvent) {
+  if (!(await addressFor(userId, preference))) return
   const batch = batches.get(userId)
   if (batch) {
     batch.push(event)
@@ -101,6 +109,37 @@ export function notifyNewEpisodes(podcastId: string, count: number) {
         podcastTitle: podcast.title,
         count,
         link: link(`${podcastPath(podcast.slug)}/manage`),
+      })
+    })(),
+  )
+}
+
+// New episodes from a podcast the user follows, for their next email.
+export function emailFollowedEpisodes(
+  userId: string,
+  podcast: { title: string; slug: string },
+  episodes: { title: string; slug: string }[],
+) {
+  if (!episodes.length) return
+  safely(
+    queue(userId, 'emailFollowedEpisodes', {
+      type: 'followedEpisodes',
+      podcastTitle: podcast.title,
+      titles: episodes.map((episode) => episode.title),
+      link: link(episodes.length === 1 ? episodePath(podcast.slug, episodes[0]!.slug) : podcastPath(podcast.slug)),
+    }),
+  )
+}
+
+// A podcast the user follows has gone live: sent at once, as it won't wait.
+export function emailFollowerLive(userId: string, podcast: { title: string; slug: string }, broadcastTitle: string) {
+  safely(
+    (async () => {
+      const to = await addressFor(userId, 'emailLive')
+      if (!to) return
+      await sendEmail({
+        to,
+        ...liveEmail(podcast.title, broadcastTitle, link(livePath(podcast.slug)), link('/settings/notifications')),
       })
     })(),
   )

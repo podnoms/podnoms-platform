@@ -18,8 +18,3 @@ export const pushPrefsSchema = z.object({
   pushLive: z.boolean(),
   pushNewEpisodes: z.boolean(),
 })
-
-export const followNotifySchema = z.object({
-  podcastId: z.string().min(1),
-  notify: z.boolean(),
-})

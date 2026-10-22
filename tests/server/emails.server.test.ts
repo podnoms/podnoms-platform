@@ -1,6 +1,6 @@
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
-import { notificationDigestEmail, passwordResetEmail, renderEmail, testEmail } from '~/server/emails.server'
+import { liveEmail, notificationDigestEmail, passwordResetEmail, renderEmail, testEmail } from '~/server/emails.server'
 
 const origin = 'https://pods.example'
 
@@ -64,6 +64,23 @@ describe('notificationDigestEmail', () => {
     expect(notificationDigestEmail([events[1]!], null).subject).toBe('3 new episodes on podnoms')
   })
 
+  it("leads with the user's own podcasts, then sums up the ones they follow", () => {
+    const followed = { type: 'followedEpisodes' as const, podcastTitle: 'Loved', titles: ['Late Night Mix'], link: null }
+    expect(notificationDigestEmail([followed, events[1]!], null).subject).toBe('3 new episodes on podnoms')
+    expect(notificationDigestEmail([followed], null).subject).toBe('New from Loved: Late Night Mix')
+    expect(notificationDigestEmail([followed, { ...followed, titles: ['A', 'B'] }], null).subject).toBe(
+      '3 new episodes from podcasts you follow',
+    )
+  })
+
+  it('lists the episodes of a podcast the user follows', async () => {
+    const followed = { type: 'followedEpisodes' as const, podcastTitle: 'Loved', titles: ['One', 'Two'], link: `${origin}/loved` }
+    const { text } = await renderEmail(notificationDigestEmail([followed], null), origin)
+    expect(text).toContain('2 new episodes from Loved')
+    expect(text).toContain('One · Two')
+    expect(text).toContain(`${origin}/loved`)
+  })
+
   it('lists every event, escaping titles in the HTML', async () => {
     const { html, text } = await renderEmail(notificationDigestEmail(events, `${origin}/settings/notifications`), origin)
     expect(text).toContain('Ep & 1')
@@ -73,5 +90,16 @@ describe('notificationDigestEmail', () => {
     expect(html).not.toContain('<Show>')
     expect(html).toContain('href="https://pods.example/e"')
     expect(html).toContain(`href="${origin}/settings/notifications"`)
+  })
+})
+
+describe('liveEmail', () => {
+  it('says who is live and links to the live page', async () => {
+    const message = liveEmail('The Show', 'Q&A night', `${origin}/live/the-show`, `${origin}/settings/notifications`)
+    expect(message.subject).toBe('The Show is live now')
+    const { text } = await renderEmail(message, origin)
+    expect(text).toContain('Q&A night')
+    expect(text).toContain(`${origin}/live/the-show`)
+    expect(text).toContain(`${origin}/settings/notifications`)
   })
 })

@@ -225,6 +225,13 @@
       "when": 1792704421373,
       "tag": "0031_push_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792706944219,
+      "tag": "0032_follower_emails",
+      "breakpoints": true
     }
   ]
 }

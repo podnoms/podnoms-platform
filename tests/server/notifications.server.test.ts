@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   batchDelayMs,
+  emailFollowedEpisodes,
+  emailFollowerLive,
   flushAllNotifications,
   notifyEpisodeFailed,
   notifyNewEpisodes,
@@ -97,5 +99,34 @@ describe('notifications', () => {
     await settle()
     await flushAllNotifications()
     expect(reportError).toHaveBeenCalledWith(expect.objectContaining({ message: 'SMTP down' }), expect.anything())
+  })
+})
+
+describe('emails about podcasts the user follows', () => {
+  const podcast = { title: 'Loved', slug: 'loved' }
+
+  it('adds new episodes to the next email, if the user chose them', async () => {
+    const wants = await createUser({ email: 'wants@example.com', emailFollowedEpisodes: true })
+    const not = await createUser({ email: 'not@example.com' })
+    for (const user of [wants, not]) emailFollowedEpisodes(user.id, podcast, [{ title: 'Late Night Mix', slug: 'late-night' }])
+    await settle()
+    expect(email.sendEmail).not.toHaveBeenCalled()
+    await flushAllNotifications()
+    expect(email.sendEmail).toHaveBeenCalledTimes(1)
+    const [sent] = email.sendEmail.mock.calls[0]!
+    expect(sent.to).toBe('wants@example.com')
+    expect(sent.subject).toBe('New from Loved: Late Night Mix')
+    const { text } = await renderEmail(sent, 'https://pods.example')
+    expect(text).toContain('https://pods.example/loved/episodes/late-night')
+  })
+
+  it('sends going live at once, if the user chose it', async () => {
+    const wants = await createUser({ email: 'wants@example.com', emailLive: true })
+    const not = await createUser({ email: 'not@example.com' })
+    for (const user of [wants, not]) emailFollowerLive(user.id, podcast, 'Q&A night')
+    await settle()
+    expect(email.sendEmail).toHaveBeenCalledTimes(1)
+    const [sent] = email.sendEmail.mock.calls[0]!
+    expect([sent.to, sent.subject]).toEqual(['wants@example.com', 'Loved is live now'])
   })
 })

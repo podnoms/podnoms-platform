@@ -1,19 +1,16 @@
 // The desktop notifications card on the notification settings: turning them
-// on or off in this browser, which kinds the user gets, the podcasts they
-// follow (each of which can be muted), and the other browsers they're on in.
+// on or off in this browser, which kinds the user gets, and the other
+// browsers they're on in. Muting a podcast is FollowedPodcastNotifications'.
 import { useEffect, useState } from 'react'
-import { Link } from '@tanstack/react-router'
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldSeparator } from '~/components/ui/field'
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from '~/components/ui/item'
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '~/components/ui/item'
 import { Switch } from '~/components/ui/switch'
-import { Icons } from '~/components/icons'
 import type { fetchPushSettings } from '~/functions/push'
-import { saveFollowNotify, savePushPrefs, subscribeToPush, unsubscribeFromPush } from '~/functions/push'
+import { savePushPrefs, subscribeToPush, unsubscribeFromPush } from '~/functions/push'
 import { formatDate } from '~/lib/format'
-import { imageSrc } from '~/lib/images'
 import { currentPushSubscription, pushSupported, subscribeThisBrowser, unsubscribeThisBrowser } from '~/lib/push'
 
 type Settings = Awaited<ReturnType<typeof fetchPushSettings>>
@@ -84,8 +81,6 @@ export function DesktopNotifications({ settings, onChange }: { settings: Setting
   const setPref = (pref: Pref, value: boolean) =>
     run(() => savePushPrefs({ data: { pushLive: settings.pushLive, pushNewEpisodes: settings.pushNewEpisodes, [pref]: value } }))
 
-  const setNotify = (podcastId: string, notify: boolean) => run(() => saveFollowNotify({ data: { podcastId, notify } }))
-
   return (
     <Card>
       <CardHeader>
@@ -109,50 +104,6 @@ export function DesktopNotifications({ settings, onChange }: { settings: Setting
           ))}
           {error && <FieldError>{error}</FieldError>}
         </FieldGroup>
-
-        <FieldSeparator />
-
-        <section className="flex flex-col gap-3">
-          <div>
-            <h3 className="text-sm font-medium">Podcasts you follow</h3>
-            <p className="text-sm text-muted-foreground">Turn one off to stop hearing about it, but keep following it.</p>
-          </div>
-          {settings.follows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              You don't follow any podcasts yet. <Link to="/explore" className="text-primary hover:underline">Explore podcasts</Link>{' '}
-              to find some.
-            </p>
-          ) : (
-            <ItemGroup className="gap-1">
-              {settings.follows.map((podcast) => (
-                <Item key={podcast.podcastId} size="sm" variant="outline">
-                  <ItemMedia variant="image">
-                    {podcast.imageUrl ? (
-                      <img src={imageSrc(podcast.imageUrl, 80)} alt="" />
-                    ) : (
-                      <Icons.logo className="size-5 text-muted-foreground" />
-                    )}
-                  </ItemMedia>
-                  <ItemContent>
-                    <ItemTitle>
-                      <Link to="/$slug" params={{ slug: podcast.slug }} className="hover:underline">
-                        {podcast.title}
-                      </Link>
-                    </ItemTitle>
-                  </ItemContent>
-                  <ItemActions>
-                    <Switch
-                      aria-label={`Notifications about ${podcast.title}`}
-                      checked={podcast.notify}
-                      disabled={busy}
-                      onCheckedChange={(value) => void setNotify(podcast.podcastId, value)}
-                    />
-                  </ItemActions>
-                </Item>
-              ))}
-            </ItemGroup>
-          )}
-        </section>
 
         {settings.devices.length > 0 && (
           <>
