@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { usePlayer, type PlayerEpisode } from '~/components/player/player-provider'
 import { Waveform } from '~/components/player/waveform'
@@ -49,7 +49,8 @@ function useEpisodeWaveform(episodeId: string | undefined) {
 // The now-playing bar pinned across the bottom of the app while an episode is loaded.
 export function PlayerBar() {
   const player = usePlayer()
-  const { episode } = player
+  const router = useRouter()
+  const { episode, queue } = player
   const bar = useRef<HTMLDivElement>(null)
   usePlayerHeight(bar, Boolean(episode))
   const waveform = useEpisodeWaveform(episode?.id)
@@ -75,6 +76,24 @@ export function PlayerBar() {
         <div className="min-w-0">
           <EpisodeTitle episode={episode} />
           <p className="truncate text-xs text-muted-foreground">{episode.podcastTitle}</p>
+          {queue && (
+            // What it's playing through, e.g. a playlist; in the same tab, so
+            // playback carries on.
+            <a
+              href={queue.href}
+              onClick={(event) => {
+                event.preventDefault()
+                void router.navigate({ href: queue.href })
+              }}
+              className="flex items-center gap-1 truncate text-xs text-muted-foreground hover:text-foreground hover:underline"
+            >
+              <Icons.playlist className="size-3 shrink-0" />
+              <span className="truncate">{queue.title}</span>
+              <span className="shrink-0 tabular-nums">
+                · {queue.index + 1} of {queue.length}
+              </span>
+            </a>
+          )}
         </div>
         <Button variant="ghost" size="icon-sm" className="ml-auto sm:hidden" onClick={player.close}>
           <Icons.close />
@@ -82,10 +101,28 @@ export function PlayerBar() {
         </Button>
       </div>
       <div className="flex flex-1 items-center gap-2">
+        {queue && (
+          <Button variant="ghost" size="icon-sm" disabled={queue.index === 0} onClick={player.previous} title="Previous">
+            <Icons.previous />
+            <span className="sr-only">Previous</span>
+          </Button>
+        )}
         <Button size="icon-lg" className="rounded-full" onClick={player.toggle}>
           {player.playing ? <Icons.pause /> : <Icons.play />}
           <span className="sr-only">{player.playing ? 'Pause' : 'Play'}</span>
         </Button>
+        {queue && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            disabled={queue.index === queue.length - 1}
+            onClick={player.next}
+            title="Next"
+          >
+            <Icons.next />
+            <span className="sr-only">Next</span>
+          </Button>
+        )}
         <span className="w-14 text-right text-xs text-muted-foreground tabular-nums">
           {formatClock(player.currentTime)}
         </span>

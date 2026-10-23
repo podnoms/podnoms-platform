@@ -28,8 +28,8 @@ const episodePodcastColumns = {
 }
 
 // Episodes from any podcasts, as the listener sees them. Callers add their
-// own joins, conditions and order.
-function listenerEpisodes(listenerId: string | null) {
+// own joins, conditions and order. Playlists use these too.
+export function listenerEpisodes(listenerId: string | null) {
   return db
     .select({ ...listenerEpisodeColumns(listenerId), ...episodePodcastColumns })
     .from(episodes)
@@ -40,7 +40,7 @@ function listenerEpisodes(listenerId: string | null) {
 
 // Whether the listener owns each episode's podcast (so its player shows the
 // owner's controls), without handing out owners' ids.
-function withOwnership<T extends { podcast: { userId: string } }>(rows: T[], listenerId: string | null) {
+export function withOwnership<T extends { podcast: { userId: string } }>(rows: T[], listenerId: string | null) {
   return rows.map(({ podcast: { userId, ...podcast }, ...episode }) => ({
     ...episode,
     podcast: { ...(podcast as Omit<T['podcast'], 'userId'>), isOwner: userId === listenerId },

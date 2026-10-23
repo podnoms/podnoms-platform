@@ -171,6 +171,8 @@ export async function getPublicEpisode(podcastSlug: string, episodeSlug: string,
         feedKey: podcasts.feedKey,
         userId: podcasts.userId,
         author: podcastAuthor,
+        // The owner's profile, which the author's name links to.
+        ownerSlug: users.slug,
       },
     })
     .from(episodes)

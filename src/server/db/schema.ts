@@ -472,6 +472,49 @@ export const pushSubscriptions = pgTable(
   (table) => [index('push_subscription_userId_idx').on(table.userId)],
 )
 
+// A user's playlist of episodes from any podcasts, in their order (see
+// playlists.server.ts). Private until they choose to share it; a public one
+// is at /u/<user slug>/playlists/<slug>.
+export const playlists = pgTable(
+  'playlist',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    // Unique among the user's playlists; made from the title when it's created.
+    slug: text('slug').notNull(),
+    // Plain text.
+    description: text('description'),
+    private: boolean('private').notNull().default(true),
+    createdAt: timestamps.createdAt,
+    updatedAt: timestamps.updatedAt,
+  },
+  (table) => [uniqueIndex('playlist_userId_slug_idx').on(table.userId, table.slug)],
+)
+
+// The episodes in a playlist, each once, by `position` (lowest first).
+export const playlistItems = pgTable(
+  'playlist_item',
+  {
+    playlistId: text('playlistId')
+      .notNull()
+      .references(() => playlists.id, { onDelete: 'cascade' }),
+    episodeId: text('episodeId')
+      .notNull()
+      .references(() => episodes.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+    addedAt: timestamps.createdAt,
+  },
+  (table) => [
+    primaryKey({ columns: [table.playlistId, table.episodeId] }),
+    index('playlist_item_episodeId_idx').on(table.episodeId),
+  ],
+)
+
 // Comments on an episode, each at a point in it, listed in that order on the
 // episode's page and marked on its waveform (see comments.server.ts).
 export const episodeComments = pgTable(

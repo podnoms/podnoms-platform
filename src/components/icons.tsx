@@ -1,7 +1,9 @@
 import type { ComponentType } from 'react'
 import {
   ArrowDownWideNarrowIcon,
+  ArrowDownIcon,
   ArrowLeftIcon,
+  ArrowUpIcon,
   AtSignIcon,
   BellIcon,
   BitcoinIcon,
@@ -29,6 +31,7 @@ import {
   LibraryIcon,
   LinkIcon,
   ListIcon,
+  ListMusicIcon,
   ListOrderedIcon,
   ListTodoIcon,
   LockIcon,
@@ -54,6 +57,8 @@ import {
   SettingsIcon,
   Share2Icon,
   ShieldCheckIcon,
+  SkipBackIcon,
+  SkipForwardIcon,
   SmartphoneIcon,
   StrikethroughIcon,
   SunIcon,
@@ -176,6 +181,11 @@ export const Icons = {
   hide: EyeOffIcon,
   bitcoin: BitcoinIcon,
   notifications: BellIcon,
+  previous: SkipBackIcon,
+  next: SkipForwardIcon,
+  playlist: ListMusicIcon,
+  moveUp: ArrowUpIcon,
+  moveDown: ArrowDownIcon,
   mention: AtSignIcon,
   warning: TriangleAlertIcon,
   github: brandIcon(

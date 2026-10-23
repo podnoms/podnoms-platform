@@ -211,6 +211,7 @@ describe('getPublicPodcast', () => {
       private: false,
       feedKey: null,
       author: 'Ada',
+      ownerSlug: user.slug,
       directoryLinks: {},
       followerCount: 0,
       following: false,

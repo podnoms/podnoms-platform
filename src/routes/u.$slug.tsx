@@ -1,18 +1,20 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { Icons } from '~/components/icons'
 import { PageSection } from '~/components/page-section'
 import { PodcastGrid } from '~/components/podcast-card'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { Button } from '~/components/ui/button'
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from '~/components/ui/item'
 import { fetchUserProfile } from '~/functions/public'
-import { initials } from '~/lib/format'
+import { initials, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { siteHead } from '~/lib/page-meta'
 import { userPath } from '~/lib/paths'
 import { htmlToText } from '~/lib/rich-text'
 import { siteInfo } from '~/lib/site'
 
-// A user's public profile, which anyone can see: who they are and their
-// public podcasts. @mentions in comments link here.
+// A user's public profile, which anyone can see: who they are, and their
+// public podcasts and playlists. @mentions in comments link here.
 export const Route = createFileRoute('/u/$slug')({
   staticData: { publicPage: true },
   loader: ({ params }) => fetchUserProfile({ data: { slug: params.slug } }),
@@ -60,6 +62,26 @@ function ProfilePage() {
       {profile.podcasts.length > 0 && (
         <PageSection title="Podcasts">
           <PodcastGrid podcasts={profile.podcasts} />
+        </PageSection>
+      )}
+
+      {profile.playlists.length > 0 && (
+        <PageSection title="Playlists">
+          <ItemGroup className="gap-2">
+            {profile.playlists.map((playlist) => (
+              <Item key={playlist.id} variant="outline" asChild>
+                <Link to="/u/$slug/playlists/$playlistSlug" params={{ slug: profile.slug, playlistSlug: playlist.slug }}>
+                  <ItemMedia variant="icon">
+                    <Icons.playlist />
+                  </ItemMedia>
+                  <ItemContent>
+                    <ItemTitle>{playlist.title}</ItemTitle>
+                    <ItemDescription>{pluralise(playlist.episodeCount, 'episode')}</ItemDescription>
+                  </ItemContent>
+                </Link>
+              </Item>
+            ))}
+          </ItemGroup>
         </PageSection>
       )}
     </div>

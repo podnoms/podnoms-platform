@@ -20,8 +20,15 @@ export type PlayerEpisode = {
   positionSeconds: number | null
 }
 
+// Episodes to play one after another, such as a playlist: its title and page,
+// for the player bar to name and link to.
+export type PlayerQueue = { title: string; href: string; episodes: PlayerEpisode[] }
+
 type PlayerContextValue = {
   episode: PlayerEpisode | null
+  // What's playing through, and where in it the current episode is; null when
+  // the episode was played on its own.
+  queue: { title: string; href: string; index: number; length: number } | null
   playing: boolean
   currentTime: number
   duration: number
@@ -29,7 +36,13 @@ type PlayerContextValue = {
   volume: Volume
   // Plays the episode, or toggles play/pause if it's already loaded. With
   // `startAt`, plays from there instead of where the listener left off.
+  // Playing an episode that isn't in the queue ends it.
   play: (episode: PlayerEpisode, options?: { startAt?: number }) => void
+  // Plays the queue from `startAt` (an index), each episode where the listener
+  // left off; when one ends, the next starts.
+  playQueue: (queue: PlayerQueue, startAt?: number) => void
+  next: () => void
+  previous: () => void
   toggle: () => void
   seek: (seconds: number) => void
   skip: (seconds: number) => void
@@ -63,6 +76,8 @@ export function PlayerProvider({
 }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [episode, setEpisode] = useState<PlayerEpisode | null>(null)
+  const [queue, setQueue] = useState<PlayerQueue | null>(null)
+  const queueIndex = queue && episode ? queue.episodes.findIndex((queued) => queued.id === episode.id) : -1
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -128,7 +143,7 @@ export function PlayerProvider({
     storeLastEpisode(episode && { ...episode, positionSeconds: positions[episode.id] ?? episode.positionSeconds })
   }, [restored, episode, positions])
 
-  const play = useCallback(
+  const start = useCallback(
     (next: PlayerEpisode, options?: { startAt?: number }) => {
       const audio = audioRef.current
       if (!audio) return
@@ -142,7 +157,8 @@ export function PlayerProvider({
         return
       }
       startAt.current = options?.startAt ?? null
-      if (episode) savePosition(episode.id, audio.currentTime)
+      // One that's just ended was saved as ended (to start over next time).
+      if (episode && !audio.ended) savePosition(episode.id, audio.currentTime)
       setEpisode(next)
       // Where it will start once loaded (see onLoadedMetadata), so the
       // progress shown doesn't drop to 0 and jump back in the meantime.
@@ -155,9 +171,40 @@ export function PlayerProvider({
     [episode, rate, savePosition, positionOf],
   )
 
+  const play = useCallback(
+    (next: PlayerEpisode, options?: { startAt?: number }) => {
+      if (queue && !queue.episodes.some((queued) => queued.id === next.id)) setQueue(null)
+      start(next, options)
+    },
+    [queue, start],
+  )
+
+  const playQueue = useCallback(
+    (next: PlayerQueue, at = 0) => {
+      const first = next.episodes[at]
+      if (!first) return
+      setQueue(next)
+      start(first)
+    },
+    [start],
+  )
+
+  // Moves along the queue, if there's an episode that way.
+  const step = useCallback(
+    (by: 1 | -1) => {
+      const target = queue?.episodes[queueIndex + by]
+      if (queueIndex >= 0 && target) start(target)
+    },
+    [queue, queueIndex, start],
+  )
+
   const value = useMemo<PlayerContextValue>(
     () => ({
       episode,
+      queue: queue && queueIndex >= 0 ? { title: queue.title, href: queue.href, index: queueIndex, length: queue.episodes.length } : null,
+      playQueue,
+      next: () => step(1),
+      previous: () => step(-1),
       playing,
       currentTime,
       duration,
@@ -200,10 +247,11 @@ export function PlayerProvider({
           audio.load()
         }
         setEpisode(null)
+        setQueue(null)
         setPlaying(false)
       },
     }),
-    [episode, playing, currentTime, duration, rate, volume, play, positionOf, savePosition, changeVolume],
+    [episode, queue, queueIndex, playQueue, step, playing, currentTime, duration, rate, volume, play, positionOf, savePosition, changeVolume],
   )
 
   // Report each episode's first play on this page, for the podcast's stats.
@@ -262,6 +310,8 @@ export function PlayerProvider({
         onEnded={() => {
           setPlaying(false)
           if (episode) savePosition(episode.id, 0)
+          // Playing through a queue: on to the next.
+          step(1)
         }}
         onPlaying={() => {
           restoredId.current = null

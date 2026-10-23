@@ -139,6 +139,8 @@ describe('migrations', () => {
       'live_chat_message',
       'notification',
       'playback_position',
+      'playlist',
+      'playlist_item',
       'podcast',
       'podcast_follow',
       'podcast_tag',

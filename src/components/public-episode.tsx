@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
+import { AuthorLink, Separated } from '~/components/author-link'
+import { AddToPlaylistButton } from '~/components/add-to-playlist-button'
 import { EpisodeComments, WaveformCommentBox } from '~/components/episode-comments'
 import { Icons } from '~/components/icons'
 import { LikeButton } from '~/components/like-button'
@@ -40,7 +42,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
   const artwork = episode.imageUrl ?? podcast.imageUrl
   // The share page leaves out the date and length; the waveform shows the length.
   const meta = [
-    podcast.author ? `by ${podcast.author}` : null,
+    podcast.author ? <AuthorLink key="by" author={podcast.author} slug={podcast.ownerSlug} /> : null,
     standalone ? null : formatDate(episode.publishedAt ?? episode.createdAt),
     !standalone && episode.durationSeconds != null ? formatClock(episode.durationSeconds) : null,
     likeCount > 0 ? pluralise(likeCount, 'like') : null,
@@ -99,7 +101,9 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
             {standalone ? podcast.title : 'Episode'}
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-balance">{episode.title}</h1>
-          <p className="text-sm text-muted-foreground">{meta.join(' · ')}</p>
+          <p className="text-sm text-muted-foreground">
+            <Separated items={meta} />
+          </p>
           <TagList tags={episode.tags} />
           <TagList tags={podcast.tags.filter((tag) => !episode.tags.some((own) => own.id === tag.id))} label="Show tags" />
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -116,6 +120,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
                 count="hidden"
                 onChange={(state) => setLikeCount(state.likeCount)}
               />
+              {!standalone && <AddToPlaylistButton episodeId={episode.id} size="default" />}
               {isOwner && !standalone && (
                 <Button variant="outline" asChild>
                   <Link

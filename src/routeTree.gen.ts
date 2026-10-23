@@ -21,6 +21,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TosRouteImport } from './routes/tos'
 import { Route as AuthedFollowingRouteImport } from './routes/_authed/following'
 import { Route as AuthedLikesRouteImport } from './routes/_authed/likes'
+import { Route as AuthedPlaylistsRouteImport } from './routes/_authed/playlists'
 import { Route as AuthedSecurityRouteImport } from './routes/_authed/security'
 import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings'
 import { Route as ApiImagesRouteImport } from './routes/api/images'
@@ -48,6 +49,7 @@ import { Route as ListenSlugEpisodeSlugRouteImport } from './routes/listen/$slug
 import { Route as ApiEpisodesIdActivityRouteImport } from './routes/api/episodes/$id/activity'
 import { Route as ApiEpisodesIdAudioRouteImport } from './routes/api/episodes/$id/audio'
 import { Route as ApiPodcastsSlugEventsRouteImport } from './routes/api/podcasts/$slug/events'
+import { Route as USlugPlaylistsPlaylistSlugRouteImport } from './routes/u.$slug_.playlists.$playlistSlug'
 import { Route as AuthedSlugEpisodesEpisodeSlugManageRouteImport } from './routes/_authed/$slug_.episodes.$episodeSlug.manage'
 import { Route as ApiPodcastsSlugLiveEventsRouteImport } from './routes/api/podcasts/$slug/live/events'
 import { Route as ApiPodcastsSlugLiveHlsSplatRouteImport } from './routes/api/podcasts/$slug/live/hls/$'
@@ -109,6 +111,11 @@ const AuthedFollowingRoute = AuthedFollowingRouteImport.update({
 const AuthedLikesRoute = AuthedLikesRouteImport.update({
   id: '/likes',
   path: '/likes',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedPlaylistsRoute = AuthedPlaylistsRouteImport.update({
+  id: '/playlists',
+  path: '/playlists',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedSecurityRoute = AuthedSecurityRouteImport.update({
@@ -247,6 +254,12 @@ const ApiPodcastsSlugEventsRoute = ApiPodcastsSlugEventsRouteImport.update({
   path: '/api/podcasts/$slug/events',
   getParentRoute: () => rootRouteImport,
 } as any)
+const USlugPlaylistsPlaylistSlugRoute =
+  USlugPlaylistsPlaylistSlugRouteImport.update({
+    id: '/u/$slug_/playlists/$playlistSlug',
+    path: '/u/$slug/playlists/$playlistSlug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthedSlugEpisodesEpisodeSlugManageRoute =
   AuthedSlugEpisodesEpisodeSlugManageRouteImport.update({
     id: '/$slug_/episodes/$episodeSlug/manage',
@@ -278,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/tos': typeof TosRoute
   '/following': typeof AuthedFollowingRoute
   '/likes': typeof AuthedLikesRoute
+  '/playlists': typeof AuthedPlaylistsRoute
   '/security': typeof AuthedSecurityRoute
   '/settings': typeof AuthedSettingsRouteWithChildren
   '/api/images': typeof ApiImagesRoute
@@ -305,6 +319,7 @@ export interface FileRoutesByFullPath {
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/podcasts/$slug/events': typeof ApiPodcastsSlugEventsRoute
+  '/u/$slug/playlists/$playlistSlug': typeof USlugPlaylistsPlaylistSlugRoute
   '/$slug/episodes/$episodeSlug/manage': typeof AuthedSlugEpisodesEpisodeSlugManageRoute
   '/api/podcasts/$slug/live/events': typeof ApiPodcastsSlugLiveEventsRoute
   '/api/podcasts/$slug/live/hls/$': typeof ApiPodcastsSlugLiveHlsSplatRoute
@@ -321,6 +336,7 @@ export interface FileRoutesByTo {
   '/tos': typeof TosRoute
   '/following': typeof AuthedFollowingRoute
   '/likes': typeof AuthedLikesRoute
+  '/playlists': typeof AuthedPlaylistsRoute
   '/security': typeof AuthedSecurityRoute
   '/api/images': typeof ApiImagesRoute
   '/api/uploads': typeof ApiUploadsRoute
@@ -347,6 +363,7 @@ export interface FileRoutesByTo {
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/podcasts/$slug/events': typeof ApiPodcastsSlugEventsRoute
+  '/u/$slug/playlists/$playlistSlug': typeof USlugPlaylistsPlaylistSlugRoute
   '/$slug/episodes/$episodeSlug/manage': typeof AuthedSlugEpisodesEpisodeSlugManageRoute
   '/api/podcasts/$slug/live/events': typeof ApiPodcastsSlugLiveEventsRoute
   '/api/podcasts/$slug/live/hls/$': typeof ApiPodcastsSlugLiveHlsSplatRoute
@@ -365,6 +382,7 @@ export interface FileRoutesById {
   '/tos': typeof TosRoute
   '/_authed/following': typeof AuthedFollowingRoute
   '/_authed/likes': typeof AuthedLikesRoute
+  '/_authed/playlists': typeof AuthedPlaylistsRoute
   '/_authed/security': typeof AuthedSecurityRoute
   '/_authed/settings': typeof AuthedSettingsRouteWithChildren
   '/api/images': typeof ApiImagesRoute
@@ -392,6 +410,7 @@ export interface FileRoutesById {
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/podcasts/$slug/events': typeof ApiPodcastsSlugEventsRoute
+  '/u/$slug_/playlists/$playlistSlug': typeof USlugPlaylistsPlaylistSlugRoute
   '/_authed/$slug_/episodes/$episodeSlug/manage': typeof AuthedSlugEpisodesEpisodeSlugManageRoute
   '/api/podcasts/$slug/live/events': typeof ApiPodcastsSlugLiveEventsRoute
   '/api/podcasts/$slug/live/hls/$': typeof ApiPodcastsSlugLiveHlsSplatRoute
@@ -410,6 +429,7 @@ export interface FileRouteTypes {
     | '/tos'
     | '/following'
     | '/likes'
+    | '/playlists'
     | '/security'
     | '/settings'
     | '/api/images'
@@ -437,6 +457,7 @@ export interface FileRouteTypes {
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
     | '/api/podcasts/$slug/events'
+    | '/u/$slug/playlists/$playlistSlug'
     | '/$slug/episodes/$episodeSlug/manage'
     | '/api/podcasts/$slug/live/events'
     | '/api/podcasts/$slug/live/hls/$'
@@ -453,6 +474,7 @@ export interface FileRouteTypes {
     | '/tos'
     | '/following'
     | '/likes'
+    | '/playlists'
     | '/security'
     | '/api/images'
     | '/api/uploads'
@@ -479,6 +501,7 @@ export interface FileRouteTypes {
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
     | '/api/podcasts/$slug/events'
+    | '/u/$slug/playlists/$playlistSlug'
     | '/$slug/episodes/$episodeSlug/manage'
     | '/api/podcasts/$slug/live/events'
     | '/api/podcasts/$slug/live/hls/$'
@@ -496,6 +519,7 @@ export interface FileRouteTypes {
     | '/tos'
     | '/_authed/following'
     | '/_authed/likes'
+    | '/_authed/playlists'
     | '/_authed/security'
     | '/_authed/settings'
     | '/api/images'
@@ -523,6 +547,7 @@ export interface FileRouteTypes {
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
     | '/api/podcasts/$slug/events'
+    | '/u/$slug_/playlists/$playlistSlug'
     | '/_authed/$slug_/episodes/$episodeSlug/manage'
     | '/api/podcasts/$slug/live/events'
     | '/api/podcasts/$slug/live/hls/$'
@@ -559,6 +584,7 @@ export interface RootRouteChildren {
   ApiEpisodesIdActivityRoute: typeof ApiEpisodesIdActivityRoute
   ApiEpisodesIdAudioRoute: typeof ApiEpisodesIdAudioRoute
   ApiPodcastsSlugEventsRoute: typeof ApiPodcastsSlugEventsRoute
+  USlugPlaylistsPlaylistSlugRoute: typeof USlugPlaylistsPlaylistSlugRoute
   ApiPodcastsSlugLiveEventsRoute: typeof ApiPodcastsSlugLiveEventsRoute
   ApiPodcastsSlugLiveHlsSplatRoute: typeof ApiPodcastsSlugLiveHlsSplatRoute
 }
@@ -647,6 +673,13 @@ declare module '@tanstack/react-router' {
       path: '/likes'
       fullPath: '/likes'
       preLoaderRoute: typeof AuthedLikesRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/playlists': {
+      id: '/_authed/playlists'
+      path: '/playlists'
+      fullPath: '/playlists'
+      preLoaderRoute: typeof AuthedPlaylistsRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/_authed/security': {
@@ -838,6 +871,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPodcastsSlugEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/u/$slug_/playlists/$playlistSlug': {
+      id: '/u/$slug_/playlists/$playlistSlug'
+      path: '/u/$slug/playlists/$playlistSlug'
+      fullPath: '/u/$slug/playlists/$playlistSlug'
+      preLoaderRoute: typeof USlugPlaylistsPlaylistSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authed/$slug_/episodes/$episodeSlug/manage': {
       id: '/_authed/$slug_/episodes/$episodeSlug/manage'
       path: '/$slug/episodes/$episodeSlug/manage'
@@ -881,6 +921,7 @@ const AuthedSettingsRouteWithChildren = AuthedSettingsRoute._addFileChildren(
 interface AuthedRouteChildren {
   AuthedFollowingRoute: typeof AuthedFollowingRoute
   AuthedLikesRoute: typeof AuthedLikesRoute
+  AuthedPlaylistsRoute: typeof AuthedPlaylistsRoute
   AuthedSecurityRoute: typeof AuthedSecurityRoute
   AuthedSettingsRoute: typeof AuthedSettingsRouteWithChildren
   AuthedSlugManageRoute: typeof AuthedSlugManageRoute
@@ -891,6 +932,7 @@ interface AuthedRouteChildren {
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedFollowingRoute: AuthedFollowingRoute,
   AuthedLikesRoute: AuthedLikesRoute,
+  AuthedPlaylistsRoute: AuthedPlaylistsRoute,
   AuthedSecurityRoute: AuthedSecurityRoute,
   AuthedSettingsRoute: AuthedSettingsRouteWithChildren,
   AuthedSlugManageRoute: AuthedSlugManageRoute,
@@ -933,6 +975,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiEpisodesIdActivityRoute: ApiEpisodesIdActivityRoute,
   ApiEpisodesIdAudioRoute: ApiEpisodesIdAudioRoute,
   ApiPodcastsSlugEventsRoute: ApiPodcastsSlugEventsRoute,
+  USlugPlaylistsPlaylistSlugRoute: USlugPlaylistsPlaylistSlugRoute,
   ApiPodcastsSlugLiveEventsRoute: ApiPodcastsSlugLiveEventsRoute,
   ApiPodcastsSlugLiveHlsSplatRoute: ApiPodcastsSlugLiveHlsSplatRoute,
 }

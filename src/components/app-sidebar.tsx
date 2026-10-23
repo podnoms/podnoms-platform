@@ -38,6 +38,7 @@ const libraryLinks = [
   { to: '/explore', label: 'Explore', icon: Icons.explore },
   { to: '/likes', label: 'Likes', icon: Icons.like },
   { to: '/following', label: 'Following', icon: Icons.following },
+  { to: '/playlists', label: 'Playlists', icon: Icons.playlist },
 ] as const
 
 export function AppSidebar() {

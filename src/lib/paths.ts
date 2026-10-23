@@ -29,6 +29,7 @@ export const reservedPodcastSlugs = new Set([
   'live',
   'login',
   'logout',
+  'playlists',
   'podcasts',
   'privacy',
   'reset-password',

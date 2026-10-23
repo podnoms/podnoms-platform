@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { EpisodeListEnd } from '~/components/episode-list-end'
+import { AuthorLink, Separated } from '~/components/author-link'
 import { FeedUrlButton } from '~/components/feed-url-button'
 import { FollowButton } from '~/components/follow-button'
 import { Icons } from '~/components/icons'
@@ -72,7 +73,7 @@ function PodcastPage() {
     return link ? [{ directory, link }] : []
   })
   const stats = [
-    podcast.author ? `by ${podcast.author}` : null,
+    podcast.author ? <AuthorLink key="by" author={podcast.author} slug={podcast.ownerSlug} /> : null,
     `${summary.count} ${summary.count === 1 ? 'episode' : 'episodes'}`,
     totalSeconds ? formatLength(totalSeconds) : null,
     podcast.followerCount > 0 ? pluralise(podcast.followerCount, 'follower') : null,
@@ -120,7 +121,9 @@ function PodcastPage() {
               <p className="line-clamp-2 max-w-3xl text-muted-foreground xl:hidden">{htmlToText(podcast.description)}</p>
             )}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 pt-3">
-              <p className="text-sm text-muted-foreground">{stats.join(' · ')}</p>
+              <p className="text-sm text-muted-foreground">
+                <Separated items={stats} />
+              </p>
               <div className="flex flex-wrap gap-2 sm:ml-auto">
                 {live && (
                   <Button className="bg-destructive text-destructive-foreground hover:bg-destructive/90" asChild>
@@ -207,7 +210,11 @@ function PodcastPage() {
             {podcast.author && (
               <>
                 <dt className="text-muted-foreground">By</dt>
-                <dd className="text-end">{podcast.author}</dd>
+                <dd className="text-end">
+                  <Link to="/u/$slug" params={{ slug: podcast.ownerSlug }} className="hover:text-primary hover:underline">
+                    {podcast.author}
+                  </Link>
+                </dd>
               </>
             )}
             <dt className="text-muted-foreground">Episodes</dt>

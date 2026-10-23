@@ -92,6 +92,8 @@ export async function getPublicPodcast(slug: string, viewerId: string | null) {
       private: podcasts.private,
       feedKey: podcasts.feedKey,
       author: podcastAuthor,
+      // The owner's profile, which the author's name links to.
+      ownerSlug: users.slug,
       directoryLinks: podcasts.directoryLinks,
       ...podcastFollowColumns(viewerId),
     })

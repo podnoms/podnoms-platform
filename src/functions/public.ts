@@ -24,6 +24,7 @@ import {
 import { feedPath } from '~/server/feed.server'
 import { getOpenBroadcast, gifConfig, liveEnabled } from '~/server/live.server'
 import { listUserPodcasts } from '~/server/library.server'
+import { listPublicPlaylists } from '~/server/playlists.server'
 import { getPublicPodcast } from '~/server/podcasts.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import { getEpisodeTags, getPodcastTags, withEpisodeTags } from '~/server/tags-store.server'
@@ -64,6 +65,7 @@ export const fetchUserProfile = createServerFn({ method: 'GET' })
       description: sanitizeDescription(profile.description),
       isYou: userId === id,
       podcasts: await listUserPodcasts(userId, id),
+      playlists: await listPublicPlaylists(id),
     }
   })
 

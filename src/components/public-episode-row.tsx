@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
+import { AddToPlaylistButton } from '~/components/add-to-playlist-button'
 import { LikeButton } from '~/components/like-button'
 import { usePlayer } from '~/components/player/player-provider'
 import { Waveform } from '~/components/player/waveform'
@@ -34,7 +35,9 @@ export type PublicEpisodeRowData = {
 // An episode in a listener's list, laid out as Mixcloud does: the artwork, a
 // play button by the title, the episode's waveform to see how far through it
 // you are and to seek, and buttons to like and share it. In lists across
-// podcasts (Likes, Explore), `showPodcast` names the podcast too.
+// podcasts (Likes, Explore), `showPodcast` names the podcast too. In a
+// playlist, `onPlay` starts it playing through the playlist instead, and
+// `actions` are the owner's buttons for it.
 export function PublicEpisodeRow({
   episode,
   podcastSlug,
@@ -42,6 +45,8 @@ export function PublicEpisodeRow({
   podcastImageUrl,
   isOwner,
   showPodcast = false,
+  onPlay,
+  actions,
 }: {
   episode: PublicEpisodeRowData
   podcastSlug: string
@@ -49,6 +54,8 @@ export function PublicEpisodeRow({
   podcastImageUrl: string | null
   isOwner: boolean
   showPodcast?: boolean
+  onPlay?: () => void
+  actions?: ReactNode
 }) {
   const player = usePlayer()
   const isCurrent = player.episode?.id === episode.id
@@ -61,6 +68,7 @@ export function PublicEpisodeRow({
 
   function play(startAt?: number) {
     if (!episode.audioUrl) return
+    if (onPlay && !isCurrent) return onPlay()
     player.play(
       {
         id: episode.id,
@@ -156,6 +164,8 @@ export function PublicEpisodeRow({
         <div className="flex flex-wrap items-center gap-2">
           <LikeButton variant="outline" episodeId={episode.id} liked={episode.liked} likeCount={episode.likeCount} />
           <ShareButton url={shortPath(episode.shortSlug)} episodeId={episode.id} source="web" size="sm" />
+          <AddToPlaylistButton episodeId={episode.id} />
+          {actions}
         </div>
       </div>
     </li>
