@@ -78,11 +78,21 @@ def release(bump, dry_run):
         raise RuntimeError("Could not determine the repository and default branch.")
     if branch != default_branch:
         raise RuntimeError(f"Release from the default branch: {default_branch}.")
-    remote_head = output(
-        "git", "ls-remote", "--exit-code", "--heads", remote, f"refs/heads/{branch}",
+    # Local commits can be included in the release push, provided they contain
+    # the remote branch's latest history. Fetch from the actual push destination.
+    run("git", "fetch", "--no-tags", remote, f"refs/heads/{branch}")
+    remote_head = output("git", "rev-parse", "--verify", "FETCH_HEAD")
+    ancestry = run(
+        "git", "merge-base", "--is-ancestor", remote_head, head, check=False,
     )
-    if remote_head.partition("\t")[0] != head:
-        raise RuntimeError("Synchronize and push the default branch first.")
+    if ancestry.returncode == 1:
+        raise RuntimeError(
+            "The default branch is behind or has diverged from origin. "
+            "Merge or rebase the remote changes before releasing."
+        )
+    ancestry.check_returncode()
+    if remote_head != head:
+        print("Local commits will be pushed with the release.", flush=True)
     local_tag = run(
         "git", "show-ref", "--verify", "--quiet", f"refs/tags/{tag}", check=False,
     )

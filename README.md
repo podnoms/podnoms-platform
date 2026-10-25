@@ -361,15 +361,17 @@ stay as they are; new releases use the three-part version in `package.json`.
 
 Install Python 3.8+, Git, Node.js, Bun and the [GitHub CLI](https://cli.github.com/),
 then sign in with `gh auth login`. Merge the work you want to release into
-GitHub's default branch (currently `develop`), check out that branch, and
-synchronize it with `origin`. All tracked and untracked changes must be committed
-or stashed.
+GitHub's default branch (currently `develop`) and check out that branch. All
+tracked and untracked changes must be committed or stashed. The script fetches
+the remote branch and checks that its latest commits are included locally. Any
+local commits ahead of `origin` are pushed automatically with the release;
+if the branch is behind or has diverged, merge or rebase the remote changes first.
 
 ```sh
-./scripts/create-release.py --dry-run  # preview the next patch (0.2.0 -> 0.2.1)
-./scripts/create-release.py           # publish the next patch
-./scripts/create-release.py minor     # e.g. 0.2.1 -> 0.3.0
-./scripts/create-release.py major     # e.g. 0.3.0 -> 1.0.0
+./scripts/create-release.sh --dry-run  # preview the next patch (0.2.0 -> 0.2.1)
+./scripts/create-release.sh           # publish the next patch
+./scripts/create-release.sh minor     # e.g. 0.2.1 -> 0.3.0
+./scripts/create-release.sh major     # e.g. 0.3.0 -> 1.0.0
 ```
 
 The script installs locked dependencies, type-checks, tests, and builds. It then

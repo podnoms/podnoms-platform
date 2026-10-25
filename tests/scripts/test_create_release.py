@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 
-SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "create-release.py"
+SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "create-release.sh"
 
 # Every external command is replaced, including Git, so tests cannot publish.
 STUB = r'''
@@ -65,13 +65,29 @@ elif tool == "git":
             sys.exit(1)
         print(scenario.get("branch", "develop"))
     elif args[0] == "rev-parse":
-        print("release-head" if state.get("released") else "original-head")
+        if args == ["rev-parse", "--verify", "FETCH_HEAD"]:
+            print(state["fetched_head"])
+        else:
+            print("release-head" if state.get("released") else "original-head")
     elif args[0] == "remote":
         print("https://github.com/example/project.git")
+    elif args[0] == "fetch":
+        assert args == ["fetch", "--no-tags", "https://github.com/example/project.git",
+                        "refs/heads/develop"]
+        if scenario.get("failure") == "fetch":
+            fail()
+        state["fetched_head"] = {
+            "equal": "original-head", "ahead": "ancestor-head",
+            "behind": "new-remote-head", "diverged": "diverged-remote-head",
+        }[scenario.get("history", "equal")]
+        save()
+    elif args[0] == "merge-base":
+        assert args == ["merge-base", "--is-ancestor", state["fetched_head"], "original-head"]
+        if scenario.get("failure") == "merge-base":
+            fail()
+        sys.exit(1 if scenario.get("history") in ("behind", "diverged") else 0)
     elif args[0] == "ls-remote":
-        if "--heads" in args:
-            print(scenario.get("remote_head", "original-head") + "\trefs/heads/develop")
-        elif scenario.get("remote_tag"):
+        if scenario.get("remote_tag"):
             print("tag-head\trefs/tags/v1.2.4")
     elif args[0] == "show-ref":
         sys.exit(0 if scenario.get("local_tag") else 1)
@@ -158,7 +174,7 @@ class CreateReleaseTests(unittest.TestCase):
 
     def test_failed_preconditions_and_checks_do_not_bump_or_publish(self):
         for scenario in ({"dirty": True}, {"branch": "feature"}, {"detached": True},
-                         {"remote_head": "different-head"}, {"local_tag": True},
+                         {"local_tag": True},
                          {"remote_tag": True}, {"failure": "test"},
                          {"dirty_after_checks": True}, {"changed_branch": True}):
             with self.subTest(scenario=scenario):
@@ -169,9 +185,43 @@ class CreateReleaseTests(unittest.TestCase):
                 self.assertFalse(any(command["args"][0] == "push" for command in commands))
                 self.assertNotIn("Publishing interrupted", result.stderr)
 
+    def test_remote_history_failures_stop_before_checks_or_publication(self):
+        for scenario in ({"history": "behind"}, {"history": "diverged"},
+                         {"failure": "fetch"}, {"failure": "merge-base"}):
+            with self.subTest(scenario=scenario):
+                result, commands, state, manifest, original = self.run_release(**scenario)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(manifest.read_bytes(), original)
+                self.assertFalse(state.get("released"))
+                self.assertFalse(state.get("pushed"))
+                self.assertFalse(state.get("published"))
+                self.assertFalse(any(command["tool"] == "bun" and command["args"][0] == "run"
+                                     for command in commands))
+                if "history" in scenario:
+                    self.assertIn("Merge or rebase", result.stderr)
+                else:
+                    self.assertEqual(result.returncode, 9)
+
+    def test_ahead_commits_are_included_in_single_final_atomic_push(self):
+        result, commands, state, _, _ = self.run_release(history="ahead")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(state["fetched_head"], "ancestor-head")
+        self.assertTrue(state["published"])
+        self.assertIn("Local commits will be pushed with the release.", result.stdout)
+        pushes = [command for command in commands if command["tool"] == "git"
+                  and command["args"][0] == "push"]
+        self.assertEqual(len(pushes), 1)
+        self.assertEqual(pushes[0], commands[-2])
+        self.assertEqual(pushes[0]["args"], [
+            "push", "--atomic", "--no-follow-tags", "origin",
+            "release-head:refs/heads/develop", "refs/tags/v1.2.4:refs/tags/v1.2.4",
+        ])
+        self.assertTrue(state["built"])
+
     def test_success_runs_checks_then_bumps_and_publishes(self):
         result, commands, state, manifest, _ = self.run_release("minor")
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(state["fetched_head"], "original-head")
         self.assertEqual(json.loads(manifest.read_text())["version"], "1.3.0")
         bun = [command for command in commands if command["tool"] == "bun"]
         self.assertEqual([command["args"][:2] for command in bun[1:]], [
