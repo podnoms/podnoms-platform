@@ -23,6 +23,7 @@ export const reservedPodcastSlugs = new Set([
   'explore',
   'feed',
   'following',
+  'fonts',
   'help',
   'images',
   'likes',

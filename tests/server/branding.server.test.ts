@@ -1,14 +1,30 @@
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import sharp from 'sharp'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { env } from '~/env'
 import { defaultBranding, defaultLandingCopy } from '~/lib/branding'
 import type { BrandingInput } from '~/lib/branding-schema'
-import { brandIcon, brandOgImage, getBranding, resetLogo, saveBranding, saveLogo, siteUserAgent } from '~/server/branding.server'
+import { themeCss } from '~/lib/theme-css'
+import { themePresets } from '~/lib/theme-presets'
+import { pickStyles } from '~/lib/theme-schema'
+import {
+  brandIcon,
+  brandOgImage,
+  getBranding,
+  resetLogo,
+  saveBranding,
+  saveLogo,
+  saveTheme,
+  siteUserAgent,
+} from '~/server/branding.server'
 import { getSiteSettings, updateSiteSettings } from '~/server/site-settings.server'
 import { UploadError } from '~/server/uploads.server'
+import { prepareFonts } from '~/server/fonts.server'
 import { makeImage, streamOf } from '../helpers'
+
+// Saving a theme downloads its fonts from Google; fonts.server.test.ts tests that.
+vi.mock('~/server/fonts.server', () => ({ prepareFonts: vi.fn(async () => {}) }))
 
 const input: BrandingInput = {
   name: 'Pods',
@@ -25,6 +41,7 @@ const input: BrandingInput = {
 // Settings outlive each test, so put the default branding back.
 afterEach(async () => {
   await resetLogo()
+  await saveTheme(null)
   await saveBranding({ ...defaultBranding, landing: null, analyticsScriptUrl: null, analyticsAttributes: {} })
 })
 
@@ -136,5 +153,34 @@ describe('siteUserAgent', () => {
   it("names the site to other sites' APIs", async () => {
     await saveBranding(input)
     expect(await siteUserAgent()).toMatch(/^Pods \(\+https?:\/\//)
+  })
+})
+
+describe('the theme', () => {
+  const styles = {
+    light: pickStyles(themePresets['modern-minimal']!.styles.light),
+    dark: pickStyles(themePresets['modern-minimal']!.styles.dark),
+  }
+
+  it("is app.css's own until an admin saves one", async () => {
+    expect((await getBranding()).theme).toBeNull()
+    const edited = { ...styles, light: { ...styles.light, primary: 'oklch(0.6 0.2 25)' } }
+    await saveTheme({ basedOn: 'modern-minimal', styles: edited })
+    expect((await getBranding()).theme).toEqual({
+      basedOn: 'modern-minimal',
+      styles: edited,
+      css: themeCss(edited),
+      fonts: ['Inter', 'Source Serif 4', 'JetBrains Mono'],
+    })
+    // Its Google Fonts are downloaded first, ready for visitors.
+    expect(prepareFonts).toHaveBeenCalledWith(['Inter', 'Source Serif 4', 'JetBrains Mono'])
+    await saveTheme(null)
+    expect((await getBranding()).theme).toBeNull()
+  })
+
+  it('keeps only the values the site uses', async () => {
+    const withSpacing = { ...styles, light: { ...styles.light, spacing: '0.3rem' } as typeof styles.light }
+    await saveTheme({ basedOn: null, styles: withSpacing })
+    expect((await getBranding()).theme!.styles.light).not.toHaveProperty('spacing')
   })
 })

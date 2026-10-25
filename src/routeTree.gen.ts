@@ -49,6 +49,7 @@ import { Route as ApiLiveAuthRouteImport } from './routes/api/live/auth'
 import { Route as ApiTrackedLinksTokenRouteImport } from './routes/api/tracked-links/$token'
 import { Route as ApiTraefikConfigRouteImport } from './routes/api/traefik/config'
 import { Route as EmbedSlugEpisodeSlugRouteImport } from './routes/embed/$slug.$episodeSlug'
+import { Route as FontsFamilyFileRouteImport } from './routes/fonts.$family.$file'
 import { Route as ListenSlugEpisodeSlugRouteImport } from './routes/listen/$slug.$episodeSlug'
 import { Route as ApiEpisodesIdActivityRouteImport } from './routes/api/episodes/$id/activity'
 import { Route as ApiEpisodesIdAudioRouteImport } from './routes/api/episodes/$id/audio'
@@ -258,6 +259,11 @@ const EmbedSlugEpisodeSlugRoute = EmbedSlugEpisodeSlugRouteImport.update({
   path: '/embed/$slug/$episodeSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FontsFamilyFileRoute = FontsFamilyFileRouteImport.update({
+  id: '/fonts/$family/$file',
+  path: '/fonts/$family/$file',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ListenSlugEpisodeSlugRoute = ListenSlugEpisodeSlugRouteImport.update({
   id: '/listen/$slug/$episodeSlug',
   path: '/listen/$slug/$episodeSlug',
@@ -341,6 +347,7 @@ export interface FileRoutesByFullPath {
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
+  '/fonts/$family/$file': typeof FontsFamilyFileRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/admin/': typeof AuthedAdminIndexRoute
   '/settings/': typeof AuthedSettingsIndexRoute
@@ -389,6 +396,7 @@ export interface FileRoutesByTo {
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
+  '/fonts/$family/$file': typeof FontsFamilyFileRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/admin': typeof AuthedAdminIndexRoute
   '/settings': typeof AuthedSettingsIndexRoute
@@ -440,6 +448,7 @@ export interface FileRoutesById {
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
+  '/fonts/$family/$file': typeof FontsFamilyFileRoute
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/_authed/admin/': typeof AuthedAdminIndexRoute
   '/_authed/settings/': typeof AuthedSettingsIndexRoute
@@ -491,6 +500,7 @@ export interface FileRouteTypes {
     | '/api/tracked-links/$token'
     | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
+    | '/fonts/$family/$file'
     | '/listen/$slug/$episodeSlug'
     | '/admin/'
     | '/settings/'
@@ -539,6 +549,7 @@ export interface FileRouteTypes {
     | '/api/tracked-links/$token'
     | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
+    | '/fonts/$family/$file'
     | '/listen/$slug/$episodeSlug'
     | '/admin'
     | '/settings'
@@ -589,6 +600,7 @@ export interface FileRouteTypes {
     | '/api/tracked-links/$token'
     | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
+    | '/fonts/$family/$file'
     | '/listen/$slug/$episodeSlug'
     | '/_authed/admin/'
     | '/_authed/settings/'
@@ -632,6 +644,7 @@ export interface RootRouteChildren {
   ApiTrackedLinksTokenRoute: typeof ApiTrackedLinksTokenRoute
   ApiTraefikConfigRoute: typeof ApiTraefikConfigRoute
   EmbedSlugEpisodeSlugRoute: typeof EmbedSlugEpisodeSlugRoute
+  FontsFamilyFileRoute: typeof FontsFamilyFileRoute
   ListenSlugEpisodeSlugRoute: typeof ListenSlugEpisodeSlugRoute
   ApiEpisodesIdActivityRoute: typeof ApiEpisodesIdActivityRoute
   ApiEpisodesIdAudioRoute: typeof ApiEpisodesIdAudioRoute
@@ -923,6 +936,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EmbedSlugEpisodeSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/fonts/$family/$file': {
+      id: '/fonts/$family/$file'
+      path: '/fonts/$family/$file'
+      fullPath: '/fonts/$family/$file'
+      preLoaderRoute: typeof FontsFamilyFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/listen/$slug/$episodeSlug': {
       id: '/listen/$slug/$episodeSlug'
       path: '/listen/$slug/$episodeSlug'
@@ -1055,6 +1075,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiTrackedLinksTokenRoute: ApiTrackedLinksTokenRoute,
   ApiTraefikConfigRoute: ApiTraefikConfigRoute,
   EmbedSlugEpisodeSlugRoute: EmbedSlugEpisodeSlugRoute,
+  FontsFamilyFileRoute: FontsFamilyFileRoute,
   ListenSlugEpisodeSlugRoute: ListenSlugEpisodeSlugRoute,
   ApiEpisodesIdActivityRoute: ApiEpisodesIdActivityRoute,
   ApiEpisodesIdAudioRoute: ApiEpisodesIdAudioRoute,

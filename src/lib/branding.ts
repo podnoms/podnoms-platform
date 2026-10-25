@@ -1,8 +1,9 @@
-// The site's identity (name, logo, copy, analytics), which admins set at
-// /admin/branding so one image can run several differently branded sites. The
+// The site's identity (name, logo, copy, theme, analytics), which admins set
+// on the Branding and Theme tabs at /admin so one image can run several differently branded sites. The
 // root route loads it (see fetchBranding); this module is shared by client and
 // server. Anything left unset is the default below.
 import { useLoaderData } from '@tanstack/react-router'
+import type { SiteTheme } from '~/lib/theme-schema'
 
 export type CopyItem = { title: string; description: string }
 
@@ -39,6 +40,10 @@ export type Branding = {
   termsHtml: string | null
   // A script tag for the site's analytics, added to every page.
   analytics: { src: string; attributes: Record<string, string> } | null
+  // The theme admins made on the Theme tab (see theme-schema.ts), its CSS and
+  // the Google Fonts it uses, which every page's <head> carries; null for
+  // app.css's own theme.
+  theme: (SiteTheme & { css: string; fonts: string[] }) | null
 }
 
 export const landingStepCount = 3
@@ -102,6 +107,7 @@ export const defaultBranding: Branding = {
   privacyHtml: null,
   termsHtml: null,
   analytics: null,
+  theme: null,
 }
 
 // The sizes the logo is served at (see brand.$file.ts): favicons, the Apple
@@ -131,6 +137,9 @@ export function brandOgImageUrl(branding: Pick<Branding, 'logoVersion'>) {
 export function withSiteName(text: string, branding: Pick<Branding, 'name'>) {
   return text.replaceAll('{name}', branding.name)
 }
+
+// The <style> element in every page's <head> that holds the site's theme.
+export const siteThemeStyleId = 'site-theme'
 
 export function useBranding() {
   return useLoaderData({ from: '__root__', select: (data) => data.branding })

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { landingFeatureCount, landingStepCount } from '~/lib/branding'
+import { siteThemeSchema } from '~/lib/theme-schema'
 
 const text = (max: number, what: string) => z.string().trim().min(1, `${what} can't be empty`).max(max, `${what} is too long`)
 
@@ -61,3 +62,6 @@ export const brandingSchema = z.object({
   analyticsAttributes: z.record(z.string().regex(attributeName, 'Use data-… attributes, async or defer'), z.string().max(500)),
 })
 export type BrandingInput = z.infer<typeof brandingSchema>
+
+// The theme admins save on the Theme tab, or null for app.css's own.
+export const themeSchema = z.object({ theme: siteThemeSchema.nullable() })

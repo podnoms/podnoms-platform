@@ -17,7 +17,8 @@ import { fetchFollowedPodcasts } from '~/functions/library'
 import { fetchMyPodcasts } from '~/functions/podcasts'
 import { fetchSiteLinks } from '~/functions/site-links'
 import { readPodcastSort } from '~/lib/podcast-sort'
-import { brandIconUrl, defaultBranding } from '~/lib/branding'
+import { brandIconUrl, defaultBranding, siteThemeStyleId } from '~/lib/branding'
+import { fontCssUrl } from '~/lib/theme-fonts'
 import { startClientErrorReporting } from '~/lib/client-errors'
 import { currentDomainSlug } from '~/lib/current-domain'
 import { loginSearchSchema } from '~/lib/login-search'
@@ -85,6 +86,8 @@ export const Route = createRootRoute({
         { rel: 'icon', type: 'image/png', sizes: '16x16', href: brandIconUrl(branding, 16) },
         { rel: 'apple-touch-icon', sizes: '180x180', href: brandIconUrl(branding, 180) },
         { rel: 'manifest', href: '/site.webmanifest' },
+        // The theme's fonts, which the site serves itself.
+        ...(branding.theme?.fonts ?? []).map((font) => ({ rel: 'stylesheet', href: fontCssUrl(font) })),
       ],
       // The site's analytics, when an admin has set it up.
       scripts: branding.analytics ? [{ src: branding.analytics.src, defer: true, ...branding.analytics.attributes }] : [],
@@ -95,12 +98,17 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   const { session } = Route.useRouteContext()
-  const { errorReportingDsn } = Route.useLoaderData()
+  const { errorReportingDsn, branding } = Route.useLoaderData()
   useEffect(() => startClientErrorReporting(errorReportingDsn), [errorReportingDsn])
   const bare = useMatches({ select: (matches) => matches.some((match) => match.staticData.bare) })
   const publicPage = useMatches({ select: (matches) => matches.some((match) => match.staticData.publicPage) })
   return (
-    <RootDocument signedIn={Boolean(session)} bare={bare} publicPage={publicPage}>
+    <RootDocument
+      signedIn={Boolean(session)}
+      bare={bare}
+      publicPage={publicPage}
+      themeCss={branding.theme?.css ?? ''}
+    >
       <Outlet />
     </RootDocument>
   )
@@ -110,11 +118,14 @@ function RootDocument({
   signedIn,
   bare,
   publicPage,
+  themeCss,
   children,
 }: {
   signedIn: boolean
   bare: boolean
   publicPage: boolean
+  // The theme admins chose (see branding.server.ts), over app.css's own.
+  themeCss: string
   children: ReactNode
 }) {
   return (
@@ -122,6 +133,8 @@ function RootDocument({
     <html lang="en" suppressHydrationWarning data-custom-domain={currentDomainSlug() ?? undefined}>
       <head>
         <HeadContent />
+        {/* The admin Theme tab swaps this element's contents to preview a theme. */}
+        <style id={siteThemeStyleId} dangerouslySetInnerHTML={{ __html: themeCss }} />
       </head>
       {/* Browser extensions add attributes to <body> before React hydrates. */}
       <body suppressHydrationWarning>

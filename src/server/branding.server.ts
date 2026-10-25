@@ -8,13 +8,17 @@ import { join } from 'node:path'
 import sharp from 'sharp'
 import { defaultBranding, defaultLandingCopy, type Branding, type BrandIconSize, type LandingCopy } from '~/lib/branding'
 import type { BrandingInput } from '~/lib/branding-schema'
+import { themeCss } from '~/lib/theme-css'
+import { googleFontsIn } from '~/lib/theme-fonts'
+import { pickStyles, type SiteTheme } from '~/lib/theme-schema'
+import { prepareFonts } from '~/server/fonts.server'
 import { sanitizePage } from '~/server/rich-text.server'
 import { maxImageBytes } from '~/server/images.server'
 import { getSiteSettings, updateSiteSettings } from '~/server/site-settings.server'
+import { siteOrigin } from '~/server/site-url.server'
 import { brandIconPath, brandLogoPath, ensureBrandingDir } from '~/server/storage.server'
 import { receiveFile, UploadError } from '~/server/uploads.server'
 import defaultLogoDataUri from '../assets/default-logo.png?inline'
-import { siteOrigin } from '~/server/site-url.server'
 
 export async function getBranding(): Promise<Branding> {
   const settings = await getSiteSettings()
@@ -28,7 +32,25 @@ export async function getBranding(): Promise<Branding> {
     privacyHtml: sanitizePage(settings.privacyHtml),
     termsHtml: sanitizePage(settings.termsHtml),
     analytics: settings.analyticsScriptUrl ? { src: settings.analyticsScriptUrl, attributes: settings.analyticsAttributes } : null,
+    theme: settings.siteTheme && {
+      ...settings.siteTheme,
+      css: themeCss(settings.siteTheme.styles),
+      fonts: googleFontsIn({ ...settings.siteTheme.styles.dark, ...settings.siteTheme.styles.light }),
+    },
   }
+}
+
+// Makes the theme the site's; null goes back to app.css's own. Only the values
+// the site uses are kept. Its Google Fonts are downloaded first, so they're
+// ready for the first visitor (a font that can't be is tried again then).
+export async function saveTheme(theme: SiteTheme | null) {
+  if (theme) await prepareFonts(googleFontsIn({ ...theme.styles.dark, ...theme.styles.light }))
+  await updateSiteSettings({
+    siteTheme: theme && {
+      basedOn: theme.basedOn,
+      styles: { light: pickStyles(theme.styles.light), dark: pickStyles(theme.styles.dark) },
+    },
+  })
 }
 
 // A value the same as its default is saved as null, so it follows the default.

@@ -21,6 +21,8 @@ const waveformsDir = resolve(env.MEDIA_DIR, 'waveforms')
 const liveRecordingsDir = resolve(env.MEDIA_DIR, 'live-recordings')
 // The site's uploaded logo and the icons made from it (see branding.server.ts).
 const brandingDir = resolve(env.MEDIA_DIR, 'branding')
+// The theme's Google Fonts, one folder per font (see fonts.server.ts).
+const fontsDir = resolve(env.MEDIA_DIR, 'fonts')
 // MaxMind's GeoLite2 database, downloaded by geoip.server.ts.
 const geoipDir = resolve(env.MEDIA_DIR, 'geoip')
 
@@ -50,6 +52,18 @@ export function brandLogoPath(version: string) {
 // preview card, "og"), made on request.
 export function brandIconPath(version: string, size: number | 'og') {
   return join(brandingDir, `icon-${safeId(version)}-${size}.png`)
+}
+
+export async function ensureFontDir(slug: string) {
+  const dir = join(fontsDir, safeId(slug))
+  await mkdir(dir, { recursive: true })
+  return dir
+}
+
+// A font's file: its stylesheet (font.css) or one of the font files it names.
+export function fontFilePath(slug: string, file: string) {
+  if (!/^[\w-]+\.(css|woff2)$/.test(file)) throw new Error(`Invalid font file: ${file}`)
+  return join(fontsDir, safeId(slug), file)
 }
 
 export const geoipDatabasePath = join(geoipDir, 'GeoLite2-City.mmdb')

@@ -3,6 +3,7 @@ import { createFileRoute, notFound, useNavigate, useRouter } from '@tanstack/rea
 import { z } from 'zod'
 import { BrandingSettings } from '~/components/branding-settings'
 import { Icons } from '~/components/icons'
+import { ThemeSettings } from '~/components/theme-settings'
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -26,12 +27,15 @@ import { platformNames, type Platform } from '~/lib/platforms'
 import { pageTitle, useBranding } from '~/lib/branding'
 import { emailSettingsSchema, siteSettingsSchema } from '~/lib/site-settings-schema'
 
+const adminTabs = z.enum(['downloads', 'users', 'email', 'branding', 'theme'])
+type AdminTab = z.infer<typeof adminTabs>
+
 export const Route = createFileRoute('/_authed/admin/')({
   beforeLoad: ({ context }) => {
     if (!context.session?.user?.isAdmin) throw notFound()
   },
   // The tab is in the URL, so it survives a reload and can be linked to.
-  validateSearch: z.object({ tab: z.enum(['downloads', 'users', 'email', 'branding']).optional().catch(undefined) }),
+  validateSearch: z.object({ tab: adminTabs.optional().catch(undefined) }),
   loader: () => fetchAdminOverview(),
   head: ({ matches }) => ({ meta: [{ title: pageTitle(matches, 'Admin') }] }),
   component: AdminPage,
@@ -62,7 +66,7 @@ function AdminPage() {
       <Tabs
         value={tab}
         onValueChange={(value) =>
-          navigate({ search: { tab: value === 'downloads' ? undefined : (value as 'users' | 'email' | 'branding') }, replace: true })
+          navigate({ search: { tab: value === 'downloads' ? undefined : (value as AdminTab) }, replace: true })
         }
       >
         <TabsList variant="line">
@@ -76,6 +80,7 @@ function AdminPage() {
             {!overview.email.enabled && <span className="size-1.5 rounded-full bg-muted-foreground" />}
           </TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
+          <TabsTrigger value="theme">Theme</TabsTrigger>
         </TabsList>
         <TabsContent value="downloads" className="flex flex-col gap-6 pt-4">
           {!overview.jobsRunning && (
@@ -100,6 +105,9 @@ function AdminPage() {
         </TabsContent>
         <TabsContent value="branding" className="flex flex-col gap-6 pt-4">
           <BrandingSettings />
+        </TabsContent>
+        <TabsContent value="theme" className="flex flex-col gap-6 pt-4">
+          <ThemeSettings />
         </TabsContent>
       </Tabs>
     </div>

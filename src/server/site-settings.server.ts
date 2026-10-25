@@ -9,6 +9,7 @@ import '@tanstack/react-start/server-only'
 import { sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { landingCopySchema } from '~/lib/branding-schema'
+import { siteThemeSchema } from '~/lib/theme-schema'
 import { db } from '~/server/db/client.server'
 import { siteSettings } from '~/server/db/schema'
 import { logger } from '~/server/logger.server'
@@ -47,6 +48,8 @@ const settingSchemas = {
   termsHtml: z.string().nullable(),
   analyticsScriptUrl: z.string().nullable(),
   analyticsAttributes: z.record(z.string(), z.string()),
+  // The site's theme, from the Theme tab; null for app.css's own.
+  siteTheme: siteThemeSchema.nullable(),
 }
 
 export type SiteSettings = { [K in keyof typeof settingSchemas]: z.infer<(typeof settingSchemas)[K]> }
@@ -74,6 +77,7 @@ export const defaultSiteSettings: SiteSettings = {
   termsHtml: null,
   analyticsScriptUrl: null,
   analyticsAttributes: {},
+  siteTheme: null,
 }
 
 const isSettingName = (key: string): key is SettingName => Object.hasOwn(settingSchemas, key)
