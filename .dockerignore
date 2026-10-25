@@ -12,4 +12,5 @@ node_modules
 dist
 media
 coverage
+__pycache__
 *.log
