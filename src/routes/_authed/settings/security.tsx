@@ -46,13 +46,14 @@ import { fetchHasPassword, savePassword } from '~/functions/profile'
 import { setPasswordSchema } from '~/lib/auth-schema'
 import { formatDate } from '~/lib/format'
 import { securityKeyNameSchema, totpCodeSchema } from '~/lib/two-factor-schema'
+import { pageTitle } from '~/lib/branding'
 
 export const Route = createFileRoute('/_authed/settings/security')({
   loader: async () => {
     const [status, hasPassword] = await Promise.all([fetchTwoFactorStatus(), fetchHasPassword()])
     return { ...status, hasPassword }
   },
-  head: () => ({ meta: [{ title: 'Security · Settings · podnoms' }] }),
+  head: ({ matches }) => ({ meta: [{ title: pageTitle(matches, 'Security · Settings') }] }),
   component: SecurityPage,
 })
 

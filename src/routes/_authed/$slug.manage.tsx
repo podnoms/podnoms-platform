@@ -42,15 +42,17 @@ import { imageSrc } from '~/lib/images'
 import { isReady } from '~/lib/podcast-directories'
 import { htmlToText } from '~/lib/rich-text'
 import { cn } from '~/lib/utils'
+import { pageTitle, useBranding } from '~/lib/branding'
 
 export const Route = createFileRoute('/_authed/$slug/manage')({
   loader: ({ params }) => fetchMyPodcast({ data: { slug: params.slug } }),
-  head: ({ loaderData }) => ({ meta: loaderData ? [{ title: `${loaderData.title} · podnoms` }] : [] }),
+  head: ({ loaderData, matches }) => ({ meta: loaderData ? [{ title: pageTitle(matches, loaderData.title) }] : [] }),
   component: PodcastPage,
 })
 
 function PodcastPage() {
   const podcast = Route.useLoaderData()
+  const branding = useBranding()
   const router = useRouter()
   const navigate = useNavigate()
   // Going live (from OBS) brings the owner to the live page, to watch and chat.
@@ -218,7 +220,7 @@ function PodcastPage() {
                     <EmptyDescription>
                       {podcast.channel
                         ? "The channel's uploads appear here as they're found. You can add episodes of your own too."
-                        : 'Paste a YouTube link or upload an audio file, and podnoms will turn it into an episode.'}
+                        : `Paste a YouTube link or upload an audio file, and ${branding.name} will turn it into an episode.`}
                     </EmptyDescription>
                   </EmptyHeader>
                   <EmptyContent className="flex-row flex-wrap justify-center">{newEpisodeButtons}</EmptyContent>
@@ -250,6 +252,7 @@ function PodcastPage() {
                 <CustomDomainCard
                   podcast={podcast}
                   target={podcast.customDomainTarget}
+                  txtLabel={podcast.customDomainTxtLabel}
                   onChanged={() => router.invalidate({ filter: (match) => match.routeId === Route.id })}
                 />
               )}

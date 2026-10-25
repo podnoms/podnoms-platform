@@ -12,6 +12,7 @@ import { summarisePublishedEpisodes } from '~/server/episodes.server'
 import { feedPath } from '~/server/feed.server'
 import { reportError } from '~/server/logger.server'
 import { podcastAuthor, podcastArtwork, updateDirectoryLink } from '~/server/podcasts.server'
+import { siteUserAgent } from '~/server/branding.server'
 
 // The readiness checklist for one of the user's podcasts; null if it isn't theirs.
 export async function getDirectoryReadiness(userId: string, podcastId: string) {
@@ -38,10 +39,10 @@ export async function getDirectoryReadiness(userId: string, podcastId: string) {
 export const podcastIndexConfigured = () => Boolean(env.PODCASTINDEX_API_KEY && env.PODCASTINDEX_API_SECRET)
 
 // Podcast Index's API signs each request with the key, secret and time.
-function podcastIndexHeaders() {
+async function podcastIndexHeaders() {
   const date = String(Math.floor(Date.now() / 1000))
   return {
-    'User-Agent': 'podnoms',
+    'User-Agent': await siteUserAgent(),
     'X-Auth-Key': env.PODCASTINDEX_API_KEY!,
     'X-Auth-Date': date,
     Authorization: createHash('sha1').update(`${env.PODCASTINDEX_API_KEY}${env.PODCASTINDEX_API_SECRET}${date}`).digest('hex'),
@@ -63,7 +64,7 @@ export async function submitToPodcastIndex(userId: string, podcastId: string, or
   try {
     const response = await fetch(
       `https://api.podcastindex.org/api/1.0/add/byfeedurl?url=${encodeURIComponent(feedUrl)}`,
-      { method: 'POST', headers: podcastIndexHeaders() },
+      { method: 'POST', headers: await podcastIndexHeaders() },
     )
     const body = (await response.json().catch(() => null)) as { status?: string; feedId?: number; description?: string } | null
     if (!response.ok || body?.status !== 'true' || !body.feedId) {

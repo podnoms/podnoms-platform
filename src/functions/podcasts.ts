@@ -21,6 +21,7 @@ import { listComments } from '~/server/comments.server'
 import {
   catchDomainError,
   customDomainTarget,
+  customDomainTxtLabel,
   setCustomDomain,
   verifyCustomDomain,
 } from '~/server/custom-domains.server'
@@ -117,6 +118,8 @@ export const fetchMyPodcast = createServerFn({ method: 'GET' })
       },
       // Where owners point their domain's CNAME; null when custom domains are off.
       customDomainTarget: customDomainTarget(),
+      // What the domain's TXT record is named after.
+      customDomainTxtLabel: customDomainTxtLabel(),
       // Whether the Go live button is offered (MediaMTX is set up), and whether it's
       // broadcasting now.
       liveEnabled: liveEnabled(),

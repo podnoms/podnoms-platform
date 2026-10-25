@@ -17,6 +17,7 @@ import { ExpiringStore } from '~/server/expiring-store.server'
 import { logger } from '~/server/logger.server'
 import { decryptSecret, encryptSecret } from '~/server/secrets.server'
 import { verifyKeyAuthentication } from '~/server/webauthn.server'
+import { getBranding } from '~/server/branding.server'
 
 // --- Authenticator app secrets ----------------------------------------------
 
@@ -28,8 +29,10 @@ const decrypt = (stored: string) => decryptSecret('podnoms totp secret', stored)
 
 const periodSeconds = 30
 
-const totp = (secret: string, label = 'podnoms') =>
-  new TOTP({ issuer: 'podnoms', label, secret: Secret.fromBase32(secret), period: periodSeconds })
+// The issuer and label are only what authenticator apps show (the site's
+// name and the user's email); they don't change the codes.
+const totp = (secret: string, label = 'account', issuer = 'site') =>
+  new TOTP({ issuer, label, secret: Secret.fromBase32(secret), period: periodSeconds })
 
 // The time step a code belongs to, allowing one step of clock drift either
 // way, or null if it isn't valid for the secret.
@@ -45,7 +48,8 @@ export async function startTotpSetup(userId: string) {
   const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId))
   const secret = new Secret({ size: 20 }).base32
   pendingSecrets.set(userId, secret)
-  const uri = totp(secret, user?.email ?? 'podnoms').toString()
+  const { name } = await getBranding()
+  const uri = totp(secret, user?.email ?? name, name).toString()
   return { secret, uri, qrCode: await QRCode.toDataURL(uri, { margin: 1, width: 200 }) }
 }
 

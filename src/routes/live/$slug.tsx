@@ -8,6 +8,7 @@ import { Button } from '~/components/ui/button'
 import { fetchLivePage } from '~/functions/live'
 import { useLiveEvents } from '~/hooks/use-live-events'
 import { formatCount } from '~/lib/format'
+import { pageTitle } from '~/lib/branding'
 
 // A podcast's live page, at /live/:slug: its broadcast from OBS
 // while there is one, and the chat beside it. It follows the broadcast
@@ -15,11 +16,11 @@ import { formatCount } from '~/lib/format'
 export const Route = createFileRoute('/live/$slug')({
   staticData: { publicPage: true },
   loader: ({ params }) => fetchLivePage({ data: { slug: params.slug } }),
-  head: ({ loaderData: page }) =>
+  head: ({ loaderData: page, matches }) =>
     page
       ? {
           meta: [
-            { title: `${page.podcast.title} live · podnoms` },
+            { title: pageTitle(matches, `${page.podcast.title} live`) },
             ...(page.podcast.private ? [{ name: 'robots', content: 'noindex' }] : []),
           ],
         }

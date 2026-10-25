@@ -1,17 +1,27 @@
 import type { ReactNode } from 'react'
+import { useBranding } from '~/lib/branding'
 
-// Where people write about their data or these terms.
-export const contactEmail = 'hello@podnoms.com'
-
-// The layout shared by the privacy policy and terms of service.
-export function LegalPage({ title, updated, children }: { title: string; updated: string; children: ReactNode }) {
+// The layout shared by the privacy policy and terms of service. `html`, an
+// admin's own text (see branding.server.ts, which sanitises it), replaces the
+// built-in text in `children`.
+export function LegalPage({
+  title,
+  updated,
+  html,
+  children,
+}: {
+  title: string
+  updated: string
+  html: string | null
+  children: ReactNode
+}) {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10">
       <header>
         <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Last updated {updated}</p>
+        {!html && <p className="mt-2 text-sm text-muted-foreground">Last updated {updated}</p>}
       </header>
-      {children}
+      {html ? <div className="rich-text text-base leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} /> : children}
     </main>
   )
 }
@@ -25,7 +35,9 @@ export function LegalSection({ id, title, children }: { id?: string; title: stri
   )
 }
 
+// Where people write about their data or these terms.
 export function ContactLink() {
+  const { contactEmail } = useBranding()
   return (
     <a href={`mailto:${contactEmail}`} className="underline underline-offset-4">
       {contactEmail}

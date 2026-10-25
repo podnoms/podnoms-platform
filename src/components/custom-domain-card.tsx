@@ -11,6 +11,7 @@ import { domainFeedPath, txtRecordName, txtRecordValue } from '~/lib/custom-doma
 import { formatDate } from '~/lib/format'
 import { withFeedKey } from '~/lib/paths'
 import { customDomainSchema } from '~/lib/podcast-schema'
+import { useBranding } from '~/lib/branding'
 
 type Podcast = {
   id: string
@@ -33,13 +34,17 @@ const graceDays = 3
 export function CustomDomainCard({
   podcast,
   target,
+  txtLabel,
   onChanged,
 }: {
   podcast: Podcast
   // Where the CNAME points.
   target: string
+  // What the TXT record is named after (see txtRecordName).
+  txtLabel: string
   onChanged: () => Promise<void>
 }) {
+  const branding = useBranding()
   const [pending, setPending] = useState<'save' | 'remove' | 'test'>()
   const [error, setError] = useState<string>()
   const [result, setResult] = useState<TestResult>()
@@ -147,8 +152,8 @@ export function CustomDomainCard({
             <DnsRecord type="CNAME" name={domain} value={target} check={result?.cname} />
             <DnsRecord
               type="TXT"
-              name={txtRecordName(domain)}
-              value={txtRecordValue(podcast.customDomainToken)}
+              name={txtRecordName(domain, txtLabel)}
+              value={txtRecordValue(podcast.customDomainToken, txtLabel)}
               check={result?.txt}
             />
             <div className="flex flex-wrap items-center gap-3">
@@ -175,7 +180,7 @@ export function CustomDomainCard({
             <div className="flex flex-col gap-1">
               <h3 className="text-sm font-semibold">On your domain</h3>
               <p className="text-sm text-muted-foreground">
-                The first visit can take a minute while its HTTPS certificate is issued. Your podnoms feed keeps working,
+                The first visit can take a minute while its HTTPS certificate is issued. Your {branding.name} feed keeps working,
                 so there's no need to move existing subscribers.
               </p>
             </div>

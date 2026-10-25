@@ -8,10 +8,11 @@ import { Input } from '~/components/ui/input'
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '~/components/ui/input-group'
 import { fetchProfile, saveProfile } from '~/functions/profile'
 import { editProfileSchema } from '~/lib/profile-schema'
+import { pageTitle } from '~/lib/branding'
 
 export const Route = createFileRoute('/_authed/settings/')({
   loader: () => fetchProfile(),
-  head: () => ({ meta: [{ title: 'Settings · podnoms' }] }),
+  head: ({ matches }) => ({ meta: [{ title: pageTitle(matches, 'Settings') }] }),
   component: DetailsPage,
 })
 

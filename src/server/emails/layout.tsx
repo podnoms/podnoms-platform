@@ -1,10 +1,9 @@
 // The frame every email is sent in (see renderEmail in emails.server.tsx): the
-// site's icon (embedded, see logo.server.ts) and name, a white card for the message, and a footer. Built
+// site's logo (embedded, see logo.server.ts) and name, a white card for the message, and a footer. Built
 // with React Email, which turns it into the table-based, inline-styled HTML
 // email clients need, and a plain-text version.
 import type { ReactNode } from 'react'
 import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from '@react-email/components'
-import { siteName, siteTagline } from '~/lib/site'
 import { logoCid, logoSize } from '~/server/emails/logo.server'
 
 // The site's colours: its pink, on a soft grey page.
@@ -22,11 +21,16 @@ const font =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
 
 export function EmailLayout({
+  siteName,
+  siteTagline,
   origin,
   preview,
   footer,
   children,
 }: {
+  // The site's name and tagline (see branding.server.ts).
+  siteName: string
+  siteTagline: string
   // Where the site is, for links; without it they're left out.
   origin: string | null
   // The line inboxes show after the subject.

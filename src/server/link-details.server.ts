@@ -19,6 +19,7 @@ import { isCoolingDown } from '~/server/download-throttle.server'
 import { publishEpisodeEvent } from '~/server/episode-events.server'
 import { downloadImage, stageImage } from '~/server/images.server'
 import { logger } from '~/server/logger.server'
+import { siteUserAgent } from '~/server/branding.server'
 
 // Overridable in tests.
 export const linkDetailSources = {
@@ -48,7 +49,7 @@ export function youtubeVideoId(sourceUrl: string) {
 
 async function getJson<T>(url: string): Promise<T | null> {
   const response = await fetch(url, {
-    headers: { Accept: 'application/json', 'User-Agent': 'podnoms (+https://podnoms.com)' },
+    headers: { Accept: 'application/json', 'User-Agent': await siteUserAgent() },
     signal: AbortSignal.timeout(15_000),
   })
   return response.ok ? ((await response.json()) as T) : null

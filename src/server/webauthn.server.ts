@@ -14,6 +14,7 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
 import { securityKeys, users } from '~/server/db/schema'
 import { ExpiringStore } from '~/server/expiring-store.server'
+import { getBranding } from '~/server/branding.server'
 
 // The challenge each user was last sent, keyed by "<ceremony>:<user id>".
 const challenges = new ExpiringStore<string>(5 * 60_000)
@@ -42,7 +43,7 @@ const descriptor = (key: { id: string; transports: string[] | null }) => ({
 export async function startKeyRegistration(userId: string, url: URL) {
   const [user] = await db.select({ email: users.email, name: users.name }).from(users).where(eq(users.id, userId))
   const options = await generateRegistrationOptions({
-    rpName: 'podnoms',
+    rpName: (await getBranding()).name,
     rpID: relyingParty(url).rpID,
     userName: user?.email ?? user?.name ?? userId,
     userID: new TextEncoder().encode(userId),

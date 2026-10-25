@@ -1,4 +1,4 @@
-// The emails podnoms sends. Each is a message (subject, inbox preview and
+// The emails the site sends. Each is a message (subject, inbox preview and
 // content); renderEmail puts it in the site's layout (emails/layout.tsx) and
 // makes the HTML and plain-text versions, so every email looks the same.
 import '@tanstack/react-start/server-only'
@@ -14,6 +14,7 @@ import {
   EmailLink,
   EmailText,
 } from '~/server/emails/layout'
+import { getBranding } from '~/server/branding.server'
 import { emailLogo, logoCid } from '~/server/emails/logo.server'
 
 export type EmailMessage = {
@@ -26,8 +27,9 @@ export type EmailMessage = {
 }
 
 export async function renderEmail(message: EmailMessage, origin: string | null) {
+  const branding = await getBranding()
   const email = (
-    <EmailLayout origin={origin} preview={message.preview} footer={message.footer}>
+    <EmailLayout siteName={branding.name} siteTagline={branding.tagline} origin={origin} preview={message.preview} footer={message.footer}>
       {message.content}
     </EmailLayout>
   )
@@ -42,32 +44,34 @@ export async function renderEmail(message: EmailMessage, origin: string | null) 
   return { html, text, attachments }
 }
 
-export function testEmail(): EmailMessage {
+// `siteName` in each is the site's name (see branding.server.ts).
+
+export function testEmail(siteName: string): EmailMessage {
   return {
-    subject: 'podnoms test email',
+    subject: `${siteName} test email`,
     preview: 'If you’re reading this, email is working.',
     content: (
       <>
         <EmailHeading>Email is working</EmailHeading>
-        <EmailText>This is a test email from podnoms. If you’re reading it, your mail server is set up.</EmailText>
+        <EmailText>This is a test email from {siteName}. If you’re reading it, your mail server is set up.</EmailText>
         <EmailText muted>
           If it landed in spam, check that your mail server is allowed to send for the From address’s domain
           (its SPF and DKIM records).
         </EmailText>
       </>
     ),
-    footer: 'Sent from the podnoms admin page.',
+    footer: `Sent from the ${siteName} admin page.`,
   }
 }
 
-export function passwordResetEmail(link: string): EmailMessage {
+export function passwordResetEmail(link: string, siteName: string): EmailMessage {
   return {
-    subject: 'Reset your podnoms password',
+    subject: `Reset your ${siteName} password`,
     preview: 'Choose a new password. The link works once, for an hour.',
     content: (
       <>
         <EmailHeading>Reset your password</EmailHeading>
-        <EmailText>Someone (hopefully you) asked to reset the password for your podnoms account.</EmailText>
+        <EmailText>Someone (hopefully you) asked to reset the password for your {siteName} account.</EmailText>
         <EmailButton href={link}>Choose a new password</EmailButton>
         <EmailText muted>
           Or paste this link into your browser: <EmailLink href={link}>{link}</EmailLink>
@@ -158,7 +162,7 @@ function EventRow({ event }: { event: NotificationEvent }) {
 
 // Everything that happened to the user's podcasts, and the ones they follow,
 // in the last few minutes, in one email.
-export function notificationDigestEmail(events: NotificationEvent[], settingsLink: string | null): EmailMessage {
+export function notificationDigestEmail(events: NotificationEvent[], settingsLink: string | null, siteName: string): EmailMessage {
   const failures = events.filter((event) => event.type === 'episodeFailed').length
   const added = events.reduce((sum, event) => sum + (event.type === 'newEpisodes' ? event.count : 0), 0)
   const followed = events.flatMap((event) => (event.type === 'followedEpisodes' ? [event] : []))
@@ -171,11 +175,11 @@ export function notificationDigestEmail(events: NotificationEvent[], settingsLin
       : failures
         ? `${failures === 1 ? 'An episode' : `${failures} episodes`} couldn’t be processed`
         : added
-          ? `${plural(added, 'new episode')} on podnoms`
+          ? `${plural(added, 'new episode')} on ${siteName}`
           : comments.length === 1
             ? `${comments[0]!.authorName} ${comments[0]!.kind === 'mention' ? 'mentioned you' : 'replied to you'}`
             : comments.length > 1
-              ? `${comments.length} mentions and replies on podnoms`
+              ? `${comments.length} mentions and replies on ${siteName}`
               : followed.length === 1 && followed[0]!.titles.length === 1
             ? `New from ${followed[0]!.podcastTitle}: ${followed[0]!.titles[0]}`
             : `${plural(followed.reduce((sum, event) => sum + event.titles.length, 0), 'new episode')} from podcasts you follow`
@@ -210,14 +214,14 @@ export function notificationDigestEmail(events: NotificationEvent[], settingsLin
 
 // To admins, when a platform starts asking us to prove we're not a bot (see
 // admin-alerts.server.ts).
-export function botCheckEmail(platform: Platform, error: string, adminLink: string | null): EmailMessage {
+export function botCheckEmail(platform: Platform, error: string, adminLink: string | null, siteName: string): EmailMessage {
   const name = platformNames[platform]
   return {
-    subject: `${name} is asking podnoms to prove it isn’t a bot`,
+    subject: `${name} is asking ${siteName} to prove it isn’t a bot`,
     preview: `Downloads from ${name} have stopped for everyone until yt-dlp has fresh cookies.`,
     content: (
       <>
-        <EmailHeading>{name} wants podnoms to sign in</EmailHeading>
+        <EmailHeading>{name} wants {siteName} to sign in</EmailHeading>
         <EmailText>
           {name} is refusing downloads with a “confirm you’re not a bot” check, so downloads from it are paused for every
           user. They’ll be tried again later, but will probably keep failing until it’s fixed.
@@ -234,7 +238,7 @@ export function botCheckEmail(platform: Platform, error: string, adminLink: stri
         <EmailText muted>{error}</EmailText>
       </>
     ),
-    footer: 'You get this as a podnoms admin, at most every 6 hours while it keeps happening.',
+    footer: `You get this as a ${siteName} admin, at most every 6 hours while it keeps happening.`,
   }
 }
 
@@ -246,7 +250,7 @@ function NotificationFooter({ settingsLink }: { settingsLink: string | null }) {
       <EmailLink href={settingsLink}>Choose which ones</EmailLink>.
     </>
   ) : (
-    'You get these emails about your podcasts and the ones you follow. Choose which ones in your podnoms settings.'
+    'You get these emails about your podcasts and the ones you follow. Choose which ones in your settings.'
   )
 }
 

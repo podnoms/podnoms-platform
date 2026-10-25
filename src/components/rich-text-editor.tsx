@@ -12,22 +12,25 @@ import { Toggle } from '~/components/ui/toggle'
 // A small rich text editor for descriptions. It produces the HTML the server
 // keeps (see rich-text.server.ts), so it offers no more than that allows:
 // paragraphs, bold, italic, underline, strikethrough, links, lists and quotes.
-// `value` is only read when the editor mounts.
+// With `headings`, for whole pages (see sanitizePage), it offers two levels of
+// heading too, and grows taller. `value` is only read when the editor mounts.
 export function RichTextEditor({
   id,
   value,
   onChange,
   placeholder,
+  headings = false,
 }: {
   id?: string
   value: string
   onChange: (html: string) => void
   placeholder?: string
+  headings?: boolean
 }) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: false,
+        heading: headings ? { levels: [2, 3] } : false,
         code: false,
         codeBlock: false,
         horizontalRule: false,
@@ -41,7 +44,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         ...(id ? { id } : {}),
-        class: 'rich-text min-h-32 max-h-80 overflow-y-auto px-3 py-2 outline-none',
+        class: `rich-text min-h-32 ${headings ? 'max-h-[36rem]' : 'max-h-80'} overflow-y-auto px-3 py-2 outline-none`,
       },
     },
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
@@ -49,16 +52,18 @@ export function RichTextEditor({
 
   return (
     <div className="overflow-hidden rounded-md border border-input shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
-      {editor && <Toolbar editor={editor} />}
+      {editor && <Toolbar editor={editor} headings={headings} />}
       <EditorContent editor={editor} />
     </div>
   )
 }
 
-function Toolbar({ editor }: { editor: Editor }) {
+function Toolbar({ editor, headings }: { editor: Editor; headings: boolean }) {
   const state = useEditorState({
     editor,
     selector: ({ editor }) => ({
+      heading2: editor.isActive('heading', { level: 2 }),
+      heading3: editor.isActive('heading', { level: 3 }),
       bold: editor.isActive('bold'),
       italic: editor.isActive('italic'),
       underline: editor.isActive('underline'),
@@ -75,6 +80,23 @@ function Toolbar({ editor }: { editor: Editor }) {
 
   return (
     <div role="toolbar" aria-label="Formatting" className="flex flex-wrap items-center gap-0.5 border-b bg-muted/40 p-1">
+      {headings && (
+        <>
+          <Mark
+            label="Heading"
+            icon={Icons.heading2}
+            active={state.heading2}
+            onToggle={() => chain().toggleHeading({ level: 2 }).run()}
+          />
+          <Mark
+            label="Subheading"
+            icon={Icons.heading3}
+            active={state.heading3}
+            onToggle={() => chain().toggleHeading({ level: 3 }).run()}
+          />
+          <Separator orientation="vertical" className="mx-1 h-5" />
+        </>
+      )}
       <Mark label="Bold" icon={Icons.bold} active={state.bold} onToggle={() => chain().toggleBold().run()} />
       <Mark label="Italic" icon={Icons.italic} active={state.italic} onToggle={() => chain().toggleItalic().run()} />
       <Mark

@@ -16,6 +16,7 @@ import { Input } from '~/components/ui/input'
 import { requestPasswordResetFn, signUp } from '~/functions/auth'
 import { signIn } from '~/lib/auth-client'
 import { credentialsSchema, passwordResetRequestSchema } from '~/lib/auth-schema'
+import { brandLogoUrl } from '~/lib/branding'
 
 const oauthButtons = [
   ['github', 'GitHub', Icons.github],
@@ -46,7 +47,7 @@ function currentPageUrl() {
 
 export function LoginDialog() {
   const { session, twoFactor } = useRouteContext({ from: '__root__' })
-  const { providers } = useLoaderData({ from: '__root__' })
+  const { providers, branding } = useLoaderData({ from: '__root__' })
   const search = useSearch({ from: '__root__' })
   const navigate = useNavigate()
   // While a sign-in waits for its second factor, TwoFactorDialog shows instead.
@@ -121,8 +122,8 @@ export function LoginDialog() {
         }}
       >
         <div className="flex items-center justify-center gap-2 text-lg font-medium">
-          <img src="/logo.png" alt="" className="size-8 rounded-md" />
-          podnoms
+          <img src={brandLogoUrl(branding)} alt="" className="size-8 rounded-md" />
+          {branding.name}
         </div>
         <Card className="relative [--card-spacing:--spacing(6)]">
           <DialogClose asChild>

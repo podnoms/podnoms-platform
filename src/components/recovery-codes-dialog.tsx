@@ -9,10 +9,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '~/components/ui/dialog'
+import { useBranding } from '~/lib/branding'
 
 // Shows newly made recovery codes. They're stored hashed, so this is the only
 // time the user can see them.
 export function RecoveryCodesDialog({ codes, onClose }: { codes: string[] | null; onClose: () => void }) {
+  const branding = useBranding()
   const [copied, setCopied] = useState(false)
   const text = codes?.join('\n') ?? ''
 
@@ -22,10 +24,10 @@ export function RecoveryCodesDialog({ codes, onClose }: { codes: string[] | null
   }
 
   function download() {
-    const url = URL.createObjectURL(new Blob([`podnoms recovery codes\n\n${text}\n`], { type: 'text/plain' }))
+    const url = URL.createObjectURL(new Blob([`${branding.name} recovery codes\n\n${text}\n`], { type: 'text/plain' }))
     const link = document.createElement('a')
     link.href = url
-    link.download = 'podnoms-recovery-codes.txt'
+    link.download = `${branding.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-recovery-codes.txt`
     link.click()
     URL.revokeObjectURL(url)
   }

@@ -7,13 +7,14 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/c
 import { Input } from '~/components/ui/input'
 import { checkResetToken, resetPasswordFn } from '~/functions/auth'
 import { resetPasswordSchema } from '~/lib/auth-schema'
+import { pageTitle } from '~/lib/branding'
 
 // Where a password reset email's link goes: choose a new password.
 export const Route = createFileRoute('/reset-password')({
   validateSearch: z.object({ token: z.string().max(200).optional().catch(undefined) }),
   loaderDeps: ({ search }) => ({ token: search.token }),
   loader: async ({ deps }) => ({ valid: deps.token ? await checkResetToken({ data: { token: deps.token } }) : false }),
-  head: () => ({ meta: [{ title: 'Reset your password · podnoms' }, { name: 'robots', content: 'noindex' }] }),
+  head: ({ matches }) => ({ meta: [{ title: pageTitle(matches, 'Reset your password') }, { name: 'robots', content: 'noindex' }] }),
   component: ResetPasswordPage,
 })
 

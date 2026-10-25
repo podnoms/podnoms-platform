@@ -59,6 +59,6 @@ describe('normalizeDomain', () => {
 })
 
 it('names the TXT record that proves ownership', () => {
-  expect(txtRecordName('pod.example.com')).toBe('_podnoms.pod.example.com')
-  expect(txtRecordValue('abc')).toBe('podnoms-verify=abc')
+  expect(txtRecordName('pod.example.com', 'podnoms')).toBe('_podnoms.pod.example.com')
+  expect(txtRecordValue('abc', 'podnoms')).toBe('podnoms-verify=abc')
 })

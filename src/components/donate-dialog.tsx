@@ -10,11 +10,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '~/components/ui/dialog'
+import { useBranding } from '~/lib/branding'
 
-// Ways to support podnoms, from KOFI_URL and BITCOIN_ADDRESS. Hidden when
+// Ways to support the site, from KOFI_URL and BITCOIN_ADDRESS. Hidden when
 // neither is set.
 export function DonateDialog() {
   const { kofiUrl, bitcoinAddress } = useLoaderData({ from: '__root__', select: (data) => data.siteLinks })
+  const branding = useBranding()
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -44,9 +46,9 @@ export function DonateDialog() {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Support PodNoms</DialogTitle>
+          <DialogTitle>Support {branding.name}</DialogTitle>
           <DialogDescription>
-            PodNoms is free to use, but hosting and serving this much audio doesn&apos;t come free. If you find it
+            {branding.name} is free to use, but hosting and serving this much audio doesn&apos;t come free. If you find it
             useful, a donation towards the running costs would be very much appreciated.
           </DialogDescription>
         </DialogHeader>

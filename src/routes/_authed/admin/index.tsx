@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { createFileRoute, notFound, useNavigate, useRouter } from '@tanstack/react-router'
 import { z } from 'zod'
+import { BrandingSettings } from '~/components/branding-settings'
 import { Icons } from '~/components/icons'
+import { ThemeSettings } from '~/components/theme-settings'
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -22,16 +24,20 @@ import {
 } from '~/functions/admin'
 import { formatDateTime } from '~/lib/format'
 import { platformNames, type Platform } from '~/lib/platforms'
+import { pageTitle, useBranding } from '~/lib/branding'
 import { emailSettingsSchema, siteSettingsSchema } from '~/lib/site-settings-schema'
+
+const adminTabs = z.enum(['downloads', 'users', 'email', 'branding', 'theme'])
+type AdminTab = z.infer<typeof adminTabs>
 
 export const Route = createFileRoute('/_authed/admin/')({
   beforeLoad: ({ context }) => {
     if (!context.session?.user?.isAdmin) throw notFound()
   },
   // The tab is in the URL, so it survives a reload and can be linked to.
-  validateSearch: z.object({ tab: z.enum(['downloads', 'users', 'email']).optional().catch(undefined) }),
+  validateSearch: z.object({ tab: adminTabs.optional().catch(undefined) }),
   loader: () => fetchAdminOverview(),
-  head: () => ({ meta: [{ title: 'Admin · podnoms' }] }),
+  head: ({ matches }) => ({ meta: [{ title: pageTitle(matches, 'Admin') }] }),
   component: AdminPage,
 })
 
@@ -60,7 +66,7 @@ function AdminPage() {
       <Tabs
         value={tab}
         onValueChange={(value) =>
-          navigate({ search: { tab: value === 'downloads' ? undefined : (value as 'users' | 'email') }, replace: true })
+          navigate({ search: { tab: value === 'downloads' ? undefined : (value as AdminTab) }, replace: true })
         }
       >
         <TabsList variant="line">
@@ -73,6 +79,8 @@ function AdminPage() {
             Email
             {!overview.email.enabled && <span className="size-1.5 rounded-full bg-muted-foreground" />}
           </TabsTrigger>
+          <TabsTrigger value="branding">Branding</TabsTrigger>
+          <TabsTrigger value="theme">Theme</TabsTrigger>
         </TabsList>
         <TabsContent value="downloads" className="flex flex-col gap-6 pt-4">
           {!overview.jobsRunning && (
@@ -94,6 +102,12 @@ function AdminPage() {
         </TabsContent>
         <TabsContent value="email" className="flex flex-col gap-6 pt-4">
           <EmailSettings email={overview.email} />
+        </TabsContent>
+        <TabsContent value="branding" className="flex flex-col gap-6 pt-4">
+          <BrandingSettings />
+        </TabsContent>
+        <TabsContent value="theme" className="flex flex-col gap-6 pt-4">
+          <ThemeSettings />
         </TabsContent>
       </Tabs>
     </div>
@@ -251,6 +265,7 @@ function DownloadQueue({ throttle }: { throttle: Overview['throttle'] }) {
 function EmailSettings({ email }: { email: Overview['email'] }) {
   const router = useRouter()
   const { session } = Route.useRouteContext()
+  const branding = useBranding()
   const locked = email.source === 'env'
   const [secure, setSecure] = useState(email.secure)
   const [clearPassword, setClearPassword] = useState(false)
@@ -313,7 +328,7 @@ function EmailSettings({ email }: { email: Overview['email'] }) {
             records it gives you.
           </p>
           <p>
-            You do this with your email provider and DNS host; podnoms can't do it for you. Until it's done, emails may
+            You do this with your email provider and DNS host; {branding.name} can't do it for you. Until it's done, emails may
             be refused or go to spam, even when the test email seems to send.
           </p>
         </AlertDescription>
@@ -368,7 +383,12 @@ function EmailSettings({ email }: { email: Overview['email'] }) {
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="email-from">From</FieldLabel>
-                  <Input id="email-from" name="emailFrom" defaultValue={email.from} placeholder="podnoms <hello@example.com>" />
+                  <Input
+                    id="email-from"
+                    name="emailFrom"
+                    defaultValue={email.from}
+                    placeholder={`${branding.name} <hello@example.com>`}
+                  />
                   <FieldDescription>Must be on a domain your mail server is allowed to send for.</FieldDescription>
                 </Field>
                 <Field orientation="horizontal" className="self-end">

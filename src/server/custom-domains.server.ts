@@ -32,6 +32,11 @@ function siteHost() {
   return origin ? new URL(origin).hostname : null
 }
 
+// What the TXT record is named after (see txtRecordName).
+export function customDomainTxtLabel() {
+  return env.CUSTOM_DOMAIN_TXT_LABEL
+}
+
 // Where owners point their CNAME, or null when custom domains are off.
 export function customDomainTarget() {
   const site = siteHost()
@@ -91,8 +96,8 @@ function lookupFailure(error: unknown, record: string, name: string) {
 // Whether the domain's DNS records are as the owner was asked to set them.
 export async function checkDomain(domain: string, token: string): Promise<DomainCheck> {
   const target = customDomainTarget()
-  const txtName = txtRecordName(domain)
-  const expected = txtRecordValue(token)
+  const txtName = txtRecordName(domain, customDomainTxtLabel())
+  const expected = txtRecordValue(token, customDomainTxtLabel())
   const [cname, txt] = await Promise.all([
     resolver.resolveCname(domain).then(
       (names): RecordCheck => {

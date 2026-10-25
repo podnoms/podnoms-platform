@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 
 // "by <author>", linking to the profile of the podcast's owner, who made it on
-// podnoms, whether the author is their name or one they've given the podcast.
+// the site, whether the author is their name or one they've given the podcast.
 export function AuthorLink({ author, slug }: { author: string; slug: string }) {
   return (
     <>

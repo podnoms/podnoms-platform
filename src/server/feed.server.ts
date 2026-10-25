@@ -10,6 +10,7 @@ import { episodes, podcasts, users } from '~/server/db/schema'
 import { isListed, newestPublishedFirst } from '~/server/episodes.server'
 import { podcastAuthor } from '~/server/podcasts.server'
 import { uuidV5 } from '~/server/uuid.server'
+import { getBranding } from '~/server/branding.server'
 
 // A private podcast's feed is only served with its feed key.
 export function feedPath(slug: string, feedKey?: string | null) {
@@ -149,7 +150,7 @@ export async function buildPodcastFeed(
       podcast.ownerEmail
         ? `<podcast:locked owner="${escapeXml(podcast.ownerEmail)}">yes</podcast:locked>`
         : '<podcast:locked>no</podcast:locked>',
-      '<generator>podnoms</generator>',
+      `<generator>${escapeXml((await getBranding()).name)}</generator>`,
       `<lastBuildDate>${latest.toUTCString()}</lastBuildDate>`,
       ...itemXml,
     ]

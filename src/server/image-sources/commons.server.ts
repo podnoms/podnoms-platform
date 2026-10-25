@@ -1,6 +1,7 @@
 import '@tanstack/react-start/server-only'
 import { htmlToText } from '~/lib/rich-text'
-import { userAgent, type ImageSource } from '~/server/image-sources/image-source.server'
+import { siteUserAgent } from '~/server/branding.server'
+import type { ImageSource } from '~/server/image-sources/image-source.server'
 
 type CommonsPage = {
   pageid: number
@@ -47,7 +48,7 @@ export const commons: ImageSource = {
       // Scaled by Wikimedia to the size podcast apps want; staging crops it square.
       iiurlwidth: '1400',
     }).toString()
-    const response = await fetch(url, { headers: { 'User-Agent': userAgent }, signal: AbortSignal.timeout(15_000) })
+    const response = await fetch(url, { headers: { 'User-Agent': await siteUserAgent() }, signal: AbortSignal.timeout(15_000) })
     if (!response.ok) throw new Error(`Commons search failed: ${response.status} ${(await response.text()).slice(0, 200)}`)
     const body = (await response.json()) as { query?: { pages: CommonsPage[] }; error?: { code: string; info: string } }
     if (body.error) throw new Error(`Commons search failed: ${body.error.code} ${body.error.info}`)

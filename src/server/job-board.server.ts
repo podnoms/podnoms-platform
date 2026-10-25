@@ -10,6 +10,8 @@ import { HonoAdapter } from '@bull-board/hono'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import { startJobs } from '~/server/jobs.server'
+import { getBranding } from '~/server/branding.server'
+import { brandIconUrl } from '~/lib/branding'
 
 export const jobBoardPath = '/admin/queues'
 
@@ -20,13 +22,17 @@ let board: Promise<Hono | null> | undefined
 
 // Null when the job queue isn't running (no REDIS_URL).
 export function jobBoard() {
-  board ??= startJobs().then((running) => {
+  board ??= startJobs().then(async (running) => {
     if (!running) return null
+    const branding = await getBranding()
     const serverAdapter = new HonoAdapter(serveStatic).setBasePath(jobBoardPath)
     createBullBoard({
       queues: [new BullMQAdapter(running.queue)],
       serverAdapter,
-      options: { uiBasePath, uiConfig: { boardTitle: 'PodNoms jobs', boardLogo: { path: '/logo.png', width: 32, height: 32 } } },
+      options: {
+        uiBasePath,
+        uiConfig: { boardTitle: `${branding.name} jobs`, boardLogo: { path: brandIconUrl(branding, 32), width: 32, height: 32 } },
+      },
     })
     return new Hono().route(jobBoardPath, serverAdapter.registerPlugin())
   })

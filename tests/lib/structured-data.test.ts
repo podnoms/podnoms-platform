@@ -74,6 +74,7 @@ describe('podcastSeriesJsonLd', () => {
 
 describe('podcastEpisodeJsonLd', () => {
   const page = {
+    siteName: 'Pods',
     podcast: { title: 'Show', slug: 'show' },
     episode: {
       title: 'Ep 1',
@@ -109,7 +110,7 @@ describe('podcastEpisodeJsonLd', () => {
   it('gives breadcrumbs from the site through the podcast', () => {
     const [, breadcrumbs] = podcastEpisodeJsonLd(page)
     expect(breadcrumbs!.itemListElement).toEqual([
-      { '@type': 'ListItem', position: 1, name: 'podnoms', item: 'https://pods.example/' },
+      { '@type': 'ListItem', position: 1, name: 'Pods', item: 'https://pods.example/' },
       { '@type': 'ListItem', position: 2, name: 'Show', item: 'https://pods.example/show' },
       { '@type': 'ListItem', position: 3, name: 'Ep 1', item: page.pageUrl },
     ])
@@ -117,10 +118,20 @@ describe('podcastEpisodeJsonLd', () => {
 })
 
 describe('websiteJsonLd', () => {
+  const site = { name: 'Pods', origin: 'https://pods.example', description: 'd', logo: '/brand/logo.png?v=v2' }
+
+  it('names the site and its logo', () => {
+    const items = websiteJsonLd({ ...site, discordUrl: null })
+    expect(items.map((item) => item.name)).toEqual(['Pods', 'Pods', 'Pods'])
+    expect(items.find((item) => item['@type'] === 'Organization')).toMatchObject({
+      logo: 'https://pods.example/brand/logo.png?v=v2',
+    })
+  })
+
   it('links the Discord server when there is one', () => {
-    const withDiscord = websiteJsonLd({ origin: 'https://pods.example', description: 'd', discordUrl: 'https://discord.gg/x' })
+    const withDiscord = websiteJsonLd({ ...site, discordUrl: 'https://discord.gg/x' })
     expect(withDiscord.find((item) => item['@type'] === 'Organization')).toMatchObject({ sameAs: ['https://discord.gg/x'] })
-    const without = websiteJsonLd({ origin: 'https://pods.example', description: 'd', discordUrl: null })
+    const without = websiteJsonLd({ ...site, discordUrl: null })
     expect(without.find((item) => item['@type'] === 'Organization')).not.toHaveProperty('sameAs')
   })
 })

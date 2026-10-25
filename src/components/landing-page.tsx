@@ -1,60 +1,28 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useLoaderData } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { Icons, type Icon } from '~/components/icons'
 import { PodcastGrid, type PodcastCardData } from '~/components/podcast-card'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { brandLogoUrl, useBranding, withSiteName } from '~/lib/branding'
 
-const steps: { icon: Icon; title: string; description: string }[] = [
-  {
-    icon: Icons.link,
-    title: 'Paste a link or upload a file',
-    description: 'A YouTube video, a Mixcloud mix, a SoundCloud track, or audio and video from your own machine.',
-  },
-  {
-    icon: Icons.retry,
-    title: 'The robots do the rest',
-    description: 'Audio is extracted and converted to MP3, and the title, description and artwork are filled in for you.',
-  },
-  {
-    icon: Icons.rss,
-    title: 'Listen anywhere',
-    description: 'Every podcast gets its own RSS feed, so episodes turn up in whatever podcast app you already use.',
-  },
-]
+// The icons beside each step and feature; their text is the site's own (see
+// LandingCopy in src/lib/branding.ts).
+const stepIcons: Icon[] = [Icons.link, Icons.retry, Icons.rss]
+const featureIcons: Icon[] = [Icons.broadcast, Icons.upload, Icons.logo, Icons.share, Icons.duration, Icons.security]
 
-const features: { icon: Icon; title: string; description: string }[] = [
-  {
-    icon: Icons.broadcast,
-    title: 'Thousands of sources',
-    description: 'If yt-dlp can read it, podnoms can make an episode of it: YouTube, Mixcloud, SoundCloud and many, many more.',
-  },
-  {
-    icon: Icons.upload,
-    title: 'Bring your own audio',
-    description: 'Upload audio or video files and they are converted to podcast-ready MP3.',
-  },
-  {
-    icon: Icons.logo,
-    title: 'Works with every podcast app',
-    description: 'Standard RSS feeds for Apple Podcasts, Pocket Casts, Overcast, AntennaPod and the rest.',
-  },
-  {
-    icon: Icons.share,
-    title: 'Share and embed',
-    description: 'Each episode gets a public page with a waveform player, plus an embeddable player for your site.',
-  },
-  {
-    icon: Icons.duration,
-    title: 'Listener stats',
-    description: 'See plays, downloads and shares, with the apps and countries your listeners use.',
-  },
-  {
-    icon: Icons.security,
-    title: 'Locked down',
-    description: 'Sign in with Google, GitHub or Facebook, and protect your account with authenticator apps or security keys.',
-  },
-]
+// The headline, with *words* highlighted.
+function Headline({ text }: { text: string }) {
+  return text.split(/\*([^*]+)\*/).map((part, i) =>
+    i % 2 ? (
+      <span key={i} className="text-primary">
+        {part}
+      </span>
+    ) : (
+      part
+    ),
+  )
+}
 
 // Bar heights for the decorative waveform, between 0.15 and 1.
 const bars = Array.from({ length: 56 }, (_, i) =>
@@ -83,6 +51,7 @@ function SignInButton() {
 
 // A mock of a link becoming an episode. Decorative only, so hidden from screen readers.
 function HeroPreview() {
+  const origin = useLoaderData({ from: '__root__', select: (data) => data.siteLinks.origin })
   return (
     <div aria-hidden="true" className="relative min-w-0">
       <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-primary/20 blur-3xl" />
@@ -120,7 +89,7 @@ function HeroPreview() {
           <span className="grid size-6 shrink-0 place-items-center rounded-md bg-secondary text-secondary-foreground">
             <Icons.rss className="size-3.5" />
           </span>
-          <span className="truncate font-mono text-muted-foreground">podnoms.com/feed/my-mixes</span>
+          <span className="truncate font-mono text-muted-foreground">{new URL(origin).host}/feed/my-mixes</span>
           <span className="ml-auto flex shrink-0 items-center gap-1 text-muted-foreground">
             <Icons.check className="size-3.5 text-primary" />
             In your feed
@@ -134,6 +103,9 @@ function HeroPreview() {
 // `podcasts`: some of the site's public shows, so visitors (and search
 // engines) can go on to listen.
 export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
+  const branding = useBranding()
+  const copy = branding.landing
+  const text = (value: string) => withSiteName(value, branding)
   return (
     <main className="relative isolate overflow-hidden">
       {/* Soft glow behind the hero. */}
@@ -145,16 +117,13 @@ export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
       <section className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 px-4 pt-16 pb-20 md:pt-24 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16">
         <div className="flex min-w-0 flex-col items-center gap-6 text-center lg:items-start lg:text-left">
           <Badge variant="outline" className="gap-1.5 px-3 py-1 text-sm">
-            <img src="/logo.png" alt="" className="size-4 rounded-sm" />
-            Robot powered podcasts
+            <img src={brandLogoUrl(branding)} alt="" className="size-4 rounded-sm" />
+            {branding.tagline}
           </Badge>
           <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-6xl">
-            Turn any link into a <span className="text-primary">podcast</span>.
+            <Headline text={text(copy.heroTitle)} />
           </h1>
-          <p className="max-w-xl text-lg text-pretty text-muted-foreground">
-            Paste a YouTube, Mixcloud or SoundCloud link, or upload your own audio. podnoms turns it into an episode
-            and drops it straight into your podcast app.
-          </p>
+          <p className="max-w-xl text-lg text-pretty text-muted-foreground">{text(copy.heroText)}</p>
           <div className="flex flex-wrap justify-center gap-3">
             <SignUpButton>
               Get started free
@@ -168,39 +137,43 @@ export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
 
       <section className="border-y bg-card/40">
         <div className="mx-auto w-full max-w-6xl px-4 py-16 md:py-20">
-          <h2 className="text-center text-2xl font-semibold tracking-tight md:text-3xl">How it works</h2>
+          <h2 className="text-center text-2xl font-semibold tracking-tight md:text-3xl">{text(copy.stepsTitle)}</h2>
           <ol className="mt-10 grid gap-8 md:grid-cols-3">
-            {steps.map(({ icon: StepIcon, title, description }, i) => (
-              <li key={title} className="flex flex-col items-center gap-3 text-center">
-                <span className="relative grid size-14 place-items-center rounded-2xl border bg-background">
-                  <StepIcon className="size-6 text-primary" />
-                  <span className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-                    {i + 1}
+            {copy.steps.map(({ title, description }, i) => {
+              const StepIcon = stepIcons[i] ?? Icons.logo
+              return (
+                <li key={i} className="flex flex-col items-center gap-3 text-center">
+                  <span className="relative grid size-14 place-items-center rounded-2xl border bg-background">
+                    <StepIcon className="size-6 text-primary" />
+                    <span className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                      {i + 1}
+                    </span>
                   </span>
-                </span>
-                <h3 className="font-medium">{title}</h3>
-                <p className="max-w-xs text-sm text-muted-foreground">{description}</p>
-              </li>
-            ))}
+                  <h3 className="font-medium">{text(title)}</h3>
+                  <p className="max-w-xs text-sm text-muted-foreground">{text(description)}</p>
+                </li>
+              )
+            })}
           </ol>
         </div>
       </section>
 
       <section className="mx-auto w-full max-w-6xl px-4 py-16 md:py-24">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Everything your feed needs</h2>
-          <p className="mt-3 text-muted-foreground">
-            For mixes you want on the commute, talks you never get round to watching, or a show of your own.
-          </p>
+          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{text(copy.featuresTitle)}</h2>
+          <p className="mt-3 text-muted-foreground">{text(copy.featuresText)}</p>
         </div>
         <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border bg-border sm:grid-cols-2 lg:grid-cols-3">
-          {features.map(({ icon: FeatureIcon, title, description }) => (
-            <div key={title} className="flex flex-col gap-2 bg-background p-6">
-              <FeatureIcon className="size-5 text-primary" />
-              <h3 className="mt-2 font-medium">{title}</h3>
-              <p className="text-sm text-muted-foreground">{description}</p>
-            </div>
-          ))}
+          {copy.features.map(({ title, description }, i) => {
+            const FeatureIcon = featureIcons[i] ?? Icons.logo
+            return (
+              <div key={i} className="flex flex-col gap-2 bg-background p-6">
+                <FeatureIcon className="size-5 text-primary" />
+                <h3 className="mt-2 font-medium">{text(title)}</h3>
+                <p className="text-sm text-muted-foreground">{text(description)}</p>
+              </div>
+            )
+          })}
         </div>
       </section>
 
@@ -208,8 +181,8 @@ export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
         <section className="mx-auto w-full max-w-6xl px-4 pb-16 md:pb-24">
           <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Listen on podnoms</h2>
-              <p className="mt-2 text-muted-foreground">Shows people have made here, for anyone to listen to.</p>
+              <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{text(copy.exploreTitle)}</h2>
+              <p className="mt-2 text-muted-foreground">{text(copy.exploreText)}</p>
             </div>
             <Link to="/explore" className="text-sm font-medium text-primary hover:underline">
               Explore all podcasts
@@ -225,10 +198,8 @@ export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
             aria-hidden="true"
             className="absolute inset-0 -z-10 bg-[radial-gradient(50%_80%_at_50%_100%,color-mix(in_oklch,var(--secondary)_18%,transparent),transparent)]"
           />
-          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Your first episode is one link away</h2>
-          <p className="mx-auto mt-3 max-w-md text-muted-foreground">
-            Create a podcast, paste a link, and subscribe. That's it.
-          </p>
+          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{text(copy.ctaTitle)}</h2>
+          <p className="mx-auto mt-3 max-w-md text-muted-foreground">{text(copy.ctaText)}</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <SignUpButton>Create your podcast</SignUpButton>
             <SignInButton />
@@ -238,15 +209,15 @@ export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
 
       <footer className="border-t">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-2 gap-y-3 px-4 py-6 text-sm text-muted-foreground">
-          <img src="/logo.png" alt="" className="size-5 rounded" />
-          podnoms
+          <img src={brandLogoUrl(branding)} alt="" className="size-5 rounded" />
+          {branding.name}
           <Link to="/privacy" className="ml-4 hover:text-foreground">
             Privacy
           </Link>
           <Link to="/tos" className="hover:text-foreground">
             Terms
           </Link>
-          <span className="basis-full sm:ml-auto sm:basis-auto">Robot powered podcasts</span>
+          <span className="basis-full sm:ml-auto sm:basis-auto">{branding.tagline}</span>
         </div>
       </footer>
     </main>

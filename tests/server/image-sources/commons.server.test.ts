@@ -13,7 +13,7 @@ describe('commons', () => {
     expect(new URL(String(url)).searchParams.get('gsrsearch')).toBe(
       'jazz filetype:bitmap haswbstatement:P275=Q6938433|P6216=Q19652',
     )
-    expect(new Headers(init?.headers).get('user-agent')).toMatch(/PodNoms/)
+    expect(new Headers(init?.headers).get('user-agent')).toMatch(/podnoms/)
     expect(photos.map((photo) => photo.id)).toEqual(['1', '2'])
     expect(photos[0]).toEqual({
       id: '1',

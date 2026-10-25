@@ -1,15 +1,16 @@
+import { brandOgImageUrl, type Branding } from '~/lib/branding'
 import { htmlToText } from '~/lib/rich-text'
 
 type Image = { url: string; width?: number; height?: number; type?: string }
 
-// The card shown when a page without its own artwork (the landing page, say)
-// is shared: public/og-default.png.
-export const defaultImage = { path: '/og-default.png', width: 1200, height: 630, type: 'image/png' } as const
+// What the head tags need of the site's branding.
+type Site = Pick<Branding, 'name' | 'logoVersion'>
 
-// The default card, at an absolute URL on the same site as `base`.
-function defaultImageAt(base: string): Image {
-  const { path, ...size } = defaultImage
-  return { url: new URL(path, base).toString(), ...size }
+// The card shown when a page without its own artwork (the landing page, say)
+// is shared: the site's logo on a 1200×630 card (see brandOgImage), at an
+// absolute URL on the same site as `base`.
+function defaultImageAt(base: string, site: Site): Image {
+  return { url: new URL(brandOgImageUrl(site), base).toString(), width: 1200, height: 630, type: 'image/png' }
 }
 
 // Head tags for a public page: its title, a description and image for link
@@ -18,6 +19,7 @@ function defaultImageAt(base: string): Image {
 // `url` as the one to index. `documentTitle` replaces the title in the browser
 // tab and search results, where the episode's podcast is worth naming.
 export function publicPageHead(page: {
+  site: Site
   title: string
   documentTitle?: string
   description: string | null
@@ -34,14 +36,14 @@ export function publicPageHead(page: {
 }) {
   const text = (page.description && htmlToText(page.description).replace(/\s+/g, ' ').trim()) || page.fallbackDescription
   const meta = [
-    { title: `${page.documentTitle ?? page.title} · podnoms` },
+    { title: `${page.documentTitle ?? page.title} · ${page.site.name}` },
     ...socialTags({
       ...page,
       description: text,
       url: page.shareUrl ?? page.url,
       // Without artwork, the site's own card.
-      image: page.image ?? defaultImageAt(page.url),
-      imageAlt: page.image ? `Artwork for ${page.title}` : 'podnoms',
+      image: page.image ?? defaultImageAt(page.url, page.site),
+      imageAlt: page.image ? `Artwork for ${page.title}` : page.site.name,
     }),
     page.audioUrl && { property: 'og:audio', content: page.audioUrl },
     page.audioUrl && { property: 'og:audio:type', content: 'audio/mpeg' },
@@ -56,12 +58,12 @@ export function publicPageHead(page: {
 
 // Head tags for the site's own pages (the landing page, privacy policy and
 // terms), shared with the default card.
-export function siteHead(page: { origin: string; path: string; title: string; description: string }) {
+export function siteHead(page: { site: Site; origin: string; path: string; title: string; description: string }) {
   const url = new URL(page.path, page.origin).toString()
   return {
     meta: [
       { title: page.title },
-      ...socialTags({ ...page, url, image: defaultImageAt(page.origin), type: 'website', imageAlt: 'podnoms' }),
+      ...socialTags({ ...page, url, image: defaultImageAt(page.origin, page.site), type: 'website', imageAlt: page.site.name }),
     ],
     links: [{ rel: 'canonical', href: url }],
   }
@@ -81,6 +83,7 @@ export function truncate(text: string, length: number) {
 
 // The description, Open Graph and Twitter tags any shareable page has.
 function socialTags(page: {
+  site: Site
   title: string
   description: string
   url: string
@@ -91,7 +94,7 @@ function socialTags(page: {
   const description = truncate(page.description, previewDescriptionLength)
   return [
     { name: 'description', content: truncate(page.description, searchDescriptionLength) },
-    { property: 'og:site_name', content: 'podnoms' },
+    { property: 'og:site_name', content: page.site.name },
     { property: 'og:title', content: page.title },
     { property: 'og:type', content: page.type },
     { property: 'og:url', content: page.url },

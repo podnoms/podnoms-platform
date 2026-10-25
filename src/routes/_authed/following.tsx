@@ -9,11 +9,12 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { fetchFollowing, fetchMoreFollowingEpisodes } from '~/functions/library'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { pluralise } from '~/lib/format'
+import { pageTitle } from '~/lib/branding'
 
 // The podcasts the user follows, and their episodes, newest first.
 export const Route = createFileRoute('/_authed/following')({
   loader: () => fetchFollowing(),
-  head: () => ({ meta: [{ title: 'Following · podnoms' }] }),
+  head: ({ matches }) => ({ meta: [{ title: pageTitle(matches, 'Following') }] }),
   component: FollowingPage,
 })
 

@@ -18,6 +18,7 @@ import { directories } from '~/lib/podcast-directories'
 import { publicPageHead } from '~/lib/page-meta'
 import { htmlToText } from '~/lib/rich-text'
 import { jsonLdMeta, podcastSeriesJsonLd } from '~/lib/structured-data'
+import { brandingFrom } from '~/lib/branding'
 
 // A podcast's public page, at /:slug, which anyone can visit. Its owner
 // manages it at /:slug/manage. Static routes win over this one, which is why
@@ -25,12 +26,14 @@ import { jsonLdMeta, podcastSeriesJsonLd } from '~/lib/structured-data'
 export const Route = createFileRoute('/$slug')({
   staticData: { publicPage: true },
   loader: ({ params }) => fetchPodcastPage({ data: { slug: params.slug } }),
-  head: ({ loaderData: podcast }) => {
+  head: ({ loaderData: podcast, matches }) => {
     if (!podcast) return {}
+    const branding = brandingFrom(matches)
     const head = publicPageHead({
+      site: branding,
       title: podcast.title,
       description: podcast.description,
-      fallbackDescription: podcast.author ? `A podcast by ${podcast.author}` : `${podcast.title}, a podcast on podnoms`,
+      fallbackDescription: podcast.author ? `A podcast by ${podcast.author}` : `${podcast.title}, a podcast on ${branding.name}`,
       url: podcast.pageUrl,
       image: podcast.previewImage,
       type: 'website',

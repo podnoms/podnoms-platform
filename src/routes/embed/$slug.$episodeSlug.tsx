@@ -7,6 +7,7 @@ import { fetchEpisodePage } from '~/functions/public'
 import { reportActivity } from '~/lib/activity'
 import { formatClock } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
+import { brandIconUrl, pageTitle, useBranding } from '~/lib/branding'
 
 // A compact player for an episode, made to be put in an <iframe> on other
 // sites (see embedSnippet). It renders without the app's shell, and plays with
@@ -16,9 +17,9 @@ import { imageSrc } from '~/lib/images'
 export const Route = createFileRoute('/embed/$slug/$episodeSlug')({
   staticData: { bare: true },
   loader: ({ params }) => fetchEpisodePage({ data: { slug: params.slug, episodeSlug: params.episodeSlug } }),
-  head: ({ loaderData: page }) => ({
+  head: ({ loaderData: page, matches }) => ({
     meta: [
-      ...(page ? [{ title: `${page.episode.title} · podnoms` }] : []),
+      ...(page ? [{ title: pageTitle(matches, page.episode.title) }] : []),
       // The episode's own page is the one to index.
       { name: 'robots', content: 'noindex' },
     ],
@@ -28,6 +29,7 @@ export const Route = createFileRoute('/embed/$slug/$episodeSlug')({
 
 function EmbedPlayer() {
   const { podcast, episode, pageUrl } = Route.useLoaderData()
+  const branding = useBranding()
   const audioRef = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
   const [position, setPosition] = useState(0)
@@ -100,8 +102,8 @@ function EmbedPlayer() {
               rel="noreferrer"
               className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             >
-              <img src="/logo.png" alt="" className="size-4 rounded" />
-              podnoms
+              <img src={brandIconUrl(branding, 32)} alt="" className="size-4 rounded" />
+              {branding.name}
             </a>
           </div>
           <div className="flex items-center gap-3">

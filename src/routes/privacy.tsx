@@ -1,23 +1,34 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { ContactLink, LegalPage, LegalSection } from '~/components/legal-page'
+import { brandingFrom, useBranding, withSiteName } from '~/lib/branding'
 import { siteHead } from '~/lib/page-meta'
 import { siteInfo } from '~/lib/site'
 
 export const Route = createFileRoute('/privacy')({
   head: ({ matches }) => {
     const site = siteInfo(matches)
+    const branding = brandingFrom(matches)
+    const title = `Privacy policy · ${branding.name}`
     return site?.origin
-      ? siteHead({ origin: site.origin, path: '/privacy', title: 'Privacy policy · podnoms', description: 'How podnoms collects and uses your data.' })
-      : { meta: [{ title: 'Privacy policy · podnoms' }] }
+      ? siteHead({
+          site: branding,
+          origin: site.origin,
+          path: '/privacy',
+          title,
+          description: withSiteName('How {name} collects and uses your data.', branding),
+        })
+      : { meta: [{ title }] }
   },
   component: PrivacyPage,
 })
 
 function PrivacyPage() {
+  const branding = useBranding()
+  const { name } = branding
   return (
-    <LegalPage title="Privacy policy" updated="9 October 2026">
+    <LegalPage title="Privacy policy" updated="9 October 2026" html={branding.privacyHtml}>
       <p>
-        This policy explains what podnoms collects when you use the site, why, and what you can do about it. If anything
+        This policy explains what {name} collects when you use the site, why, and what you can do about it. If anything
         here is unclear, email <ContactLink />.
       </p>
 
@@ -55,7 +66,7 @@ function PrivacyPage() {
 
       <LegalSection title="How we use it">
         <p>
-          We use your data only to run podnoms: to sign you in, build and serve your podcasts and feeds, show you
+          We use your data only to run {name}: to sign you in, build and serve your podcasts and feeds, show you
           statistics about your listeners, keep the service secure and fix problems. We don't sell your data or use it for
           advertising.
         </p>
@@ -71,7 +82,7 @@ function PrivacyPage() {
       <LegalSection title="Who else sees your data">
         <ul>
           <li>Anyone with the link can see public podcasts, their episodes and their RSS feeds.</li>
-          <li>The sign-in provider you choose (GitHub, Google or Facebook) knows that you signed in to podnoms.</li>
+          <li>The sign-in provider you choose (GitHub, Google or Facebook) knows that you signed in to {name}.</li>
           <li>
             Services that help us run the site, such as our hosting and network providers, process data on our behalf.
           </li>
@@ -100,7 +111,7 @@ function PrivacyPage() {
       </LegalSection>
 
       <LegalSection title="Children">
-        <p>podnoms is not meant for children under 13, and we don't knowingly collect their data.</p>
+        <p>{name} is not meant for children under 13, and we don't knowingly collect their data.</p>
       </LegalSection>
 
       <LegalSection title="Changes">

@@ -11,6 +11,7 @@ import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { pluralise } from '~/lib/format'
 import { siteHead } from '~/lib/page-meta'
 import { siteInfo } from '~/lib/site'
+import { brandingFrom } from '~/lib/branding'
 
 const searchSchema = z.object({ sort: z.enum(['newest', 'popular']).catch('newest') })
 
@@ -21,10 +22,12 @@ export const Route = createFileRoute('/tags/$tagSlug')({
   head: ({ loaderData, matches }) => {
     if (!loaderData) return {}
     const { tag } = loaderData
-    const title = `${tag.name} mixes · podnoms`
+    const branding = brandingFrom(matches)
+    const title = `${tag.name} mixes · ${branding.name}`
     const site = siteInfo(matches)
     if (!site?.origin) return { meta: [{ title }] }
     return siteHead({
+      site: branding,
       origin: site.origin,
       path: `/tags/${encodeURIComponent(tag.slug)}`,
       title,

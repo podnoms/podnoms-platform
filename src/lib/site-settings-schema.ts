@@ -56,7 +56,7 @@ export const emailSettingsSchema = z
       .max(255)
       .nullable()
       .transform((value) => value || null)
-      .refine((value) => value === null || mailbox.test(value), 'Use an address, like podnoms <hello@example.com>'),
+      .refine((value) => value === null || mailbox.test(value), 'Use an address, like Your Site <hello@example.com>'),
   })
   .refine((settings) => !settings.smtpHost || settings.emailFrom, {
     message: 'Say who emails come from',

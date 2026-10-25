@@ -19,3 +19,18 @@ export function sanitizeDescription(html: string | null | undefined) {
   const clean = sanitize(html, options)
   return htmlToText(clean) ? clean : null
 }
+
+// The same, plus headings, for the site's privacy policy and terms (see
+// branding.server.ts). Links there open in the same tab.
+const pageOptions: sanitize.IOptions = {
+  ...options,
+  allowedTags: [...(options.allowedTags as string[]), 'h2', 'h3'],
+  allowedAttributes: { a: ['href'] },
+  transformTags: {},
+}
+
+export function sanitizePage(html: string | null | undefined) {
+  if (!html) return null
+  const clean = sanitize(html, pageOptions)
+  return htmlToText(clean) ? clean : null
+}

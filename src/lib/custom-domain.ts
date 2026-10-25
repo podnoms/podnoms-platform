@@ -55,11 +55,12 @@ export function normalizeDomain(input: string) {
   return host
 }
 
-// The TXT record that proves the owner controls the domain.
-export function txtRecordName(domain: string) {
-  return `_podnoms.${domain}`
+// The TXT record that proves the owner controls the domain. `label` is
+// CUSTOM_DOMAIN_TXT_LABEL (see customDomainTxtLabel).
+export function txtRecordName(domain: string, label: string) {
+  return `_${label}.${domain}`
 }
 
-export function txtRecordValue(token: string) {
-  return `podnoms-verify=${token}`
+export function txtRecordValue(token: string, label: string) {
+  return `${label}-verify=${token}`
 }

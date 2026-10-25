@@ -12,6 +12,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '~/components/ui/input-otp
 import { beginSecurityKeyChallenge, verifyTwoFactor } from '~/functions/two-factor'
 import { signOut, updateSession } from '~/lib/auth-client'
 import { recoveryCodeSchema, totpCodeSchema } from '~/lib/two-factor-schema'
+import { brandLogoUrl, useBranding } from '~/lib/branding'
 
 type Factor = Parameters<typeof verifyTwoFactor>[0]['data']
 
@@ -19,6 +20,7 @@ type Factor = Parameters<typeof verifyTwoFactor>[0]['data']
 // authentication on. It can't be dismissed: the way out is signing out.
 export function TwoFactorDialog() {
   const { twoFactor } = useRouteContext({ from: '__root__' })
+  const branding = useBranding()
   const router = useRouter()
   const open = Boolean(twoFactor)
 
@@ -94,8 +96,8 @@ export function TwoFactorDialog() {
         onInteractOutside={(event) => event.preventDefault()}
       >
         <div className="flex items-center justify-center gap-2 text-lg font-medium">
-          <img src="/logo.png" alt="" className="size-8 rounded-md" />
-          podnoms
+          <img src={brandLogoUrl(branding)} alt="" className="size-8 rounded-md" />
+          {branding.name}
         </div>
         <Card className="[--card-spacing:--spacing(6)]">
           <CardHeader className="text-center">
