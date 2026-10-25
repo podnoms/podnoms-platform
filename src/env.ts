@@ -82,6 +82,12 @@ export const env = createEnv({
     // Custom domains (see custom-domains.server.ts). Owners point a CNAME at
     // this host; without it, SITE_URL's host is used.
     CUSTOM_DOMAIN_TARGET: z.string().optional(),
+    // What owners' TXT records are named after: _<label>.<domain>, holding
+    // <label>-verify=<token>. Changing it unverifies every domain at its next check.
+    CUSTOM_DOMAIN_TXT_LABEL: z
+      .string()
+      .regex(/^[a-z0-9-]{1,40}$/, 'Use lower-case letters, digits and hyphens')
+      .default('podnoms'),
     // The edge container that gets certificates for custom domains and passes
     // their traffic to the app, e.g. "podnoms-edge". Traefik is told (through
     // /api/traefik/config) to pass those domains' connections through to it.

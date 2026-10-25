@@ -12,6 +12,7 @@ import { fetcherHealth } from '~/server/fetcher.server'
 import { configFromSettings, getEmailConfig, getEmailStatus, sendEmail, updateEmailSettings } from '~/server/email.server'
 import { testEmail } from '~/server/emails.server'
 import { getSiteSettings, updateSiteSettings } from '~/server/site-settings.server'
+import { getBranding } from '~/server/branding.server'
 
 export async function getAdminOverview() {
   const [settings, fetcher, userRows] = await Promise.all([
@@ -74,7 +75,7 @@ export async function sendTestEmail(to: string, settings?: EmailSettingsInput) {
   const config = env.SMTP_HOST || !settings ? await getEmailConfig() : await configFromSettings(settings)
   if (!config) return { ok: false as const, error: 'Enter an SMTP host and a from address first.' }
   try {
-    await sendEmail({ to, ...testEmail() }, config)
+    await sendEmail({ to, ...testEmail((await getBranding()).name) }, config)
     return { ok: true as const }
   } catch (error) {
     return { ok: false as const, error: error instanceof Error ? error.message : String(error) }

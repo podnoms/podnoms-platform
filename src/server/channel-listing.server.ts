@@ -11,6 +11,7 @@ import type { Platform } from '~/lib/platforms'
 import { RateLimitedError } from '~/server/download-throttle.server'
 import { remoteList, usingFetcher } from '~/server/fetcher.server'
 import { runYtDlpLines } from '~/server/ytdlp.server'
+import { siteUserAgent } from '~/server/branding.server'
 
 export type ChannelEntry = {
   // "<platform>:<the platform's id for the upload>"
@@ -117,7 +118,7 @@ type MixcloudCloudcast = { key?: string; url?: string; name?: string; audio_leng
 
 async function mixcloudGet<T>(path: string): Promise<T> {
   const response = await fetch(`${mixcloudApi.base}${path}`, {
-    headers: { Accept: 'application/json', 'User-Agent': 'podnoms (+https://podnoms.com)' },
+    headers: { Accept: 'application/json', 'User-Agent': await siteUserAgent() },
     signal: AbortSignal.timeout(30_000),
   })
   if (response.status === 429) throw new RateLimitedError('Mixcloud: too many requests')

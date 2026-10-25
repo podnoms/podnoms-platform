@@ -12,6 +12,7 @@ import { botCheckEmail } from '~/server/emails.server'
 import { recordNotification } from '~/server/inbox.server'
 import { reportError } from '~/server/logger.server'
 import { internalKeyPrefix } from '~/server/site-settings.server'
+import { getBranding } from '~/server/branding.server'
 
 const botCheck = /confirm you.?re not a bot/i
 
@@ -44,7 +45,7 @@ export async function alertAdminsOfBotCheck(platform: Platform, error: string, n
   const admins = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.isAdmin, true))
   if (!admins.length || !(await claimBotCheckAlert(platform, now))) return
   const origin = emailOrigin()
-  const email = botCheckEmail(platform, error, origin ? new URL('/admin', origin).toString() : null)
+  const email = botCheckEmail(platform, error, origin ? new URL('/admin', origin).toString() : null, (await getBranding()).name)
   await recordNotification(
     admins.map((admin) => admin.id),
     { kind: 'botCheck', title: email.subject, body: email.preview, url: '/admin' },

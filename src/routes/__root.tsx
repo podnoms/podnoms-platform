@@ -11,12 +11,13 @@ import { PlayerProvider } from '~/components/player/player-provider'
 import { PublicHeader } from '~/components/public-header'
 import { TwoFactorDialog } from '~/components/two-factor-dialog'
 import { fetchOAuthProviders, fetchAuthState } from '~/functions/auth'
+import { fetchBranding } from '~/functions/branding'
 import { fetchErrorReportingDsn } from '~/functions/error-reporting'
 import { fetchFollowedPodcasts } from '~/functions/library'
 import { fetchMyPodcasts } from '~/functions/podcasts'
 import { fetchSiteLinks } from '~/functions/site-links'
 import { readPodcastSort } from '~/lib/podcast-sort'
-import { siteDescription } from '~/lib/site'
+import { brandIconUrl, defaultBranding } from '~/lib/branding'
 import { startClientErrorReporting } from '~/lib/client-errors'
 import { currentDomainSlug } from '~/lib/current-domain'
 import { loginSearchSchema } from '~/lib/login-search'
@@ -44,44 +45,51 @@ export const Route = createRootRoute({
   validateSearch: loginSearchSchema,
   // OAuth providers with keys (for the login dialog), the user's podcasts and
   // the ones they follow (for the sidebar), where to report browser errors,
-  // and where to donate and chat (for the top nav). Loaded once; creating or
-  // following a podcast calls router.invalidate().
+  // where to donate and chat (for the top nav), and the site's branding.
+  // Loaded once; creating or following a podcast, or saving the branding,
+  // calls router.invalidate().
   loader: async ({ context }) => {
-    const [providers, podcasts, following, errorReportingDsn, siteLinks] = await Promise.all([
+    const [providers, podcasts, following, errorReportingDsn, siteLinks, branding] = await Promise.all([
       fetchOAuthProviders(),
       context.session ? fetchMyPodcasts() : [],
       context.session ? fetchFollowedPodcasts() : [],
       fetchErrorReportingDsn(),
       fetchSiteLinks(),
+      fetchBranding(),
     ])
-    return { providers, podcasts, following, podcastSort: readPodcastSort(), errorReportingDsn, siteLinks }
+    return { providers, podcasts, following, podcastSort: readPodcastSort(), errorReportingDsn, siteLinks, branding }
   },
   staleTime: Infinity,
   // Defaults: a page's own tags of the same name or property replace these.
-  head: ({ loaderData }) => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'podnoms' },
-      { name: 'description', content: siteDescription },
-      { property: 'og:site_name', content: 'podnoms' },
-      { name: 'twitter:card', content: 'summary' },
-      { name: 'theme-color', content: '#ffffff' },
-      loaderData?.siteLinks.googleSiteVerification
-        ? { name: 'google-site-verification', content: loaderData.siteLinks.googleSiteVerification }
-        : undefined,
-      loaderData?.siteLinks.bingSiteVerification
-        ? { name: 'msvalidate.01', content: loaderData.siteLinks.bingSiteVerification }
-        : undefined,
-    ],
-    links: [
-      { rel: 'stylesheet', href: appCss },
-      { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
-      { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' },
-      { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
-      { rel: 'manifest', href: '/site.webmanifest' },
-    ],
-  }),
+  head: ({ loaderData }) => {
+    const branding = loaderData?.branding ?? defaultBranding
+    return {
+      meta: [
+        { charSet: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { title: branding.name },
+        { name: 'description', content: branding.description },
+        { property: 'og:site_name', content: branding.name },
+        { name: 'twitter:card', content: 'summary' },
+        { name: 'theme-color', content: '#ffffff' },
+        loaderData?.siteLinks.googleSiteVerification
+          ? { name: 'google-site-verification', content: loaderData.siteLinks.googleSiteVerification }
+          : undefined,
+        loaderData?.siteLinks.bingSiteVerification
+          ? { name: 'msvalidate.01', content: loaderData.siteLinks.bingSiteVerification }
+          : undefined,
+      ],
+      links: [
+        { rel: 'stylesheet', href: appCss },
+        { rel: 'icon', type: 'image/png', sizes: '32x32', href: brandIconUrl(branding, 32) },
+        { rel: 'icon', type: 'image/png', sizes: '16x16', href: brandIconUrl(branding, 16) },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: brandIconUrl(branding, 180) },
+        { rel: 'manifest', href: '/site.webmanifest' },
+      ],
+      // The site's analytics, when an admin has set it up.
+      scripts: branding.analytics ? [{ src: branding.analytics.src, defer: true, ...branding.analytics.attributes }] : [],
+    }
+  },
   component: RootComponent,
 })
 
@@ -114,7 +122,6 @@ function RootDocument({
     <html lang="en" suppressHydrationWarning data-custom-domain={currentDomainSlug() ?? undefined}>
       <head>
         <HeadContent />
-        <script defer src="https://a.ferg.al/script.js" data-website-id="96e2c096-bf04-41b8-993e-5f7912b29878" />
       </head>
       {/* Browser extensions add attributes to <body> before React hydrates. */}
       <body suppressHydrationWarning>

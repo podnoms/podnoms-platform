@@ -3,7 +3,7 @@ import { Badge } from '~/components/ui/badge'
 import { currentDomainSlug } from '~/lib/current-domain'
 import type { Tag } from '~/lib/tag-schema'
 
-// Discovery lives on podnoms, even when the show has its own domain.
+// Discovery lives on the site, even when the show has its own domain.
 export function TagList({ tags, label }: { tags?: Tag[]; label?: string }) {
   if (!tags?.length) return null
   return <TagLinks tags={tags} label={label} />

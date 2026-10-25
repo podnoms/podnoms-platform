@@ -18,6 +18,7 @@ export const reservedPodcastSlugs = new Set([
   'admin',
   'api',
   'assets',
+  'brand',
   'embed',
   'explore',
   'feed',

@@ -1,8 +1,3 @@
-// What podnoms does, in a sentence: the default description for search results
-// and link previews.
-export const siteDescription =
-  'Turn YouTube, Mixcloud and SoundCloud links, or your own audio and video, into podcasts with their own RSS feeds.'
-
 // The site's links and public origin, from the root route's loader data (see
 // fetchSiteLinks), for a route's head() to build absolute URLs with.
 export function siteInfo(matches: ReadonlyArray<{ routeId: string; loaderData?: unknown }>) {
@@ -11,7 +6,3 @@ export function siteInfo(matches: ReadonlyArray<{ routeId: string; loaderData?: 
     | undefined
   return root?.siteLinks ?? null
 }
-
-// The site's name and tagline, as shown in its header and emails.
-export const siteName = 'podnoms'
-export const siteTagline = 'Robot powered podcasts'

@@ -28,4 +28,3 @@ export interface ImageSource {
   search(query: string): Promise<Photo[]>
 }
 
-export const userAgent = 'PodNoms (https://podnoms.com)'

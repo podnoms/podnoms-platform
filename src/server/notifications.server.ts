@@ -15,6 +15,7 @@ import { emailEnabled, emailOrigin, sendEmail } from '~/server/email.server'
 import { liveEmail, notificationDigestEmail, type NotificationEvent } from '~/server/emails.server'
 import { recordNotification } from '~/server/inbox.server'
 import { reportError } from '~/server/logger.server'
+import { getBranding } from '~/server/branding.server'
 
 export const batchDelayMs = 5 * 60_000
 
@@ -59,7 +60,7 @@ async function flush(userId: string) {
   try {
     const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId)).limit(1)
     if (!user?.email) return
-    await sendEmail({ to: user.email, ...notificationDigestEmail(events, link('/settings/notifications')) })
+    await sendEmail({ to: user.email, ...notificationDigestEmail(events, link('/settings/notifications'), (await getBranding()).name) })
   } catch (error) {
     reportError(error, { msg: 'Sending a notification email failed', userId })
   }

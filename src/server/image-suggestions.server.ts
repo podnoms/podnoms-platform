@@ -5,10 +5,11 @@
 import '@tanstack/react-start/server-only'
 import { env } from '~/env'
 import { imageSearchQueries, type ImageSuggestionInput } from '~/lib/image-search'
+import { siteUserAgent } from '~/server/branding.server'
 import { ExpiringStore } from '~/server/expiring-store.server'
 import { commons } from '~/server/image-sources/commons.server'
 import { flickr } from '~/server/image-sources/flickr.server'
-import { userAgent, type ImageCredit, type ImageSource, type Photo } from '~/server/image-sources/image-source.server'
+import type { ImageCredit, ImageSource, Photo } from '~/server/image-sources/image-source.server'
 import { pexels } from '~/server/image-sources/pexels.server'
 import { stageImage } from '~/server/images.server'
 import { reportError } from '~/server/logger.server'
@@ -82,7 +83,7 @@ export async function suggestImage(
       attempts++
       try {
         const response = await fetch(photo!.downloadUrl, {
-          headers: { 'User-Agent': userAgent },
+          headers: { 'User-Agent': await siteUserAgent() },
           signal: AbortSignal.timeout(30_000),
         })
         if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)

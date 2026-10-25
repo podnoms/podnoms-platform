@@ -14,22 +14,29 @@ export function isoDuration(seconds: number) {
   return `PT${h ? `${h}H` : ''}${m ? `${m}M` : ''}${s || (!h && !m) ? `${s}S` : ''}`
 }
 
-export function websiteJsonLd(site: { origin: string; description: string; discordUrl: string | null }): JsonLd[] {
+export function websiteJsonLd(site: {
+  name: string
+  origin: string
+  description: string
+  // The logo's path on the site.
+  logo: string
+  discordUrl: string | null
+}): JsonLd[] {
   const url = new URL('/', site.origin).toString()
   return [
-    { '@context': 'https://schema.org', '@type': 'WebSite', name: 'podnoms', url },
+    { '@context': 'https://schema.org', '@type': 'WebSite', name: site.name, url },
     {
       '@context': 'https://schema.org',
       '@type': 'Organization',
-      name: 'podnoms',
+      name: site.name,
       url,
-      logo: new URL('/logo.png', site.origin).toString(),
+      logo: new URL(site.logo, site.origin).toString(),
       ...(site.discordUrl && { sameAs: [site.discordUrl] }),
     },
     {
       '@context': 'https://schema.org',
       '@type': 'WebApplication',
-      name: 'podnoms',
+      name: site.name,
       url,
       description: site.description,
       applicationCategory: 'MultimediaApplication',
@@ -66,6 +73,7 @@ export function podcastSeriesJsonLd(podcast: {
 
 // The episode, and the breadcrumbs from the site to it through its podcast.
 export function podcastEpisodeJsonLd(page: {
+  siteName: string
   podcast: { title: string; slug: string }
   episode: {
     title: string
@@ -97,7 +105,7 @@ export function podcastEpisodeJsonLd(page: {
       '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
       itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'podnoms', item: new URL('/', page.pageUrl).toString() },
+        { '@type': 'ListItem', position: 1, name: page.siteName, item: new URL('/', page.pageUrl).toString() },
         { '@type': 'ListItem', position: 2, name: page.podcast.title, item: podcastUrl },
         { '@type': 'ListItem', position: 3, name: page.episode.title, item: page.pageUrl },
       ],

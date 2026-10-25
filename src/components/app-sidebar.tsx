@@ -28,6 +28,7 @@ import {
 import { imageSrc } from '~/lib/images'
 import { cn } from '~/lib/utils'
 import { podcastSorts, savePodcastSort, sortPodcasts, type PodcastSort } from '~/lib/podcast-sort'
+import { brandLogoUrl, useBranding } from '~/lib/branding'
 
 // The sidebar lists this many followed podcasts, and links to the Following
 // page for the rest.
@@ -43,6 +44,7 @@ const libraryLinks = [
 
 export function AppSidebar() {
   const { podcasts: loaded, following, podcastSort } = useLoaderData({ from: '__root__' })
+  const branding = useBranding()
   const [sort, setSort] = useState(podcastSort)
   const podcasts = useMemo(() => sortPodcasts(loaded, sort), [loaded, sort])
   const pathname = useLocation({ select: (location) => location.pathname })
@@ -69,10 +71,10 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link to="/" className="font-medium">
-                <img src="/logo.png" alt="" className="size-12 rounded-md" />
+                <img src={brandLogoUrl(branding)} alt="" className="size-12 rounded-md" />
                 <div className="grid flex-1 text-start text-sm leading-tight">
-                  <span className="truncate font-semibold">Pod:Noms</span>
-                  <span className="truncate text-xs">Robot powered podcasts</span>
+                  <span className="truncate font-semibold">{branding.name}</span>
+                  <span className="truncate text-xs">{branding.tagline}</span>
                 </div>
               </Link>
             </SidebarMenuButton>

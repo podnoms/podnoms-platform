@@ -101,7 +101,7 @@ describe('sendEmail', () => {
     const [[sent]] = sendMail.mock.calls as unknown as [[{ html: string; text: string; attachments: { cid: string }[] }]]
     expect(sent.html).toContain('Robot powered podcasts')
     expect(sent.text).toContain('Hello')
-    expect(sent.attachments.map((attachment) => attachment.cid)).toEqual(['logo@podnoms'])
+    expect(sent.attachments.map((attachment) => attachment.cid)).toEqual(['logo@site'])
   })
 
   it('throws when email is off', async () => {

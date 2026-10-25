@@ -12,6 +12,7 @@ import { siteHead } from '~/lib/page-meta'
 import { userPath } from '~/lib/paths'
 import { htmlToText } from '~/lib/rich-text'
 import { siteInfo } from '~/lib/site'
+import { brandingFrom } from '~/lib/branding'
 
 // A user's public profile, which anyone can see: who they are, and their
 // public podcasts and playlists. @mentions in comments link here.
@@ -20,15 +21,17 @@ export const Route = createFileRoute('/u/$slug')({
   loader: ({ params }) => fetchUserProfile({ data: { slug: params.slug } }),
   head: ({ loaderData: profile, matches }) => {
     if (!profile) return {}
-    const title = `${profile.name ?? `@${profile.slug}`} · podnoms`
+    const branding = brandingFrom(matches)
+    const title = `${profile.name ?? `@${profile.slug}`} · ${branding.name}`
     const site = siteInfo(matches)
     if (!site?.origin) return { meta: [{ title }] }
     const about = profile.description ? htmlToText(profile.description).replace(/\s+/g, ' ').trim() : ''
     return siteHead({
+      site: branding,
       origin: site.origin,
       path: userPath(profile.slug),
       title,
-      description: about || `@${profile.slug} on podnoms`,
+      description: about || `@${profile.slug} on ${branding.name}`,
     })
   },
   component: ProfilePage,

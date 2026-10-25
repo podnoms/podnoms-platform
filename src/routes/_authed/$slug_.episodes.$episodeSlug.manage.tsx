@@ -35,12 +35,13 @@ import {
 import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
 import { formatClock, formatDate, hostname, initials, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
+import { pageTitle } from '~/lib/branding'
 
 // An episode's management page, at /:slug/episodes/:episodeSlug/manage. The trailing
 // underscore on $slug_ keeps it from nesting inside the podcast page's route.
 export const Route = createFileRoute('/_authed/$slug_/episodes/$episodeSlug/manage')({
   loader: ({ params }) => fetchMyEpisode({ data: { slug: params.slug, episodeSlug: params.episodeSlug } }),
-  head: ({ loaderData }) => ({ meta: loaderData ? [{ title: `${loaderData.episode.title} · podnoms` }] : [] }),
+  head: ({ loaderData, matches }) => ({ meta: loaderData ? [{ title: pageTitle(matches, loaderData.episode.title) }] : [] }),
   component: EpisodePage,
 })
 

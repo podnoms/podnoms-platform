@@ -23,6 +23,7 @@ import { formatLength, initials, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { siteHead } from '~/lib/page-meta'
 import { siteInfo } from '~/lib/site'
+import { brandingFrom } from '~/lib/branding'
 
 // A playlist's page: public ones for anyone, private ones for their owner,
 // who can also rename, reorder and delete it here. Play all plays it through.
@@ -31,14 +32,16 @@ export const Route = createFileRoute('/u/$slug_/playlists/$playlistSlug')({
   loader: ({ params }) => fetchPlaylistPage({ data: { userSlug: params.slug, playlistSlug: params.playlistSlug } }),
   head: ({ loaderData: playlist, matches }) => {
     if (!playlist) return {}
-    const title = `${playlist.title} · podnoms`
+    const branding = brandingFrom(matches)
+    const title = `${playlist.title} · ${branding.name}`
     const site = siteInfo(matches)
     if (playlist.private || !site?.origin) return { meta: [{ title }, ...(playlist.private ? [{ name: 'robots', content: 'noindex' }] : [])] }
     return siteHead({
+      site: branding,
       origin: site.origin,
       path: playlistPath(playlist.owner.slug, playlist.slug),
       title,
-      description: playlist.description || `A playlist by ${playlist.owner.name ?? `@${playlist.owner.slug}`} on podnoms`,
+      description: playlist.description || `A playlist by ${playlist.owner.name ?? `@${playlist.owner.slug}`} on ${branding.name}`,
     })
   },
   component: PlaylistPage,

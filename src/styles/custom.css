@@ -11,6 +11,12 @@
   .rich-text ol {
     @apply list-decimal pl-5;
   }
+  .rich-text h2 {
+    @apply mt-6 text-lg font-semibold;
+  }
+  .rich-text h3 {
+    @apply mt-4 font-semibold;
+  }
   .rich-text blockquote {
     @apply border-l-2 pl-3 text-muted-foreground;
   }

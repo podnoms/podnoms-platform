@@ -12,6 +12,7 @@ import type { fetchPushSettings } from '~/functions/push'
 import { savePushPrefs, subscribeToPush, unsubscribeFromPush } from '~/functions/push'
 import { formatDate } from '~/lib/format'
 import { currentPushSubscription, pushSupported, subscribeThisBrowser, unsubscribeThisBrowser } from '~/lib/push'
+import { useBranding } from '~/lib/branding'
 
 type Settings = Awaited<ReturnType<typeof fetchPushSettings>>
 type Pref = 'pushLive' | 'pushNewEpisodes' | 'pushMentions'
@@ -27,6 +28,7 @@ const kinds: { pref: Pref; label: string; description: string }[] = [
 type BrowserState = 'checking' | 'unsupported' | 'blocked' | 'on' | 'off'
 
 export function DesktopNotifications({ settings, onChange }: { settings: Settings; onChange: () => Promise<void> }) {
+  const branding = useBranding()
   const [browser, setBrowser] = useState<BrowserState>('checking')
   const [endpoint, setEndpoint] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -90,7 +92,7 @@ export function DesktopNotifications({ settings, onChange }: { settings: Setting
       <CardHeader>
         <CardTitle>Desktop notifications</CardTitle>
         <CardDescription>
-          About the podcasts you follow and your comments, shown by your browser even when podnoms isn't open.
+          About the podcasts you follow and your comments, shown by your browser even when {branding.name} isn't open.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
@@ -151,13 +153,14 @@ function ThisBrowser({
   onTurnOn: () => void
   onTurnOff: () => void
 }) {
+  const branding = useBranding()
   if (state === 'checking') return null
   if (state === 'unsupported') {
     return (
       <Alert>
         <AlertTitle>This browser can't show them</AlertTitle>
         <AlertDescription>
-          Try another browser. On an iPhone or iPad, add podnoms to your Home Screen first, then turn them on from there.
+          Try another browser. On an iPhone or iPad, add {branding.name} to your Home Screen first, then turn them on from there.
         </AlertDescription>
       </Alert>
     )
@@ -165,7 +168,7 @@ function ThisBrowser({
   if (state === 'blocked') {
     return (
       <Alert>
-        <AlertTitle>Notifications are blocked for podnoms</AlertTitle>
+        <AlertTitle>Notifications are blocked for {branding.name}</AlertTitle>
         <AlertDescription>
           Allow them in your browser's site settings (usually the icon beside the address), then reload this page.
         </AlertDescription>
@@ -179,7 +182,7 @@ function ThisBrowser({
         <FieldDescription>
           {state === 'on'
             ? "You'll get them here for the kinds and podcasts chosen below."
-            : 'Your browser will ask whether podnoms may show notifications.'}
+            : `Your browser will ask whether ${branding.name} may show notifications.`}
         </FieldDescription>
       </FieldContent>
       {state === 'on' ? (

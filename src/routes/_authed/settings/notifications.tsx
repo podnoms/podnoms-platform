@@ -8,13 +8,14 @@ import { DesktopNotifications } from '~/components/desktop-notifications'
 import { FollowedPodcastNotifications } from '~/components/followed-podcast-notifications'
 import { fetchNotificationPrefs, saveNotificationPrefs } from '~/functions/profile'
 import { fetchPushSettings } from '~/functions/push'
+import { pageTitle } from '~/lib/branding'
 
 export const Route = createFileRoute('/_authed/settings/notifications')({
   loader: async () => {
     const [prefs, push] = await Promise.all([fetchNotificationPrefs(), fetchPushSettings()])
     return { ...prefs, push }
   },
-  head: () => ({ meta: [{ title: 'Notifications · Settings · podnoms' }] }),
+  head: ({ matches }) => ({ meta: [{ title: pageTitle(matches, 'Notifications · Settings') }] }),
   component: NotificationsPage,
 })
 

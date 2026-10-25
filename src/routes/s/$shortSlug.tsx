@@ -8,6 +8,7 @@ import { TwoFactorDialog } from '~/components/two-factor-dialog'
 import { fetchSharePage } from '~/functions/public'
 import { reportTrackedLinkVisit } from '~/lib/activity'
 import { publicPageHead } from '~/lib/page-meta'
+import { brandingFrom, useBranding } from '~/lib/branding'
 
 // An episode on its own, for sharing, at its short link: the episode page
 // without the site's header, sidebar or player bar. It brings its own player,
@@ -23,7 +24,8 @@ export const Route = createFileRoute('/s/$shortSlug')({
     if (shortSlug !== params.shortSlug) throw redirect({ to: '/s/$shortSlug', params: { shortSlug }, statusCode: 301 })
   },
   loader: ({ params }) => fetchSharePage({ data: { shortSlug: params.shortSlug } }),
-  head: ({ loaderData: page }) => (page ? publicPageHead({ ...episodeHeadOptions(page), shareUrl: page.shareUrl }) : {}),
+  head: ({ loaderData: page, matches }) =>
+    page ? publicPageHead({ ...episodeHeadOptions(page), site: brandingFrom(matches), shareUrl: page.shareUrl }) : {},
   component: SharePage,
 })
 
@@ -31,6 +33,7 @@ function SharePage() {
   const { session } = Route.useRouteContext()
   const page = Route.useLoaderData()
   const trackedLink = useTrackedLink(page.episode.id)
+  const branding = useBranding()
   return (
     <PlayerProvider signedIn={Boolean(session)} source="listen" trackedLink={trackedLink}>
       <div className="flex min-h-dvh flex-col">
@@ -39,7 +42,7 @@ function SharePage() {
         </main>
         <footer className="flex justify-center p-4">
           <a href="/" className="text-sm text-muted-foreground hover:text-foreground">
-            with ❤️ from podnoms
+            with ❤️ from {branding.name}
           </a>
         </footer>
       </div>

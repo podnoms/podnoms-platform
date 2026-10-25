@@ -16,8 +16,9 @@ import {
 import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { siteHead } from '~/lib/page-meta'
 import { siteInfo } from '~/lib/site'
+import { brandingFrom, useBranding, withSiteName } from '~/lib/branding'
 
-const description = 'Find podcasts to listen to on podnoms: popular episodes, shows and what came out lately.'
+const description = 'Find podcasts to listen to on {name}: popular episodes, shows and what came out lately.'
 
 // The site's public podcasts, for anyone to browse: what's popular, the shows,
 // and the newest episodes. Private podcasts and episodes are never here.
@@ -25,8 +26,15 @@ export const Route = createFileRoute('/explore')({
   loader: () => fetchExplore(),
   head: ({ matches }) => {
     const site = siteInfo(matches)
-    if (!site?.origin) return { meta: [{ title: 'Explore · podnoms' }] }
-    return siteHead({ origin: site.origin, path: '/explore', title: 'Explore podcasts · podnoms', description })
+    const branding = brandingFrom(matches)
+    if (!site?.origin) return { meta: [{ title: `Explore · ${branding.name}` }] }
+    return siteHead({
+      site: branding,
+      origin: site.origin,
+      path: '/explore',
+      title: `Explore podcasts · ${branding.name}`,
+      description: withSiteName(description, branding),
+    })
   },
   component: ExplorePage,
 })
@@ -44,6 +52,8 @@ function ExplorePage() {
     fetchMore: (offset, limit) => fetchMoreLatestEpisodes({ data: { offset, limit } }),
   })
 
+  const branding = useBranding()
+
   async function loadMoreShows() {
     setLoadingShows(true)
     try {
@@ -56,7 +66,11 @@ function ExplorePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 p-4 md:p-8">
-      <PageHeading icon={<Icons.explore />} title="Explore" description="Podcasts made on podnoms, for anyone to listen to." />
+      <PageHeading
+        icon={<Icons.explore />}
+        title="Explore"
+        description={`Podcasts made on ${branding.name}, for anyone to listen to.`}
+      />
       {podcastCount === 0 ? (
         <Empty className="border border-dashed">
           <EmptyHeader>

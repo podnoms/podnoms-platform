@@ -6,7 +6,8 @@ import { DonateDialog } from '~/components/donate-dialog'
 
 const donations = vi.hoisted(() => ({ value: { kofiUrl: null as string | null, bitcoinAddress: null as string | null } }))
 vi.mock('@tanstack/react-router', () => ({
-  useLoaderData: ({ select }: { select: (data: unknown) => unknown }) => select({ siteLinks: donations.value }),
+  useLoaderData: ({ select }: { select: (data: unknown) => unknown }) =>
+    select({ siteLinks: donations.value, branding: { name: 'Pods' } }),
 }))
 
 afterEach(cleanup)
@@ -30,7 +31,7 @@ describe('DonateDialog', () => {
 
   it('explains why donations help', async () => {
     await openDialog({ kofiUrl: 'https://ko-fi.com/podnoms', bitcoinAddress: null })
-    const dialog = screen.getByRole('dialog', { name: 'Support PodNoms' })
+    const dialog = screen.getByRole('dialog', { name: 'Support Pods' })
     expect(dialog.textContent).toMatch(/hosting and serving this much audio/)
   })
 

@@ -195,7 +195,7 @@ Things to know:
 
 ### Background jobs
 
-Jobs are queued in Redis with [BullMQ](https://docs.bullmq.io/) and run by a worker in the app, which starts with the first request. Keys are prefixed `podnoms:`, so the Redis can be shared. With Docker Compose, start the bundled Redis with `--profile redis` and set `REDIS_URL=redis://redis:6379`; it keeps its data on disk so jobs survive restarts.
+Jobs are queued in Redis with [BullMQ](https://docs.bullmq.io/) and run by a worker in the app, which starts with the first request. Keys are prefixed `podnoms:`, so the Redis can be shared with other apps, but not with another site running this one: give each site its own database (`redis://redis:6379/1`, `/2`…). With Docker Compose, start the bundled Redis with `--profile redis` and set `REDIS_URL=redis://redis:6379`; it keeps its data on disk so jobs survive restarts.
 
 | Job | When | What it does |
 | --- | --- | --- |
@@ -238,7 +238,7 @@ Owners can serve a podcast from their own domain, set on the podcast's **Distrib
 | Type | Name | Value |
 | --- | --- | --- |
 | `CNAME` | `pod.example.com` | `CUSTOM_DOMAIN_TARGET` (default: the host in `SITE_URL`) |
-| `TXT` | `_podnoms.pod.example.com` | `podnoms-verify=<token>`, a token made for that podcast and domain |
+| `TXT` | `_podnoms.pod.example.com` | `podnoms-verify=<token>`, a token made for that podcast and domain (`podnoms` is `CUSTOM_DOMAIN_TXT_LABEL`) |
 
 The CNAME sends the traffic here. The TXT record proves the owner controls the domain, so nobody can claim a domain that someone else pointed at us. A domain is only served once both check out. The daily `custom-domain-check` job checks them again and drops a domain whose records have been wrong for 3 days.
 
@@ -265,6 +265,7 @@ providers:
 | --- | --- |
 | `SITE_URL` | Required for custom domains: it's how the site's own address is told apart from owners' domains. |
 | `CUSTOM_DOMAIN_TARGET` | Where owners point their CNAME, e.g. `domains.podnoms.com`. It must resolve to the server running Traefik. Defaults to the host in `SITE_URL`. |
+| `CUSTOM_DOMAIN_TXT_LABEL` | What the TXT record is named after (default `podnoms`). Changing it unverifies every domain at its next check. |
 | `CUSTOM_DOMAIN_EDGE_HOST` | The edge container's name on the shared network (`podnoms-edge`). Without it, `/api/traefik/config` is empty. |
 | `TRAEFIK_TLS_ENTRYPOINT`, `TRAEFIK_HTTP_ENTRYPOINT` | Traefik's entry points for HTTPS and HTTP (default `websecure` and `web`). |
 | `TRAEFIK_CONFIG_TOKEN` | Optional. When set, Traefik must send it as a bearer token to read `/api/traefik/config`. |
@@ -329,6 +330,18 @@ The first user to sign up becomes an admin. On a site that already had users bef
 ```sql
 UPDATE "user" SET "isAdmin" = true WHERE email = 'you@example.com';
 ```
+
+### Branding
+
+One image can run several sites, each with its own identity. Admins set it on the **Branding** tab of `/admin`, and it's kept in the database, so each site (its own container and database) is branded separately and changes need no redeploy:
+
+- **Identity**: the name, tagline, description (for search results and link previews) and contact email used across pages, emails, feeds (`<generator>`), authenticator apps, security keys and the User-Agent sent to other sites' APIs.
+- **Logo**: an uploaded square image becomes the favicon, home screen icons, `/site.webmanifest`, the email logo and the link-preview card, all made from it on request (in `MEDIA_DIR/branding`) and served under `/brand/`.
+- **Home page**: the signed-out landing page's text.
+- **Privacy policy and terms**: your own text, or the built-in text with the site's name and contact email.
+- **Analytics**: a script tag (address plus `data-…` attributes) added to every page, such as Umami's or Plausible's. There's none by default.
+
+Anything left unset is podnoms' own branding. The TXT record for custom domains is named after `CUSTOM_DOMAIN_TXT_LABEL` (default `podnoms`), an environment variable rather than a setting, as changing it unverifies every domain.
 
 ### Logs and errors
 

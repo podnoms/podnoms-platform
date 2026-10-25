@@ -19,6 +19,8 @@ const waveformsDir = resolve(env.MEDIA_DIR, 'waveforms')
 // "live/" (its path names), until they're made into episodes (see
 // live-recordings.server.ts). MediaMTX must write to the same place.
 const liveRecordingsDir = resolve(env.MEDIA_DIR, 'live-recordings')
+// The site's uploaded logo and the icons made from it (see branding.server.ts).
+const brandingDir = resolve(env.MEDIA_DIR, 'branding')
 // MaxMind's GeoLite2 database, downloaded by geoip.server.ts.
 const geoipDir = resolve(env.MEDIA_DIR, 'geoip')
 
@@ -32,6 +34,22 @@ export const mediaDirs = {
   stagedImages: stagedImagesDir,
   waveforms: waveformsDir,
   liveRecordings: liveRecordingsDir,
+}
+
+export async function ensureBrandingDir() {
+  await mkdir(brandingDir, { recursive: true })
+  return brandingDir
+}
+
+// The logo as uploaded (made square), one file per version.
+export function brandLogoPath(version: string) {
+  return join(brandingDir, `logo-${safeId(version)}.png`)
+}
+
+// The logo (`version`, or "default") resized to `size` (or as the link
+// preview card, "og"), made on request.
+export function brandIconPath(version: string, size: number | 'og') {
+  return join(brandingDir, `icon-${safeId(version)}-${size}.png`)
 }
 
 export const geoipDatabasePath = join(geoipDir, 'GeoLite2-City.mmdb')

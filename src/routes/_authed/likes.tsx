@@ -8,12 +8,13 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { fetchLikes, fetchMoreLikes } from '~/functions/library'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { pluralise } from '~/lib/format'
+import { pageTitle } from '~/lib/branding'
 
 // The episodes the user likes, most recently liked first. Unliking one here
 // leaves it in the list until the page reloads, so it can be liked again.
 export const Route = createFileRoute('/_authed/likes')({
   loader: () => fetchLikes(),
-  head: () => ({ meta: [{ title: 'Likes · podnoms' }] }),
+  head: ({ matches }) => ({ meta: [{ title: pageTitle(matches, 'Likes') }] }),
   component: LikesPage,
 })
 

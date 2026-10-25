@@ -8,11 +8,12 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { Item, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from '~/components/ui/item'
 import { fetchMyPlaylists, savePlaylist } from '~/functions/playlists'
 import { pluralise } from '~/lib/format'
+import { pageTitle } from '~/lib/branding'
 
 // The user's playlists, most recently changed first, and a way to make one.
 export const Route = createFileRoute('/_authed/playlists')({
   loader: () => fetchMyPlaylists({ data: {} }),
-  head: () => ({ meta: [{ title: 'Playlists · podnoms' }] }),
+  head: ({ matches }) => ({ meta: [{ title: pageTitle(matches, 'Playlists') }] }),
   component: PlaylistsPage,
 })
 

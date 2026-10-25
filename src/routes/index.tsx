@@ -5,7 +5,8 @@ import { ContinueListening, ListenerHome } from '~/components/listener-home'
 import { fetchDashboard } from '~/functions/dashboard'
 import { fetchLandingPodcasts, fetchListenerHome } from '~/functions/library'
 import { siteHead } from '~/lib/page-meta'
-import { siteDescription, siteInfo } from '~/lib/site'
+import { brandLogoUrl, brandingFrom } from '~/lib/branding'
+import { siteInfo } from '~/lib/site'
 import { jsonLdMeta, websiteJsonLd } from '~/lib/structured-data'
 
 export const Route = createFileRoute('/')({
@@ -19,14 +20,22 @@ export const Route = createFileRoute('/')({
   },
   head: ({ matches }) => {
     const site = siteInfo(matches)
+    const branding = brandingFrom(matches)
     if (!site?.origin) return {}
     const head = siteHead({
+      site: branding,
       origin: site.origin,
       path: '/',
-      title: 'podnoms · Turn YouTube, Mixcloud and SoundCloud links into podcasts',
-      description: siteDescription,
+      title: `${branding.name} · ${branding.tagline}`,
+      description: branding.description,
     })
-    const jsonLd = websiteJsonLd({ origin: site.origin, description: siteDescription, discordUrl: site.discordUrl ?? null })
+    const jsonLd = websiteJsonLd({
+      name: branding.name,
+      origin: site.origin,
+      description: branding.description,
+      logo: brandLogoUrl(branding),
+      discordUrl: site.discordUrl ?? null,
+    })
     return { ...head, meta: [...head.meta, jsonLdMeta(jsonLd)] }
   },
   component: Index,

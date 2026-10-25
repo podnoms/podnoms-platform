@@ -18,7 +18,7 @@ describe('flickr', () => {
       safe_search: '1',
       sort: 'relevance',
     })
-    expect(new Headers(init?.headers).get('user-agent')).toMatch(/PodNoms/)
+    expect(new Headers(init?.headers).get('user-agent')).toMatch(/podnoms/)
     expect(photo).toEqual({
       id: '7',
       downloadUrl: 'https://live.staticflickr.test/7_b.jpg',

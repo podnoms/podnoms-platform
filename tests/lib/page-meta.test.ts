@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { publicPageHead, siteHead, truncate } from '~/lib/page-meta'
 
+const site = { name: 'Pods', logoVersion: 'v2' }
+
 const page = {
+  site,
   title: 'Show',
   description: '<p>About <b>it</b></p>',
   fallbackDescription: 'A podcast',
@@ -53,16 +56,16 @@ describe('publicPageHead', () => {
   it('falls back to the site card without an image', () => {
     const result = tags(publicPageHead({ ...page, image: null }))
     expect(result).toMatchObject({
-      'og:image': 'https://pods.example/og-default.png',
+      'og:image': 'https://pods.example/brand/og.png?v=v2',
       'og:image:type': 'image/png',
-      'og:image:alt': 'podnoms',
+      'og:image:alt': 'Pods',
       'twitter:card': 'summary_large_image',
     })
   })
 
   it('names the page with documentTitle, keeping the title for previews', () => {
     const head = publicPageHead({ ...page, image: null, documentTitle: 'Episode – Show' })
-    expect(head.meta[0]).toEqual({ title: 'Episode – Show · podnoms' })
+    expect(head.meta[0]).toEqual({ title: 'Episode – Show · Pods' })
     expect(tags(head)['og:title']).toBe('Show')
   })
 
@@ -82,12 +85,18 @@ describe('publicPageHead', () => {
 
 describe('siteHead', () => {
   it('gives a site page an absolute canonical URL and the site card', () => {
-    const head = siteHead({ origin: 'https://pods.example', path: '/privacy', title: 'Privacy', description: 'About data' })
+    const head = siteHead({
+      site,
+      origin: 'https://pods.example',
+      path: '/privacy',
+      title: 'Privacy',
+      description: 'About data',
+    })
     expect(head.links).toEqual([{ rel: 'canonical', href: 'https://pods.example/privacy' }])
     expect(tags(head)).toMatchObject({
       description: 'About data',
       'og:url': 'https://pods.example/privacy',
-      'og:image': 'https://pods.example/og-default.png',
+      'og:image': 'https://pods.example/brand/og.png?v=v2',
       'twitter:card': 'summary_large_image',
     })
   })

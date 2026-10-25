@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Platform } from '~/lib/platforms'
-import type { SiteSettings } from '~/server/site-settings.server'
+import { defaultSiteSettings, type SiteSettings } from '~/server/site-settings.server'
 import {
   clearCooldown,
   FetcherUnavailableError,
@@ -15,20 +15,16 @@ import {
 } from '~/server/download-throttle.server'
 
 const settings: SiteSettings = {
+  ...defaultSiteSettings,
   downloadConcurrency: 3,
   perPlatformConcurrency: 2,
   downloadDelaySeconds: 0,
-  channelCheckHours: 6,
-  downloadRateLimit: null,
-  smtpHost: null,
-  smtpPort: 587,
-  smtpSecure: false,
-  smtpUser: null,
-  smtpPassword: null,
-  emailFrom: null,
 }
 
-vi.mock('~/server/site-settings.server', () => ({ getSiteSettings: async () => settings }))
+vi.mock('~/server/site-settings.server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('~/server/site-settings.server')>()),
+  getSiteSettings: async () => settings,
+}))
 
 beforeEach(() => {
   vi.useFakeTimers()

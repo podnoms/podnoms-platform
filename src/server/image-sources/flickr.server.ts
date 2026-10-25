@@ -1,5 +1,6 @@
 import '@tanstack/react-start/server-only'
-import { userAgent, type ImageSource } from '~/server/image-sources/image-source.server'
+import { siteUserAgent } from '~/server/branding.server'
+import type { ImageSource } from '~/server/image-sources/image-source.server'
 
 type FlickrPhoto = {
   id: string
@@ -39,7 +40,7 @@ export function flickr(apiKey: string): ImageSource {
         format: 'json',
         nojsoncallback: '1',
       }).toString()
-      const response = await fetch(url, { headers: { 'User-Agent': userAgent }, signal: AbortSignal.timeout(15_000) })
+      const response = await fetch(url, { headers: { 'User-Agent': await siteUserAgent() }, signal: AbortSignal.timeout(15_000) })
       if (!response.ok) throw new Error(`Flickr search failed: ${response.status} ${(await response.text()).slice(0, 200)}`)
       // Flickr reports errors, such as a bad key, in a 200 response.
       const body = (await response.json()) as FlickrResponse

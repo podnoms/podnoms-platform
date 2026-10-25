@@ -3,6 +3,7 @@ import { episodeHeadOptions, PublicEpisode } from '~/components/public-episode'
 import { fetchEpisodePage } from '~/functions/public'
 import { publicPageHead } from '~/lib/page-meta'
 import { jsonLdMeta, podcastEpisodeJsonLd } from '~/lib/structured-data'
+import { brandingFrom } from '~/lib/branding'
 
 // An episode's public page, at /:slug/episodes/:episodeSlug. The
 // trailing underscore on $slug_ keeps it from nesting inside the podcast page's
@@ -11,12 +12,13 @@ import { jsonLdMeta, podcastEpisodeJsonLd } from '~/lib/structured-data'
 export const Route = createFileRoute('/$slug_/episodes/$episodeSlug')({
   staticData: { publicPage: true },
   loader: ({ params }) => fetchEpisodePage({ data: { slug: params.slug, episodeSlug: params.episodeSlug } }),
-  head: ({ loaderData: page }) => {
+  head: ({ loaderData: page, matches }) => {
     if (!page) return {}
-    const head = publicPageHead(episodeHeadOptions(page))
+    const branding = brandingFrom(matches)
+    const head = publicPageHead({ ...episodeHeadOptions(page), site: branding })
     // Unlisted podcasts' episodes aren't described to search engines.
     if (page.podcast.private) return head
-    const jsonLd = podcastEpisodeJsonLd({ ...page, image: page.previewImage?.url ?? null })
+    const jsonLd = podcastEpisodeJsonLd({ ...page, siteName: branding.name, image: page.previewImage?.url ?? null })
     return { ...head, meta: [...head.meta, jsonLdMeta(jsonLd)] }
   },
   component: EpisodePage,

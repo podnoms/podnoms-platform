@@ -13,10 +13,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SlugRouteImport } from './routes/$slug'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as ExploreRouteImport } from './routes/explore'
+import { Route as FaviconDoticoRouteImport } from './routes/favicon[.]ico'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as SiteDotwebmanifestRouteImport } from './routes/site[.]webmanifest'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TosRouteImport } from './routes/tos'
 import { Route as AuthedFollowingRouteImport } from './routes/_authed/following'
@@ -26,6 +28,7 @@ import { Route as AuthedSecurityRouteImport } from './routes/_authed/security'
 import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings'
 import { Route as ApiImagesRouteImport } from './routes/api/images'
 import { Route as ApiUploadsRouteImport } from './routes/api/uploads'
+import { Route as BrandFileRouteImport } from './routes/brand.$file'
 import { Route as FeedSlugRouteImport } from './routes/feed/$slug'
 import { Route as ImagesFileRouteImport } from './routes/images/$file'
 import { Route as LiveSlugRouteImport } from './routes/live/$slug'
@@ -40,6 +43,7 @@ import { Route as AuthedSettingsNotificationsRouteImport } from './routes/_authe
 import { Route as AuthedSettingsSecurityRouteImport } from './routes/_authed/settings/security'
 import { Route as AdminQueuesSplatRouteImport } from './routes/admin/queues/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiBrandingLogoRouteImport } from './routes/api/branding/logo'
 import { Route as ApiDomainsAllowedRouteImport } from './routes/api/domains/allowed'
 import { Route as ApiLiveAuthRouteImport } from './routes/api/live/auth'
 import { Route as ApiTrackedLinksTokenRouteImport } from './routes/api/tracked-links/$token'
@@ -73,6 +77,11 @@ const ExploreRoute = ExploreRouteImport.update({
   path: '/explore',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FaviconDoticoRoute = FaviconDoticoRouteImport.update({
+  id: '/favicon.ico',
+  path: '/favicon.ico',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -91,6 +100,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
   id: '/robots.txt',
   path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SiteDotwebmanifestRoute = SiteDotwebmanifestRouteImport.update({
+  id: '/site.webmanifest',
+  path: '/site.webmanifest',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -136,6 +150,11 @@ const ApiImagesRoute = ApiImagesRouteImport.update({
 const ApiUploadsRoute = ApiUploadsRouteImport.update({
   id: '/api/uploads',
   path: '/api/uploads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BrandFileRoute = BrandFileRouteImport.update({
+  id: '/brand/$file',
+  path: '/brand/$file',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeedSlugRoute = FeedSlugRouteImport.update({
@@ -207,6 +226,11 @@ const AdminQueuesSplatRoute = AdminQueuesSplatRouteImport.update({
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBrandingLogoRoute = ApiBrandingLogoRouteImport.update({
+  id: '/api/branding/logo',
+  path: '/api/branding/logo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDomainsAllowedRoute = ApiDomainsAllowedRouteImport.update({
@@ -283,10 +307,12 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$slug': typeof SlugRoute
   '/explore': typeof ExploreRoute
+  '/favicon.ico': typeof FaviconDoticoRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
+  '/site.webmanifest': typeof SiteDotwebmanifestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tos': typeof TosRoute
   '/following': typeof AuthedFollowingRoute
@@ -296,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthedSettingsRouteWithChildren
   '/api/images': typeof ApiImagesRoute
   '/api/uploads': typeof ApiUploadsRoute
+  '/brand/$file': typeof BrandFileRoute
   '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
   '/live/$slug': typeof LiveSlugRoute
@@ -308,6 +335,7 @@ export interface FileRoutesByFullPath {
   '/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/branding/logo': typeof ApiBrandingLogoRoute
   '/api/domains/allowed': typeof ApiDomainsAllowedRoute
   '/api/live/auth': typeof ApiLiveAuthRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
@@ -328,10 +356,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$slug': typeof SlugRoute
   '/explore': typeof ExploreRoute
+  '/favicon.ico': typeof FaviconDoticoRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
+  '/site.webmanifest': typeof SiteDotwebmanifestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tos': typeof TosRoute
   '/following': typeof AuthedFollowingRoute
@@ -340,6 +370,7 @@ export interface FileRoutesByTo {
   '/security': typeof AuthedSecurityRoute
   '/api/images': typeof ApiImagesRoute
   '/api/uploads': typeof ApiUploadsRoute
+  '/brand/$file': typeof BrandFileRoute
   '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
   '/live/$slug': typeof LiveSlugRoute
@@ -352,6 +383,7 @@ export interface FileRoutesByTo {
   '/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/branding/logo': typeof ApiBrandingLogoRoute
   '/api/domains/allowed': typeof ApiDomainsAllowedRoute
   '/api/live/auth': typeof ApiLiveAuthRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
@@ -374,10 +406,12 @@ export interface FileRoutesById {
   '/$slug': typeof SlugRoute
   '/_authed': typeof AuthedRouteWithChildren
   '/explore': typeof ExploreRoute
+  '/favicon.ico': typeof FaviconDoticoRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/robots.txt': typeof RobotsDottxtRoute
+  '/site.webmanifest': typeof SiteDotwebmanifestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tos': typeof TosRoute
   '/_authed/following': typeof AuthedFollowingRoute
@@ -387,6 +421,7 @@ export interface FileRoutesById {
   '/_authed/settings': typeof AuthedSettingsRouteWithChildren
   '/api/images': typeof ApiImagesRoute
   '/api/uploads': typeof ApiUploadsRoute
+  '/brand/$file': typeof BrandFileRoute
   '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
   '/live/$slug': typeof LiveSlugRoute
@@ -399,6 +434,7 @@ export interface FileRoutesById {
   '/_authed/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/branding/logo': typeof ApiBrandingLogoRoute
   '/api/domains/allowed': typeof ApiDomainsAllowedRoute
   '/api/live/auth': typeof ApiLiveAuthRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
@@ -421,10 +457,12 @@ export interface FileRouteTypes {
     | '/'
     | '/$slug'
     | '/explore'
+    | '/favicon.ico'
     | '/login'
     | '/privacy'
     | '/reset-password'
     | '/robots.txt'
+    | '/site.webmanifest'
     | '/sitemap.xml'
     | '/tos'
     | '/following'
@@ -434,6 +472,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/api/images'
     | '/api/uploads'
+    | '/brand/$file'
     | '/feed/$slug'
     | '/images/$file'
     | '/live/$slug'
@@ -446,6 +485,7 @@ export interface FileRouteTypes {
     | '/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
+    | '/api/branding/logo'
     | '/api/domains/allowed'
     | '/api/live/auth'
     | '/api/tracked-links/$token'
@@ -466,10 +506,12 @@ export interface FileRouteTypes {
     | '/'
     | '/$slug'
     | '/explore'
+    | '/favicon.ico'
     | '/login'
     | '/privacy'
     | '/reset-password'
     | '/robots.txt'
+    | '/site.webmanifest'
     | '/sitemap.xml'
     | '/tos'
     | '/following'
@@ -478,6 +520,7 @@ export interface FileRouteTypes {
     | '/security'
     | '/api/images'
     | '/api/uploads'
+    | '/brand/$file'
     | '/feed/$slug'
     | '/images/$file'
     | '/live/$slug'
@@ -490,6 +533,7 @@ export interface FileRouteTypes {
     | '/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
+    | '/api/branding/logo'
     | '/api/domains/allowed'
     | '/api/live/auth'
     | '/api/tracked-links/$token'
@@ -511,10 +555,12 @@ export interface FileRouteTypes {
     | '/$slug'
     | '/_authed'
     | '/explore'
+    | '/favicon.ico'
     | '/login'
     | '/privacy'
     | '/reset-password'
     | '/robots.txt'
+    | '/site.webmanifest'
     | '/sitemap.xml'
     | '/tos'
     | '/_authed/following'
@@ -524,6 +570,7 @@ export interface FileRouteTypes {
     | '/_authed/settings'
     | '/api/images'
     | '/api/uploads'
+    | '/brand/$file'
     | '/feed/$slug'
     | '/images/$file'
     | '/live/$slug'
@@ -536,6 +583,7 @@ export interface FileRouteTypes {
     | '/_authed/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
+    | '/api/branding/logo'
     | '/api/domains/allowed'
     | '/api/live/auth'
     | '/api/tracked-links/$token'
@@ -558,14 +606,17 @@ export interface RootRouteChildren {
   SlugRoute: typeof SlugRoute
   AuthedRoute: typeof AuthedRouteWithChildren
   ExploreRoute: typeof ExploreRoute
+  FaviconDoticoRoute: typeof FaviconDoticoRoute
   LoginRoute: typeof LoginRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
+  SiteDotwebmanifestRoute: typeof SiteDotwebmanifestRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TosRoute: typeof TosRoute
   ApiImagesRoute: typeof ApiImagesRoute
   ApiUploadsRoute: typeof ApiUploadsRoute
+  BrandFileRoute: typeof BrandFileRoute
   FeedSlugRoute: typeof FeedSlugRoute
   ImagesFileRoute: typeof ImagesFileRoute
   LiveSlugRoute: typeof LiveSlugRoute
@@ -575,6 +626,7 @@ export interface RootRouteChildren {
   SlugEpisodesEpisodeSlugRoute: typeof SlugEpisodesEpisodeSlugRoute
   AdminQueuesSplatRoute: typeof AdminQueuesSplatRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiBrandingLogoRoute: typeof ApiBrandingLogoRoute
   ApiDomainsAllowedRoute: typeof ApiDomainsAllowedRoute
   ApiLiveAuthRoute: typeof ApiLiveAuthRoute
   ApiTrackedLinksTokenRoute: typeof ApiTrackedLinksTokenRoute
@@ -619,6 +671,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExploreRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/favicon.ico': {
+      id: '/favicon.ico'
+      path: '/favicon.ico'
+      fullPath: '/favicon.ico'
+      preLoaderRoute: typeof FaviconDoticoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -645,6 +704,13 @@ declare module '@tanstack/react-router' {
       path: '/robots.txt'
       fullPath: '/robots.txt'
       preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/site.webmanifest': {
+      id: '/site.webmanifest'
+      path: '/site.webmanifest'
+      fullPath: '/site.webmanifest'
+      preLoaderRoute: typeof SiteDotwebmanifestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -708,6 +774,13 @@ declare module '@tanstack/react-router' {
       path: '/api/uploads'
       fullPath: '/api/uploads'
       preLoaderRoute: typeof ApiUploadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/brand/$file': {
+      id: '/brand/$file'
+      path: '/brand/$file'
+      fullPath: '/brand/$file'
+      preLoaderRoute: typeof BrandFileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/feed/$slug': {
@@ -806,6 +879,13 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/branding/logo': {
+      id: '/api/branding/logo'
+      path: '/api/branding/logo'
+      fullPath: '/api/branding/logo'
+      preLoaderRoute: typeof ApiBrandingLogoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/domains/allowed': {
@@ -949,14 +1029,17 @@ const rootRouteChildren: RootRouteChildren = {
   SlugRoute: SlugRoute,
   AuthedRoute: AuthedRouteWithChildren,
   ExploreRoute: ExploreRoute,
+  FaviconDoticoRoute: FaviconDoticoRoute,
   LoginRoute: LoginRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
+  SiteDotwebmanifestRoute: SiteDotwebmanifestRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TosRoute: TosRoute,
   ApiImagesRoute: ApiImagesRoute,
   ApiUploadsRoute: ApiUploadsRoute,
+  BrandFileRoute: BrandFileRoute,
   FeedSlugRoute: FeedSlugRoute,
   ImagesFileRoute: ImagesFileRoute,
   LiveSlugRoute: LiveSlugRoute,
@@ -966,6 +1049,7 @@ const rootRouteChildren: RootRouteChildren = {
   SlugEpisodesEpisodeSlugRoute: SlugEpisodesEpisodeSlugRoute,
   AdminQueuesSplatRoute: AdminQueuesSplatRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiBrandingLogoRoute: ApiBrandingLogoRoute,
   ApiDomainsAllowedRoute: ApiDomainsAllowedRoute,
   ApiLiveAuthRoute: ApiLiveAuthRoute,
   ApiTrackedLinksTokenRoute: ApiTrackedLinksTokenRoute,
