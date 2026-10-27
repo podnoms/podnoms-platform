@@ -149,9 +149,11 @@ async function stageFirstImage(userId: string, images: string[]) {
 }
 
 // Saves the link's artwork as the episode's image, unless it has one by then.
-export async function saveLinkArtwork(episodeId: string, sourceUrl: string) {
+// `pageImages` are tried after the platform's own, e.g. the og:image of the
+// page the browser extension found a file on.
+export async function saveLinkArtwork(episodeId: string, sourceUrl: string, pageImages: string[] = []) {
   try {
-    for (const candidate of (await lookUpPolitely(sourceUrl, { text: false })).images) {
+    for (const candidate of [...(await lookUpPolitely(sourceUrl, { text: false })).images, ...pageImages]) {
       const imageUrl = await downloadImage(candidate)
       if (!imageUrl) continue
       const saved = await db

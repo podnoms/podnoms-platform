@@ -34,6 +34,9 @@ declare module '@tanstack/react-router' {
     // page; signed-in users get it in the app's shell, so their library is a
     // click away, except on the podcast's own domain.
     publicPage?: boolean
+    // Draws its own header, so visitors don't get the public header, as for
+    // the landing page.
+    ownHeader?: boolean
   }
 }
 
@@ -102,11 +105,13 @@ function RootComponent() {
   useEffect(() => startClientErrorReporting(errorReportingDsn), [errorReportingDsn])
   const bare = useMatches({ select: (matches) => matches.some((match) => match.staticData.bare) })
   const publicPage = useMatches({ select: (matches) => matches.some((match) => match.staticData.publicPage) })
+  const ownHeader = useMatches({ select: (matches) => matches.some((match) => match.staticData.ownHeader) })
   return (
     <RootDocument
       signedIn={Boolean(session)}
       bare={bare}
       publicPage={publicPage}
+      ownHeader={ownHeader}
       themeCss={branding.theme?.css ?? ''}
     >
       <Outlet />
@@ -118,12 +123,14 @@ function RootDocument({
   signedIn,
   bare,
   publicPage,
+  ownHeader,
   themeCss,
   children,
 }: {
   signedIn: boolean
   bare: boolean
   publicPage: boolean
+  ownHeader: boolean
   // The theme admins chose (see branding.server.ts), over app.css's own.
   themeCss: string
   children: ReactNode
@@ -159,7 +166,7 @@ function RootDocument({
                 </SidebarProvider>
               ) : (
                 <>
-                  {!publicPage && <PublicHeader />}
+                  {!publicPage && !ownHeader && <PublicHeader />}
                   <div className="pb-(--player-height)">{children}</div>
                 </>
               )}

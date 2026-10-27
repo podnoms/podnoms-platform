@@ -135,6 +135,22 @@ describe('saveLinkArtwork', () => {
     }
   })
 
+  it("falls back to the page's image, after the platform's own", async () => {
+    images = new Set(['/page.png'])
+    const file = 'https://cdn.test/episodes/42/audio'
+    const episode = await linkEpisode(file)
+    await saveLinkArtwork(episode.id, file, [`${base}/page.png`])
+    expect(await imageOf(episode.id)).toMatch(/^\/images\//)
+    expect(requests).toEqual(['/page.png'])
+
+    requests.length = 0
+    images = new Set(['/sc.png', '/page.png'])
+    const track = 'https://soundcloud.com/artist/track'
+    const other = await linkEpisode(track)
+    await saveLinkArtwork(other.id, track, [`${base}/page.png`])
+    expect(requests).not.toContain('/page.png')
+  })
+
   it('sends nothing to a platform that is refusing us', async () => {
     await withDownloadSlot('youtube', { key: 'x' }, async () => {
       throw new RateLimitedError('slow down')

@@ -1,8 +1,8 @@
 import { Link, useLoaderData } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { Icons, type Icon } from '~/components/icons'
+import { ModeToggle } from '~/components/mode-toggle'
 import { PodcastGrid, type PodcastCardData } from '~/components/podcast-card'
-import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { brandLogoUrl, useBranding, withSiteName } from '~/lib/branding'
 
@@ -44,6 +44,17 @@ function SignInButton() {
     <Button size="lg" variant="outline" asChild>
       <Link to="." search={(prev) => ({ ...prev, login: true as const })}>
         Sign in
+      </Link>
+    </Button>
+  )
+}
+
+function ExploreButton({ children }: { children: ReactNode }) {
+  return (
+    <Button size="lg" variant="outline" asChild>
+      <Link to="/explore">
+        <Icons.explore />
+        {children}
       </Link>
     </Button>
   )
@@ -116,10 +127,6 @@ export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
 
       <section className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 px-4 pt-16 pb-20 md:pt-24 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16">
         <div className="flex min-w-0 flex-col items-center gap-6 text-center lg:items-start lg:text-left">
-          <Badge variant="outline" className="gap-1.5 px-3 py-1 text-sm">
-            <img src={brandLogoUrl(branding)} alt="" className="size-4 rounded-sm" />
-            {branding.tagline}
-          </Badge>
           <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-6xl">
             <Headline text={text(copy.heroTitle)} />
           </h1>
@@ -129,8 +136,18 @@ export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
               Get started free
               <Icons.back className="rotate-180" />
             </SignUpButton>
-            <SignInButton />
+            <ExploreButton>Explore podcasts</ExploreButton>
           </div>
+          <p className="text-sm text-muted-foreground">
+            Already have an account?{' '}
+            <Link
+              to="."
+              search={(prev) => ({ ...prev, login: true as const })}
+              className="font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              Sign in
+            </Link>
+          </p>
         </div>
         <HeroPreview />
       </section>
@@ -184,9 +201,7 @@ export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
               <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{text(copy.exploreTitle)}</h2>
               <p className="mt-2 text-muted-foreground">{text(copy.exploreText)}</p>
             </div>
-            <Link to="/explore" className="text-sm font-medium text-primary hover:underline">
-              Explore all podcasts
-            </Link>
+            <ExploreButton>Explore all podcasts</ExploreButton>
           </div>
           <PodcastGrid podcasts={podcasts} />
         </section>
@@ -211,13 +226,18 @@ export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-2 gap-y-3 px-4 py-6 text-sm text-muted-foreground">
           <img src={brandLogoUrl(branding)} alt="" className="size-5 rounded" />
           {branding.name}
-          <Link to="/privacy" className="ml-4 hover:text-foreground">
+          <Link to="/explore" className="ml-4 hover:text-foreground">
+            Explore
+          </Link>
+          <Link to="/privacy" className="hover:text-foreground">
             Privacy
           </Link>
           <Link to="/tos" className="hover:text-foreground">
             Terms
           </Link>
-          <span className="basis-full sm:ml-auto sm:basis-auto">{branding.tagline}</span>
+          <span className="ml-auto">
+            <ModeToggle />
+          </span>
         </div>
       </footer>
     </main>

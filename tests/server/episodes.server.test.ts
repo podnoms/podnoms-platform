@@ -79,7 +79,7 @@ describe('createEpisode from a link', () => {
     })
     expect(enqueueEpisode).toHaveBeenCalledWith(episode!.id)
     // Fetched straight away rather than when its download starts.
-    expect(saveLinkArtwork).toHaveBeenCalledWith(episode!.id, 'https://youtu.be/abc')
+    expect(saveLinkArtwork).toHaveBeenCalledWith(episode!.id, 'https://youtu.be/abc', [])
   })
 
   it('uses a given title for the title and slug, and stores the description as HTML', async () => {

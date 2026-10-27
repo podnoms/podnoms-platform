@@ -69,13 +69,10 @@ function PodcastPage() {
     total: summary.count,
     fetchMore: (offset, limit) => fetchMyPodcastEpisodes({ data: { slug: podcast.slug, offset, limit } }),
   })
-  // While episodes are being processed, follow them live (rather than polling)
-  // and reload the page when one's details change.
-  // A channel being checked may add episodes too.
-  const processing =
-    loaded.some((e) => e.status === 'pending' || e.status === 'processing' || e.replacing) ||
-    Boolean(podcast.channel && (podcast.channel.checking || !podcast.channel.lastCheckedAt))
-  const live = useLiveProgress(podcast.slug, processing, podcast, () =>
+  // Follow the podcast's episodes live (rather than polling) and reload the
+  // page when one's details change or one is added, whether by a channel
+  // check, the browser extension or another tab.
+  const live = useLiveProgress(podcast.slug, true, podcast, () =>
     router.invalidate({ filter: (match) => match.routeId === Route.id }),
   )
   const episodes = loaded.map((episode) => withLiveProgress(episode, live))

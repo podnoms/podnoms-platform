@@ -3,6 +3,7 @@ import { rm } from 'node:fs/promises'
 import { and, count, desc, eq, isNotNull, isNull, max, or, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
 import { episodeLikes, episodes, playbackPositions, podcasts, users, type NewEpisode } from '~/server/db/schema'
+import { publishEpisodeEvent } from '~/server/episode-events.server'
 import { enqueueEpisode } from '~/server/episode-processor.server'
 import { saveLinkArtwork } from '~/server/link-details.server'
 import {
@@ -308,7 +309,8 @@ export async function insertEpisode(values: NewEpisode & { slug: string }, tags?
 
 // Returns null unless the podcast belongs to the user. The episode starts as
 // "pending" and is downloaded or converted in the background.
-export async function createEpisode(userId: string, input: NewEpisodeInput) {
+// `pageImages`: artwork to fall back on for a link, if the platform has none.
+export async function createEpisode(userId: string, input: NewEpisodeInput, { pageImages = [] }: { pageImages?: string[] } = {}) {
   const [podcast] = await db
     .select({ id: podcasts.id })
     .from(podcasts)
@@ -337,9 +339,12 @@ export async function createEpisode(userId: string, input: NewEpisodeInput) {
     // Someone's waiting for it, so it goes ahead of channels' uploads.
     priority: 1,
   }, input.tags)
+  // Open pages show it straight away, wherever it was added from (e.g. the
+  // browser extension).
+  publishEpisodeEvent({ type: 'changed', episodeId: episode.id })
   enqueueEpisode(episode.id)
   // Shown while it waits its turn to download.
-  if (!imageUrl) void saveLinkArtwork(episode.id, input.sourceUrl)
+  if (!imageUrl) void saveLinkArtwork(episode.id, input.sourceUrl, pageImages)
   return episode
 }
 
@@ -361,6 +366,7 @@ async function insertUploadedEpisode(
     durationSeconds: upload.durationSeconds,
   }, tags)
   await moveUploadToEpisode(userId, upload.uploadId, episode.id)
+  publishEpisodeEvent({ type: 'changed', episodeId: episode.id })
   enqueueEpisode(episode.id)
   return episode
 }

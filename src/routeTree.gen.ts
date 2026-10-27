@@ -45,6 +45,8 @@ import { Route as AdminQueuesSplatRouteImport } from './routes/admin/queues/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiBrandingLogoRouteImport } from './routes/api/branding/logo'
 import { Route as ApiDomainsAllowedRouteImport } from './routes/api/domains/allowed'
+import { Route as ApiExtensionEpisodesRouteImport } from './routes/api/extension/episodes'
+import { Route as ApiExtensionPodcastsRouteImport } from './routes/api/extension/podcasts'
 import { Route as ApiLiveAuthRouteImport } from './routes/api/live/auth'
 import { Route as ApiTrackedLinksTokenRouteImport } from './routes/api/tracked-links/$token'
 import { Route as ApiTraefikConfigRouteImport } from './routes/api/traefik/config'
@@ -239,6 +241,16 @@ const ApiDomainsAllowedRoute = ApiDomainsAllowedRouteImport.update({
   path: '/api/domains/allowed',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiExtensionEpisodesRoute = ApiExtensionEpisodesRouteImport.update({
+  id: '/api/extension/episodes',
+  path: '/api/extension/episodes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiExtensionPodcastsRoute = ApiExtensionPodcastsRouteImport.update({
+  id: '/api/extension/podcasts',
+  path: '/api/extension/podcasts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiLiveAuthRoute = ApiLiveAuthRouteImport.update({
   id: '/api/live/auth',
   path: '/api/live/auth',
@@ -343,6 +355,8 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/branding/logo': typeof ApiBrandingLogoRoute
   '/api/domains/allowed': typeof ApiDomainsAllowedRoute
+  '/api/extension/episodes': typeof ApiExtensionEpisodesRoute
+  '/api/extension/podcasts': typeof ApiExtensionPodcastsRoute
   '/api/live/auth': typeof ApiLiveAuthRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
@@ -392,6 +406,8 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/branding/logo': typeof ApiBrandingLogoRoute
   '/api/domains/allowed': typeof ApiDomainsAllowedRoute
+  '/api/extension/episodes': typeof ApiExtensionEpisodesRoute
+  '/api/extension/podcasts': typeof ApiExtensionPodcastsRoute
   '/api/live/auth': typeof ApiLiveAuthRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
@@ -444,6 +460,8 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/branding/logo': typeof ApiBrandingLogoRoute
   '/api/domains/allowed': typeof ApiDomainsAllowedRoute
+  '/api/extension/episodes': typeof ApiExtensionEpisodesRoute
+  '/api/extension/podcasts': typeof ApiExtensionPodcastsRoute
   '/api/live/auth': typeof ApiLiveAuthRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
@@ -496,6 +514,8 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/branding/logo'
     | '/api/domains/allowed'
+    | '/api/extension/episodes'
+    | '/api/extension/podcasts'
     | '/api/live/auth'
     | '/api/tracked-links/$token'
     | '/api/traefik/config'
@@ -545,6 +565,8 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/branding/logo'
     | '/api/domains/allowed'
+    | '/api/extension/episodes'
+    | '/api/extension/podcasts'
     | '/api/live/auth'
     | '/api/tracked-links/$token'
     | '/api/traefik/config'
@@ -596,6 +618,8 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/branding/logo'
     | '/api/domains/allowed'
+    | '/api/extension/episodes'
+    | '/api/extension/podcasts'
     | '/api/live/auth'
     | '/api/tracked-links/$token'
     | '/api/traefik/config'
@@ -640,6 +664,8 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiBrandingLogoRoute: typeof ApiBrandingLogoRoute
   ApiDomainsAllowedRoute: typeof ApiDomainsAllowedRoute
+  ApiExtensionEpisodesRoute: typeof ApiExtensionEpisodesRoute
+  ApiExtensionPodcastsRoute: typeof ApiExtensionPodcastsRoute
   ApiLiveAuthRoute: typeof ApiLiveAuthRoute
   ApiTrackedLinksTokenRoute: typeof ApiTrackedLinksTokenRoute
   ApiTraefikConfigRoute: typeof ApiTraefikConfigRoute
@@ -908,6 +934,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDomainsAllowedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/extension/episodes': {
+      id: '/api/extension/episodes'
+      path: '/api/extension/episodes'
+      fullPath: '/api/extension/episodes'
+      preLoaderRoute: typeof ApiExtensionEpisodesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/extension/podcasts': {
+      id: '/api/extension/podcasts'
+      path: '/api/extension/podcasts'
+      fullPath: '/api/extension/podcasts'
+      preLoaderRoute: typeof ApiExtensionPodcastsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/live/auth': {
       id: '/api/live/auth'
       path: '/api/live/auth'
@@ -1071,6 +1111,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiBrandingLogoRoute: ApiBrandingLogoRoute,
   ApiDomainsAllowedRoute: ApiDomainsAllowedRoute,
+  ApiExtensionEpisodesRoute: ApiExtensionEpisodesRoute,
+  ApiExtensionPodcastsRoute: ApiExtensionPodcastsRoute,
   ApiLiveAuthRoute: ApiLiveAuthRoute,
   ApiTrackedLinksTokenRoute: ApiTrackedLinksTokenRoute,
   ApiTraefikConfigRoute: ApiTraefikConfigRoute,

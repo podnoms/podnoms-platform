@@ -10,6 +10,8 @@ import { siteInfo } from '~/lib/site'
 import { jsonLdMeta, websiteJsonLd } from '~/lib/structured-data'
 
 export const Route = createFileRoute('/')({
+  // Signed out, the landing page has its own way to sign in and explore.
+  staticData: { ownHeader: true },
   // For signed-in users: the dashboard (starting with the last 30 days), for
   // those with podcasts, and what they're listening to, for everyone. Signed
   // out, some of the site's shows, for the landing page.
