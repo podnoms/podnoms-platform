@@ -50,6 +50,7 @@ import { Route as ApiExtensionPodcastsRouteImport } from './routes/api/extension
 import { Route as ApiLiveAuthRouteImport } from './routes/api/live/auth'
 import { Route as ApiMobileContinueListeningRouteImport } from './routes/api/mobile/continue-listening'
 import { Route as ApiMobileMeRouteImport } from './routes/api/mobile/me'
+import { Route as ApiMobileThemeRouteImport } from './routes/api/mobile/theme'
 import { Route as ApiTrackedLinksTokenRouteImport } from './routes/api/tracked-links/$token'
 import { Route as ApiTraefikConfigRouteImport } from './routes/api/traefik/config'
 import { Route as EmbedSlugEpisodeSlugRouteImport } from './routes/embed/$slug.$episodeSlug'
@@ -282,6 +283,11 @@ const ApiMobileMeRoute = ApiMobileMeRouteImport.update({
   path: '/api/mobile/me',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMobileThemeRoute = ApiMobileThemeRouteImport.update({
+  id: '/api/mobile/theme',
+  path: '/api/mobile/theme',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTrackedLinksTokenRoute = ApiTrackedLinksTokenRouteImport.update({
   id: '/api/tracked-links/$token',
   path: '/api/tracked-links/$token',
@@ -457,6 +463,7 @@ export interface FileRoutesByFullPath {
   '/api/live/auth': typeof ApiLiveAuthRoute
   '/api/mobile/continue-listening': typeof ApiMobileContinueListeningRoute
   '/api/mobile/me': typeof ApiMobileMeRoute
+  '/api/mobile/theme': typeof ApiMobileThemeRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
@@ -523,6 +530,7 @@ export interface FileRoutesByTo {
   '/api/live/auth': typeof ApiLiveAuthRoute
   '/api/mobile/continue-listening': typeof ApiMobileContinueListeningRoute
   '/api/mobile/me': typeof ApiMobileMeRoute
+  '/api/mobile/theme': typeof ApiMobileThemeRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
@@ -592,6 +600,7 @@ export interface FileRoutesById {
   '/api/live/auth': typeof ApiLiveAuthRoute
   '/api/mobile/continue-listening': typeof ApiMobileContinueListeningRoute
   '/api/mobile/me': typeof ApiMobileMeRoute
+  '/api/mobile/theme': typeof ApiMobileThemeRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
   '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
@@ -661,6 +670,7 @@ export interface FileRouteTypes {
     | '/api/live/auth'
     | '/api/mobile/continue-listening'
     | '/api/mobile/me'
+    | '/api/mobile/theme'
     | '/api/tracked-links/$token'
     | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
@@ -727,6 +737,7 @@ export interface FileRouteTypes {
     | '/api/live/auth'
     | '/api/mobile/continue-listening'
     | '/api/mobile/me'
+    | '/api/mobile/theme'
     | '/api/tracked-links/$token'
     | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
@@ -795,6 +806,7 @@ export interface FileRouteTypes {
     | '/api/live/auth'
     | '/api/mobile/continue-listening'
     | '/api/mobile/me'
+    | '/api/mobile/theme'
     | '/api/tracked-links/$token'
     | '/api/traefik/config'
     | '/embed/$slug/$episodeSlug'
@@ -856,6 +868,7 @@ export interface RootRouteChildren {
   ApiLiveAuthRoute: typeof ApiLiveAuthRoute
   ApiMobileContinueListeningRoute: typeof ApiMobileContinueListeningRoute
   ApiMobileMeRoute: typeof ApiMobileMeRoute
+  ApiMobileThemeRoute: typeof ApiMobileThemeRoute
   ApiTrackedLinksTokenRoute: typeof ApiTrackedLinksTokenRoute
   ApiTraefikConfigRoute: typeof ApiTraefikConfigRoute
   EmbedSlugEpisodeSlugRoute: typeof EmbedSlugEpisodeSlugRoute
@@ -1171,6 +1184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileMeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mobile/theme': {
+      id: '/api/mobile/theme'
+      path: '/api/mobile/theme'
+      fullPath: '/api/mobile/theme'
+      preLoaderRoute: typeof ApiMobileThemeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/tracked-links/$token': {
       id: '/api/tracked-links/$token'
       path: '/api/tracked-links/$token'
@@ -1423,6 +1443,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLiveAuthRoute: ApiLiveAuthRoute,
   ApiMobileContinueListeningRoute: ApiMobileContinueListeningRoute,
   ApiMobileMeRoute: ApiMobileMeRoute,
+  ApiMobileThemeRoute: ApiMobileThemeRoute,
   ApiTrackedLinksTokenRoute: ApiTrackedLinksTokenRoute,
   ApiTraefikConfigRoute: ApiTraefikConfigRoute,
   EmbedSlugEpisodeSlugRoute: EmbedSlugEpisodeSlugRoute,

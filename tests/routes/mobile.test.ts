@@ -17,9 +17,12 @@ import { Route as EpisodesRoute } from '~/routes/api/mobile/episodes/index'
 import { Route as MeRoute } from '~/routes/api/mobile/me'
 import { Route as PodcastRoute } from '~/routes/api/mobile/podcasts/$slug'
 import { Route as PodcastsRoute } from '~/routes/api/mobile/podcasts/index'
+import { Route as ThemeRoute } from '~/routes/api/mobile/theme'
 import { oauthProviders, readSession } from '~/server/auth.server'
 import { enqueueEpisode } from '~/server/episode-processor.server'
+import { colourKeys, type ModeStyles } from '~/lib/theme-schema'
 import { handleMobileCors } from '~/server/mobile-api.server'
+import { updateSiteSettings } from '~/server/site-settings.server'
 import { issueMobileToken } from '~/server/mobile-auth.server'
 import { episodeAudioPath } from '~/server/storage.server'
 import { confirmTotpSetup, startTotpSetup } from '~/server/two-factor.server'
@@ -274,5 +277,54 @@ describe('CORS', () => {
     expect(result.response.headers.get('access-control-allow-origin')).toBe('*')
     expect(result.response.headers.get('content-type')).toBe('text/plain')
     expect(await result.response.text()).toBe('ok')
+  })
+})
+
+describe('theme', () => {
+  const getTheme = async () => (await callRoute(ThemeRoute, 'GET', request('/api/mobile/theme'))).json()
+
+  it("is null while the site has app.css's own theme", async () => {
+    expect(await getTheme()).toBeNull()
+  })
+
+  it("gives the site's theme as HSL triplets, with the radius from either mode", async () => {
+    const colours = (primary: string) =>
+      Object.fromEntries(colourKeys.map((key) => [key, key === 'primary' ? primary : '#ffffff'])) as ModeStyles
+    await updateSiteSettings({
+      siteTheme: {
+        basedOn: 'test',
+        styles: {
+          light: { ...colours('oklch(0.6489 0.2370 26.9728)'), radius: '0.5rem' },
+          dark: colours('var(--nope)'),
+        },
+      },
+    })
+    const theme = (await getTheme()) as {
+      basedOn: string
+      light: { colours: Record<string, string>; radius: string }
+      dark: { colours: Record<string, string>; radius: string }
+    }
+    expect(theme.basedOn).toBe('test')
+    expect(theme.light.colours).toMatchObject({ primary: '0 100% 60%', background: '0 0% 100%' })
+    expect(theme.light.radius).toBe('0.5rem')
+    // What can't be converted is left to the app's default.
+    expect(theme.dark.colours.primary).toBeUndefined()
+    expect(theme.dark.radius).toBe('0.5rem')
+  })
+})
+
+describe('theme freshness', () => {
+  it('is never cached, and answers 304 while it hasn\'t changed', async () => {
+    const first = await callRoute(ThemeRoute, 'GET', request('/api/mobile/theme'))
+    expect(first.headers.get('cache-control')).toBe('no-cache')
+    const etag = first.headers.get('etag')!
+    const again = new Request('http://x/api/mobile/theme', { headers: { 'if-none-match': etag } })
+    expect((await callRoute(ThemeRoute, 'GET', again)).status).toBe(304)
+
+    const colours = Object.fromEntries(colourKeys.map((key) => [key, '#123456'])) as ModeStyles
+    await updateSiteSettings({ siteTheme: { basedOn: 'changed', styles: { light: colours, dark: colours } } })
+    const changed = await callRoute(ThemeRoute, 'GET', again)
+    expect(changed.status).toBe(200)
+    expect(await changed.json()).toMatchObject({ basedOn: 'changed' })
   })
 })
