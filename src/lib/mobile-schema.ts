@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { credentialsSchema } from '~/lib/auth-schema'
+import { commentMaxLength } from '~/lib/comment-schema'
 
 // What the mobile app sends to /api/mobile/*.
 
@@ -36,3 +37,13 @@ export const mobileOAuthExchangeSchema = z.object({
   codeVerifier: z.string().min(43).max(128),
   deviceName: z.string().trim().max(100).optional(),
 })
+
+// A comment, or a reply to `parentId`, from the app: text only (GIFs are
+// picked on the site), at `atSeconds` in the episode.
+export const mobileCommentSchema = z.object({
+  body: z.string().trim().min(1, 'Write something first').max(commentMaxLength),
+  atSeconds: z.number().min(0),
+  parentId: z.string().min(1).optional(),
+})
+
+export const mobileCommentLikeSchema = z.object({ like: z.boolean() })

@@ -14,6 +14,10 @@ import { Route as SignOutRoute } from '~/routes/api/mobile/auth/sign-out'
 import { Route as ContinueRoute } from '~/routes/api/mobile/continue-listening'
 import { Route as PositionRoute } from '~/routes/api/mobile/episodes/$id/position'
 import { Route as EpisodesRoute } from '~/routes/api/mobile/episodes/index'
+import { Route as CommentRoute } from '~/routes/api/mobile/comments/$id/index'
+import { Route as CommentLikeRoute } from '~/routes/api/mobile/comments/$id/like'
+import { Route as EpisodeCommentsRoute } from '~/routes/api/mobile/episodes/$id/comments'
+import { Route as EpisodeRoute } from '~/routes/api/mobile/episodes/$id/index'
 import { Route as MeRoute } from '~/routes/api/mobile/me'
 import { Route as PodcastRoute } from '~/routes/api/mobile/podcasts/$slug'
 import { Route as PodcastsRoute } from '~/routes/api/mobile/podcasts/index'
@@ -35,6 +39,7 @@ vi.mock('~/server/episode-processor.server', async (importOriginal) => ({
   enqueueEpisode: vi.fn(),
 }))
 vi.mock('~/server/link-details.server', () => ({ saveLinkArtwork: vi.fn() }))
+vi.mock('~/server/comment-notifications.server', () => ({ notifyCommentRecipients: vi.fn() }))
 // GitHub set up, Facebook not; and whoever the browser has signed in as.
 vi.mock('~/server/auth.server', async (importOriginal) => ({
   ...(await importOriginal<typeof import('~/server/auth.server')>()),
@@ -326,5 +331,68 @@ describe('theme freshness', () => {
     const changed = await callRoute(ThemeRoute, 'GET', again)
     expect(changed.status).toBe(200)
     expect(await changed.json()).toMatchObject({ basedOn: 'changed' })
+  })
+})
+
+describe('episode pages and comments', () => {
+  type Segment = { text: string } | { mention: { slug: string } }
+  type Comment = { id: string; body: Segment[]; atSeconds: number; likeCount: number; canDelete: boolean; replies: Comment[] }
+
+  const page = (id: string, token: string) =>
+    callRoute(EpisodeRoute, 'GET', request(`/api/mobile/episodes/${id}`, { token }), { id })
+  const comment = (id: string, token: string, body: unknown) =>
+    callRoute(EpisodeCommentsRoute, 'POST', request(`/api/mobile/episodes/${id}/comments`, { method: 'POST', token, body }), { id })
+
+  it("gives the owner their episode in any state, and others only what they may see", async () => {
+    const { user, token } = await signedIn()
+    const listener = await signedIn()
+    const podcast = await createPodcast(user.id)
+    const pending = await createEpisode(podcast.id, { status: 'pending', sourceUrl: 'https://youtu.be/x' })
+    const ready = await createEpisode(podcast.id, { status: 'ready', audioUrl: '/a', sourceUrl: 'https://youtu.be/y' })
+
+    const own = (await (await page(pending.id, token)).json()) as { episode: { status: string }; podcast: { isOwner: boolean }; comments: [] }
+    expect(own).toMatchObject({ episode: { status: 'pending' }, podcast: { isOwner: true }, comments: [] })
+
+    expect((await page(pending.id, listener.token)).status).toBe(404)
+    const theirs = (await (await page(ready.id, listener.token)).json()) as { episode: { sourceUrl: string | null }; podcast: { isOwner: boolean } }
+    expect(theirs).toMatchObject({ episode: { sourceUrl: null }, podcast: { isOwner: false } })
+  })
+
+  it('adds comments with mentions, and replies to their thread', async () => {
+    const { user, token } = await signedIn()
+    await createUser({ slug: 'pat', name: 'Pat' })
+    const podcast = await createPodcast(user.id)
+    const episode = await createEpisode(podcast.id, { status: 'ready', audioUrl: '/a', durationSeconds: 600 })
+
+    const added = (await (await comment(episode.id, token, { body: 'Great bit, @pat', atSeconds: 90.6 })).json()) as Comment[]
+    expect(added).toHaveLength(1)
+    expect(added[0]).toMatchObject({ atSeconds: 90, canDelete: true, body: [{ text: 'Great bit, ' }, { mention: { slug: 'pat' } }] })
+
+    const replied = (await (await comment(episode.id, token, { body: 'Agreed', atSeconds: 0, parentId: added[0]!.id })).json()) as Comment[]
+    expect(replied[0]!.replies).toMatchObject([{ atSeconds: 90, body: [{ text: 'Agreed' }] }])
+
+    expect((await comment(episode.id, token, { body: '   ', atSeconds: 0 })).status).toBe(400)
+  })
+
+  it('likes comments, and lets only the writer or podcast owner delete them', async () => {
+    const owner = await signedIn()
+    const writer = await signedIn()
+    const other = await signedIn()
+    const podcast = await createPodcast(owner.user.id)
+    const episode = await createEpisode(podcast.id, { status: 'ready', audioUrl: '/a' })
+    const [written] = (await (await comment(episode.id, writer.token, { body: 'Hello', atSeconds: 5 })).json()) as Comment[]
+
+    const like = await callRoute(
+      CommentLikeRoute,
+      'POST',
+      request(`/api/mobile/comments/${written!.id}/like`, { method: 'POST', token: other.token, body: { like: true } }),
+      { id: written!.id },
+    )
+    expect(await like.json()).toEqual({ likeCount: 1, liked: true })
+
+    const remove = (token: string) =>
+      callRoute(CommentRoute, 'DELETE', request(`/api/mobile/comments/${written!.id}`, { method: 'DELETE', token }), { id: written!.id })
+    expect((await remove(other.token)).status).toBe(404)
+    expect((await remove(owner.token)).status).toBe(204)
   })
 })

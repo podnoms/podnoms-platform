@@ -2,11 +2,16 @@
 // podcasts with full URLs, as the app isn't on this site, and descriptions as
 // plain text, as it doesn't render HTML.
 import '@tanstack/react-start/server-only'
+import { and, eq, or } from 'drizzle-orm'
 import { cssColourToHslTriplet } from '~/lib/colour'
 import { htmlToText } from '~/lib/rich-text'
 import type { ModeStyles } from '~/lib/theme-schema'
+import { storedMentionPattern } from '~/lib/user-slug'
+import { listComments, type CommentReply, type EpisodeComment } from '~/server/comments.server'
+import { db } from '~/server/db/client.server'
+import { episodes, playbackPositions, podcasts } from '~/server/db/schema'
 import { getEpisodeProgress } from '~/server/episode-processor.server'
-import type { listEpisodes } from '~/server/episodes.server'
+import { listenerPosition, visibleTo, type listEpisodes } from '~/server/episodes.server'
 import { siteUrl } from '~/server/extension-api.server'
 import type { listContinueListening } from '~/server/library.server'
 import { getSiteSettings } from '~/server/site-settings.server'
@@ -132,4 +137,91 @@ export async function mobileTheme() {
   if (!siteTheme) return null
   const { light, dark } = siteTheme.styles
   return { basedOn: siteTheme.basedOn, light: appMode(light, dark), dark: appMode(dark, light) }
+}
+
+// --- Episode pages ------------------------------------------------------------
+
+// An episode for its page in the app: one of the user's own, in any state, or
+// any they may see (from Continue listening, say), with its podcast and the
+// comments, which are only on ready episodes. Null if they can't see it.
+export async function mobileEpisodePage(request: Request, userId: string, episodeId: string) {
+  const [row] = await db
+    .select({
+      id: episodes.id,
+      slug: episodes.slug,
+      title: episodes.title,
+      description: episodes.description,
+      sourceUrl: episodes.sourceUrl,
+      imageUrl: episodes.imageUrl,
+      audioUrl: episodes.audioUrl,
+      durationSeconds: episodes.durationSeconds,
+      status: episodes.status,
+      error: episodes.error,
+      private: episodes.private,
+      createdAt: episodes.createdAt,
+      publishedAt: episodes.publishedAt,
+      positionSeconds: playbackPositions.positionSeconds,
+      podcast: { id: podcasts.id, slug: podcasts.slug, title: podcasts.title, imageUrl: podcasts.imageUrl, ownerId: podcasts.userId },
+    })
+    .from(episodes)
+    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .leftJoin(playbackPositions, listenerPosition(userId))
+    .where(and(eq(episodes.id, episodeId), or(eq(podcasts.userId, userId), visibleTo(userId))))
+    .limit(1)
+  if (!row) return null
+  const { podcast, ...episode } = row
+  const isOwner = podcast.ownerId === userId
+  const comments = episode.status === 'ready' ? await listComments(episode.id, userId) : []
+  return {
+    episode: {
+      ...episode,
+      description: episode.description ? htmlToText(episode.description) : null,
+      imageUrl: absolute(request, episode.imageUrl ?? podcast.imageUrl),
+      audioUrl: episode.status === 'ready' ? absolute(request, episode.audioUrl) : null,
+      positionSeconds: episode.positionSeconds ?? 0,
+      // Only the owner sees where it came from, or why it failed.
+      sourceUrl: isOwner ? episode.sourceUrl : null,
+      error: isOwner ? episode.error : null,
+      progress: isOwner ? getEpisodeProgress(episode.id) : null,
+    },
+    podcast: { id: podcast.id, slug: podcast.slug, title: podcast.title, imageUrl: absolute(request, podcast.imageUrl), isOwner },
+    comments: comments.map((comment) => mobileComment(request, comment)),
+  }
+}
+
+// A comment's text in pieces, with its <@userId> mentions as the users they
+// stand for, so the app can show them as @slug.
+function bodySegments(body: string, mentions: CommentReply['mentions']) {
+  const segments: ({ text: string } | { mention: { slug: string; name: string | null } })[] = []
+  let last = 0
+  for (const match of body.matchAll(storedMentionPattern)) {
+    if (match.index > last) segments.push({ text: body.slice(last, match.index) })
+    const user = mentions[match[1]!]
+    segments.push(user ? { mention: user } : { text: '@someone' })
+    last = match.index + match[0].length
+  }
+  if (last < body.length) segments.push({ text: body.slice(last) })
+  return segments
+}
+
+function mobileReply(request: Request, comment: CommentReply) {
+  return {
+    id: comment.id,
+    author: {
+      name: comment.author.name,
+      slug: comment.author.slug,
+      imageUrl: absolute(request, comment.author.image),
+    },
+    body: bodySegments(comment.body, comment.mentions),
+    gif: comment.gif,
+    atSeconds: comment.atSeconds,
+    createdAt: comment.createdAt,
+    likeCount: comment.likeCount,
+    liked: comment.liked,
+    canDelete: comment.canDelete,
+  }
+}
+
+export function mobileComment(request: Request, comment: EpisodeComment) {
+  return { ...mobileReply(request, comment), replies: comment.replies.map((reply) => mobileReply(request, reply)) }
 }

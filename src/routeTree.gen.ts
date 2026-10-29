@@ -71,7 +71,10 @@ import { Route as AuthedSlugEpisodesEpisodeSlugManageRouteImport } from './route
 import { Route as ApiMobileAuthOauthProviderRouteImport } from './routes/api/mobile/auth/oauth/$provider'
 import { Route as ApiMobileAuthOauthExchangeRouteImport } from './routes/api/mobile/auth/oauth/exchange'
 import { Route as ApiMobileAuthOauthFinishRouteImport } from './routes/api/mobile/auth/oauth/finish'
+import { Route as ApiMobileCommentsIdIndexRouteImport } from './routes/api/mobile/comments/$id/index'
+import { Route as ApiMobileCommentsIdLikeRouteImport } from './routes/api/mobile/comments/$id/like'
 import { Route as ApiMobileEpisodesIdIndexRouteImport } from './routes/api/mobile/episodes/$id/index'
+import { Route as ApiMobileEpisodesIdCommentsRouteImport } from './routes/api/mobile/episodes/$id/comments'
 import { Route as ApiMobileEpisodesIdPositionRouteImport } from './routes/api/mobile/episodes/$id/position'
 import { Route as ApiMobileEpisodesIdRetryRouteImport } from './routes/api/mobile/episodes/$id/retry'
 import { Route as ApiPodcastsSlugLiveEventsRouteImport } from './routes/api/podcasts/$slug/live/events'
@@ -393,10 +396,27 @@ const ApiMobileAuthOauthFinishRoute =
     path: '/api/mobile/auth/oauth/finish',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiMobileCommentsIdIndexRoute =
+  ApiMobileCommentsIdIndexRouteImport.update({
+    id: '/api/mobile/comments/$id/',
+    path: '/api/mobile/comments/$id/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiMobileCommentsIdLikeRoute = ApiMobileCommentsIdLikeRouteImport.update({
+  id: '/api/mobile/comments/$id/like',
+  path: '/api/mobile/comments/$id/like',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMobileEpisodesIdIndexRoute =
   ApiMobileEpisodesIdIndexRouteImport.update({
     id: '/api/mobile/episodes/$id/',
     path: '/api/mobile/episodes/$id/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiMobileEpisodesIdCommentsRoute =
+  ApiMobileEpisodesIdCommentsRouteImport.update({
+    id: '/api/mobile/episodes/$id/comments',
+    path: '/api/mobile/episodes/$id/comments',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiMobileEpisodesIdPositionRoute =
@@ -486,9 +506,12 @@ export interface FileRoutesByFullPath {
   '/api/mobile/auth/oauth/$provider': typeof ApiMobileAuthOauthProviderRoute
   '/api/mobile/auth/oauth/exchange': typeof ApiMobileAuthOauthExchangeRoute
   '/api/mobile/auth/oauth/finish': typeof ApiMobileAuthOauthFinishRoute
+  '/api/mobile/comments/$id/like': typeof ApiMobileCommentsIdLikeRoute
+  '/api/mobile/episodes/$id/comments': typeof ApiMobileEpisodesIdCommentsRoute
   '/api/mobile/episodes/$id/position': typeof ApiMobileEpisodesIdPositionRoute
   '/api/mobile/episodes/$id/retry': typeof ApiMobileEpisodesIdRetryRoute
   '/api/podcasts/$slug/live/events': typeof ApiPodcastsSlugLiveEventsRoute
+  '/api/mobile/comments/$id/': typeof ApiMobileCommentsIdIndexRoute
   '/api/mobile/episodes/$id/': typeof ApiMobileEpisodesIdIndexRoute
   '/api/podcasts/$slug/live/hls/$': typeof ApiPodcastsSlugLiveHlsSplatRoute
 }
@@ -553,9 +576,12 @@ export interface FileRoutesByTo {
   '/api/mobile/auth/oauth/$provider': typeof ApiMobileAuthOauthProviderRoute
   '/api/mobile/auth/oauth/exchange': typeof ApiMobileAuthOauthExchangeRoute
   '/api/mobile/auth/oauth/finish': typeof ApiMobileAuthOauthFinishRoute
+  '/api/mobile/comments/$id/like': typeof ApiMobileCommentsIdLikeRoute
+  '/api/mobile/episodes/$id/comments': typeof ApiMobileEpisodesIdCommentsRoute
   '/api/mobile/episodes/$id/position': typeof ApiMobileEpisodesIdPositionRoute
   '/api/mobile/episodes/$id/retry': typeof ApiMobileEpisodesIdRetryRoute
   '/api/podcasts/$slug/live/events': typeof ApiPodcastsSlugLiveEventsRoute
+  '/api/mobile/comments/$id': typeof ApiMobileCommentsIdIndexRoute
   '/api/mobile/episodes/$id': typeof ApiMobileEpisodesIdIndexRoute
   '/api/podcasts/$slug/live/hls/$': typeof ApiPodcastsSlugLiveHlsSplatRoute
 }
@@ -623,9 +649,12 @@ export interface FileRoutesById {
   '/api/mobile/auth/oauth/$provider': typeof ApiMobileAuthOauthProviderRoute
   '/api/mobile/auth/oauth/exchange': typeof ApiMobileAuthOauthExchangeRoute
   '/api/mobile/auth/oauth/finish': typeof ApiMobileAuthOauthFinishRoute
+  '/api/mobile/comments/$id/like': typeof ApiMobileCommentsIdLikeRoute
+  '/api/mobile/episodes/$id/comments': typeof ApiMobileEpisodesIdCommentsRoute
   '/api/mobile/episodes/$id/position': typeof ApiMobileEpisodesIdPositionRoute
   '/api/mobile/episodes/$id/retry': typeof ApiMobileEpisodesIdRetryRoute
   '/api/podcasts/$slug/live/events': typeof ApiPodcastsSlugLiveEventsRoute
+  '/api/mobile/comments/$id/': typeof ApiMobileCommentsIdIndexRoute
   '/api/mobile/episodes/$id/': typeof ApiMobileEpisodesIdIndexRoute
   '/api/podcasts/$slug/live/hls/$': typeof ApiPodcastsSlugLiveHlsSplatRoute
 }
@@ -693,9 +722,12 @@ export interface FileRouteTypes {
     | '/api/mobile/auth/oauth/$provider'
     | '/api/mobile/auth/oauth/exchange'
     | '/api/mobile/auth/oauth/finish'
+    | '/api/mobile/comments/$id/like'
+    | '/api/mobile/episodes/$id/comments'
     | '/api/mobile/episodes/$id/position'
     | '/api/mobile/episodes/$id/retry'
     | '/api/podcasts/$slug/live/events'
+    | '/api/mobile/comments/$id/'
     | '/api/mobile/episodes/$id/'
     | '/api/podcasts/$slug/live/hls/$'
   fileRoutesByTo: FileRoutesByTo
@@ -760,9 +792,12 @@ export interface FileRouteTypes {
     | '/api/mobile/auth/oauth/$provider'
     | '/api/mobile/auth/oauth/exchange'
     | '/api/mobile/auth/oauth/finish'
+    | '/api/mobile/comments/$id/like'
+    | '/api/mobile/episodes/$id/comments'
     | '/api/mobile/episodes/$id/position'
     | '/api/mobile/episodes/$id/retry'
     | '/api/podcasts/$slug/live/events'
+    | '/api/mobile/comments/$id'
     | '/api/mobile/episodes/$id'
     | '/api/podcasts/$slug/live/hls/$'
   id:
@@ -829,9 +864,12 @@ export interface FileRouteTypes {
     | '/api/mobile/auth/oauth/$provider'
     | '/api/mobile/auth/oauth/exchange'
     | '/api/mobile/auth/oauth/finish'
+    | '/api/mobile/comments/$id/like'
+    | '/api/mobile/episodes/$id/comments'
     | '/api/mobile/episodes/$id/position'
     | '/api/mobile/episodes/$id/retry'
     | '/api/podcasts/$slug/live/events'
+    | '/api/mobile/comments/$id/'
     | '/api/mobile/episodes/$id/'
     | '/api/podcasts/$slug/live/hls/$'
   fileRoutesById: FileRoutesById
@@ -888,9 +926,12 @@ export interface RootRouteChildren {
   ApiMobileAuthOauthProviderRoute: typeof ApiMobileAuthOauthProviderRoute
   ApiMobileAuthOauthExchangeRoute: typeof ApiMobileAuthOauthExchangeRoute
   ApiMobileAuthOauthFinishRoute: typeof ApiMobileAuthOauthFinishRoute
+  ApiMobileCommentsIdLikeRoute: typeof ApiMobileCommentsIdLikeRoute
+  ApiMobileEpisodesIdCommentsRoute: typeof ApiMobileEpisodesIdCommentsRoute
   ApiMobileEpisodesIdPositionRoute: typeof ApiMobileEpisodesIdPositionRoute
   ApiMobileEpisodesIdRetryRoute: typeof ApiMobileEpisodesIdRetryRoute
   ApiPodcastsSlugLiveEventsRoute: typeof ApiPodcastsSlugLiveEventsRoute
+  ApiMobileCommentsIdIndexRoute: typeof ApiMobileCommentsIdIndexRoute
   ApiMobileEpisodesIdIndexRoute: typeof ApiMobileEpisodesIdIndexRoute
   ApiPodcastsSlugLiveHlsSplatRoute: typeof ApiPodcastsSlugLiveHlsSplatRoute
 }
@@ -1331,11 +1372,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileAuthOauthFinishRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mobile/comments/$id/': {
+      id: '/api/mobile/comments/$id/'
+      path: '/api/mobile/comments/$id'
+      fullPath: '/api/mobile/comments/$id/'
+      preLoaderRoute: typeof ApiMobileCommentsIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/comments/$id/like': {
+      id: '/api/mobile/comments/$id/like'
+      path: '/api/mobile/comments/$id/like'
+      fullPath: '/api/mobile/comments/$id/like'
+      preLoaderRoute: typeof ApiMobileCommentsIdLikeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mobile/episodes/$id/': {
       id: '/api/mobile/episodes/$id/'
       path: '/api/mobile/episodes/$id'
       fullPath: '/api/mobile/episodes/$id/'
       preLoaderRoute: typeof ApiMobileEpisodesIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/episodes/$id/comments': {
+      id: '/api/mobile/episodes/$id/comments'
+      path: '/api/mobile/episodes/$id/comments'
+      fullPath: '/api/mobile/episodes/$id/comments'
+      preLoaderRoute: typeof ApiMobileEpisodesIdCommentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/mobile/episodes/$id/position': {
@@ -1463,9 +1525,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobileAuthOauthProviderRoute: ApiMobileAuthOauthProviderRoute,
   ApiMobileAuthOauthExchangeRoute: ApiMobileAuthOauthExchangeRoute,
   ApiMobileAuthOauthFinishRoute: ApiMobileAuthOauthFinishRoute,
+  ApiMobileCommentsIdLikeRoute: ApiMobileCommentsIdLikeRoute,
+  ApiMobileEpisodesIdCommentsRoute: ApiMobileEpisodesIdCommentsRoute,
   ApiMobileEpisodesIdPositionRoute: ApiMobileEpisodesIdPositionRoute,
   ApiMobileEpisodesIdRetryRoute: ApiMobileEpisodesIdRetryRoute,
   ApiPodcastsSlugLiveEventsRoute: ApiPodcastsSlugLiveEventsRoute,
+  ApiMobileCommentsIdIndexRoute: ApiMobileCommentsIdIndexRoute,
   ApiMobileEpisodesIdIndexRoute: ApiMobileEpisodesIdIndexRoute,
   ApiPodcastsSlugLiveHlsSplatRoute: ApiPodcastsSlugLiveHlsSplatRoute,
 }
