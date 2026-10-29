@@ -11,7 +11,7 @@ import { commons } from '~/server/image-sources/commons.server'
 import { flickr } from '~/server/image-sources/flickr.server'
 import type { ImageCredit, ImageSource, Photo } from '~/server/image-sources/image-source.server'
 import { pexels } from '~/server/image-sources/pexels.server'
-import { stageImage } from '~/server/images.server'
+import { ImageRejectedError, stageImage } from '~/server/images.server'
 import { reportError } from '~/server/logger.server'
 
 export type { ImageCredit }
@@ -90,7 +90,10 @@ export async function suggestImage(
         const { imageId } = await stageImage(userId, response.body)
         return { imageId, previewUrl: photo!.previewUrl, photoId: photo!.id, credit: photo!.credit }
       } catch (error) {
-        reportError(error, { source: source.name, url: photo!.downloadUrl, msg: 'Could not download a suggested image' })
+        // A photo the image check refused is just skipped.
+        if (!(error instanceof ImageRejectedError)) {
+          reportError(error, { source: source.name, url: photo!.downloadUrl, msg: 'Could not download a suggested image' })
+        }
         exclude.add(photo!.id)
       }
     }

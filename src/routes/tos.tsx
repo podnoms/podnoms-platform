@@ -26,7 +26,7 @@ function TermsPage() {
   const branding = useBranding()
   const { name } = branding
   return (
-    <LegalPage title="Terms of service" updated="9 October 2026" html={branding.termsHtml}>
+    <LegalPage title="Terms of service" updated="29 October 2026" html={branding.termsHtml}>
       <p>
         These terms apply when you use {name}. By creating an account or using the site you agree to them. If you
         don't agree, please don't use {name}.
@@ -56,11 +56,26 @@ function TermsPage() {
         <p>Don't use {name} to:</p>
         <ul>
           <li>infringe copyright or other rights, or share content you aren't allowed to share;</li>
-          <li>publish anything illegal, hateful, harassing or sexually explicit involving minors;</li>
+          <li>publish anything illegal, hateful or harassing, or anything sexually explicit;</li>
           <li>spread malware, spam or anything designed to deceive;</li>
           <li>overload, probe or break the service, or get around its limits.</li>
         </ul>
-        <p>We may remove content or suspend accounts that break these rules.</p>
+        <p>
+          {name} is meant to be suitable for everyone, so images (artwork and profile pictures) must be
+          family-friendly. Images are checked automatically when they're added, and ones that aren't suitable are
+          refused.
+        </p>
+        <p>
+          We may remove content or suspend accounts that break these rules. We report child sexual abuse material to the
+          authorities.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="Reporting content">
+        <p>
+          If you see an image that shouldn't be here, use the report button (the flag) beside it, or email{' '}
+          <ContactLink />. We look at every report.
+        </p>
       </LegalSection>
 
       <LegalSection title="Copyright complaints">

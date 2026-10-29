@@ -3,6 +3,7 @@ import { EpisodeListEnd } from '~/components/episode-list-end'
 import { AuthorLink, Separated } from '~/components/author-link'
 import { FeedUrlButton } from '~/components/feed-url-button'
 import { FollowButton } from '~/components/follow-button'
+import { ReportImageButton } from '~/components/report-image-button'
 import { Icons } from '~/components/icons'
 import { PublicEpisodeList, PublicEpisodeRow } from '~/components/public-episode-row'
 import { TagList } from '~/components/tag-list'
@@ -147,6 +148,7 @@ function PodcastPage() {
                 {/* Owners don't follow their own podcasts; it's in their sidebar already. */}
                 {!podcast.isOwner && <FollowButton podcastId={podcast.id} following={podcast.following} />}
                 <FeedUrlButton feedUrl={podcast.feedUrl} label="Subscribe" />
+                {podcast.imageUrl && !podcast.isOwner && <ReportImageButton targetKind="podcast" targetId={podcast.id} />}
               </div>
             </div>
             {listings.length > 0 && (

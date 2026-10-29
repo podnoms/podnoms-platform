@@ -5,6 +5,7 @@ import { AddToPlaylistButton } from '~/components/add-to-playlist-button'
 import { EpisodeComments, WaveformCommentBox } from '~/components/episode-comments'
 import { Icons } from '~/components/icons'
 import { LikeButton } from '~/components/like-button'
+import { ReportImageButton } from '~/components/report-image-button'
 import { usePlayer } from '~/components/player/player-provider'
 import { Waveform } from '~/components/player/waveform'
 import { EmbedButton, ShareButton } from '~/components/share-buttons'
@@ -145,6 +146,12 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
                   <span className="sr-only">Download MP3</span>
                 </a>
               </Button>
+              {artwork && !isOwner && (
+                <ReportImageButton
+                  targetKind={episode.imageUrl ? 'episode' : 'podcast'}
+                  targetId={episode.imageUrl ? episode.id : podcast.id}
+                />
+              )}
             </div>
           </div>
         </div>

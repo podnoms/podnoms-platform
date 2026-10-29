@@ -380,6 +380,22 @@ export const passwordResetTokens = authSchema.table(
   (table) => [index('password_reset_token_userId_idx').on(table.userId)],
 )
 
+// Tokens the mobile app signs in with (see mobile-auth.server.ts), one per
+// device: only a hash of each is kept. Signing out on the device deletes it.
+export const mobileTokens = authSchema.table(
+  'mobile_token',
+  {
+    tokenHash: text('tokenHash').primaryKey(),
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deviceName: text('deviceName'),
+    createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+    lastUsedAt: timestamp('lastUsedAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('mobile_token_userId_idx').on(table.userId)],
+)
+
 // --- Site settings ----------------------------------------------------------
 
 // Settings for the whole site, edited by admins: one row for each setting
@@ -740,6 +756,44 @@ export const trackedLinks = pgTable(
     createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('tracked_link_token_idx').on(table.token), index('tracked_link_episodeId_idx').on(table.episodeId)],
+)
+
+// Reports of an image on the site (see reports.server.ts): a podcast's or
+// episode's artwork, or a profile picture.
+export const contentReports = pgTable(
+  'content_report',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    // 'podcast', 'episode' or 'user' (ReportTargetKind), and its ID; not a
+    // foreign key, so the report outlives what it was about.
+    targetKind: text('targetKind').notNull(),
+    targetId: text('targetId').notNull(),
+    // The image as it was when reported.
+    imageUrl: text('imageUrl').notNull(),
+    // Whose image it is.
+    ownerId: text('ownerId').references(() => users.id, { onDelete: 'set null' }),
+    // ReportReason.
+    reason: text('reason').notNull(),
+    details: text('details'),
+    reporterId: text('reporterId').references(() => users.id, { onDelete: 'set null' }),
+    // The reporter's address and user agent hashed with the day's salt, as
+    // for episode_activity, so each visitor can report each image once a day.
+    reporterHash: text('reporterHash').notNull(),
+    createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+    // ReportResolution, once an admin has dealt with it.
+    resolution: text('resolution'),
+    resolvedAt: timestamp('resolvedAt', { mode: 'date', withTimezone: true }),
+    resolvedById: text('resolvedById').references(() => users.id, { onDelete: 'set null' }),
+    // For a preserved image: who its owner was then, kept with the copy in
+    // case the account is deleted before the authorities ask.
+    evidence: jsonb('evidence').$type<{ ownerId: string | null; ownerName: string | null; ownerEmail: string | null; what: string }>(),
+  },
+  (table) => [
+    index('content_report_resolvedAt_idx').on(table.resolvedAt),
+    uniqueIndex('content_report_once_a_day_idx').on(table.targetKind, table.targetId, table.imageUrl, table.reporterHash),
+  ],
 )
 
 export const usersRelations = relations(users, ({ many }) => ({

@@ -65,6 +65,8 @@ Settings are read from `.env` and checked at startup by [`src/env.ts`](src/env.t
 | `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION` | No | The `content` of the verification meta tag that Google Search Console or Bing Webmaster Tools gives you, to prove you own the site before submitting `/sitemap.xml`. |
 | `LIVE_SECRET`, `LIVE_API_URL`, `LIVE_HLS_URL`, `LIVE_RTMP_URL` | No | Live broadcasts through MediaMTX, on when all four are set. See [Live broadcasts](#live-broadcasts). |
 | `KLIPY_API_KEY`, `GIPHY_API_KEY` | No | GIFs in live chat, from [KLIPY](https://partner.klipy.com) (free) or [GIPHY](https://developers.giphy.com). KLIPY is used if both are set; without either, chat has no GIF button. See [Live broadcasts](#live-broadcasts). |
+| `AZURE_CONTENT_SAFETY_ENDPOINT`, `AZURE_CONTENT_SAFETY_KEY` | No | An [Azure AI Content Safety](https://learn.microsoft.com/azure/ai-services/content-safety/) resource's endpoint and key. Every image coming into the site is checked with it, and refused when it's over the limits on the admin page's Moderation tab. Strongly recommended for any public site. See [Moderation](#moderation). |
+| `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_API_TOKEN` | No | When the site is behind Cloudflare: its zone ID and an API token with **Cache Purge** permission, so an image taken down from a report leaves Cloudflare's cache at once (images are otherwise cached for a year). See [Moderation](#moderation). |
 | `SENTRY_DSN` | No | Sentry-compatible DSN (e.g. a GlitchTip project) that server and browser errors are reported to. See [Logs and errors](#logs-and-errors). |
 
 ### Media folder
@@ -342,6 +344,20 @@ One image can run several sites, each with its own identity. Admins set it on th
 - **Analytics**: a script tag (address plus `data-…` attributes) added to every page, such as Umami's or Plausible's. There's none by default.
 
 Anything left unset is podnoms' own branding. The TXT record for custom domains is named after `CUSTOM_DOMAIN_TXT_LABEL` (default `podnoms`), an environment variable rather than a setting, as changing it unverifies every domain.
+
+### Moderation
+
+Images (podcast and episode artwork, profile pictures, suggested photos and thumbnails downloaded from links) are checked on the way in with [Azure AI Content Safety](https://learn.microsoft.com/azure/ai-services/content-safety/) when `AZURE_CONTENT_SAFETY_ENDPOINT` and `AZURE_CONTENT_SAFETY_KEY` are set. Azure rates each image for sexual content, violence, hate and self-harm; anything over the limits on the admin page's **Moderation** tab is refused (the defaults keep the site family-friendly). If Azure can't be reached, uploads are refused until it can, rather than let through unchecked. The free (F0) tier covers 5,000 images a month.
+
+Anyone can report an image with the flag button on podcast, episode and profile pages. Admins see reports in their notifications (child safety reports are also emailed at once) and deal with them on the Moderation tab: **Remove image**, **Preserve and take down**, or **Dismiss**.
+
+**Child sexual abuse material.** Azure judges how explicit an image is, but it doesn't recognise known abuse images. For that, put the site behind Cloudflare and turn on its free [CSAM Scanning Tool](https://developers.cloudflare.com/cache/reference/csam-scanning/), which checks images Cloudflare caches (everything under `/images/`) against NCMEC's lists and blocks matches. If you find such an image:
+
+1. Use **Preserve and take down**. It's taken off the site at once, and a copy is kept in `MEDIA_DIR/quarantine` (never served) with a record of whose it was. Don't delete, download or share it.
+2. Report it: to [hotline.ie](https://report.hotline.ie) in Ireland, the [IWF](https://report.iwf.org.uk) in the UK, or [NCMEC](https://report.cybertip.org) in the US (US providers are required to, and to keep the evidence for a year).
+3. Deal with the account, and look at what else it has posted.
+
+Images are cached for a year, so set `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_API_TOKEN` to have removed images purged from Cloudflare's cache automatically; otherwise purge them by hand.
 
 ### Logs and errors
 

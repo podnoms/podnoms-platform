@@ -130,6 +130,7 @@ describe('migrations', () => {
       'channel_item',
       'comment_like',
       'comment_mention',
+      'content_report',
       'episode',
       'episode_activity',
       'episode_comment',
@@ -153,6 +154,7 @@ describe('migrations', () => {
     const { rows: auth } = await pg.query<{ tablename: string }>(`select tablename from pg_tables where schemaname = 'auth' order by 1`)
     expect(auth.map((r) => r.tablename)).toEqual([
       'account',
+      'mobile_token',
       'password_reset_token',
       'recovery_code',
       'security_key',

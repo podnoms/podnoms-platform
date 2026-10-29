@@ -10,6 +10,9 @@ import sharp from 'sharp'
 import { openGraphImageSize } from '~/lib/images'
 import { db } from '~/server/db/client.server'
 import { episodes, podcasts } from '~/server/db/schema'
+import { alertAdminsOfBlockedImage } from '~/server/admin-alerts.server'
+import { moderateImage, ModerationUnavailableError } from '~/server/image-moderation.server'
+import { logger, reportError } from '~/server/logger.server'
 import { decodeImageToPng } from '~/server/media.server'
 import {
   ensureImagesDir,
@@ -62,17 +65,52 @@ export async function convertToArtwork(source: string, destination: string) {
   }
 }
 
+// An image the content check (image-moderation.server.ts) refused.
+export class ImageRejectedError extends UploadError {
+  constructor() {
+    super("This image can't be used here: it doesn't meet the site's content guidelines", 422)
+  }
+}
+
+// Checks converted artwork, deleting it unless it's allowed. Throws
+// ImageRejectedError, or ModerationUnavailableError when it can't be checked.
+async function checkArtwork(path: string, context: { userId?: string; source?: string }) {
+  try {
+    const result = await moderateImage(path)
+    if (result.allowed) return
+    logger.warn({ ...context, category: result.category, severity: result.severity }, 'Refused an image')
+    if (result.category === 'sexual' && result.severity === 6) {
+      void alertAdminsOfBlockedImage(context).catch((error: unknown) =>
+        reportError(error, { msg: 'Alerting admins of a blocked image failed', ...context }),
+      )
+    }
+  } catch (error) {
+    await rm(path, { force: true })
+    if (error instanceof ModerationUnavailableError) reportError(error, { msg: 'Could not check an image', ...context })
+    throw error
+  }
+  await rm(path, { force: true })
+  throw new ImageRejectedError()
+}
+
 // Converts the uploaded image and stages it for the user. Returns its ID,
 // which saving a podcast or episode with it turns into a stored image.
 export async function stageImage(userId: string, body: ReadableStream<Uint8Array>) {
   const dir = await ensureUserStagedImagesDir(userId)
   void removeStaleFiles(dir).catch(() => {})
   const imageId = crypto.randomUUID()
-  const original = `${stagedImagePath(userId, imageId)}.original`
+  const staged = stagedImagePath(userId, imageId)
+  const original = `${staged}.original`
   try {
     await receiveFile(body, original, maxImageBytes)
-    await convertToArtwork(original, stagedImagePath(userId, imageId)).catch(() => {
+    await convertToArtwork(original, staged).catch(() => {
       throw new UploadError("That file isn't an image we can read", 415)
+    })
+    await checkArtwork(staged, { userId }).catch((error: unknown) => {
+      if (error instanceof ModerationUnavailableError) {
+        throw new UploadError("Images can't be checked right now. Please try again shortly.", 503)
+      }
+      throw error
     })
     return { imageId }
   } finally {
@@ -170,7 +208,8 @@ async function makeOnce(path: string, write: (partial: string) => Promise<unknow
 }
 
 // Downloads an image, e.g. a video's thumbnail, into the image store.
-// Returns its URL, or null if it couldn't be fetched or isn't an image.
+// Returns its URL, or null if it couldn't be fetched, isn't an image, or
+// was refused (or couldn't be checked) by the content check.
 export async function downloadImage(remoteUrl: string) {
   const imageId = crypto.randomUUID()
   await ensureImagesDir()
@@ -180,6 +219,7 @@ export async function downloadImage(remoteUrl: string) {
     if (!response.ok || !response.body) return null
     await receiveFile(response.body, original, maxImageBytes)
     await convertToArtwork(original, imagePath(imageId))
+    await checkArtwork(imagePath(imageId), { source: remoteUrl })
     return imageUrl(imageId)
   } catch {
     return null

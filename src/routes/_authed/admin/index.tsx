@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { createFileRoute, notFound, useNavigate, useRouter } from '@tanstack/react-router'
 import { z } from 'zod'
+import { AdminModeration } from '~/components/admin-moderation'
 import { BrandingSettings } from '~/components/branding-settings'
 import { Icons } from '~/components/icons'
 import { ThemeSettings } from '~/components/theme-settings'
@@ -27,7 +28,7 @@ import { platformNames, type Platform } from '~/lib/platforms'
 import { pageTitle, useBranding } from '~/lib/branding'
 import { emailSettingsSchema, siteSettingsSchema } from '~/lib/site-settings-schema'
 
-const adminTabs = z.enum(['downloads', 'users', 'email', 'branding', 'theme'])
+const adminTabs = z.enum(['downloads', 'users', 'moderation', 'email', 'branding', 'theme'])
 type AdminTab = z.infer<typeof adminTabs>
 
 export const Route = createFileRoute('/_authed/admin/')({
@@ -75,6 +76,12 @@ function AdminPage() {
             Users
             <span className="text-muted-foreground tabular-nums">{overview.users.length}</span>
           </TabsTrigger>
+          <TabsTrigger value="moderation">
+            Moderation
+            {overview.moderation.reports.length > 0 && (
+              <span className="text-destructive tabular-nums">{overview.moderation.reports.length}</span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="email">
             Email
             {!overview.email.enabled && <span className="size-1.5 rounded-full bg-muted-foreground" />}
@@ -99,6 +106,9 @@ function AdminPage() {
         </TabsContent>
         <TabsContent value="users" className="flex flex-col gap-6 pt-4">
           <Users users={overview.users} />
+        </TabsContent>
+        <TabsContent value="moderation" className="flex flex-col gap-6 pt-4">
+          <AdminModeration moderation={overview.moderation} />
         </TabsContent>
         <TabsContent value="email" className="flex flex-col gap-6 pt-4">
           <EmailSettings email={overview.email} />

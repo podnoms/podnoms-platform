@@ -5,6 +5,7 @@ import '@tanstack/react-start/server-only'
 import type { ReactNode } from 'react'
 import { render } from '@react-email/components'
 import { platformNames, type Platform } from '~/lib/platforms'
+import { reportReasonNames, type ReportReason } from '~/lib/report-schema'
 import {
   colors,
   EmailButton,
@@ -239,6 +240,56 @@ export function botCheckEmail(platform: Platform, error: string, adminLink: stri
       </>
     ),
     footer: `You get this as a ${siteName} admin, at most every 6 hours while it keeps happening.`,
+  }
+}
+
+export function blockedImageEmail(who: string | null, source: string | null, adminLink: string | null, siteName: string): EmailMessage {
+  return {
+    subject: `${siteName} refused a sexually explicit image`,
+    preview: who ? `${who} tried to use it.` : 'It was downloaded as artwork.',
+    content: (
+      <>
+        <EmailHeading>An explicit image was refused</EmailHeading>
+        <EmailText>
+          The image check rated an image as highly sexual, so it wasn’t saved.{' '}
+          {who ? <>{who} tried to use it.</> : <>It was downloaded as artwork{source ? <> from {source}</> : null}.</>}
+        </EmailText>
+        <EmailText>
+          The image itself isn’t kept. If this account keeps doing it, look at what else it has posted.
+        </EmailText>
+        {adminLink && <EmailButton href={adminLink}>Open moderation</EmailButton>}
+      </>
+    ),
+    footer: `You get this as a ${siteName} admin, at most once a day for each user.`,
+  }
+}
+
+export function contentReportEmail(
+  report: { reason: ReportReason; what: string },
+  adminLink: string | null,
+  siteName: string,
+): EmailMessage {
+  const urgent = report.reason === 'childSafety'
+  return {
+    subject: urgent ? `Urgent: an image was reported as child abuse` : `An image was reported`,
+    preview: `${report.what}: ${reportReasonNames[report.reason]}`,
+    content: (
+      <>
+        <EmailHeading>{urgent ? 'Child safety report' : 'An image was reported'}</EmailHeading>
+        <EmailText>
+          Someone reported the image on {report.what}: “{reportReasonNames[report.reason]}”.
+        </EmailText>
+        {urgent && (
+          <EmailText>
+            Please look at it now. If it is child abuse imagery, choose “Preserve and take down”, which hides it at once
+            but keeps a copy, then report it (to hotline.ie in Ireland, the IWF in the UK, or NCMEC in the US).
+            Don’t delete or download it.
+          </EmailText>
+        )}
+        {adminLink && <EmailButton href={adminLink}>Open moderation</EmailButton>}
+      </>
+    ),
+    footer: `You get this as a ${siteName} admin.`,
   }
 }
 

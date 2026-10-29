@@ -3,7 +3,7 @@ import { stat } from 'node:fs/promises'
 import { Readable } from 'node:stream'
 import { createFileRoute } from '@tanstack/react-router'
 import { recordActivity } from '~/server/activity.server'
-import { getSession } from '~/server/auth.server'
+import { requestUserId } from '~/server/mobile-auth.server'
 import { getEpisodeAudio } from '~/server/episodes.server'
 import { reportError } from '~/server/logger.server'
 import { episodeAudioPath } from '~/server/storage.server'
@@ -12,14 +12,14 @@ import { episodeAudioPath } from '~/server/storage.server'
 // seek and which podcast apps expect. Counts as a download for the podcast's
 // stats, except for the site's own players, which report plays instead. A
 // private podcast's audio needs its feed key (as the feed's links carry) or
-// its owner signed in; a private episode's, its owner.
+// its owner signed in (or the app's token); a private episode's, its owner.
 export const Route = createFileRoute('/api/episodes/$id/audio')({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
         const episode = await getEpisodeAudio(params.id, {
           key: new URL(request.url).searchParams.get('key'),
-          viewerId: async () => (await getSession(request))?.user?.id ?? null,
+          viewerId: () => requestUserId(request),
         })
         if (!episode) return new Response('Not found', { status: 404 })
 

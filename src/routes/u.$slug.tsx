@@ -3,6 +3,7 @@ import { Icons } from '~/components/icons'
 import { PageSection } from '~/components/page-section'
 import { PodcastGrid } from '~/components/podcast-card'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
+import { ReportImageButton } from '~/components/report-image-button'
 import { Button } from '~/components/ui/button'
 import { Item, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from '~/components/ui/item'
 import { fetchUserProfile } from '~/functions/public'
@@ -55,6 +56,7 @@ function ProfilePage() {
             <Link to="/settings">Edit profile</Link>
           </Button>
         )}
+        {profile.image && !profile.isYou && <ReportImageButton targetKind="user" targetId={profile.id} />}
       </section>
 
       {profile.description && (

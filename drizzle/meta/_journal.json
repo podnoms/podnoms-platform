@@ -253,6 +253,20 @@
       "when": 1792713321770,
       "tag": "0035_playlists",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793295088834,
+      "tag": "0036_mobile_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793298823071,
+      "tag": "0037_content_reports",
+      "breakpoints": true
     }
   ]
 }

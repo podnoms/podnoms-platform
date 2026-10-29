@@ -25,6 +25,10 @@ const brandingDir = resolve(env.MEDIA_DIR, 'branding')
 const fontsDir = resolve(env.MEDIA_DIR, 'fonts')
 // MaxMind's GeoLite2 database, downloaded by geoip.server.ts.
 const geoipDir = resolve(env.MEDIA_DIR, 'geoip')
+// Images taken down from reports but kept as evidence (see reports.server.ts).
+// Never served, and never cleaned up: only deleted by hand, once the
+// authorities no longer need them.
+const quarantineDir = resolve(env.MEDIA_DIR, 'quarantine')
 
 // Every folder above, for the media clean-up job (see media-cleanup.server.ts).
 export const mediaDirs = {
@@ -181,6 +185,15 @@ export async function ensureUserStagedImagesDir(userId: string) {
   const dir = join(stagedImagesDir, safeId(userId))
   await mkdir(dir, { recursive: true })
   return dir
+}
+
+export async function ensureQuarantineDir() {
+  await mkdir(quarantineDir, { recursive: true, mode: 0o700 })
+  return quarantineDir
+}
+
+export function quarantinePath(reportId: string) {
+  return join(quarantineDir, `${safeId(reportId)}.jpg`)
 }
 
 export function stagedImagePath(userId: string, imageId: string) {

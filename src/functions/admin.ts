@@ -2,16 +2,20 @@ import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
+import { imageModerationSchema } from '~/lib/image-moderation'
+import { resolveReportSchema } from '~/lib/report-schema'
 import { emailSettingsSchema, siteSettingsSchema, testEmailSchema, userChannelLimitSchema } from '~/lib/site-settings-schema'
 import {
   endCooldown,
   getAdminOverview,
   saveEmailSettings,
+  saveImageModeration,
   saveSiteSettings,
   sendTestEmail,
   setUserChannelLimit,
 } from '~/server/admin.server'
 import { getSession } from '~/server/auth.server'
+import { resolveReport } from '~/server/reports.server'
 import { isAdmin } from '~/server/users.server'
 
 async function requireAdmin() {
@@ -59,4 +63,22 @@ export const endPlatformCooldown = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     await requireAdmin()
     endCooldown(data.platform)
+  })
+
+export const saveAdminImageModeration = createServerFn({ method: 'POST' })
+  .validator(imageModerationSchema)
+  .handler(async ({ data }) => {
+    await requireAdmin()
+    await saveImageModeration(data)
+  })
+
+// Returns whether the image was purged from Cloudflare's cache (null when
+// there's no Cloudflare to purge).
+export const resolveAdminReport = createServerFn({ method: 'POST' })
+  .validator(resolveReportSchema)
+  .handler(async ({ data }) => {
+    const adminId = await requireAdmin()
+    const result = await resolveReport(adminId, data.reportId, data.resolution)
+    if (!result) throw notFound()
+    return result
   })

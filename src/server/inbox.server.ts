@@ -18,6 +18,8 @@ export type NotificationKind =
   | 'mention'
   | 'reply'
   | 'botCheck'
+  | 'blockedImage'
+  | 'contentReport'
 
 export type InboxItem = {
   kind: NotificationKind

@@ -3,7 +3,7 @@ import { z } from 'zod'
 // What a browser reports to /api/episodes/$id/activity. Downloads aren't
 // here: the audio endpoint records those itself.
 export const reportedActivitySchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('play'), source: z.enum(['web', 'listen', 'embed']), referrer: z.string().max(2048).optional() }),
+  z.object({ type: z.literal('play'), source: z.enum(['web', 'listen', 'embed', 'app']), referrer: z.string().max(2048).optional() }),
   z.object({
     type: z.literal('share'),
     source: z.enum(['web', 'listen', 'embed']),

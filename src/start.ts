@@ -73,7 +73,14 @@ const customDomainMiddleware = createMiddleware().server(async ({ request, next 
   return handleCustomDomain(request, () => next())
 })
 
+// The mobile app's API answers browsers on other origins (see mobile-api.server.ts).
+const mobileCorsMiddleware = createMiddleware().server(async ({ request, pathname, next }) => {
+  if (!pathname.startsWith('/api/mobile/')) return next()
+  const { handleMobileCors } = await import('~/server/mobile-api.server')
+  return handleMobileCors(request, () => next())
+})
+
 export const startInstance = createStart(() => ({
-  requestMiddleware: [loggingMiddleware, noindexMiddleware, customDomainMiddleware],
+  requestMiddleware: [loggingMiddleware, noindexMiddleware, mobileCorsMiddleware, customDomainMiddleware],
   functionMiddleware: [serverFnErrorMiddleware],
 }))

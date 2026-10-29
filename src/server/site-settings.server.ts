@@ -9,6 +9,7 @@ import '@tanstack/react-start/server-only'
 import { sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { landingCopySchema } from '~/lib/branding-schema'
+import { defaultImageModerationLimits, imageModerationSchema } from '~/lib/image-moderation'
 import { siteThemeSchema } from '~/lib/theme-schema'
 import { db } from '~/server/db/client.server'
 import { siteSettings } from '~/server/db/schema'
@@ -50,6 +51,8 @@ const settingSchemas = {
   analyticsAttributes: z.record(z.string(), z.string()),
   // The site's theme, from the Theme tab; null for app.css's own.
   siteTheme: siteThemeSchema.nullable(),
+  // How strict the image check is (see image-moderation.server.ts).
+  imageModeration: imageModerationSchema,
 }
 
 export type SiteSettings = { [K in keyof typeof settingSchemas]: z.infer<(typeof settingSchemas)[K]> }
@@ -78,6 +81,7 @@ export const defaultSiteSettings: SiteSettings = {
   analyticsScriptUrl: null,
   analyticsAttributes: {},
   siteTheme: null,
+  imageModeration: defaultImageModerationLimits,
 }
 
 const isSettingName = (key: string): key is SettingName => Object.hasOwn(settingSchemas, key)

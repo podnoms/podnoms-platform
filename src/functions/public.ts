@@ -58,9 +58,9 @@ export const fetchUserProfile = createServerFn({ method: 'GET' })
     const { userId } = await visitor()
     const profile = await getPublicProfile(data.slug)
     if (!profile) throw notFound()
-    const { id, ...rest } = profile
+    const { id } = profile
     return {
-      ...rest,
+      ...profile,
       // Sanitised when saved; again here, as it's rendered as HTML.
       description: sanitizeDescription(profile.description),
       isYou: userId === id,

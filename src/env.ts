@@ -111,6 +111,17 @@ export const env = createEnv({
     // providers require, so it isn't secret.
     KLIPY_API_KEY: z.string().optional(),
     GIPHY_API_KEY: z.string().optional(),
+    // Azure AI Content Safety (see image-moderation.server.ts), which checks
+    // every image coming into the site; e.g.
+    // https://<resource>.cognitiveservices.azure.com/ and one of its keys.
+    // Images aren't checked unless both are set.
+    AZURE_CONTENT_SAFETY_ENDPOINT: z.url().optional(),
+    AZURE_CONTENT_SAFETY_KEY: z.string().optional(),
+    // When the site is behind Cloudflare: its zone ID and an API token allowed
+    // to purge its cache, so an image taken down from a report stops being
+    // served from Cloudflare's cache at once (see reports.server.ts).
+    CLOUDFLARE_ZONE_ID: z.string().optional(),
+    CLOUDFLARE_API_TOKEN: z.string().optional(),
     LIVE_RTMP_URL: z.string().regex(/^rtmps?:\/\//, 'Must be an rtmp:// or rtmps:// URL').optional(),
   },
   clientPrefix: 'VITE_',

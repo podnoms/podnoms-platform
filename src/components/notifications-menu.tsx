@@ -26,6 +26,8 @@ const kindIcons: Record<NotificationKind, ComponentType<{ className?: string }>>
   mention: Icons.mention,
   reply: Icons.comment,
   botCheck: Icons.warning,
+  blockedImage: Icons.moderation,
+  contentReport: Icons.report,
 }
 
 export function NotificationsMenu() {

@@ -1,5 +1,6 @@
 // The admin page: site-wide download and email settings, the state of the
-// download throttle, and each user's channel import limit. Callers check isAdmin.
+// download throttle, each user's channel import limit, and moderation (how
+// strict the image check is, and reports). Callers check isAdmin.
 import '@tanstack/react-start/server-only'
 import { asc, count, eq } from 'drizzle-orm'
 import { env } from '~/env'
@@ -11,13 +12,17 @@ import { clearCooldown, pump, throttleStatus } from '~/server/download-throttle.
 import { fetcherHealth } from '~/server/fetcher.server'
 import { configFromSettings, getEmailConfig, getEmailStatus, sendEmail, updateEmailSettings } from '~/server/email.server'
 import { testEmail } from '~/server/emails.server'
+import type { ImageModerationLimits } from '~/lib/image-moderation'
+import { imageModerationEnabled } from '~/server/image-moderation.server'
+import { cloudflare, listOpenReports } from '~/server/reports.server'
 import { getSiteSettings, updateSiteSettings } from '~/server/site-settings.server'
 import { getBranding } from '~/server/branding.server'
 
 export async function getAdminOverview() {
-  const [settings, fetcher, userRows] = await Promise.all([
+  const [settings, fetcher, reports, userRows] = await Promise.all([
     getSiteSettings(),
     fetcherHealth(),
+    listOpenReports(),
     db
       .select({
         id: users.id,
@@ -49,6 +54,14 @@ export async function getAdminOverview() {
     users: userRows,
     // Channels are only checked by the job queue.
     jobsRunning: Boolean(env.REDIS_URL),
+    moderation: {
+      // Whether images are checked at all (Azure Content Safety is set up).
+      checking: imageModerationEnabled(),
+      limits: settings.imageModeration,
+      // Whether removed images can be purged from Cloudflare's cache.
+      purging: Boolean(cloudflare.zoneId && cloudflare.token),
+      reports,
+    },
   }
 }
 
@@ -56,6 +69,10 @@ export async function saveSiteSettings(input: SiteSettingsInput) {
   await updateSiteSettings(input)
   // More slots, or a shorter delay, can let waiting downloads start now.
   void pump()
+}
+
+export async function saveImageModeration(limits: ImageModerationLimits) {
+  await updateSiteSettings({ imageModeration: limits })
 }
 
 export async function setUserChannelLimit(userId: string, limit: number) {
