@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { buildPodcastFeed, feedPath, podcastGuid } from '~/server/feed.server'
+import { buildShowFeed, feedPath, podcastGuid } from '~/server/feed.server'
 import { resetDb } from '../db'
-import { createEpisode, createPodcast, createUser, db } from '../helpers'
+import { createEpisode, createShow, createUser, db } from '../helpers'
 
 const origin = 'https://pod.example'
 
@@ -28,19 +28,19 @@ describe('feedPath', () => {
     expect(feedPath('my-show')).toBe('/feed/my-show')
   })
 
-  it("carries a private podcast's feed key", () => {
+  it("carries a private show's feed key", () => {
     expect(feedPath('my-show', 'k3y')).toBe('/feed/my-show?key=k3y')
   })
 })
 
-describe('buildPodcastFeed', () => {
+describe('buildShowFeed', () => {
   it('returns null for an unknown slug', async () => {
-    expect(await buildPodcastFeed('nope', origin)).toBeNull()
+    expect(await buildShowFeed('nope', origin)).toBeNull()
   })
 
-  it('describes the podcast with the iTunes tags podcast apps expect', async () => {
+  it('describes the show with the iTunes tags podcast apps expect', async () => {
     const user = await createUser({ name: 'Ada & Co' })
-    await createPodcast(user.id, {
+    await createShow(user.id, {
       slug: 'show',
       title: 'The <Show>',
       description: '<p>About &amp; more</p>',
@@ -49,7 +49,7 @@ describe('buildPodcastFeed', () => {
       language: 'en-ie',
       explicit: true,
     })
-    const xml = (await buildPodcastFeed('show', origin))!
+    const xml = (await buildShowFeed('show', origin))!
     expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true)
     const doc = await parseFeed(xml)
     const channel = doc.querySelector('channel')!
@@ -69,28 +69,28 @@ describe('buildPodcastFeed', () => {
   })
 
   it('nests the subcategory in the category', async () => {
-    await createPodcast((await createUser()).id, { slug: 'show', category: 'TV & Film', subcategory: 'Film Reviews' })
-    const xml = (await buildPodcastFeed('show', origin))!
+    await createShow((await createUser()).id, { slug: 'show', category: 'TV & Film', subcategory: 'Film Reviews' })
+    const xml = (await buildShowFeed('show', origin))!
     expect(xml).toContain('<itunes:category text="TV &amp; Film"><itunes:category text="Film Reviews"/></itunes:category>')
     await parseFeed(xml)
   })
 
-  it("uses the podcast's own author over the owner's name", async () => {
-    await createPodcast((await createUser({ name: 'Ada' })).id, { slug: 'show', author: 'The Show Team' })
-    const doc = await parseFeed((await buildPodcastFeed('show', origin))!)
+  it("uses the show's own author over the owner's name", async () => {
+    await createShow((await createUser({ name: 'Ada' })).id, { slug: 'show', author: 'The Show Team' })
+    const doc = await parseFeed((await buildShowFeed('show', origin))!)
     expect(doc.getElementsByTagName('itunes:author')[0]!.textContent).toBe('The Show Team')
   })
 
   it('names the owner, and locks the feed to them, only when they give an email', async () => {
     const user = await createUser({ name: 'Ada' })
-    await createPodcast(user.id, { slug: 'open' })
-    await createPodcast(user.id, { slug: 'owned', ownerEmail: 'ada@example.com' })
+    await createShow(user.id, { slug: 'open' })
+    await createShow(user.id, { slug: 'owned', ownerEmail: 'ada@example.com' })
 
-    const open = await parseFeed((await buildPodcastFeed('open', origin))!)
+    const open = await parseFeed((await buildShowFeed('open', origin))!)
     expect(open.getElementsByTagName('itunes:owner')).toHaveLength(0)
     expect(open.getElementsByTagName('podcast:locked')[0]!.textContent).toBe('no')
 
-    const owned = await parseFeed((await buildPodcastFeed('owned', origin))!)
+    const owned = await parseFeed((await buildShowFeed('owned', origin))!)
     const owner = owned.getElementsByTagName('itunes:owner')[0]!
     expect(owner.getElementsByTagName('itunes:name')[0]!.textContent).toBe('Ada')
     expect(owner.getElementsByTagName('itunes:email')[0]!.textContent).toBe('ada@example.com')
@@ -100,34 +100,34 @@ describe('buildPodcastFeed', () => {
   })
 
   it("gives the feed a podcast:guid from its URL", async () => {
-    await createPodcast((await createUser()).id, { slug: 'show' })
-    const doc = await parseFeed((await buildPodcastFeed('show', origin))!)
+    await createShow((await createUser()).id, { slug: 'show' })
+    const doc = await parseFeed((await buildShowFeed('show', origin))!)
     expect(doc.getElementsByTagName('podcast:guid')[0]!.textContent).toBe(podcastGuid(`${origin}/feed/show`))
   })
 
   it('falls back to the title as description when there is none', async () => {
-    await createPodcast((await createUser()).id, { slug: 'show', title: 'Title only' })
-    const doc = await parseFeed((await buildPodcastFeed('show', origin))!)
+    await createShow((await createUser()).id, { slug: 'show', title: 'Title only' })
+    const doc = await parseFeed((await buildShowFeed('show', origin))!)
     expect(doc.querySelector('channel > description')!.textContent).toBe('Title only')
   })
 
-  it('serves private podcasts only with their feed key', async () => {
-    await createPodcast((await createUser()).id, { slug: 'secret', private: true, feedKey: 'k3y' })
-    expect(await buildPodcastFeed('secret', origin)).toBeNull()
-    expect(await buildPodcastFeed('secret', origin, { key: 'wrong' })).toBeNull()
-    expect(await buildPodcastFeed('secret', origin, { key: 'k3y' })).not.toBeNull()
+  it('serves private shows only with their feed key', async () => {
+    await createShow((await createUser()).id, { slug: 'secret', private: true, feedKey: 'k3y' })
+    expect(await buildShowFeed('secret', origin)).toBeNull()
+    expect(await buildShowFeed('secret', origin, { key: 'wrong' })).toBeNull()
+    expect(await buildShowFeed('secret', origin, { key: 'k3y' })).not.toBeNull()
   })
 
-  it("doesn't serve a private podcast that has no feed key", async () => {
-    await createPodcast((await createUser()).id, { slug: 'secret', private: true })
-    expect(await buildPodcastFeed('secret', origin)).toBeNull()
-    expect(await buildPodcastFeed('secret', origin, { key: '' })).toBeNull()
+  it("doesn't serve a private show that has no feed key", async () => {
+    await createShow((await createUser()).id, { slug: 'secret', private: true })
+    expect(await buildShowFeed('secret', origin)).toBeNull()
+    expect(await buildShowFeed('secret', origin, { key: '' })).toBeNull()
   })
 
-  it("blocks private podcasts from directories, with the key on its own and its audio's links", async () => {
-    const podcast = await createPodcast((await createUser()).id, { slug: 'secret', private: true, feedKey: 'k3y' })
-    await createEpisode(podcast.id, readyEpisode({ audioUrl: '/api/episodes/x/audio?v=2' }))
-    const doc = await parseFeed((await buildPodcastFeed('secret', origin, { key: 'k3y' }))!)
+  it("blocks private shows from directories, with the key on its own and its audio's links", async () => {
+    const show = await createShow((await createUser()).id, { slug: 'secret', private: true, feedKey: 'k3y' })
+    await createEpisode(show.id, readyEpisode({ audioUrl: '/api/episodes/x/audio?v=2' }))
+    const doc = await parseFeed((await buildShowFeed('secret', origin, { key: 'k3y' }))!)
     expect(doc.getElementsByTagName('itunes:block')[0]!.textContent).toBe('Yes')
     expect(doc.getElementsByTagName('atom:link')[0]!.getAttribute('href')).toBe(`${origin}/feed/secret?key=k3y`)
     expect(doc.querySelector('enclosure')!.getAttribute('url')).toBe(`${origin}/api/episodes/x/audio?v=2&key=k3y`)
@@ -136,31 +136,31 @@ describe('buildPodcastFeed', () => {
   })
 
   it('leaves out private episodes', async () => {
-    const podcast = await createPodcast((await createUser()).id, { slug: 'show' })
-    await createEpisode(podcast.id, readyEpisode({ title: 'Public' }))
-    await createEpisode(podcast.id, readyEpisode({ title: 'Hidden', private: true }))
-    const doc = await parseFeed((await buildPodcastFeed('show', origin))!)
+    const show = await createShow((await createUser()).id, { slug: 'show' })
+    await createEpisode(show.id, readyEpisode({ title: 'Public' }))
+    await createEpisode(show.id, readyEpisode({ title: 'Hidden', private: true }))
+    const doc = await parseFeed((await buildShowFeed('show', origin))!)
     const titles = [...doc.querySelectorAll('item')].map((item) => item.getElementsByTagName('title')[0]!.textContent)
     expect(titles).toEqual(['Public'])
   })
 
   it('lists only ready episodes with audio, newest first', async () => {
-    const podcast = await createPodcast((await createUser()).id, { slug: 'show' })
-    await createEpisode(podcast.id, readyEpisode({ title: 'Older', publishedAt: new Date('2026-01-01T00:00:00Z') }))
-    await createEpisode(podcast.id, readyEpisode({ title: 'Newer', publishedAt: new Date('2026-02-01T00:00:00Z') }))
-    await createEpisode(podcast.id, { title: 'Pending', status: 'pending' })
-    await createEpisode(podcast.id, { title: 'Failed', status: 'failed' })
-    await createEpisode(podcast.id, { title: 'Ready, no audio', status: 'ready' })
-    const doc = await parseFeed((await buildPodcastFeed('show', origin))!)
+    const show = await createShow((await createUser()).id, { slug: 'show' })
+    await createEpisode(show.id, readyEpisode({ title: 'Older', publishedAt: new Date('2026-01-01T00:00:00Z') }))
+    await createEpisode(show.id, readyEpisode({ title: 'Newer', publishedAt: new Date('2026-02-01T00:00:00Z') }))
+    await createEpisode(show.id, { title: 'Pending', status: 'pending' })
+    await createEpisode(show.id, { title: 'Failed', status: 'failed' })
+    await createEpisode(show.id, { title: 'Ready, no audio', status: 'ready' })
+    const doc = await parseFeed((await buildShowFeed('show', origin))!)
     const titles = [...doc.querySelectorAll('item')].map((item) => item.getElementsByTagName('title')[0]!.textContent)
     expect(titles).toEqual(['Newer', 'Older'])
     expect(doc.getElementsByTagName('lastBuildDate')[0]!.textContent).toBe('Sun, 01 Feb 2026 00:00:00 GMT')
   })
 
   it('describes each episode and its enclosure', async () => {
-    const podcast = await createPodcast((await createUser()).id, { slug: 'show' })
+    const show = await createShow((await createUser()).id, { slug: 'show' })
     const episode = await createEpisode(
-      podcast.id,
+      show.id,
       readyEpisode({
         title: 'Ep "1"',
         description: '<p>Line<br>two</p>',
@@ -169,13 +169,13 @@ describe('buildPodcastFeed', () => {
         publishedAt: new Date('2026-03-04T05:06:07Z'),
       }),
     )
-    const doc = await parseFeed((await buildPodcastFeed('show', origin))!)
+    const doc = await parseFeed((await buildShowFeed('show', origin))!)
     const item = doc.querySelector('item')!
     const text = (name: string) => item.getElementsByTagName(name)[0]?.textContent
     expect(text('title')).toBe('Ep "1"')
     expect(text('description')).toBe('<p>Line<br>two</p>')
     expect(text('itunes:summary')).toBe('Line\ntwo')
-    expect(text('link')).toBe(`${origin}/show/episodes/${episode.slug}`)
+    expect(text('link')).toBe(`${origin}/show/${episode.slug}`)
     expect(text('guid')).toBe(episode.id)
     expect(item.getElementsByTagName('guid')[0]!.getAttribute('isPermaLink')).toBe('false')
     expect(text('pubDate')).toBe('Wed, 04 Mar 2026 05:06:07 GMT')
@@ -188,28 +188,28 @@ describe('buildPodcastFeed', () => {
   })
 
   it('dates unpublished episodes by when they were created', async () => {
-    const podcast = await createPodcast((await createUser()).id, { slug: 'show' })
-    await createEpisode(podcast.id, readyEpisode({ createdAt: new Date('2026-05-06T07:08:09Z') }))
-    const doc = await parseFeed((await buildPodcastFeed('show', origin))!)
+    const show = await createShow((await createUser()).id, { slug: 'show' })
+    await createEpisode(show.id, readyEpisode({ createdAt: new Date('2026-05-06T07:08:09Z') }))
+    const doc = await parseFeed((await buildShowFeed('show', origin))!)
     expect(doc.querySelector('item pubDate')!.textContent).toBe('Wed, 06 May 2026 07:08:09 GMT')
   })
 
-  it("uses an episode's artwork when the podcast has none", async () => {
-    const podcast = await createPodcast((await createUser()).id, { slug: 'show' })
-    await createEpisode(podcast.id, readyEpisode({ imageUrl: '/images/ep.jpg' }))
-    const doc = await parseFeed((await buildPodcastFeed('show', origin))!)
+  it("uses an episode's artwork when the show has none", async () => {
+    const show = await createShow((await createUser()).id, { slug: 'show' })
+    await createEpisode(show.id, readyEpisode({ imageUrl: '/images/ep.jpg' }))
+    const doc = await parseFeed((await buildShowFeed('show', origin))!)
     expect(doc.querySelector('channel > image > url')!.textContent).toBe(`${origin}/images/ep.jpg`)
   })
 
   it('keeps absolute artwork URLs as they are', async () => {
-    await createPodcast((await createUser()).id, { slug: 'show', imageUrl: 'https://cdn.example/art.jpg' })
-    expect(await buildPodcastFeed('show', origin)).toContain('href="https://cdn.example/art.jpg"')
+    await createShow((await createUser()).id, { slug: 'show', imageUrl: 'https://cdn.example/art.jpg' })
+    expect(await buildShowFeed('show', origin)).toContain('href="https://cdn.example/art.jpg"')
   })
 
   it('escapes text that would break the XML', async () => {
-    const podcast = await createPodcast((await createUser()).id, { slug: 'show', title: `A & B's <"show">` })
-    await createEpisode(podcast.id, readyEpisode({ title: ']]></title><script>' }))
-    const xml = (await buildPodcastFeed('show', origin))!
+    const show = await createShow((await createUser()).id, { slug: 'show', title: `A & B's <"show">` })
+    await createEpisode(show.id, readyEpisode({ title: ']]></title><script>' }))
+    const xml = (await buildShowFeed('show', origin))!
     expect(xml).not.toContain('<script>')
     const doc = await parseFeed(xml)
     expect(doc.querySelector('channel > title')!.textContent).toBe(`A & B's <"show">`)

@@ -4,7 +4,7 @@ import { z } from 'zod'
 // the list is scrolled to its end.
 export const episodePageSize = 10
 
-// Episodes after the first page of a podcast's list. A page that reloads asks
+// Episodes after the first page of a show's list. A page that reloads asks
 // for every episode it had loaded at once, so the limit is generous.
 export const episodePageSchema = z.object({
   slug: z.string(),

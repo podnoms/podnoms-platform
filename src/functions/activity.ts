@@ -5,9 +5,9 @@ import { activityQuerySchema } from '~/lib/activity-schema'
 import { getSession } from '~/server/auth.server'
 import { summariseActivity } from '~/server/activity.server'
 import { getEpisode } from '~/server/episodes.server'
-import { getPodcastBySlug } from '~/server/podcasts.server'
+import { getShowBySlug } from '~/server/shows.server'
 
-// Stats for one of the user's podcasts, or one of its episodes.
+// Stats for one of the user's shows, or one of its episodes.
 export const fetchMyActivity = createServerFn({ method: 'GET' })
   .validator(activityQuerySchema)
   .handler(async ({ data }) => {
@@ -16,9 +16,9 @@ export const fetchMyActivity = createServerFn({ method: 'GET' })
     if (data.episodeSlug) {
       const found = await getEpisode(session.user.id, data.slug, data.episodeSlug)
       if (!found) throw notFound()
-      return summariseActivity({ podcastId: found.podcast.id, episodeId: found.episode.id, days: data.days })
+      return summariseActivity({ showId: found.show.id, episodeId: found.episode.id, days: data.days })
     }
-    const podcast = await getPodcastBySlug(session.user.id, data.slug)
-    if (!podcast) throw notFound()
-    return summariseActivity({ podcastId: podcast.id, days: data.days })
+    const show = await getShowBySlug(session.user.id, data.slug)
+    if (!show) throw notFound()
+    return summariseActivity({ showId: show.id, days: data.days })
   })

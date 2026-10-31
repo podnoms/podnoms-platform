@@ -28,18 +28,18 @@ export const Route = createFileRoute('/embed/$slug/$episodeSlug')({
 })
 
 function EmbedPlayer() {
-  const { podcast, episode, pageUrl } = Route.useLoaderData()
+  const { show, episode, pageUrl } = Route.useLoaderData()
   const branding = useBranding()
   const audioRef = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
   const [position, setPosition] = useState(0)
   const [duration, setDuration] = useState(episode.durationSeconds ?? 0)
-  const artwork = episode.imageUrl ?? podcast.imageUrl
+  const artwork = episode.imageUrl ?? show.imageUrl
 
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
-    // Its first play, for the podcast's stats; the site it's embedded on
+    // Its first play, for the show's stats; the site it's embedded on
     // is the referrer.
     let reported = false
     const update = () => {
@@ -94,7 +94,7 @@ function EmbedPlayer() {
               >
                 {episode.title}
               </a>
-              <p className="truncate text-sm text-muted-foreground">{podcast.title}</p>
+              <p className="truncate text-sm text-muted-foreground">{show.title}</p>
             </div>
             <a
               href={pageUrl}

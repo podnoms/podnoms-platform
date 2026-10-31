@@ -1,4 +1,4 @@
-// The slug of the podcast whose own domain this page is on, or null on the
+// The slug of the show whose own domain this page is on, or null on the
 // site itself. On the server the custom-domain middleware (see src/start.ts)
 // works it out for each request; the page then records it on <html> (see
 // __root.tsx) for the browser to read.

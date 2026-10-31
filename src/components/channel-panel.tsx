@@ -20,9 +20,9 @@ type Channel = {
   checking: boolean
 }
 
-// The channel a podcast follows: when it was checked, and controls to pause
+// The channel a show follows: when it was checked, and controls to pause
 // checking or check now.
-export function ChannelPanel({ podcastId, channel }: { podcastId: string; channel: Channel }) {
+export function ChannelPanel({ showId, channel }: { showId: string; channel: Channel }) {
   const router = useRouter()
   const [pending, setPending] = useState(false)
   const [message, setMessage] = useState<string>()
@@ -85,7 +85,7 @@ export function ChannelPanel({ podcastId, channel }: { podcastId: string; channe
           <Switch
             checked={channel.enabled}
             disabled={pending}
-            onCheckedChange={(enabled) => act(() => setMyChannelEnabled({ data: { podcastId, enabled } }))}
+            onCheckedChange={(enabled) => act(() => setMyChannelEnabled({ data: { showId, enabled } }))}
           />
           Check for new uploads
         </label>
@@ -95,7 +95,7 @@ export function ChannelPanel({ podcastId, channel }: { podcastId: string; channe
           disabled={pending || checking}
           onClick={() =>
             act(async () => {
-              const result = await checkMyChannelNow({ data: { podcastId } })
+              const result = await checkMyChannelNow({ data: { showId } })
               if (result === 'too-soon') setMessage('It was checked a few minutes ago. Try again later.')
             })
           }

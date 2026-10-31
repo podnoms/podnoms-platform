@@ -1,4 +1,4 @@
-// Display formatting shared by the podcast pages and the player.
+// Display formatting shared by the show pages and the player.
 
 // A fixed locale and time zone so server and browser render the same text.
 const dateFormat = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'UTC' })

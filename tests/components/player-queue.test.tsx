@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { PlayerProvider, usePlayer, type PlayerEpisode, type PlayerQueue } from '~/components/player/player-provider'
 
-vi.mock('~/functions/podcasts', () => ({ saveMyPlaybackPosition: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('~/functions/shows', () => ({ saveMyPlaybackPosition: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('~/lib/activity', () => ({ reportActivity: vi.fn(), reportTrackedLinkVisit: vi.fn() }))
 
 beforeAll(() => {
@@ -18,7 +18,7 @@ const episode = (id: string): PlayerEpisode => ({
   title: `Episode ${id}`,
   audioUrl: `/audio/${id}.mp3`,
   imageUrl: null,
-  podcastTitle: 'The Show',
+  showTitle: 'The Show',
   positionSeconds: null,
 })
 const playlist: PlayerQueue = { title: 'Road trip', href: '/u/ann/playlists/road-trip', episodes: ['a', 'b', 'c'].map(episode) }

@@ -1,4 +1,4 @@
-// Listens to a podcast's episode event stream (/api/podcasts/$slug/events)
+// Listens to a show's episode event stream (/api/shows/$slug/events)
 // while `active`, rather than polling: live progress, and word of when an
 // episode's details change so the page can reload them once.
 import { useEffect, useRef, useState } from 'react'
@@ -11,13 +11,13 @@ type Handlers = {
   onReconnect: () => void
 }
 
-export function useEpisodeEvents(podcastSlug: string, active: boolean, handlers: Handlers) {
+export function useEpisodeEvents(showSlug: string, active: boolean, handlers: Handlers) {
   const latest = useRef(handlers)
   latest.current = handlers
 
   useEffect(() => {
     if (!active) return
-    const source = new EventSource(`/api/podcasts/${encodeURIComponent(podcastSlug)}/events`)
+    const source = new EventSource(`/api/shows/${encodeURIComponent(showSlug)}/events`)
     let opened = false
     source.addEventListener('open', () => {
       if (opened) latest.current.onReconnect()
@@ -36,7 +36,7 @@ export function useEpisodeEvents(podcastSlug: string, active: boolean, handlers:
     })
     // The browser reconnects by itself after an error.
     return () => source.close()
-  }, [podcastSlug, active])
+  }, [showSlug, active])
 }
 
 // Live progress layered over what the page loaded, which it replaces each
@@ -53,7 +53,7 @@ export function withLiveProgress<T extends { id: string; progress: EpisodeProgre
 // is called once, shortly after episodes' details change or the stream
 // reconnects, with the episodes that changed (empty after a reconnect).
 export function useLiveProgress(
-  podcastSlug: string,
+  showSlug: string,
   active: boolean,
   loaded: unknown,
   reload: (changed: Set<string>) => void,
@@ -77,7 +77,7 @@ export function useLiveProgress(
   }
   useEffect(() => () => clearTimeout(pending.current?.timer), [])
 
-  useEpisodeEvents(podcastSlug, active, {
+  useEpisodeEvents(showSlug, active, {
     onProgress: (episodeId, progress) => setLive((current) => ({ ...current, [episodeId]: progress })),
     onChanged: (episodeId) => scheduleReload(episodeId),
     onReconnect: () => scheduleReload(),

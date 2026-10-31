@@ -8,18 +8,18 @@
 import '@tanstack/react-start/server-only'
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
-import { episodes, podcasts, trackedLinks } from '~/server/db/schema'
+import { episodes, shows, trackedLinks } from '~/server/db/schema'
 import { isBot } from '~/server/user-agent.server'
 import type { TrackedLinkVisit } from '~/lib/tracked-link-schema'
 
-const ownedBy = (userId: string) => and(eq(podcasts.userId, userId), eq(podcasts.id, episodes.podcastId))
+const ownedBy = (userId: string) => and(eq(shows.userId, userId), eq(shows.id, episodes.showId))
 
 // The user's episode's id, or null if it isn't theirs.
 async function ownEpisode(userId: string, episodeId: string) {
   const [row] = await db
     .select({ id: episodes.id })
     .from(episodes)
-    .innerJoin(podcasts, ownedBy(userId))
+    .innerJoin(shows, ownedBy(userId))
     .where(eq(episodes.id, episodeId))
     .limit(1)
   return row?.id ?? null
@@ -41,7 +41,7 @@ export async function listTrackedLinks(userId: string, episodeId: string) {
     })
     .from(trackedLinks)
     .innerJoin(episodes, eq(episodes.id, trackedLinks.episodeId))
-    .innerJoin(podcasts, ownedBy(userId))
+    .innerJoin(shows, ownedBy(userId))
     .where(eq(trackedLinks.episodeId, episodeId))
     .orderBy(desc(trackedLinks.createdAt), desc(trackedLinks.id))
 }
@@ -61,7 +61,7 @@ export async function deleteTrackedLink(userId: string, id: string) {
     .where(
       and(
         eq(trackedLinks.id, id),
-        inArray(trackedLinks.episodeId, db.select({ id: episodes.id }).from(episodes).innerJoin(podcasts, ownedBy(userId))),
+        inArray(trackedLinks.episodeId, db.select({ id: episodes.id }).from(episodes).innerJoin(shows, ownedBy(userId))),
       ),
     )
     .returning({ id: trackedLinks.id })
@@ -78,10 +78,10 @@ export async function recordTrackedLinkVisit(
 ) {
   if (isBot(userAgent)) return false
   const [link] = await db
-    .select({ id: trackedLinks.id, ownerId: podcasts.userId })
+    .select({ id: trackedLinks.id, ownerId: shows.userId })
     .from(trackedLinks)
     .innerJoin(episodes, eq(episodes.id, trackedLinks.episodeId))
-    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .innerJoin(shows, eq(shows.id, episodes.showId))
     .where(and(eq(trackedLinks.token, token), eq(trackedLinks.episodeId, visit.episodeId)))
     .limit(1)
   if (!link || link.ownerId === viewerId) return false

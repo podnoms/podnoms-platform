@@ -11,7 +11,7 @@ import {
 } from '~/components/ui/alert-dialog'
 import { endMyBroadcast } from '~/functions/live'
 
-// For the podcast's owner, when their stream stops coming in: is the show
+// For the show's owner, when their stream stops coming in: is the show
 // over (a lost connection looks the same)? Yes ends it for everyone watching;
 // no waits for OBS to reconnect. It closes by itself if the stream comes back,
 // and asks again if it drops again.
@@ -38,7 +38,7 @@ export function LiveEndDialog({
       // Viewers, and this page, hear it has ended through the event stream.
       await endMyBroadcast({ data: { broadcastId: broadcast.id } })
     } catch {
-      setError("The show couldn't be ended. If the stream came back, it's still live.")
+      setError("The broadcast couldn't be ended. If the stream came back, it's still live.")
     } finally {
       setEnding(false)
     }
@@ -50,8 +50,8 @@ export function LiveEndDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Have you finished streaming this show?</AlertDialogTitle>
           <AlertDialogDescription>
-            Your stream has stopped coming in. If you've finished, everyone watching will be told the show has ended,
-            and the recording becomes a private episode. If not, the show waits for OBS to reconnect, for up to{' '}
+            Your stream has stopped coming in. If you've finished, everyone watching will be told the broadcast has ended,
+            and the recording becomes a private episode. If not, the broadcast waits for OBS to reconnect, for up to{' '}
             {graceMinutes} minutes.
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -66,7 +66,7 @@ export function LiveEndDialog({
               void end()
             }}
           >
-            Yes, end the show
+            Yes, end the broadcast
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

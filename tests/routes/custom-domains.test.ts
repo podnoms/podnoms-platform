@@ -5,9 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Route as AllowedRoute } from '~/routes/api/domains/allowed'
 import { Route as TraefikRoute } from '~/routes/api/traefik/config'
 import { setCustomDomain, setResolver, verifyCustomDomain } from '~/server/custom-domains.server'
-import { podcasts } from '~/server/db/schema'
+import { shows } from '~/server/db/schema'
 import { resetDb } from '../db'
-import { callRoute, createPodcast, createUser, db } from '../helpers'
+import { callRoute, createShow, createUser, db } from '../helpers'
 
 vi.hoisted(() => {
   process.env.SITE_URL = 'https://podnoms.test'
@@ -17,19 +17,19 @@ vi.hoisted(() => {
 
 beforeEach(() => resetDb(db))
 
-// A podcast with the domain set, verified or not.
+// A show with the domain set, verified or not.
 async function withDomain(domain: string, verified: boolean) {
   const user = await createUser()
-  const podcast = await createPodcast(user.id)
-  await setCustomDomain(user.id, podcast.id, domain)
-  const [row] = await db.select().from(podcasts).where(eq(podcasts.id, podcast.id))
+  const show = await createShow(user.id)
+  await setCustomDomain(user.id, show.id, domain)
+  const [row] = await db.select().from(shows).where(eq(shows.id, show.id))
   setResolver({
     resolveCname: async () => (verified ? ['podnoms.test'] : []),
     resolveTxt: async () => [[`podnoms-verify=${row!.customDomainToken}`]],
   })
-  await verifyCustomDomain(user.id, podcast.id)
+  await verifyCustomDomain(user.id, show.id)
   setResolver(null)
-  return podcast
+  return show
 }
 
 const ask = (domain: string) =>
@@ -57,12 +57,12 @@ describe('GET /api/traefik/config', () => {
   })
 
   it('passes verified domains through to the edge, each with its own routers', async () => {
-    const podcast = await withDomain('pod.example.com', true)
+    const show = await withDomain('pod.example.com', true)
     await withDomain('unverified.example.com', false)
     const response = await config()
     expect(response.status).toBe(200)
     const body = await response.json()
-    const name = `podnoms-domain-${podcast.id}`
+    const name = `podnoms-domain-${show.id}`
     expect(Object.keys(body.tcp.routers)).toEqual([name])
     expect(body.tcp.routers[name]).toEqual({
       rule: 'HostSNI(`pod.example.com`)',

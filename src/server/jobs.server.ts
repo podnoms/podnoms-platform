@@ -10,6 +10,7 @@ import { Redis } from 'ioredis'
 import { env } from '~/env'
 import { checkDueChannels } from '~/server/channels.server'
 import { recheckCustomDomains } from '~/server/custom-domains.server'
+import { archiveDeletedShow, purgeDeletedShows } from '~/server/deleted-shows.server'
 import { updateGeoipDatabase } from '~/server/geoip.server'
 import { pruneNotifications } from '~/server/inbox.server'
 import { cleanUpMedia } from '~/server/media-cleanup.server'
@@ -29,7 +30,11 @@ const jobs = {
   'custom-domain-check': () => recheckCustomDomains(),
   // Drops notifications older than 90 days from the notifications menu.
   'notification-prune': () => pruneNotifications(),
-} satisfies Record<string, () => Promise<unknown>>
+  // Queued when a show is deleted: moves its files to MEDIA_DIR/deleted.
+  'show-archive': (data) => archiveDeletedShow(String(data.showId)),
+  // Removes deleted shows' files for good once they've been kept 30 days.
+  'deleted-purge': () => purgeDeletedShows(),
+} satisfies Record<string, (data: Record<string, unknown>) => Promise<unknown>>
 
 export type JobName = keyof typeof jobs
 
@@ -41,6 +46,7 @@ const schedules: { name: JobName; pattern: string }[] = [
   { name: 'channel-check', pattern: '*/15 * * * *' },
   { name: 'custom-domain-check', pattern: '15 5 * * *' },
   { name: 'notification-prune', pattern: '45 3 * * *' },
+  { name: 'deleted-purge', pattern: '15 4 * * *' },
 ]
 
 type Running = { queue: Queue; worker: Worker }
@@ -79,7 +85,7 @@ async function start(): Promise<Running | null> {
     async (job) => {
       const run = jobs[job.name as JobName]
       if (!run) throw new Error(`No handler for the job ${job.name}`)
-      return run()
+      return run(job.data ?? {})
     },
     { connection, prefix, concurrency: 1 },
   )
@@ -103,8 +109,17 @@ async function start(): Promise<Running | null> {
 }
 
 // Queues a job to run now, e.g. from an admin page.
-export async function runJob(name: JobName) {
+export async function runJob(name: JobName, data: Record<string, unknown> = {}) {
   const running = await startJobs()
   if (!running) throw new Error('The job queue is not running (is REDIS_URL set?)')
-  return running.queue.add(name, {})
+  return running.queue.add(name, data)
+}
+
+// Queues a job if there's a queue: false without one (no REDIS_URL), for the
+// caller to do the work itself.
+export async function queueJob(name: JobName, data: Record<string, unknown>) {
+  const running = await startJobs()
+  if (!running) return false
+  await running.queue.add(name, data)
+  return true
 }

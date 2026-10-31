@@ -10,7 +10,7 @@ async function requireUserId() {
   return session.user.id
 }
 
-// A random image suiting the podcast or episode, staged like an upload.
+// A random image suiting the show or episode, staged like an upload.
 export const suggestArtwork = createServerFn({ method: 'POST' })
   .validator(imageSuggestionSchema)
   .handler(async ({ data }) => {

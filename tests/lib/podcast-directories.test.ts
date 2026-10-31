@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { directoryReadiness, isDirectoryListing, isReady, isSubcategoryOf, languageName } from '~/lib/podcast-directories'
-import { directoryDetailsSchema, directoryLinkSchema } from '~/lib/podcast-schema'
+import { directoryDetailsSchema, directoryLinkSchema } from '~/lib/show-schema'
 
 const complete: Parameters<typeof directoryReadiness>[0] = {
   title: 'Show',
@@ -14,8 +14,8 @@ const complete: Parameters<typeof directoryReadiness>[0] = {
   ownerEmail: 'ann@example.com',
 }
 
-const failing = (podcast: typeof complete) =>
-  directoryReadiness(podcast)
+const failing = (show: typeof complete) =>
+  directoryReadiness(show)
     .filter((item) => !item.ok)
     .map((item) => item.id)
 
@@ -39,9 +39,9 @@ describe('directoryReadiness', () => {
     ['episode', { publishedEpisodes: 0 }],
     ['listed', { private: true }],
   ])('is not ready without %s', (id, change) => {
-    const podcast = { ...complete, ...change }
-    expect(failing(podcast)).toEqual([id])
-    expect(isReady(directoryReadiness(podcast))).toBe(false)
+    const show = { ...complete, ...change }
+    expect(failing(show)).toEqual([id])
+    expect(isReady(directoryReadiness(show))).toBe(false)
   })
 })
 
@@ -90,7 +90,7 @@ describe('directoryDetailsSchema', () => {
   })
 
   it.each([
-    ['a category that is not Apple’s', { category: 'Podcasts' }],
+    ['a category that is not Apple’s', { category: 'Shows' }],
     ['a subcategory from another category', { subcategory: 'Stand-Up' }],
     ['an unknown language', { language: 'xx' }],
     ['a bad email', { ownerEmail: 'nope' }],

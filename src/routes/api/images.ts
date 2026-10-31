@@ -3,8 +3,8 @@ import { getSession } from '~/server/auth.server'
 import { maxImageBytes, stageImage } from '~/server/images.server'
 import { UploadError } from '~/server/uploads.server'
 
-// Receives an image for a podcast or episode, as the raw request body. It's
-// converted and staged; saving the podcast or episode with its ID keeps it.
+// Receives an image for a show or episode, as the raw request body. It's
+// converted and staged; saving the show or episode with its ID keeps it.
 export const Route = createFileRoute('/api/images')({
   server: {
     handlers: {

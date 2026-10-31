@@ -6,42 +6,48 @@ import {
   withRandomSuffix,
 } from '~/server/episode-slugs.server'
 import { resetDb } from '../db'
-import { createEpisode, createPodcast, createUser, db } from '../helpers'
+import { createEpisode, createShow, createUser, db } from '../helpers'
 
 beforeEach(() => resetDb(db))
 
 describe('availableEpisodeSlug', () => {
   it('slugifies the title, or falls back to "episode"', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    expect(await availableEpisodeSlug(podcast.id, 'My First Show!')).toBe('my-first-show')
-    expect(await availableEpisodeSlug(podcast.id, '???')).toBe('episode')
+    const show = await createShow((await createUser()).id)
+    expect(await availableEpisodeSlug(show.id, 'My First Show!')).toBe('my-first-show')
+    expect(await availableEpisodeSlug(show.id, '???')).toBe('episode')
   })
 
-  it('numbers slugs already used in the same podcast', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    await createEpisode(podcast.id, { slug: 'show' })
-    await createEpisode(podcast.id, { slug: 'show-2' })
-    expect(await availableEpisodeSlug(podcast.id, 'Show')).toBe('show-3')
+  it('numbers slugs already used in the same show', async () => {
+    const show = await createShow((await createUser()).id)
+    await createEpisode(show.id, { slug: 'show' })
+    await createEpisode(show.id, { slug: 'show-2' })
+    expect(await availableEpisodeSlug(show.id, 'Show')).toBe('show-3')
   })
 
-  it('ignores slugs in other podcasts', async () => {
+  it("never gives a path under the show that's taken (its manage page, the old /episodes/ links)", async () => {
+    const show = await createShow((await createUser()).id)
+    expect(await availableEpisodeSlug(show.id, 'Manage')).toBe('manage-2')
+    expect(await availableEpisodeSlug(show.id, 'Episodes')).toBe('episodes-2')
+  })
+
+  it('ignores slugs in other shows', async () => {
     const user = await createUser()
-    const a = await createPodcast(user.id)
-    const b = await createPodcast(user.id)
+    const a = await createShow(user.id)
+    const b = await createShow(user.id)
     await createEpisode(a.id, { slug: 'show' })
     expect(await availableEpisodeSlug(b.id, 'Show')).toBe('show')
   })
 
   it("doesn't count the episode's own slug as taken", async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const episode = await createEpisode(podcast.id, { slug: 'show' })
-    expect(await availableEpisodeSlug(podcast.id, 'Show', episode.id)).toBe('show')
+    const show = await createShow((await createUser()).id)
+    const episode = await createEpisode(show.id, { slug: 'show' })
+    expect(await availableEpisodeSlug(show.id, 'Show', episode.id)).toBe('show')
   })
 
   it('is not confused by slugs that merely start with the base', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    await createEpisode(podcast.id, { slug: 'show-and-tell' })
-    expect(await availableEpisodeSlug(podcast.id, 'Show')).toBe('show')
+    const show = await createShow((await createUser()).id)
+    await createEpisode(show.id, { slug: 'show-and-tell' })
+    expect(await availableEpisodeSlug(show.id, 'Show')).toBe('show')
   })
 })
 
@@ -54,7 +60,7 @@ describe('temporaryEpisodeSlug / withRandomSuffix', () => {
 })
 
 describe('isSlugConflict', () => {
-  const conflict = { code: '23505', constraint_name: 'episode_podcastId_slug_idx' }
+  const conflict = { code: '23505', constraint_name: 'episode_showId_slug_idx' }
 
   it('recognises the unique violation on episode slugs, wrapped or not', () => {
     expect(isSlugConflict(conflict)).toBe(true)
@@ -63,17 +69,17 @@ describe('isSlugConflict', () => {
   })
 
   it('ignores other errors', () => {
-    expect(isSlugConflict({ code: '23505', constraint_name: 'podcast_slug_unique' })).toBe(false)
-    expect(isSlugConflict({ code: '23503', constraint_name: 'episode_podcastId_slug_idx' })).toBe(false)
+    expect(isSlugConflict({ code: '23505', constraint_name: 'show_slug_unique' })).toBe(false)
+    expect(isSlugConflict({ code: '23503', constraint_name: 'episode_showId_slug_idx' })).toBe(false)
     expect(isSlugConflict(new Error('x'))).toBe(false)
     expect(isSlugConflict(null)).toBe(false)
     expect(isSlugConflict('23505')).toBe(false)
   })
 
   it('recognises the error the database really raises', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    await createEpisode(podcast.id, { slug: 'dup' })
-    const error = await createEpisode(podcast.id, { slug: 'dup' }).catch((e: unknown) => e)
+    const show = await createShow((await createUser()).id)
+    await createEpisode(show.id, { slug: 'dup' })
+    const error = await createEpisode(show.id, { slug: 'dup' }).catch((e: unknown) => e)
     expect(isSlugConflict(error)).toBe(true)
   })
 })

@@ -20,7 +20,7 @@ function episode(id: string): TaggedEpisode {
     description: null, audioUrl: '/audio.mp3', imageUrl: null, durationSeconds: 120, explicit: false,
     createdAt: new Date(), publishedAt: null, positionSeconds: null,
     likeCount: 0, liked: false, waveform: null, tags: [],
-    podcast: { slug: 'show', title: 'Show', imageUrl: null, isOwner: false },
+    show: { slug: 'show', title: 'Show', imageUrl: null, isOwner: false },
   }
 }
 

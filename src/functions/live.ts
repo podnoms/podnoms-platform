@@ -4,7 +4,7 @@ import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
-import { deleteChatSchema, endBroadcastSchema, livePodcastSchema, liveTitleSchema, postChatSchema } from '~/lib/live-schema'
+import { deleteChatSchema, endBroadcastSchema, liveShowSchema, liveTitleSchema, postChatSchema } from '~/lib/live-schema'
 import { getSession } from '~/server/auth.server'
 import {
   addChatMessage,
@@ -20,7 +20,7 @@ import {
   revokeLiveKey,
   setLiveTitle,
 } from '~/server/live.server'
-import { getPublicPodcast } from '~/server/podcasts.server'
+import { getPublicShow } from '~/server/shows.server'
 
 async function viewerId() {
   const session = await getSession(getRequest())
@@ -33,27 +33,27 @@ async function requireUserId() {
   return userId
 }
 
-// A podcast's live page: what's on, if anything, and its chat so far.
+// A show's live page: what's on, if anything, and its chat so far.
 export const fetchLivePage = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: z.string() }))
   .handler(async ({ data }) => {
     if (!liveEnabled()) throw notFound()
     const userId = await viewerId()
-    const podcast = await getPublicPodcast(data.slug, userId)
-    if (!podcast) throw notFound()
-    const broadcast = await getOpenBroadcast(podcast.id)
+    const show = await getPublicShow(data.slug, userId)
+    if (!show) throw notFound()
+    const broadcast = await getOpenBroadcast(show.id)
     return {
-      podcast: {
-        id: podcast.id,
-        title: podcast.title,
-        slug: podcast.slug,
-        imageUrl: podcast.imageUrl,
-        author: podcast.author,
-        private: podcast.private,
+      show: {
+        id: show.id,
+        title: show.title,
+        slug: show.slug,
+        imageUrl: show.imageUrl,
+        author: show.author,
+        private: show.private,
       },
       broadcast,
-      chat: broadcast ? await listChat(podcast, broadcast.id, userId) : [],
-      isOwner: userId === podcast.userId,
+      chat: broadcast ? await listChat(show, broadcast.id, userId) : [],
+      isOwner: userId === show.userId,
       signedIn: userId !== null,
       // The GIF provider viewers search, if one is set up.
       gifs: gifConfig(),
@@ -67,9 +67,9 @@ export const fetchLiveChat = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: z.string(), broadcastId: z.string() }))
   .handler(async ({ data }) => {
     const userId = await viewerId()
-    const podcast = await getPublicPodcast(data.slug, userId)
-    if (!podcast) throw notFound()
-    return listChat(podcast, data.broadcastId, userId)
+    const show = await getPublicShow(data.slug, userId)
+    if (!show) throw notFound()
+    return listChat(show, data.broadcastId, userId)
   })
 
 export const postLiveChat = createServerFn({ method: 'POST' })
@@ -95,30 +95,30 @@ export const endMyBroadcast = createServerFn({ method: 'POST' })
 
 // The owner's Go live dialog.
 export const fetchMyLive = createServerFn({ method: 'GET' })
-  .validator(livePodcastSchema)
+  .validator(liveShowSchema)
   .handler(async ({ data }) => {
-    const settings = await getLiveSettings(await requireUserId(), data.podcastId)
+    const settings = await getLiveSettings(await requireUserId(), data.showId)
     if (!settings) throw notFound()
     return settings
   })
 
 // A new key for OBS, replacing the old.
 export const createMyLiveKey = createServerFn({ method: 'POST' })
-  .validator(livePodcastSchema)
+  .validator(liveShowSchema)
   .handler(async ({ data }) => {
-    const created = await createLiveKey(await requireUserId(), data.podcastId)
+    const created = await createLiveKey(await requireUserId(), data.showId)
     if (!created) throw notFound()
     return created
   })
 
 export const revokeMyLiveKey = createServerFn({ method: 'POST' })
-  .validator(livePodcastSchema)
+  .validator(liveShowSchema)
   .handler(async ({ data }) => {
-    if (!(await revokeLiveKey(await requireUserId(), data.podcastId))) throw notFound()
+    if (!(await revokeLiveKey(await requireUserId(), data.showId))) throw notFound()
   })
 
 export const saveMyLiveTitle = createServerFn({ method: 'POST' })
   .validator(liveTitleSchema)
   .handler(async ({ data }) => {
-    if (!(await setLiveTitle(await requireUserId(), data.podcastId, data.title))) throw notFound()
+    if (!(await setLiveTitle(await requireUserId(), data.showId, data.title))) throw notFound()
   })

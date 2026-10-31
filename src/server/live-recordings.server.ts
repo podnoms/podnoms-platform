@@ -1,5 +1,5 @@
 // Making a broadcast's recording into an episode once it ends. MediaMTX
-// records each stream into podcastLiveRecordingsDir, starting a new file
+// records each stream into showLiveRecordingsDir, starting a new file
 // whenever the stream (re)connects; the files of this broadcast are joined
 // into the episode's source, and the processor converts it as it would an
 // upload. The episode is private, so the owner can look it over (and trim the
@@ -15,7 +15,7 @@ import { enqueueEpisode } from '~/server/episode-processor.server'
 import { insertEpisode } from '~/server/episodes.server'
 import { logger } from '~/server/logger.server'
 import { joinAudio } from '~/server/media.server'
-import { ensureSourcesDir, episodeSourcePath, podcastLiveRecordingsDir } from '~/server/storage.server'
+import { ensureSourcesDir, episodeSourcePath, showLiveRecordingsDir } from '~/server/storage.server'
 
 // A file still being written when the broadcast was first seen was changed
 // after it started, so anything changed since a little before is this
@@ -24,8 +24,8 @@ const startSlackMs = 60_000
 
 // The broadcast's recording files, in the order they were made (MediaMTX
 // names them by the time they start).
-export async function broadcastRecordings(broadcast: Pick<LiveBroadcast, 'podcastId' | 'startedAt'>) {
-  const dir = podcastLiveRecordingsDir(broadcast.podcastId)
+export async function broadcastRecordings(broadcast: Pick<LiveBroadcast, 'showId' | 'startedAt'>) {
+  const dir = showLiveRecordingsDir(broadcast.showId)
   const names = await readdir(dir).catch(() => [] as string[])
   const files: string[] = []
   for (const name of names.sort()) {
@@ -46,9 +46,9 @@ export async function finishRecording(broadcast: LiveBroadcast) {
     return null
   }
   const episode = await insertEpisode({
-    podcastId: broadcast.podcastId,
+    showId: broadcast.showId,
     title: broadcast.title,
-    slug: await availableEpisodeSlug(broadcast.podcastId, broadcast.title),
+    slug: await availableEpisodeSlug(broadcast.showId, broadcast.title),
     private: true,
     publishedAt: broadcast.startedAt,
   })

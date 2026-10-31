@@ -6,7 +6,7 @@ import { createMiddleware, createStart } from '@tanstack/react-start'
 import { noindexPath } from '~/lib/robots'
 
 // Served often enough that a line each would drown out everything else.
-const quietPaths = [/^\/images\//, /^\/api\/episodes\/[^/]+\/audio/, /^\/api\/podcasts\/[^/]+\/live\/hls\//, /^\/assets\//, /^\/@/, /^\/node_modules\//, /\.\w+$/]
+const quietPaths = [/^\/images\//, /^\/api\/episodes\/[^/]+\/audio/, /^\/api\/shows\/[^/]+\/live\/hls\//, /^\/assets\//, /^\/@/, /^\/node_modules\//, /\.\w+$/]
 
 // Errors that are part of normal control flow, or the caller's fault.
 const expected = (error: unknown) =>
@@ -67,7 +67,7 @@ const serverFnErrorMiddleware = createMiddleware({ type: 'function' }).server(as
   }
 })
 
-// Podcasts on their owners' own domains (see custom-domains.server.ts).
+// Shows on their owners' own domains (see custom-domains.server.ts).
 const customDomainMiddleware = createMiddleware().server(async ({ request, next }) => {
   const { handleCustomDomain } = await import('~/server/custom-domains.server')
   return handleCustomDomain(request, () => next())

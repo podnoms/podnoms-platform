@@ -7,7 +7,7 @@ import {
   uploadEpisodeSchema,
 } from '~/lib/episode-schema'
 import { loginSearchSchema } from '~/lib/login-search'
-import { customDomainSchema, editPodcastSchema, newPodcastSchema } from '~/lib/podcast-schema'
+import { customDomainSchema, editShowSchema, newShowSchema } from '~/lib/show-schema'
 import { recoveryCodeSchema, secondFactorSchema, securityKeyNameSchema, totpCodeSchema } from '~/lib/two-factor-schema'
 
 const uuid = '0b6f4a3e-7a3c-4d1e-9f2a-1c2b3d4e5f60'
@@ -39,32 +39,32 @@ describe('credentialsSchema', () => {
   })
 })
 
-describe('newPodcastSchema', () => {
+describe('newShowSchema', () => {
   it('trims the title and drops a blank description', () => {
-    expect(newPodcastSchema.parse({ title: '  My Show ', description: '   ' })).toEqual({
+    expect(newShowSchema.parse({ title: '  My Show ', description: '   ' })).toEqual({
       title: 'My Show',
       description: undefined,
     })
   })
 
   it('requires a title of at most 100 characters', () => {
-    expect(firstError(newPodcastSchema.safeParse({ title: '   ' }))).toBe('Give your podcast a title')
-    expect(firstError(newPodcastSchema.safeParse({ title: 'x'.repeat(101) }))).toBe(
+    expect(firstError(newShowSchema.safeParse({ title: '   ' }))).toBe('Give your show a title')
+    expect(firstError(newShowSchema.safeParse({ title: 'x'.repeat(101) }))).toBe(
       'Keep the title under 100 characters',
     )
   })
 
   it('limits the description to 4000 characters', () => {
-    expect(newPodcastSchema.safeParse({ title: 't', description: 'x'.repeat(4001) }).success).toBe(false)
+    expect(newShowSchema.safeParse({ title: 't', description: 'x'.repeat(4001) }).success).toBe(false)
   })
 
   it('takes an optional custom domain, normalised', () => {
-    expect(newPodcastSchema.parse({ title: 't', customDomain: 'https://Pod.Example.com/' }).customDomain).toBe(
+    expect(newShowSchema.parse({ title: 't', customDomain: 'https://Pod.Example.com/' }).customDomain).toBe(
       'pod.example.com',
     )
-    expect(newPodcastSchema.parse({ title: 't', customDomain: '  ' }).customDomain).toBeNull()
-    expect(newPodcastSchema.parse({ title: 't' }).customDomain).toBeUndefined()
-    expect(firstError(newPodcastSchema.safeParse({ title: 't', customDomain: 'not a domain' }))).toBe(
+    expect(newShowSchema.parse({ title: 't', customDomain: '  ' }).customDomain).toBeNull()
+    expect(newShowSchema.parse({ title: 't' }).customDomain).toBeUndefined()
+    expect(firstError(newShowSchema.safeParse({ title: 't', customDomain: 'not a domain' }))).toBe(
       'Enter a domain such as pod.example.com',
     )
   })
@@ -78,19 +78,19 @@ describe('customDomainSchema', () => {
   })
 })
 
-describe('editPodcastSchema', () => {
+describe('editShowSchema', () => {
   it('accepts an image ID, null to remove, or nothing to keep', () => {
-    expect(editPodcastSchema.parse({ id: 'p1', title: 'T', imageId: uuid }).imageId).toBe(uuid)
-    expect(editPodcastSchema.parse({ id: 'p1', title: 'T', imageId: null }).imageId).toBeNull()
-    expect(editPodcastSchema.parse({ id: 'p1', title: 'T' }).imageId).toBeUndefined()
+    expect(editShowSchema.parse({ id: 'p1', title: 'T', imageId: uuid }).imageId).toBe(uuid)
+    expect(editShowSchema.parse({ id: 'p1', title: 'T', imageId: null }).imageId).toBeNull()
+    expect(editShowSchema.parse({ id: 'p1', title: 'T' }).imageId).toBeUndefined()
   })
 
   it('rejects image IDs that are not UUIDs', () => {
-    expect(editPodcastSchema.safeParse({ id: 'p1', title: 'T', imageId: '../../etc/passwd' }).success).toBe(false)
+    expect(editShowSchema.safeParse({ id: 'p1', title: 'T', imageId: '../../etc/passwd' }).success).toBe(false)
   })
 
   it('limits the HTML description to 20000 characters', () => {
-    expect(editPodcastSchema.safeParse({ id: 'p1', title: 'T', description: 'x'.repeat(20001) }).success).toBe(
+    expect(editShowSchema.safeParse({ id: 'p1', title: 'T', description: 'x'.repeat(20001) }).success).toBe(
       false,
     )
   })
@@ -99,15 +99,15 @@ describe('editPodcastSchema', () => {
 describe('linkEpisodeSchema', () => {
   it('accepts a link and makes blank details undefined', () => {
     expect(
-      linkEpisodeSchema.parse({ podcastId: 'p1', sourceUrl: ' https://youtu.be/x ', title: ' ', description: '' }),
-    ).toEqual({ podcastId: 'p1', sourceUrl: 'https://youtu.be/x', title: undefined, description: undefined })
+      linkEpisodeSchema.parse({ showId: 'p1', sourceUrl: ' https://youtu.be/x ', title: ' ', description: '' }),
+    ).toEqual({ showId: 'p1', sourceUrl: 'https://youtu.be/x', title: undefined, description: undefined })
   })
 
   it('explains what is wrong with the link', () => {
-    expect(firstError(linkEpisodeSchema.safeParse({ podcastId: 'p1', sourceUrl: '' }))).toBe(
+    expect(firstError(linkEpisodeSchema.safeParse({ showId: 'p1', sourceUrl: '' }))).toBe(
       'Paste a link to the video or audio',
     )
-    expect(firstError(linkEpisodeSchema.safeParse({ podcastId: 'p1', sourceUrl: 'youtube' }))).toBe(
+    expect(firstError(linkEpisodeSchema.safeParse({ showId: 'p1', sourceUrl: 'youtube' }))).toBe(
       'Enter a full link, starting with https://',
     )
   })
@@ -115,8 +115,8 @@ describe('linkEpisodeSchema', () => {
 
 describe('uploadEpisodeSchema', () => {
   it('requires an upload UUID', () => {
-    expect(uploadEpisodeSchema.parse({ podcastId: 'p1', uploadId: uuid }).uploadId).toBe(uuid)
-    expect(firstError(uploadEpisodeSchema.safeParse({ podcastId: 'p1', uploadId: 'x' }))).toBe(
+    expect(uploadEpisodeSchema.parse({ showId: 'p1', uploadId: uuid }).uploadId).toBe(uuid)
+    expect(firstError(uploadEpisodeSchema.safeParse({ showId: 'p1', uploadId: 'x' }))).toBe(
       'Choose an audio file to upload',
     )
   })
@@ -124,9 +124,9 @@ describe('uploadEpisodeSchema', () => {
 
 describe('newEpisodeSchema', () => {
   it('accepts either a link or an upload', () => {
-    expect(newEpisodeSchema.parse({ podcastId: 'p1', sourceUrl: 'https://a.test/v' })).toHaveProperty('sourceUrl')
-    expect(newEpisodeSchema.parse({ podcastId: 'p1', uploadId: uuid })).toHaveProperty('uploadId')
-    expect(newEpisodeSchema.safeParse({ podcastId: 'p1' }).success).toBe(false)
+    expect(newEpisodeSchema.parse({ showId: 'p1', sourceUrl: 'https://a.test/v' })).toHaveProperty('sourceUrl')
+    expect(newEpisodeSchema.parse({ showId: 'p1', uploadId: uuid })).toHaveProperty('uploadId')
+    expect(newEpisodeSchema.safeParse({ showId: 'p1' }).success).toBe(false)
   })
 })
 

@@ -35,36 +35,36 @@ export type PublicEpisodeRowData = {
 // An episode in a listener's list, laid out as Mixcloud does: the artwork, a
 // play button by the title, the episode's waveform to see how far through it
 // you are and to seek, and buttons to like and share it. In lists across
-// podcasts (Likes, Explore), `showPodcast` names the podcast too. In a
+// shows (Likes, Explore), `withShow` names the show too. In a
 // playlist, `onPlay` starts it playing through the playlist instead, and
 // `actions` are the owner's buttons for it.
 export function PublicEpisodeRow({
   episode,
-  podcastSlug,
-  podcastTitle,
-  podcastImageUrl,
+  showSlug,
+  showTitle,
+  showImageUrl,
   isOwner,
-  showPodcast = false,
+  withShow = false,
   onPlay,
   actions,
 }: {
   episode: PublicEpisodeRowData
-  podcastSlug: string
-  podcastTitle: string
-  podcastImageUrl: string | null
+  showSlug: string
+  showTitle: string
+  showImageUrl: string | null
   isOwner: boolean
-  showPodcast?: boolean
+  withShow?: boolean
   onPlay?: () => void
   actions?: ReactNode
 }) {
   const player = usePlayer()
   const isCurrent = player.episode?.id === episode.id
   const isPlaying = isCurrent && player.playing
-  const artwork = episode.imageUrl ?? podcastImageUrl
+  const artwork = episode.imageUrl ?? showImageUrl
   const position = isCurrent ? player.currentTime : player.positionOf(episode.id, episode.positionSeconds)
   const duration = (isCurrent && player.duration) || episode.durationSeconds || 0
   const published = episode.publishedAt ?? episode.createdAt
-  const episodeLink = { to: '/$slug/episodes/$episodeSlug', params: { slug: podcastSlug, episodeSlug: episode.slug } } as const
+  const episodeLink = { to: '/$slug/$episodeSlug', params: { slug: showSlug, episodeSlug: episode.slug } } as const
 
   function play(startAt?: number) {
     if (!episode.audioUrl) return
@@ -75,9 +75,9 @@ export function PublicEpisodeRow({
         title: episode.title,
         audioUrl: episode.audioUrl,
         imageUrl: artwork,
-        podcastTitle,
+        showTitle,
         slug: episode.slug,
-        podcastSlug,
+        showSlug,
         isOwner,
         positionSeconds: episode.positionSeconds,
       },
@@ -122,10 +122,10 @@ export function PublicEpisodeRow({
           )}
           <div className="flex min-w-0 flex-col">
             <p className="truncate text-sm text-muted-foreground">
-              {showPodcast && (
+              {withShow && (
                 <Separated>
-                  <Link to="/$slug" params={{ slug: podcastSlug }} className="hover:text-foreground hover:underline">
-                    {podcastTitle}
+                  <Link to="/$slug" params={{ slug: showSlug }} className="hover:text-foreground hover:underline">
+                    {showTitle}
                   </Link>
                 </Separated>
               )}

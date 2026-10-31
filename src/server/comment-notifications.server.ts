@@ -8,7 +8,7 @@ import { and, eq } from 'drizzle-orm'
 import { episodePath } from '~/lib/paths'
 import { mentionsAsText, type CommentMentions } from '~/lib/user-slug'
 import { db } from '~/server/db/client.server'
-import { commentMentions, episodeComments, episodes, podcasts, users } from '~/server/db/schema'
+import { commentMentions, episodeComments, episodes, shows, users } from '~/server/db/schema'
 import { emailOrigin } from '~/server/email.server'
 import { visibleTo } from '~/server/episodes.server'
 import { recordNotification } from '~/server/inbox.server'
@@ -24,7 +24,7 @@ async function canSee(userId: string, episodeId: string) {
   const [row] = await db
     .select({ id: episodes.id })
     .from(episodes)
-    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .innerJoin(shows, eq(shows.id, episodes.showId))
     .where(and(eq(episodes.id, episodeId), visibleTo(userId)))
     .limit(1)
   return Boolean(row)
@@ -43,13 +43,13 @@ async function tell(commentId: string) {
       episodeId: episodes.id,
       episodeTitle: episodes.title,
       episodeSlug: episodes.slug,
-      podcastTitle: podcasts.title,
-      podcastSlug: podcasts.slug,
+      showTitle: shows.title,
+      showSlug: shows.slug,
     })
     .from(episodeComments)
     .innerJoin(users, eq(users.id, episodeComments.userId))
     .innerJoin(episodes, eq(episodes.id, episodeComments.episodeId))
-    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .innerJoin(shows, eq(shows.id, episodes.showId))
     .where(eq(episodeComments.id, commentId))
     .limit(1)
   if (!comment) return
@@ -76,7 +76,7 @@ async function tell(commentId: string) {
   const authorName = comment.authorName ?? `@${comment.authorSlug}`
   // A comment can be just a GIF.
   const text = excerpt(mentionsAsText(comment.body, mentions)) || 'Sent a GIF'
-  const path = `${episodePath(comment.podcastSlug, comment.episodeSlug)}#comment-${commentId}`
+  const path = `${episodePath(comment.showSlug, comment.episodeSlug)}#comment-${commentId}`
   const origin = emailOrigin()
   for (const [userId, kind] of recipients) {
     if (!(await canSee(userId, comment.episodeId))) continue
@@ -101,7 +101,7 @@ async function tell(commentId: string) {
       kind,
       authorName,
       episodeTitle: comment.episodeTitle,
-      podcastTitle: comment.podcastTitle,
+      showTitle: comment.showTitle,
       excerpt: text,
       link: origin ? new URL(path, origin).toString() : null,
     })

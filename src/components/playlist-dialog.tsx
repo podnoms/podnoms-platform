@@ -68,7 +68,7 @@ function PlaylistForm({
     <form onSubmit={submit} className="flex flex-col gap-4">
       <DialogHeader>
         <DialogTitle>{initial ? 'Edit playlist' : 'New playlist'}</DialogTitle>
-        <DialogDescription>Episodes from any podcasts, to play one after another.</DialogDescription>
+        <DialogDescription>Episodes from any shows, to play one after another.</DialogDescription>
       </DialogHeader>
       <FieldGroup>
         <Field>

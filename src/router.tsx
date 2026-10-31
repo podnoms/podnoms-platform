@@ -14,7 +14,7 @@ export function getRouter() {
     defaultErrorComponent: ErrorComponent,
     defaultOnCatch: reportClientError,
     defaultNotFoundComponent: NotFound,
-    // On a podcast's own domain, "/" is its page and "/episodes/<slug>" its
+    // On a show's own domain, "/" is its page and "/episodes/<slug>" its
     // episodes' (see src/lib/custom-domain.ts).
     rewrite: {
       input: ({ url }) => rewritePath(url, toSitePath),

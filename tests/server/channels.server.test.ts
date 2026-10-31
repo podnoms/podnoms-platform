@@ -4,18 +4,18 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { channelItems, channels, episodes, podcasts } from '~/server/db/schema'
+import { channelItems, channels, episodes, shows } from '~/server/db/schema'
 import {
   checkChannel,
   checkChannelNow,
   checkDueChannels,
-  createChannelPodcast,
+  createChannelShow,
   followChannel,
-  getPodcastChannel,
+  getShowChannel,
   setChannelEnabled,
 } from '~/server/channels.server'
 import { enqueueEpisode } from '~/server/episode-processor.server'
-import { getPodcastTags } from '~/server/tags-store.server'
+import { getShowTags } from '~/server/tags-store.server'
 import { resetDb } from '../db'
 import { createUser, db, makeImage } from '../helpers'
 
@@ -47,10 +47,10 @@ function channelUrl(params: Record<string, string>) {
 // Follows the channel, and waits for its first check.
 async function follow(params: Record<string, string>, userValues: Parameters<typeof createUser>[0] = {}) {
   const user = await createUser(userValues)
-  const podcast = await followChannel(user.id, { platform: 'youtube', url: channelUrl(params) })
-  const [channel] = await db.select().from(channels).where(eq(channels.podcastId, podcast.id))
+  const show = await followChannel(user.id, { platform: 'youtube', url: channelUrl(params) })
+  const [channel] = await db.select().from(channels).where(eq(channels.showId, show.id))
   await checkChannel(channel!.id)
-  return { user, podcast, channel: (await getChannel(channel!.id))! }
+  return { user, show, channel: (await getChannel(channel!.id))! }
 }
 
 async function getChannel(id: string) {
@@ -58,8 +58,8 @@ async function getChannel(id: string) {
   return channel
 }
 
-const episodesOf = (podcastId: string) =>
-  db.select().from(episodes).where(eq(episodes.podcastId, podcastId)).orderBy(asc(episodes.createdAt))
+const episodesOf = (showId: string) =>
+  db.select().from(episodes).where(eq(episodes.showId, showId)).orderBy(asc(episodes.createdAt))
 
 async function setEntries(channelId: string, params: Record<string, string>) {
   await db.update(channels).set({ url: channelUrl(params) }).where(eq(channels.id, channelId))
@@ -67,9 +67,9 @@ async function setEntries(channelId: string, params: Record<string, string>) {
 
 describe('following a channel', () => {
   it("queues the newest uploads, up to the user's limit, oldest first", async () => {
-    const { podcast, channel } = await follow({ entries: 'e,d,c,b,a', title: 'My Channel' }, { channelEpisodeLimit: 3 })
+    const { show, channel } = await follow({ entries: 'e,d,c,b,a', title: 'My Channel' }, { channelEpisodeLimit: 3 })
 
-    const rows = await episodesOf(podcast.id)
+    const rows = await episodesOf(show.id)
     expect(rows.map((e) => e.title)).toEqual(['Video c', 'Video d', 'Video e'])
     for (const row of rows) {
       expect(row).toMatchObject({ status: 'pending', priority: 0, slug: row.title.toLowerCase().replace(' ', '-') })
@@ -86,85 +86,85 @@ describe('following a channel', () => {
     expect(args[args.indexOf('--playlist-end') + 1]).toBe('3')
   })
 
-  it("names the podcast after the channel, with its description and artwork", async () => {
-    const { podcast } = await follow({ entries: 'a', title: 'My Channel', description: 'All about it', thumbnail: thumbnailUrl })
-    const [row] = await db.select().from(podcasts).where(eq(podcasts.id, podcast.id))
+  it("names the show after the channel, with its description and artwork", async () => {
+    const { show } = await follow({ entries: 'a', title: 'My Channel', description: 'All about it', thumbnail: thumbnailUrl })
+    const [row] = await db.select().from(shows).where(eq(shows.id, show.id))
     expect(row).toMatchObject({ title: 'My Channel', description: '<p>All about it</p>' })
     expect(row!.imageUrl).toMatch(/^\/images\/[0-9a-f-]{36}\.jpg$/)
   })
 
-  it("keeps a title the user gave the podcast before the channel's was known", async () => {
+  it("keeps a title the user gave the show before the channel's was known", async () => {
     const user = await createUser()
-    const podcast = await followChannel(user.id, { platform: 'youtube', url: channelUrl({ entries: 'a', title: 'Theirs' }) })
-    await db.update(podcasts).set({ title: 'Mine' }).where(eq(podcasts.id, podcast.id))
-    const [channel] = await db.select().from(channels).where(eq(channels.podcastId, podcast.id))
+    const show = await followChannel(user.id, { platform: 'youtube', url: channelUrl({ entries: 'a', title: 'Theirs' }) })
+    await db.update(shows).set({ title: 'Mine' }).where(eq(shows.id, show.id))
+    const [channel] = await db.select().from(channels).where(eq(channels.showId, show.id))
     await checkChannel(channel!.id)
-    const [row] = await db.select().from(podcasts).where(eq(podcasts.id, podcast.id))
+    const [row] = await db.select().from(shows).where(eq(shows.id, show.id))
     expect(row!.title).toBe('Mine')
   })
 
   it('skips live streams and Shorts', async () => {
-    const { podcast } = await follow({ entries: 'c,b,a', live: 'c', short: 'b' })
-    expect((await episodesOf(podcast.id)).map((e) => e.title)).toEqual(['Video a'])
+    const { show } = await follow({ entries: 'c,b,a', live: 'c', short: 'b' })
+    expect((await episodesOf(show.id)).map((e) => e.title)).toEqual(['Video a'])
   })
 
   it('notes why the channel could not be listed, and adds nothing', async () => {
     const user = await createUser()
-    const podcast = await followChannel(user.id, { platform: 'youtube', url: 'https://video.test/fail' })
-    const [channel] = await db.select().from(channels).where(eq(channels.podcastId, podcast.id))
+    const show = await followChannel(user.id, { platform: 'youtube', url: 'https://video.test/fail' })
+    const [channel] = await db.select().from(channels).where(eq(channels.showId, show.id))
     expect(await checkChannel(channel!.id)).toEqual({ error: 'This video is unavailable' })
     expect(await getChannel(channel!.id)).toMatchObject({ lastError: 'This video is unavailable' })
     expect((await getChannel(channel!.id))!.lastCheckedAt).toBeInstanceOf(Date)
-    expect(await episodesOf(podcast.id)).toEqual([])
+    expect(await episodesOf(show.id)).toEqual([])
   })
 
   it("doesn't list the channel for a user whose limit is 0", async () => {
-    const { podcast, channel } = await follow({ entries: 'a' }, { channelEpisodeLimit: 0 })
+    const { show, channel } = await follow({ entries: 'a' }, { channelEpisodeLimit: 0 })
     expect(channel.lastError).toMatch(/can't import/)
-    expect(await episodesOf(podcast.id)).toEqual([])
+    expect(await episodesOf(show.id)).toEqual([])
   })
 
   it('only accepts links to channels', async () => {
     const user = await createUser()
-    await expect(createChannelPodcast(user.id, { url: 'https://www.youtube.com/watch?v=abc' })).rejects.toThrow()
-    expect(await db.select().from(podcasts)).toEqual([])
+    await expect(createChannelShow(user.id, { url: 'https://www.youtube.com/watch?v=abc' })).rejects.toThrow()
+    expect(await db.select().from(shows)).toEqual([])
   })
 
   it("starts from the link's name, until the channel's own is known", async () => {
     const user = await createUser()
-    const podcast = await createChannelPodcast(user.id, { url: 'https://www.youtube.com/@someone', tags: ['house'] })
-    expect(podcast.title).toBe('@someone')
-    const [channel] = await db.select().from(channels).where(eq(channels.podcastId, podcast.id))
+    const show = await createChannelShow(user.id, { url: 'https://www.youtube.com/@someone', tags: ['house'] })
+    expect(show.title).toBe('@someone')
+    const [channel] = await db.select().from(channels).where(eq(channels.showId, show.id))
     expect(channel).toMatchObject({ platform: 'youtube', url: 'https://www.youtube.com/@someone/videos' })
     await checkChannel(channel!.id)
-    expect((await getPodcastTags(podcast.id)).map((tag) => tag.name)).toEqual(['house'])
+    expect((await getShowTags(show.id)).map((tag) => tag.name)).toEqual(['house'])
   })
 })
 
 describe('checking a channel again', () => {
   it('adds only uploads newer than those seen', async () => {
-    const { podcast, channel } = await follow({ entries: 'c,b,a' })
+    const { show, channel } = await follow({ entries: 'c,b,a' })
     await setEntries(channel.id, { entries: 'e,d,c,b,a' })
     vi.mocked(enqueueEpisode).mockClear()
     expect(await checkChannel(channel.id)).toEqual({ added: 2 })
-    expect((await episodesOf(podcast.id)).map((e) => e.title)).toEqual(['Video a', 'Video b', 'Video c', 'Video d', 'Video e'])
+    expect((await episodesOf(show.id)).map((e) => e.title)).toEqual(['Video a', 'Video b', 'Video c', 'Video d', 'Video e'])
     expect(enqueueEpisode).toHaveBeenCalledTimes(2)
   })
 
   it("doesn't add an older upload that comes into view", async () => {
-    const { podcast, channel } = await follow({ entries: 'd,c' }, { channelEpisodeLimit: 2 })
+    const { show, channel } = await follow({ entries: 'd,c' }, { channelEpisodeLimit: 2 })
     // d was taken down, so b, which was never listed, now is.
     await setEntries(channel.id, { entries: 'e,c,b' })
     expect(await checkChannel(channel.id)).toEqual({ added: 1 })
-    expect((await episodesOf(podcast.id)).map((e) => e.title)).toEqual(['Video c', 'Video d', 'Video e'])
+    expect((await episodesOf(show.id)).map((e) => e.title)).toEqual(['Video c', 'Video d', 'Video e'])
   })
 
   it("doesn't bring back an episode the user deleted", async () => {
-    const { podcast, channel } = await follow({ entries: 'b,a' })
-    const [first] = await episodesOf(podcast.id)
+    const { show, channel } = await follow({ entries: 'b,a' })
+    const [first] = await episodesOf(show.id)
     await db.delete(episodes).where(eq(episodes.id, first!.id))
     expect(await checkChannel(channel.id)).toEqual({ added: 0 })
-    expect((await episodesOf(podcast.id)).map((e) => e.title)).toEqual(['Video b'])
+    expect((await episodesOf(show.id)).map((e) => e.title)).toEqual(['Video b'])
     const items = await db.select().from(channelItems).where(eq(channelItems.channelId, channel.id))
     expect(items).toHaveLength(2)
   })
@@ -182,30 +182,30 @@ describe('following a playlist', () => {
   // Follows the playlist, and waits for its first check.
   async function followPlaylist(params: Record<string, string>, userValues: Parameters<typeof createUser>[0] = {}) {
     const user = await createUser({ isAdmin: true, channelEpisodeLimit: 2, ...userValues })
-    const podcast = await followChannel(user.id, { platform: 'youtube', url: channelUrl(params) }, null, 'playlist')
-    const [channel] = await db.select().from(channels).where(eq(channels.podcastId, podcast.id))
+    const show = await followChannel(user.id, { platform: 'youtube', url: channelUrl(params) }, null, 'playlist')
+    const [channel] = await db.select().from(channels).where(eq(channels.showId, show.id))
     await checkChannel(channel!.id)
-    return { user, podcast, channel: (await getChannel(channel!.id))! }
+    return { user, show, channel: (await getChannel(channel!.id))! }
   }
 
   it("queues every item, past the user's channel limit, in the playlist's order", async () => {
-    const { podcast, channel } = await followPlaylist({ entries: 'a,b,c,d,e', title: 'My Playlist' })
+    const { show, channel } = await followPlaylist({ entries: 'a,b,c,d,e', title: 'My Playlist' })
     expect(channel).toMatchObject({ kind: 'playlist', title: 'My Playlist', lastError: null })
-    expect((await episodesOf(podcast.id)).map((e) => e.title)).toEqual(['Video a', 'Video b', 'Video c', 'Video d', 'Video e'])
+    expect((await episodesOf(show.id)).map((e) => e.title)).toEqual(['Video a', 'Video b', 'Video c', 'Video d', 'Video e'])
     const args = JSON.parse(await readFile(join(media, 'yt-dlp-args.json'), 'utf8')) as string[]
     expect(args).not.toContain('--playlist-end')
   })
 
   it('adds items added anywhere in the playlist later, but not ones seen before', async () => {
-    const { podcast, channel } = await followPlaylist({ entries: 'a,b' })
+    const { show, channel } = await followPlaylist({ entries: 'a,b' })
     await setEntries(channel.id, { entries: 'x,a,b,c' })
     expect(await checkChannel(channel.id)).toEqual({ added: 2 })
-    expect((await episodesOf(podcast.id)).map((e) => e.title)).toEqual(['Video a', 'Video b', 'Video x', 'Video c'])
+    expect((await episodesOf(show.id)).map((e) => e.title)).toEqual(['Video a', 'Video b', 'Video x', 'Video c'])
   })
 
   it("only imports up to the user's limit for someone who isn't an admin", async () => {
-    const { podcast } = await followPlaylist({ entries: 'a,b,c,d,e' }, { isAdmin: false })
-    expect((await episodesOf(podcast.id)).map((e) => e.title)).toEqual(['Video a', 'Video b'])
+    const { show } = await followPlaylist({ entries: 'a,b,c,d,e' }, { isAdmin: false })
+    expect((await episodesOf(show.id)).map((e) => e.title)).toEqual(['Video a', 'Video b'])
     const args = JSON.parse(await readFile(join(media, 'yt-dlp-args.json'), 'utf8')) as string[]
     expect(args[args.indexOf('--playlist-end') + 1]).toBe('2')
   })
@@ -213,19 +213,19 @@ describe('following a playlist', () => {
   it('is made from a playlist link on the channel form', async () => {
     const url = 'https://www.youtube.com/playlist?list=PL123'
     const user = await createUser()
-    const podcast = await createChannelPodcast(user.id, { url, tags: ['techno'] })
-    expect(podcast.title).toBe('PL123')
-    const [channel] = await db.select().from(channels).where(eq(channels.podcastId, podcast.id))
+    const show = await createChannelShow(user.id, { url, tags: ['techno'] })
+    expect(show.title).toBe('PL123')
+    const [channel] = await db.select().from(channels).where(eq(channels.showId, show.id))
     expect(channel).toMatchObject({ kind: 'playlist', platform: 'youtube', url })
     await checkChannel(channel!.id)
-    expect((await getPodcastTags(podcast.id)).map((tag) => tag.name)).toEqual(['techno'])
+    expect((await getShowTags(show.id)).map((tag) => tag.name)).toEqual(['techno'])
   })
 })
 
 describe("an admin's channel", () => {
   it('imports every upload the first time, then checks just the newest', async () => {
-    const { podcast, channel } = await follow({ entries: 'e,d,c,b,a' }, { isAdmin: true, channelEpisodeLimit: 2 })
-    expect((await episodesOf(podcast.id)).map((e) => e.title)).toEqual(['Video a', 'Video b', 'Video c', 'Video d', 'Video e'])
+    const { show, channel } = await follow({ entries: 'e,d,c,b,a' }, { isAdmin: true, channelEpisodeLimit: 2 })
+    expect((await episodesOf(show.id)).map((e) => e.title)).toEqual(['Video a', 'Video b', 'Video c', 'Video d', 'Video e'])
 
     await setEntries(channel.id, { entries: 'f,e,d,c,b,a' })
     expect(await checkChannel(channel.id)).toEqual({ added: 1 })
@@ -234,9 +234,9 @@ describe("an admin's channel", () => {
   })
 
   it("isn't stopped by a limit of 0", async () => {
-    const { podcast, channel } = await follow({ entries: 'b,a' }, { isAdmin: true, channelEpisodeLimit: 0 })
+    const { show, channel } = await follow({ entries: 'b,a' }, { isAdmin: true, channelEpisodeLimit: 0 })
     expect(channel.lastError).toBeNull()
-    expect(await episodesOf(podcast.id)).toHaveLength(2)
+    expect(await episodesOf(show.id)).toHaveLength(2)
   })
 })
 
@@ -253,36 +253,36 @@ describe('checkDueChannels', () => {
       .where(eq(channels.id, paused.channel.id))
 
     expect(await checkDueChannels()).toEqual({ checked: 1, added: 1, failed: 0 })
-    expect(await episodesOf(due.podcast.id)).toHaveLength(2)
-    expect(await episodesOf(notDue.podcast.id)).toHaveLength(1)
-    expect(await episodesOf(paused.podcast.id)).toHaveLength(1)
+    expect(await episodesOf(due.show.id)).toHaveLength(2)
+    expect(await episodesOf(notDue.show.id)).toHaveLength(1)
+    expect(await episodesOf(paused.show.id)).toHaveLength(1)
   })
 })
 
 describe("the user's controls", () => {
   it('checks now, but not again within a few minutes', async () => {
-    const { user, podcast, channel } = await follow({ entries: 'a' })
-    expect(await checkChannelNow(user.id, podcast.id)).toBe('too-soon')
+    const { user, show, channel } = await follow({ entries: 'a' })
+    expect(await checkChannelNow(user.id, show.id)).toBe('too-soon')
 
     await db.update(channels).set({ lastCheckedAt: new Date(Date.now() - 60 * 60_000) }).where(eq(channels.id, channel.id))
     await setEntries(channel.id, { entries: 'b,a' })
-    expect(await checkChannelNow(user.id, podcast.id)).toBe('started')
+    expect(await checkChannelNow(user.id, show.id)).toBe('started')
     await checkChannel(channel.id)
-    expect(await episodesOf(podcast.id)).toHaveLength(2)
+    expect(await episodesOf(show.id)).toHaveLength(2)
   })
 
   it('pauses and resumes checking', async () => {
-    const { user, podcast, channel } = await follow({ entries: 'a' })
-    expect(await setChannelEnabled(user.id, podcast.id, false)).toBe(true)
-    expect(await getPodcastChannel(podcast.id)).toMatchObject({ enabled: false, checking: false })
-    expect(await setChannelEnabled(user.id, podcast.id, true)).toBe(true)
+    const { user, show, channel } = await follow({ entries: 'a' })
+    expect(await setChannelEnabled(user.id, show.id, false)).toBe(true)
+    expect(await getShowChannel(show.id)).toMatchObject({ enabled: false, checking: false })
+    expect(await setChannelEnabled(user.id, show.id, true)).toBe(true)
     expect((await getChannel(channel.id))!.nextCheckAt.getTime()).toBeLessThanOrEqual(Date.now())
   })
 
   it("leaves other users' channels alone", async () => {
-    const { podcast } = await follow({ entries: 'a' })
+    const { show } = await follow({ entries: 'a' })
     const someoneElse = await createUser()
-    expect(await checkChannelNow(someoneElse.id, podcast.id)).toBeNull()
-    expect(await setChannelEnabled(someoneElse.id, podcast.id, false)).toBe(false)
+    expect(await checkChannelNow(someoneElse.id, show.id)).toBeNull()
+    expect(await setChannelEnabled(someoneElse.id, show.id, false)).toBe(false)
   })
 })

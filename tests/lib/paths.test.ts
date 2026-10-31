@@ -1,17 +1,17 @@
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { episodePath, podcastPath, reservedPodcastSlugs } from '~/lib/paths'
+import { episodePath, showPath, reservedShowSlugs } from '~/lib/paths'
 import { slugify } from '~/lib/slug'
 
-describe('podcast paths', () => {
-  it('serves podcasts and their episodes at the top level', () => {
-    expect(podcastPath('show')).toBe('/show')
-    expect(episodePath('show', 'ep-1')).toBe('/show/episodes/ep-1')
+describe('show paths', () => {
+  it('serves shows and their episodes at the top level', () => {
+    expect(showPath('show')).toBe('/show')
+    expect(episodePath('show', 'ep-1')).toBe('/show/ep-1')
   })
 
-  // Podcasts share the top level with the site's own pages, which win, so a
-  // podcast with one of their names could never be reached.
+  // Shows share the top level with the site's own pages, which win, so a
+  // show with one of their names could never be reached.
   it("reserves every top-level route's name a slug could take", () => {
     const routes = join(import.meta.dirname, '../../src/routes')
     const firstSegments = readdirSync(routes)
@@ -23,7 +23,7 @@ describe('podcast paths', () => {
     for (const segment of firstSegments) {
       // Names a slug can't be (e.g. sitemap.xml) don't need reserving.
       if (slugify(segment, '') !== segment) continue
-      expect(reservedPodcastSlugs, segment).toContain(segment)
+      expect(reservedShowSlugs, segment).toContain(segment)
     }
   })
 })

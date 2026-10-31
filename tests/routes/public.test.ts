@@ -11,7 +11,7 @@ import { getSession } from '~/server/auth.server'
 import { findShortLink } from '~/server/episodes.server'
 import { episodeAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
-import { callRoute, createEpisode, createPodcast, createUser, db, storeTestImage } from '../helpers'
+import { callRoute, createEpisode, createShow, createUser, db, storeTestImage } from '../helpers'
 
 vi.mock('~/server/auth.server', async (importOriginal) => ({
   ...(await importOriginal<typeof import('~/server/auth.server')>()),
@@ -27,10 +27,10 @@ describe('GET /api/episodes/:id/audio', () => {
   // 0..99 as bytes, so any range is easy to check.
   const audio = Uint8Array.from({ length: 100 }, (_, i) => i)
 
-  async function readyEpisode(podcastValues: Parameters<typeof createPodcast>[1] = {}, values: Parameters<typeof createEpisode>[1] = {}) {
+  async function readyEpisode(showValues: Parameters<typeof createShow>[1] = {}, values: Parameters<typeof createEpisode>[1] = {}) {
     const owner = await createUser()
-    const podcast = await createPodcast(owner.id, podcastValues)
-    const episode = await createEpisode(podcast.id, { status: 'ready', audioMimeType: 'audio/mpeg', ...values })
+    const show = await createShow(owner.id, showValues)
+    const episode = await createEpisode(show.id, { status: 'ready', audioMimeType: 'audio/mpeg', ...values })
     await mkdir(dirname(episodeAudioPath(episode.id)), { recursive: true })
     await writeFile(episodeAudioPath(episode.id), audio)
     return Object.assign(episode, { ownerId: owner.id })
@@ -44,7 +44,7 @@ describe('GET /api/episodes/:id/audio', () => {
       { id },
     )
 
-  it("serves a private podcast's audio with its feed key, or to its signed-in owner", async () => {
+  it("serves a private show's audio with its feed key, or to its signed-in owner", async () => {
     const episode = await readyEpisode({ private: true, feedKey: 'k3y' })
     expect((await get(episode.id)).status).toBe(404)
     expect((await get(episode.id, undefined, '?key=wrong')).status).toBe(404)
@@ -102,9 +102,9 @@ describe('GET /api/episodes/:id/audio', () => {
   })
 
   it('is 404 for episodes that are not ready, missing, or have lost their file', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const pending = await createEpisode(podcast.id, { status: 'pending' })
-    const noFile = await createEpisode(podcast.id, { status: 'ready' })
+    const show = await createShow((await createUser()).id)
+    const pending = await createEpisode(show.id, { status: 'pending' })
+    const noFile = await createEpisode(show.id, { status: 'ready' })
     expect((await get(pending.id)).status).toBe(404)
     expect((await get('missing')).status).toBe(404)
     expect((await get(noFile.id)).status).toBe(404)
@@ -161,7 +161,7 @@ describe('GET /images/:file', () => {
 
 describe('GET /feed/:slug', () => {
   it('serves the RSS feed with absolute URLs for the request origin', async () => {
-    await createPodcast((await createUser()).id, { slug: 'show', title: 'Show' })
+    await createShow((await createUser()).id, { slug: 'show', title: 'Show' })
     const response = await callRoute(FeedRoute, 'GET', new Request('https://pods.example/feed/show'), { slug: 'show' })
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('application/rss+xml; charset=utf-8')
@@ -171,13 +171,13 @@ describe('GET /feed/:slug', () => {
     expect(xml).toContain('<link>https://pods.example/show</link>')
   })
 
-  it('is 404 for unknown podcasts', async () => {
+  it('is 404 for unknown shows', async () => {
     const response = await callRoute(FeedRoute, 'GET', new Request('https://pods.example/feed/nope'), { slug: 'nope' })
     expect(response.status).toBe(404)
   })
 
-  it("serves a private podcast's feed only with its key", async () => {
-    await createPodcast((await createUser()).id, { slug: 'secret', private: true, feedKey: 'k3y' })
+  it("serves a private show's feed only with its key", async () => {
+    await createShow((await createUser()).id, { slug: 'secret', private: true, feedKey: 'k3y' })
     const get = (search: string) =>
       callRoute(FeedRoute, 'GET', new Request(`https://pods.example/feed/secret${search}`), { slug: 'secret' })
     expect((await get('')).status).toBe(404)
@@ -190,14 +190,14 @@ describe('GET /feed/:slug', () => {
 
 describe('share pages', () => {
   it("find a published episode by its short slug", async () => {
-    const podcast = await createPodcast((await createUser()).id, { slug: 'my-show' })
-    const episode = await createEpisode(podcast.id, { slug: 'first', status: 'ready', audioUrl: '/api/episodes/x/audio' })
+    const show = await createShow((await createUser()).id, { slug: 'my-show' })
+    const episode = await createEpisode(show.id, { slug: 'first', status: 'ready', audioUrl: '/api/episodes/x/audio' })
     expect(await findShortLink(episode.shortSlug)).toEqual({ slug: 'my-show', episodeSlug: 'first' })
   })
 
   it("find nothing for an episode that isn't ready, or doesn't exist", async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const episode = await createEpisode(podcast.id, { status: 'processing' })
+    const show = await createShow((await createUser()).id)
+    const episode = await createEpisode(show.id, { status: 'processing' })
     expect(await findShortLink(episode.shortSlug)).toBeNull()
     expect(await findShortLink('nosuchep')).toBeNull()
   })
@@ -208,25 +208,25 @@ describe('GET /listen/:slug/:episodeSlug', () => {
     callRoute(ListenRoute, 'GET', new Request(`http://x/listen/${slug}/${episodeSlug}${search}`), { slug, episodeSlug })
 
   it("sends old share links on to the episode's share page, for good", async () => {
-    const podcast = await createPodcast((await createUser()).id, { slug: 'my-show' })
-    const episode = await createEpisode(podcast.id, { slug: 'first', status: 'ready', audioUrl: '/api/episodes/x/audio' })
+    const show = await createShow((await createUser()).id, { slug: 'my-show' })
+    const episode = await createEpisode(show.id, { slug: 'first', status: 'ready', audioUrl: '/api/episodes/x/audio' })
     const response = await get('my-show', 'first', '?t=1')
     expect(response.status).toBe(301)
     expect(response.headers.get('location')).toBe(`/s/${episode.shortSlug}?t=1`)
   })
 
   it("is not found for an episode that isn't ready, or doesn't exist", async () => {
-    const podcast = await createPodcast((await createUser()).id, { slug: 'my-show' })
-    await createEpisode(podcast.id, { slug: 'first', status: 'processing' })
+    const show = await createShow((await createUser()).id, { slug: 'my-show' })
+    await createEpisode(show.id, { slug: 'first', status: 'processing' })
     expect((await get('my-show', 'first')).status).toBe(404)
     expect((await get('my-show', 'nope')).status).toBe(404)
   })
 
-  it('is not found for a private episode, or a private podcast\'s', async () => {
+  it('is not found for a private episode, or a private show\'s', async () => {
     const owner = await createUser()
-    const show = await createPodcast(owner.id, { slug: 'my-show' })
+    const show = await createShow(owner.id, { slug: 'my-show' })
     await createEpisode(show.id, { slug: 'hidden', status: 'ready', audioUrl: '/api/episodes/x/audio', private: true })
-    const secret = await createPodcast(owner.id, { slug: 'secret', private: true })
+    const secret = await createShow(owner.id, { slug: 'secret', private: true })
     await createEpisode(secret.id, { slug: 'first', status: 'ready', audioUrl: '/api/episodes/x/audio' })
     expect((await get('my-show', 'hidden')).status).toBe(404)
     expect((await get('secret', 'first')).status).toBe(404)

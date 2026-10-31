@@ -22,25 +22,25 @@ import { createMyLiveKey, fetchMyLive, revokeMyLiveKey, saveMyLiveTitle } from '
 import { formatDateTime, formatLength } from '~/lib/format'
 import { liveTitleMaxLength } from '~/lib/live-schema'
 
-// How often the open dialog checks whether the podcast has gone live or stopped.
+// How often the open dialog checks whether the show has gone live or stopped.
 const refreshMs = 10_000
 
 type Settings = Awaited<ReturnType<typeof fetchMyLive>>
-type Podcast = { id: string; slug: string; title: string }
+type Show = { id: string; slug: string; title: string }
 
 const liveButtonClass =
   'bg-destructive font-semibold text-destructive-foreground shadow-md shadow-destructive/30 hover:bg-destructive/90'
 
 // The owner's way in to broadcasting: a button that stands out from the
-// podcast's others, opening the settings for streaming from OBS. While it's
+// show's others, opening the settings for streaming from OBS. While it's
 // live, it goes to the live page instead, with the settings a click beside it.
-export function GoLiveButton({ podcast, live }: { podcast: Podcast; live: boolean }) {
+export function GoLiveButton({ show, live }: { show: Show; live: boolean }) {
   return (
     <Dialog>
       {live ? (
         <ButtonGroup>
           <Button className={liveButtonClass} asChild>
-            <Link to="/live/$slug" params={{ slug: podcast.slug }}>
+            <Link to="/live/$slug" params={{ slug: show.slug }}>
               <span className="size-2 animate-pulse rounded-full bg-destructive-foreground" />
               Live now
             </Link>
@@ -61,7 +61,7 @@ export function GoLiveButton({ podcast, live }: { podcast: Podcast; live: boolea
         </DialogTrigger>
       )}
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
-        <GoLiveSettings podcast={podcast} />
+        <GoLiveSettings show={show} />
       </DialogContent>
     </Dialog>
   )
@@ -71,7 +71,7 @@ export function GoLiveButton({ podcast, live }: { podcast: Podcast; live: boolea
 // next broadcast's title, what's on now, and past broadcasts with the draft
 // episodes made from their recordings. Only mounted while the dialog is open,
 // so it only loads (and refreshes) then.
-function GoLiveSettings({ podcast }: { podcast: Podcast }) {
+function GoLiveSettings({ show }: { show: Show }) {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [title, setTitle] = useState('')
   const [pending, setPending] = useState(false)
@@ -80,7 +80,7 @@ function GoLiveSettings({ podcast }: { podcast: Podcast }) {
 
   const load = useCallback(
     () =>
-      fetchMyLive({ data: { podcastId: podcast.id } }).then(
+      fetchMyLive({ data: { showId: show.id } }).then(
         (loaded) => {
           setSettings(loaded)
           return loaded
@@ -90,7 +90,7 @@ function GoLiveSettings({ podcast }: { podcast: Podcast }) {
           return null
         },
       ),
-    [podcast.id],
+    [show.id],
   )
 
   useEffect(() => {
@@ -113,11 +113,11 @@ function GoLiveSettings({ podcast }: { podcast: Podcast }) {
     }
   }
 
-  const makeKey = () => run(() => createMyLiveKey({ data: { podcastId: podcast.id } }))
+  const makeKey = () => run(() => createMyLiveKey({ data: { showId: show.id } }))
 
   function saveTitle(event: FormEvent) {
     event.preventDefault()
-    void run(() => saveMyLiveTitle({ data: { podcastId: podcast.id, title } }))
+    void run(() => saveMyLiveTitle({ data: { showId: show.id, title } }))
   }
 
   if (!settings) {
@@ -145,7 +145,7 @@ function GoLiveSettings({ podcast }: { podcast: Podcast }) {
           )}
         </DialogTitle>
         <DialogDescription>
-          Broadcast video from OBS to your podcast's live page, with a chat for your listeners. When you stop, the
+          Broadcast video from OBS to your show's live page, with a chat for your listeners. When you stop, the
           recording becomes a private episode for you to check and publish.
         </DialogDescription>
       </DialogHeader>
@@ -157,7 +157,7 @@ function GoLiveSettings({ podcast }: { podcast: Podcast }) {
           </p>
         )}
         <Button variant="outline" className="w-fit" asChild>
-          <Link to="/live/$slug" params={{ slug: podcast.slug }} target="_blank">
+          <Link to="/live/$slug" params={{ slug: show.slug }} target="_blank">
             <Icons.externalLink />
             Live page
           </Link>
@@ -173,7 +173,7 @@ function GoLiveSettings({ podcast }: { podcast: Podcast }) {
             <>
               <CopyField label="Stream key" value={settings.streamKey} masked />
               <FieldDescription>
-                Anyone with the stream key can broadcast as this podcast, so keep it to yourself (and off screen
+                Anyone with the stream key can broadcast as this show, so keep it to yourself (and off screen
                 while you're live). If it gets out, make a new one: the old one stops working.
               </FieldDescription>
             </>
@@ -207,7 +207,7 @@ function GoLiveSettings({ podcast }: { podcast: Podcast }) {
                 id="live-title"
                 value={title}
                 maxLength={liveTitleMaxLength}
-                placeholder={`${podcast.title} live, with today's date`}
+                placeholder={`${show.title} live, with today's date`}
                 onChange={(event) => setTitle(event.target.value)}
               />
               <Button type="submit" variant="outline" disabled={pending || title === (settings.liveTitle ?? '')}>
@@ -241,8 +241,8 @@ function GoLiveSettings({ podcast }: { podcast: Podcast }) {
                     <Button variant="outline" size="sm" asChild>
                       {/* Until it's ready, only its manage page shows it. */}
                       <Link
-                        to={broadcast.episode.status === 'ready' ? '/$slug/episodes/$episodeSlug' : '/$slug/episodes/$episodeSlug/manage'}
-                        params={{ slug: podcast.slug, episodeSlug: broadcast.episode.slug }}
+                        to={broadcast.episode.status === 'ready' ? '/$slug/$episodeSlug' : '/$slug/$episodeSlug/manage'}
+                        params={{ slug: show.slug, episodeSlug: broadcast.episode.slug }}
                       >
                         {broadcast.episode.status === 'ready' ? 'Episode' : 'Episode (processing)'}
                       </Link>
@@ -274,7 +274,7 @@ function GoLiveSettings({ podcast }: { podcast: Podcast }) {
               onClick={() =>
                 void (confirm === 'reset'
                   ? makeKey()
-                  : run(() => revokeMyLiveKey({ data: { podcastId: podcast.id } })))
+                  : run(() => revokeMyLiveKey({ data: { showId: show.id } })))
               }
             >
               {confirm === 'reset' ? 'Make a new key' : 'Turn off'}

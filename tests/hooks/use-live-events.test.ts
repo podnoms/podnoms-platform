@@ -35,10 +35,10 @@ afterEach(() => {
 })
 
 describe('useLiveStart', () => {
-  it('fires when the podcast goes live while the page is open', () => {
+  it('fires when the show goes live while the page is open', () => {
     const onStart = vi.fn()
     renderHook(() => useLiveStart('show', true, false, onStart))
-    expect(sources[0]!.url).toBe('/api/podcasts/show/live/events')
+    expect(sources[0]!.url).toBe('/api/shows/show/live/events')
 
     sources[0]!.status(false)
     expect(onStart).not.toHaveBeenCalled()
@@ -68,7 +68,7 @@ describe('useLiveStart', () => {
     expect(onStart).toHaveBeenCalledTimes(1)
   })
 
-  it('returns whether the podcast is live, following its status', () => {
+  it('returns whether the show is live, following its status', () => {
     const { result } = renderHook(() => useLiveStart('show', true, true, vi.fn()))
     expect(result.current).toBe(true)
     act(() => sources[0]!.status(false))
@@ -92,7 +92,7 @@ describe('useLiveEvents', () => {
 
   it('says the show has ended when the broadcast being watched ends, until the next starts', () => {
     const { result } = renderHook(() => useLiveEvents('show', { broadcast, chat: [] }))
-    expect(sources[0]!.url).toBe('/api/podcasts/show/live/events?watching=1')
+    expect(sources[0]!.url).toBe('/api/shows/show/live/events?watching=1')
     expect(result.current.ended).toBe(false)
 
     act(() => sources[0]!.status(false))

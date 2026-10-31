@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { descriptionHtml, imageChange } from '~/lib/podcast-schema'
+import { descriptionHtml, imageChange } from '~/lib/show-schema'
 import { tagNamesSchema } from '~/lib/tag-schema'
 
 const optionalText = (max: number, message: string) =>
@@ -14,7 +14,7 @@ const optionalText = (max: number, message: string) =>
 export const maxUploadBytes = 1024 * 1024 * 1024
 
 const episodeDetails = {
-  podcastId: z.string().min(1),
+  showId: z.string().min(1),
   // Left blank, the title and description come from the source.
   title: optionalText(200, 'Keep the title under 200 characters'),
   description: optionalText(4000, 'Keep the description under 4000 characters'),
@@ -50,7 +50,7 @@ export const maxBulkUploadFiles = 50
 
 // Several uploaded files, each to become an episode, in the order given.
 export const bulkUploadEpisodesSchema = z.object({
-  podcastId: z.string().min(1),
+  showId: z.string().min(1),
   episodes: z
     .array(z.object({ uploadId, title: optionalText(200, 'Keep each title under 200 characters') }))
     .min(1, 'Choose some audio files to upload')

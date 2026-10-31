@@ -90,7 +90,7 @@ services:
       timeout: 5s
       retries: 12
 
-  # Certificates for podcasts' custom domains; Traefik passes those domains'
+  # Certificates for shows' custom domains; Traefik passes those domains'
   # connections through to it (see "Custom domains" in README.md). It must
   # share a network with Traefik, and the app needs CUSTOM_DOMAIN_EDGE_HOST
   # set to its name (podnoms-edge).

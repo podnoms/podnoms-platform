@@ -8,7 +8,7 @@ import { Route as AudioRoute } from '~/routes/api/episodes/$id/audio'
 import { episodeActivity } from '~/server/db/schema'
 import { episodeAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
-import { callRoute, createEpisode, createPodcast, createUser, db } from '../helpers'
+import { callRoute, createEpisode, createShow, createUser, db } from '../helpers'
 
 vi.mock('~/server/geoip.server', () => ({ lookupLocation: vi.fn(async () => null) }))
 
@@ -19,8 +19,8 @@ const chrome =
 beforeEach(() => resetDb(db))
 
 async function readyEpisode() {
-  const podcast = await createPodcast((await createUser()).id)
-  const episode = await createEpisode(podcast.id, { status: 'ready', audioUrl: '/api/episodes/x/audio' })
+  const show = await createShow((await createUser()).id)
+  const episode = await createEpisode(show.id, { status: 'ready', audioUrl: '/api/episodes/x/audio' })
   await mkdir(dirname(episodeAudioPath(episode.id)), { recursive: true })
   // Bigger than the probes apps make before downloading.
   await writeFile(episodeAudioPath(episode.id), new Uint8Array(10_000))

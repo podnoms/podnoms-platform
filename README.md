@@ -2,18 +2,18 @@
 
 [![CI: tests, Docker build and publishing](https://github.com/podnoms/podnoms-platform/actions/workflows/docker.yml/badge.svg?event=push)](https://github.com/podnoms/podnoms-platform/actions/workflows/docker.yml)
 
-Turn YouTube videos, Mixcloud and SoundCloud uploads, or your own audio files into a podcast you can subscribe to in any podcast app.
+Turn YouTube videos, Mixcloud and SoundCloud uploads, or your own audio files into a show you can subscribe to in any podcast app.
 
-Paste a link or upload a file. PodNoms downloads or converts it to MP3 in the background and publishes it in the podcast's RSS feed.
+Paste a link or upload a file. PodNoms downloads or converts it to MP3 in the background and publishes it in the show's RSS feed.
 
 ## Features
 
 - **Episodes from links:** any source [yt-dlp](https://github.com/yt-dlp/yt-dlp) supports, with live download progress.
 - **Episodes from files:** upload audio (MP3, M4A, WAV, FLAC…) or a video to take the audio from, up to 1 GB.
-- **RSS feeds:** one per podcast at `/feed/<slug>`, with the iTunes tags podcast apps expect.
-- **Artwork:** for podcasts and episodes, stored as square JPEGs that meet Apple's artwork rules. Resized copies are served on request.
+- **RSS feeds:** one per show at `/feed/<slug>`, with the iTunes tags podcast apps expect.
+- **Artwork:** for shows and episodes, stored as square JPEGs that meet Apple's artwork rules. Resized copies are served on request.
 - **Rich text descriptions:** edited in the browser and sanitised on the server.
-- **Live broadcasts:** stream video from OBS to a podcast's live page, with a chat for signed-in listeners. The recording becomes a private episode when the broadcast ends.
+- **Live broadcasts:** stream video from OBS to a show's live page, with a chat for signed-in listeners. The recording becomes a private episode when the broadcast ends.
 - **Built-in player:** keeps playing as you move between pages and remembers where you left off on each episode, on any device.
 - **Sign-in:** email and password, or GitHub, Google or Facebook.
 
@@ -58,9 +58,9 @@ Settings are read from `.env` and checked at startup by [`src/env.ts`](src/env.t
 | `LOG_LEVEL` | No | `trace`, `debug`, `info` (default), `warn`, `error`, `fatal` or `silent` |
 | `REDIS_URL` | No | Redis for background jobs, e.g. `redis://localhost:6379`. Without it, scheduled jobs (such as the media clean-up) don't run. See [Background jobs](#background-jobs). |
 | `MAXMIND_ACCOUNT_ID`, `MAXMIND_LICENSE_KEY` | No | A free [MaxMind GeoLite2](https://www.maxmind.com/en/geolite2/signup) account, for listeners' country, region and city in the activity stats. The database is downloaded into `MEDIA_DIR/geoip` on first use and refreshed weekly. See [Activity](#activity). |
-| `PEXELS_API_KEY` | No | A free [Pexels API key](https://www.pexels.com/api/). The **Random image** button on podcast and episode artwork searches for a photo using the title, description and podcast title: on Pexels with this key, otherwise on Flickr with `FLICKR_API_KEY`, otherwise on [Wikimedia Commons](https://commons.wikimedia.org) (no key needed). Flickr and Commons are limited to CC0 and public-domain photos. |
+| `PEXELS_API_KEY` | No | A free [Pexels API key](https://www.pexels.com/api/). The **Random image** button on show and episode artwork searches for a photo using the title, description and show title: on Pexels with this key, otherwise on Flickr with `FLICKR_API_KEY`, otherwise on [Wikimedia Commons](https://commons.wikimedia.org) (no key needed). Flickr and Commons are limited to CC0 and public-domain photos. |
 | `FLICKR_API_KEY` | No | A [Flickr API key](https://www.flickr.com/services/apps/create/) (Flickr only issues them to Pro accounts), for the **Random image** button when `PEXELS_API_KEY` isn't set. |
-| `PODCASTINDEX_API_KEY`, `PODCASTINDEX_API_SECRET` | No | A free [Podcast Index API key](https://api.podcastindex.org/) **with write access**. With it, owners can submit their podcast to Podcast Index with one click from its Distribution tab; without it, they're sent to podcastindex.org/add. |
+| `PODCASTINDEX_API_KEY`, `PODCASTINDEX_API_SECRET` | No | A free [Podcast Index API key](https://api.podcastindex.org/) **with write access**. With it, owners can submit their show to Podcast Index with one click from its Distribution tab; without it, they're sent to podcastindex.org/add. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SECURE`, `EMAIL_FROM` | No | An SMTP server for email (password resets and notifications). When `SMTP_HOST` is set these are used and the admin page's email settings are locked; otherwise admins can enter a server there, with a button to send a test. `SMTP_PORT` defaults to 587; set `SMTP_SECURE=true` for TLS from the start (usually port 465). Links in emails use `SITE_URL`. The server must be allowed to send for the domain in `EMAIL_FROM` (verify the domain with your provider and add its SPF/DKIM DNS records); that's set up with your email provider, not in podnoms. |
 | `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION` | No | The `content` of the verification meta tag that Google Search Console or Bing Webmaster Tools gives you, to prove you own the site before submitting `/sitemap.xml`. |
 | `LIVE_SECRET`, `LIVE_API_URL`, `LIVE_HLS_URL`, `LIVE_RTMP_URL` | No | Live broadcasts through MediaMTX, on when all four are set. See [Live broadcasts](#live-broadcasts). |
@@ -82,6 +82,8 @@ media/
   sources/          uploaded files waiting to be converted
   uploads/          audio uploads not yet added as episodes (cleared after a day)
   staged-images/    image uploads not yet saved (cleared after a day)
+  deleted/          deleted shows' audio, artwork and recordings, one folder
+                    per show with a manifest.json (removed after 30 days)
 ```
 
 Back it up along with the database.
@@ -201,9 +203,11 @@ Jobs are queued in Redis with [BullMQ](https://docs.bullmq.io/) and run by a wor
 
 | Job | When | What it does |
 | --- | --- | --- |
-| `custom-domain-check` | Daily, 05:15 | Checks the DNS records of podcasts' verified custom domains again; a domain whose records have been wrong for 3 days stops being served |
+| `deleted-purge` | Daily, 04:15 | Removes deleted shows' folders from `MEDIA_DIR/deleted` once they're 30 days old |
+| `custom-domain-check` | Daily, 05:15 | Checks the DNS records of shows' verified custom domains again; a domain whose records have been wrong for 3 days stops being served |
 | `geoip-update` | Wednesdays, 04:00 | Downloads the latest GeoLite2 database, if a MaxMind account is configured |
-| `media-cleanup` | Daily, 03:30 | Removes files in `MEDIA_DIR` that no podcast, episode or user refers to (once they're a day old), uploads and images that were never saved (after a day), the kept upload of an episode that has been failed for a week, telling its owner to upload it again, and live recordings that weren't made into episodes (after a week) |
+| `media-cleanup` | Daily, 03:30 | Removes files in `MEDIA_DIR` that no show, episode or user refers to (once they're a day old), uploads and images that were never saved (after a day), the kept upload of an episode that has been failed for a week, telling its owner to upload it again, and live recordings that weren't made into episodes (after a week) |
+| `show-archive` | When a show is deleted | Moves the show's files (episode audio, kept uploads, waveforms, artwork and live recordings) into `MEDIA_DIR/deleted/<show id>`, next to a `manifest.json` of the show and its episodes. Without Redis this is done straight away instead |
 
 Admins can watch, retry and clean up jobs at `/admin/queues` ([Bull Board](https://github.com/felixmosh/bull-board)), linked from the account menu as **Jobs**.
 
@@ -221,7 +225,7 @@ available) or popularity (likes in the last 30 days, then total likes).
 
 ### Activity
 
-Podcast owners see plays, downloads and shares on the **Activity** tab of a podcast's page, and on each episode's page: totals, a count per day, and the top countries, apps and referring sites.
+Show owners see plays, downloads and shares on the **Activity** tab of a show's page, and on each episode's page: totals, a count per day, and the top countries, apps and referring sites.
 
 - **Plays** are reported by the site's own players (the episode page, share pages at `/s/<code>` and embeds).
 - **Downloads** are counted when anything else fetches the audio, usually a podcast app. The checks apps make before downloading (requests for the first few bytes) aren't counted.
@@ -233,14 +237,14 @@ Behind a reverse proxy, the listener's address is taken from `X-Forwarded-For` (
 
 ### Custom domains
 
-Owners can serve a podcast from their own domain, set on the podcast's **Distribution** tab (or when creating it). The domain then shows the podcast's page at `/`, its episodes at `/episodes/<slug>` and its RSS feed at `/feed`. The podnoms addresses keep working, and the feed keeps its `podcast:guid`, so existing subscribers aren't affected.
+Owners can serve a show from their own domain, set on the show's **Distribution** tab (or when creating it). The domain then serves the show's page at `/`, its episodes at `/episodes/<slug>` and its RSS feed at `/feed`. The podnoms addresses keep working, and the feed keeps its `podcast:guid`, so existing subscribers aren't affected.
 
 **Owners add two DNS records**, which the tab lists with a **Test** button:
 
 | Type | Name | Value |
 | --- | --- | --- |
 | `CNAME` | `pod.example.com` | `CUSTOM_DOMAIN_TARGET` (default: the host in `SITE_URL`) |
-| `TXT` | `_podnoms.pod.example.com` | `podnoms-verify=<token>`, a token made for that podcast and domain (`podnoms` is `CUSTOM_DOMAIN_TXT_LABEL`) |
+| `TXT` | `_podnoms.pod.example.com` | `podnoms-verify=<token>`, a token made for that show and domain (`podnoms` is `CUSTOM_DOMAIN_TXT_LABEL`) |
 
 The CNAME sends the traffic here. The TXT record proves the owner controls the domain, so nobody can claim a domain that someone else pointed at us. A domain is only served once both check out. The daily `custom-domain-check` job checks them again and drops a domain whose records have been wrong for 3 days.
 
@@ -272,16 +276,16 @@ providers:
 | `TRAEFIK_TLS_ENTRYPOINT`, `TRAEFIK_HTTP_ENTRYPOINT` | Traefik's entry points for HTTPS and HTTP (default `websecure` and `web`). |
 | `TRAEFIK_CONFIG_TOKEN` | Optional. When set, Traefik must send it as a bearer token to read `/api/traefik/config`. |
 
-On a custom domain, anything other than the podcast's pages and the files they load (sign-in, settings, other podcasts) redirects to the site. A domain that isn't verified also redirects to the site.
+On a custom domain, anything other than the show's pages and the files they load (sign-in, settings, other shows) redirects to the site. A domain that isn't verified also redirects to the site.
 
 ### Live broadcasts
 
-Owners can broadcast video live from [OBS](https://obsproject.com) with the **Go live** button on a podcast's page. Listeners watch at `/live/<slug>` (`/live` on a custom domain), which a **Watch live** button on the podcast's page links to while it's on, and chat there once they've signed in. Chat has an emoji picker and, with a `KLIPY_API_KEY` or `GIPHY_API_KEY`, GIF search (rated about PG-13). Both GIF providers require searches and GIFs to load straight from them in viewers' browsers (no proxying or caching without their approval), so the provider sees the viewer's IP address; podnoms only stores the chosen GIF's provider URL with the message, and only accepts URLs on that provider's media servers. GIPHY also requires "Powered by GIPHY" to show where its GIFs are offered. The owner and each message's writer can delete messages. A private podcast's broadcast and chat are only for its owner. When a broadcast ends, its recording becomes a **private episode** (audio only, through the usual conversion) for the owner to check and publish.
+Owners can broadcast video live from [OBS](https://obsproject.com) with the **Go live** button on a show's page. Listeners watch at `/live/<slug>` (`/live` on a custom domain), which a **Watch live** button on the show's page links to while it's on, and chat there once they've signed in. Chat has an emoji picker and, with a `KLIPY_API_KEY` or `GIPHY_API_KEY`, GIF search (rated about PG-13). Both GIF providers require searches and GIFs to load straight from them in viewers' browsers (no proxying or caching without their approval), so the provider sees the viewer's IP address; podnoms only stores the chosen GIF's provider URL with the message, and only accepts URLs on that provider's media servers. GIPHY also requires "Powered by GIPHY" to show where its GIFs are offered. The owner and each message's writer can delete messages. A private show's broadcast and chat are only for its owner. When a broadcast ends, its recording becomes a **private episode** (audio only, through the usual conversion) for the owner to check and publish.
 
 **Streams go to [MediaMTX](https://github.com/bluenviron/mediamtx), not the app.** [`docker/mediamtx/mediamtx.yml`](docker/mediamtx/mediamtx.yml) runs it as the `mediamtx` service (the `live` profile in `compose.yml`):
 
-- **Who may publish:** OBS sends `live/<podcast id>?key=<key>`. MediaMTX asks the app (`/api/live/auth`, with `LIVE_SECRET`) whether the key is that podcast's. Keys are made in the **Go live** dialog, which keeps showing them (masked until shown); they're stored encrypted with a key derived from `AUTH_SECRET`. Making a new one (or turning streaming off) stops the old one working for the next broadcast.
-- **Watching:** MediaMTX serves HLS that only the app may read (and only the app may use its API: MediaMTX asks `/api/live/auth` about those requests too, and the app sends its own credentials). Viewers get it through `/api/podcasts/<slug>/live/hls/…`, which applies the podcast's privacy.
+- **Who may publish:** OBS sends `live/<show id>?key=<key>`. MediaMTX asks the app (`/api/live/auth`, with `LIVE_SECRET`) whether the key is that show's. Keys are made in the **Go live** dialog, which keeps showing them (masked until shown); they're stored encrypted with a key derived from `AUTH_SECRET`. Making a new one (or turning streaming off) stops the old one working for the next broadcast.
+- **Watching:** MediaMTX serves HLS that only the app may read (and only the app may use its API: MediaMTX asks `/api/live/auth` about those requests too, and the app sends its own credentials). Viewers get it through `/api/shows/<slug>/live/hls/…`, which applies the show's privacy.
 - **Who's live:** the app checks MediaMTX's API every 5 seconds. When the stream stops, the broadcast is marked interrupted and viewers see that the host is reconnecting. The owner is asked on the live page whether they've finished: **Yes** ends the show for everyone at once (and makes the episode), **No** waits for OBS. A stream that comes back within 5 minutes continues the same broadcast; after that, it ends by itself.
 - **Recording:** MediaMTX records into `MEDIA_DIR/live-recordings`, so it must share the app's media volume and run as the app's user (`1000:1000`).
 
@@ -322,7 +326,7 @@ To try it without OBS, stream a test pattern with ffmpeg, using the stream key f
 
 ```sh
 ffmpeg -re -f lavfi -i testsrc2=size=1280x720:rate=30 -f lavfi -i sine \
-  -c:v libx264 -preset veryfast -g 60 -c:a aac -f flv "rtmp://localhost/live/<podcast id>?key=<key>"
+  -c:v libx264 -preset veryfast -g 60 -c:a aac -f flv "rtmp://localhost/live/<show id>?key=<key>"
 ```
 
 ### Admins
@@ -347,9 +351,9 @@ Anything left unset is podnoms' own branding. The TXT record for custom domains 
 
 ### Moderation
 
-Images (podcast and episode artwork, profile pictures, suggested photos and thumbnails downloaded from links) are checked on the way in with [Azure AI Content Safety](https://learn.microsoft.com/azure/ai-services/content-safety/) when `AZURE_CONTENT_SAFETY_ENDPOINT` and `AZURE_CONTENT_SAFETY_KEY` are set. Azure rates each image for sexual content, violence, hate and self-harm; anything over the limits on the admin page's **Moderation** tab is refused (the defaults keep the site family-friendly). If Azure can't be reached, uploads are refused until it can, rather than let through unchecked. The free (F0) tier covers 5,000 images a month.
+Images (show and episode artwork, profile pictures, suggested photos and thumbnails downloaded from links) are checked on the way in with [Azure AI Content Safety](https://learn.microsoft.com/azure/ai-services/content-safety/) when `AZURE_CONTENT_SAFETY_ENDPOINT` and `AZURE_CONTENT_SAFETY_KEY` are set. Azure rates each image for sexual content, violence, hate and self-harm; anything over the limits on the admin page's **Moderation** tab is refused (the defaults keep the site family-friendly). If Azure can't be reached, uploads are refused until it can, rather than let through unchecked. The free (F0) tier covers 5,000 images a month.
 
-Anyone can report an image with the flag button on podcast, episode and profile pages. Admins see reports in their notifications (child safety reports are also emailed at once) and deal with them on the Moderation tab: **Remove image**, **Preserve and take down**, or **Dismiss**.
+Anyone can report an image with the flag button on show, episode and profile pages. Admins see reports in their notifications (child safety reports are also emailed at once) and deal with them on the Moderation tab: **Remove image**, **Preserve and take down**, or **Dismiss**.
 
 **Child sexual abuse material.** Azure judges how explicit an image is, but it doesn't recognise known abuse images. For that, put the site behind Cloudflare and turn on its free [CSAM Scanning Tool](https://developers.cloudflare.com/cache/reference/csam-scanning/), which checks images Cloudflare caches (everything under `/images/`) against NCMEC's lists and blocks matches. If you find such an image:
 

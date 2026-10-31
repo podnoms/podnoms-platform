@@ -94,7 +94,7 @@ function AdminPage() {
             <Alert>
               <AlertTitle>Channels aren't being checked</AlertTitle>
               <AlertDescription>
-                REDIS_URL is not set, so the job queue isn't running. Podcasts made from a channel get its uploads when
+                REDIS_URL is not set, so the job queue isn't running. Shows made from a channel get its uploads when
                 they're created, but not new ones.
               </AlertDescription>
             </Alert>
@@ -551,7 +551,7 @@ function Users({ users }: { users: Overview['users'] }) {
       <CardHeader>
         <CardTitle>Users</CardTitle>
         <CardDescription>
-          Uploads per channel is how many of a channel's newest uploads each user's podcasts import, and look at on each
+          Uploads per channel is how many of a channel's newest uploads each user's shows import, and look at on each
           check. 0 stops them following channels.
         </CardDescription>
       </CardHeader>

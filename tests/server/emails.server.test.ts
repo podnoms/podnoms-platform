@@ -13,7 +13,7 @@ describe('renderEmail', () => {
     expect(html).toContain('<!DOCTYPE html')
     expect(html).toContain('src="cid:logo@site"')
     expect(html).toContain(`href="${origin}"`)
-    expect(html).toContain('Robot powered podcasts')
+    expect(html).toContain('Robot powered shows')
     // Headings come out in capitals in plain text.
     expect(text).toContain('EMAIL IS WORKING')
     expect(text).not.toContain('<')
@@ -63,8 +63,8 @@ describe('passwordResetEmail', () => {
 
 describe('notificationDigestEmail', () => {
   const events = [
-    { type: 'episodeFailed' as const, podcastTitle: '<Show>', episodeTitle: 'Ep & 1', error: 'Gone', link: 'https://pods.example/e' },
-    { type: 'newEpisodes' as const, podcastTitle: 'Other', count: 3, link: null },
+    { type: 'episodeFailed' as const, showTitle: '<Show>', episodeTitle: 'Ep & 1', error: 'Gone', link: 'https://pods.example/e' },
+    { type: 'newEpisodes' as const, showTitle: 'Other', count: 3, link: null },
   ]
 
   it('sums the events up in the subject', () => {
@@ -75,12 +75,12 @@ describe('notificationDigestEmail', () => {
     expect(notificationDigestEmail([events[1]!], null, 'Pods').subject).toBe('3 new episodes on Pods')
   })
 
-  it("leads with the user's own podcasts, then sums up the ones they follow", () => {
-    const followed = { type: 'followedEpisodes' as const, podcastTitle: 'Loved', titles: ['Late Night Mix'], link: null }
+  it("leads with the user's own shows, then sums up the ones they follow", () => {
+    const followed = { type: 'followedEpisodes' as const, showTitle: 'Loved', titles: ['Late Night Mix'], link: null }
     expect(notificationDigestEmail([followed, events[1]!], null, 'Pods').subject).toBe('3 new episodes on Pods')
     expect(notificationDigestEmail([followed], null, 'Pods').subject).toBe('New from Loved: Late Night Mix')
     expect(notificationDigestEmail([followed, { ...followed, titles: ['A', 'B'] }], null, 'Pods').subject).toBe(
-      '3 new episodes from podcasts you follow',
+      '3 new episodes from shows you follow',
     )
   })
 
@@ -90,20 +90,20 @@ describe('notificationDigestEmail', () => {
       kind: 'mention' as const,
       authorName: 'Ann',
       episodeTitle: 'Ep 1',
-      podcastTitle: 'Show',
+      showTitle: 'Show',
       excerpt: 'Hey @you',
-      link: `${origin}/show/episodes/ep-1#comment-1`,
+      link: `${origin}/show/ep-1#comment-1`,
     }
     expect(notificationDigestEmail([comment], null, 'Pods').subject).toBe('Ann mentioned you')
     expect(notificationDigestEmail([{ ...comment, kind: 'reply' }], null, 'Pods').subject).toBe('Ann replied to you')
     expect(notificationDigestEmail([comment, comment], null, 'Pods').subject).toBe('2 mentions and replies on Pods')
     const { text } = await renderEmail(notificationDigestEmail([comment], null, 'Pods'), origin)
     expect(text).toContain('Hey @you')
-    expect(text).toContain(`${origin}/show/episodes/ep-1#comment-1`)
+    expect(text).toContain(`${origin}/show/ep-1#comment-1`)
   })
 
-  it('lists the episodes of a podcast the user follows', async () => {
-    const followed = { type: 'followedEpisodes' as const, podcastTitle: 'Loved', titles: ['One', 'Two'], link: `${origin}/loved` }
+  it('lists the episodes of a show the user follows', async () => {
+    const followed = { type: 'followedEpisodes' as const, showTitle: 'Loved', titles: ['One', 'Two'], link: `${origin}/loved` }
     const { text } = await renderEmail(notificationDigestEmail([followed], null, 'Pods'), origin)
     expect(text).toContain('2 new episodes from Loved')
     expect(text).toContain('One · Two')

@@ -4,7 +4,7 @@ import { ActivityPanel } from '~/components/activity-panel'
 import { BulkUploadDialog } from '~/components/bulk-upload-dialog'
 import { ChannelPanel } from '~/components/channel-panel'
 import { CustomDomainCard } from '~/components/custom-domain-card'
-import { DeletePodcastDialog } from '~/components/delete-podcast-dialog'
+import { DeleteShowDialog } from '~/components/delete-show-dialog'
 import { DistributionPanel } from '~/components/distribution-panel'
 import { EditDetailsDialog } from '~/components/edit-details-dialog'
 import { EpisodeListEnd } from '~/components/episode-list-end'
@@ -13,7 +13,7 @@ import { FeedUrlButton } from '~/components/feed-url-button'
 import { Icons } from '~/components/icons'
 import { GoLiveButton } from '~/components/go-live-dialog'
 import { NewEpisodeDialog } from '~/components/new-episode-dialog'
-import { PodcastPrivacyCard } from '~/components/podcast-privacy-card'
+import { ShowPrivacyCard } from '~/components/show-privacy-card'
 import { TagList } from '~/components/tag-list'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -33,7 +33,7 @@ import {
 } from '~/components/ui/empty'
 import { ItemGroup } from '~/components/ui/item'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
-import { fetchMyPodcast, fetchMyPodcastEpisodes, updateMyPodcast } from '~/functions/podcasts'
+import { fetchMyShow, fetchMyShowEpisodes, updateMyShow } from '~/functions/shows'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
 import { useLiveStart } from '~/hooks/use-live-events'
@@ -45,43 +45,43 @@ import { cn } from '~/lib/utils'
 import { pageTitle, useBranding } from '~/lib/branding'
 
 export const Route = createFileRoute('/_authed/$slug/manage')({
-  loader: ({ params }) => fetchMyPodcast({ data: { slug: params.slug } }),
+  loader: ({ params }) => fetchMyShow({ data: { slug: params.slug } }),
   head: ({ loaderData, matches }) => ({ meta: loaderData ? [{ title: pageTitle(matches, loaderData.title) }] : [] }),
-  component: PodcastPage,
+  component: ShowPage,
 })
 
-function PodcastPage() {
-  const podcast = Route.useLoaderData()
+function ShowPage() {
+  const show = Route.useLoaderData()
   const branding = useBranding()
   const router = useRouter()
   const navigate = useNavigate()
   // Going live (from OBS) brings the owner to the live page, to watch and chat.
-  const broadcasting = useLiveStart(podcast.slug, podcast.liveEnabled, podcast.live, () =>
-    navigate({ to: '/live/$slug', params: { slug: podcast.slug } }),
+  const broadcasting = useLiveStart(show.slug, show.liveEnabled, show.live, () =>
+    navigate({ to: '/live/$slug', params: { slug: show.slug } }),
   )
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const { summary } = podcast
+  const { summary } = show
   const { totalSeconds, latestAt } = summary
   const { episodes: loaded, ...more } = useEpisodePages({
-    podcastSlug: podcast.slug,
-    first: podcast.episodes,
+    showSlug: show.slug,
+    first: show.episodes,
     total: summary.count,
-    fetchMore: (offset, limit) => fetchMyPodcastEpisodes({ data: { slug: podcast.slug, offset, limit } }),
+    fetchMore: (offset, limit) => fetchMyShowEpisodes({ data: { slug: show.slug, offset, limit } }),
   })
-  // Follow the podcast's episodes live (rather than polling) and reload the
+  // Follow the show's episodes live (rather than polling) and reload the
   // page when one's details change or one is added, whether by a channel
   // check, the browser extension or another tab.
-  const live = useLiveProgress(podcast.slug, true, podcast, () =>
+  const live = useLiveProgress(show.slug, true, show, () =>
     router.invalidate({ filter: (match) => match.routeId === Route.id }),
   )
   const episodes = loaded.map((episode) => withLiveProgress(episode, live))
 
-  const artwork = podcast.imageUrl ?? episodes.find((e) => e.status === 'ready' && e.imageUrl)?.imageUrl ?? null
+  const artwork = show.imageUrl ?? episodes.find((e) => e.status === 'ready' && e.imageUrl)?.imageUrl ?? null
   const stats = [
     `${summary.count} ${summary.count === 1 ? 'episode' : 'episodes'}`,
     totalSeconds ? formatLength(totalSeconds) : null,
-    podcast.followerCount > 0 ? pluralise(podcast.followerCount, 'follower') : null,
+    show.followerCount > 0 ? pluralise(show.followerCount, 'follower') : null,
   ].filter(Boolean)
 
   // Square, label-less buttons below md, so the header's actions fit one row.
@@ -90,13 +90,13 @@ function PodcastPage() {
   const newEpisodeButtons = (
     <>
       {/* Picking a folder of audio isn't something people do on a phone. */}
-      <BulkUploadDialog podcastId={podcast.id}>
+      <BulkUploadDialog showId={show.id}>
         <Button variant="outline" className="max-md:hidden">
           <Icons.uploadFolder />
           Upload folder
         </Button>
       </BulkUploadDialog>
-      <NewEpisodeDialog podcastId={podcast.id} podcastTitle={podcast.title}>
+      <NewEpisodeDialog showId={show.id} showTitle={show.title}>
         <Button>
           <Icons.add />
           New episode
@@ -132,27 +132,27 @@ function PodcastPage() {
           )}
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex items-center gap-2">
-              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Podcast</p>
-              {podcast.private && (
+              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Show</p>
+              {show.private && (
                 <Badge variant="secondary">
                   <Icons.private />
                   Private
                 </Badge>
               )}
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-balance md:text-5xl">{podcast.title}</h1>
-            <TagList tags={podcast.tags} />
+            <h1 className="text-3xl font-bold tracking-tight text-balance md:text-5xl">{show.title}</h1>
+            <TagList tags={show.tags} />
             {/* On wide screens the full description is in the About column instead. */}
-            {podcast.description && (
-              <p className="line-clamp-2 max-w-3xl text-muted-foreground xl:hidden">{htmlToText(podcast.description)}</p>
+            {show.description && (
+              <p className="line-clamp-2 max-w-3xl text-muted-foreground xl:hidden">{htmlToText(show.description)}</p>
             )}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 pt-3">
               <p className="text-sm text-muted-foreground">{stats.join(' · ')}</p>
               <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
                 {/* Nobody streams from OBS on a phone, so only a broadcast already on air shows there. */}
-                {podcast.liveEnabled && (
+                {show.liveEnabled && (
                   <div className={cn('contents', !broadcasting && 'max-md:hidden')}>
-                    <GoLiveButton podcast={podcast} live={broadcasting} />
+                    <GoLiveButton show={show} live={broadcasting} />
                   </div>
                 )}
                 <Button variant="outline" className={iconOnMobile} onClick={() => setEditing(true)}>
@@ -160,14 +160,14 @@ function PodcastPage() {
                   <span className="max-md:sr-only">Edit</span>
                 </Button>
                 <Button variant="outline" className={iconOnMobile} asChild>
-                  <Link to="/$slug" target='_blank' params={{ slug: podcast.slug }} >
+                  <Link to="/$slug" target='_blank' params={{ slug: show.slug }} >
                     <Icons.externalLink />
                     <span className="max-md:sr-only">Public page</span>
                   </Link>
                 </Button>
                 <FeedUrlButton
-                  feedUrl={podcast.feedUrl}
-                  label={podcast.private ? 'Private RSS URL' : undefined}
+                  feedUrl={show.feedUrl}
+                  label={show.private ? 'Private RSS URL' : undefined}
                   iconOnMobile
                 />
                 {episodes.length > 0 && newEpisodeButtons}
@@ -175,13 +175,13 @@ function PodcastPage() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">
                       <Icons.more />
-                      <span className="sr-only">Podcast actions</span>
+                      <span className="sr-only">Show actions</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-auto">
                     <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
                       <Icons.delete />
-                      Delete podcast
+                      Delete show
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -192,7 +192,7 @@ function PodcastPage() {
       </header>
       <div className="mx-auto grid w-full max-w-7xl items-start gap-8 p-4 md:p-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="flex min-w-0 flex-col gap-4">
-          {podcast.channel && <ChannelPanel podcastId={podcast.id} channel={podcast.channel} />}
+          {show.channel && <ChannelPanel showId={show.id} channel={show.channel} />}
           {/* Activity is a tab away, so the episodes stay the focus. */}
           <Tabs defaultValue="episodes" className="min-w-0 gap-3">
             <TabsList variant="line">
@@ -203,7 +203,7 @@ function PodcastPage() {
               <TabsTrigger value="activity">Activity</TabsTrigger>
               <TabsTrigger value="distribution">
                 Distribution
-                {!isReady(podcast.distribution.readiness) && <span className="size-1.5 rounded-full bg-destructive" />}
+                {!isReady(show.distribution.readiness) && <span className="size-1.5 rounded-full bg-destructive" />}
               </TabsTrigger>
             </TabsList>
             <TabsContent value="episodes" className="flex flex-col gap-3">
@@ -215,7 +215,7 @@ function PodcastPage() {
                     </EmptyMedia>
                     <EmptyTitle>No episodes yet</EmptyTitle>
                     <EmptyDescription>
-                      {podcast.channel
+                      {show.channel
                         ? "The channel's uploads appear here as they're found. You can add episodes of your own too."
                         : `Paste a YouTube link or upload an audio file, and ${branding.name} will turn it into an episode.`}
                     </EmptyDescription>
@@ -225,31 +225,31 @@ function PodcastPage() {
               ) : (
                 <ItemGroup className="gap-3">
                   {episodes.map((episode) => (
-                    <EpisodeRow key={episode.id} episode={episode} podcastSlug={podcast.slug} podcastTitle={podcast.title} />
+                    <EpisodeRow key={episode.id} episode={episode} showSlug={show.slug} showTitle={show.title} />
                   ))}
                 </ItemGroup>
               )}
               <EpisodeListEnd {...more} />
             </TabsContent>
             <TabsContent value="activity">
-              <ActivityPanel slug={podcast.slug} />
+              <ActivityPanel slug={show.slug} />
             </TabsContent>
             <TabsContent value="distribution" className="flex flex-col gap-6">
-              <PodcastPrivacyCard
-                podcast={podcast}
+              <ShowPrivacyCard
+                show={show}
                 onChanged={() => router.invalidate({ filter: (match) => match.routeId === Route.id })}
               />
               <DistributionPanel
-                podcast={podcast}
-                distribution={podcast.distribution}
+                show={show}
+                distribution={show.distribution}
                 onChanged={() => router.invalidate({ filter: (match) => match.routeId === Route.id })}
                 onEditDetails={() => setEditing(true)}
               />
-              {podcast.customDomainTarget && (
+              {show.customDomainTarget && (
                 <CustomDomainCard
-                  podcast={podcast}
-                  target={podcast.customDomainTarget}
-                  txtLabel={podcast.customDomainTxtLabel}
+                  show={show}
+                  target={show.customDomainTarget}
+                  txtLabel={show.customDomainTxtLabel}
                   onChanged={() => router.invalidate({ filter: (match) => match.routeId === Route.id })}
                 />
               )}
@@ -257,13 +257,13 @@ function PodcastPage() {
           </Tabs>
         </div>
         <aside className="sticky top-[calc(var(--top-nav-height,0px)+1rem)] hidden flex-col gap-6 rounded-xl border bg-card p-5 xl:flex">
-          {podcast.description && (
+          {show.description && (
             <div className="flex flex-col gap-2">
               <h2 className="text-sm font-semibold">About</h2>
               {/* Sanitised on the server (see rich-text.server.ts). */}
               <div
                 className="rich-text text-sm text-muted-foreground"
-                dangerouslySetInnerHTML={{ __html: podcast.description }}
+                dangerouslySetInnerHTML={{ __html: show.description }}
               />
             </div>
           )}
@@ -285,24 +285,24 @@ function PodcastPage() {
           </dl>
         </aside>
       </div>
-      <DeletePodcastDialog
-        podcast={{ id: podcast.id, title: podcast.title, slug: podcast.slug, episodeCount: summary.count }}
+      <DeleteShowDialog
+        show={{ id: show.id, title: show.title, slug: show.slug, episodeCount: summary.count }}
         open={deleting}
         onOpenChange={setDeleting}
       />
       <EditDetailsDialog
         open={editing}
         onOpenChange={setEditing}
-        heading="Edit podcast"
+        heading="Edit show"
         description="Changes show in podcast apps the next time they check the feed."
-        details={{ title: podcast.title, description: podcast.description, imageUrl: podcast.imageUrl, tags: podcast.tags, slug: podcast.slug }}
+        details={{ title: show.title, description: show.description, imageUrl: show.imageUrl, tags: show.tags, slug: show.slug }}
         maxTitleLength={100}
         onSave={async (change) => {
-          const result = await updateMyPodcast({ data: { id: podcast.id, ...change } })
+          const result = await updateMyShow({ data: { id: show.id, ...change } })
           if (result.error) return result.error
           // To the new address first, as the old one has gone.
           if (change.slug) await navigate({ to: '/$slug/manage', params: { slug: change.slug }, replace: true })
-          // The sidebar's podcasts are reloaded too, for their links.
+          // The sidebar's shows are reloaded too, for their links.
           await router.invalidate()
         }}
       />

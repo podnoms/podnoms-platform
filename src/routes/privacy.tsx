@@ -44,7 +44,7 @@ function PrivacyPage() {
             public keys of your security keys and hashed recovery codes.
           </li>
           <li>
-            <strong>Your content:</strong> the podcasts and episodes you create, the links you submit, the files you
+            <strong>Your content:</strong> the shows and episodes you create, the links you submit, the files you
             upload and the audio and images we make from them.
           </li>
           <li>
@@ -53,7 +53,7 @@ function PrivacyPage() {
             salted with a random value that changes daily and is then deleted. We don't keep IP addresses.
           </li>
           <li>
-            <strong>Tracked links:</strong> a podcast's owner can make a link to an episode for a particular person. When
+            <strong>Tracked links:</strong> a show's owner can make a link to an episode for a particular person. When
             that link is opened, or the episode played from it, we count it and note when, and the owner can see this.
             Nothing else about whoever opened it is kept with the link.
           </li>
@@ -66,7 +66,7 @@ function PrivacyPage() {
 
       <LegalSection title="How we use it">
         <p>
-          We use your data only to run {name}: to sign you in, build and serve your podcasts and feeds, show you
+          We use your data only to run {name}: to sign you in, build and serve your shows and feeds, show you
           statistics about your listeners, keep the service secure and fix problems. We don't sell your data or use it for
           advertising.
         </p>
@@ -81,7 +81,7 @@ function PrivacyPage() {
 
       <LegalSection title="Who else sees your data">
         <ul>
-          <li>Anyone with the link can see public podcasts, their episodes and their RSS feeds.</li>
+          <li>Anyone with the link can see public shows, their episodes and their RSS feeds.</li>
           <li>The sign-in provider you choose (GitHub, Google or Facebook) knows that you signed in to {name}.</li>
           <li>
             Services that help us run the site, such as our hosting and network providers, process data on our behalf.
@@ -100,7 +100,7 @@ function PrivacyPage() {
 
       <LegalSection id="deletion" title="Deleting your data">
         <p>
-          You can delete your podcasts and episodes at any time from the site. To delete your account and everything
+          You can delete your shows and episodes at any time from the site. To delete your account and everything
           in it, including data received from a sign-in provider such as Facebook, email <ContactLink /> from the
           address on your account. We'll delete it within 30 days and confirm when it's done.
         </p>

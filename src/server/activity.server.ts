@@ -1,4 +1,4 @@
-// What listeners do with episodes (plays, downloads, shares), for podcast
+// What listeners do with episodes (plays, downloads, shares), for show
 // owners' stats. Kept unidentifiable on purpose:
 // - The IP address is used to look up the country, region and city, and to
 //   tell visitors apart, then dropped. Visitors are told apart by a hash of
@@ -15,7 +15,7 @@ import { and, count, desc, eq, gte, inArray, isNotNull, lt, sql, type SQL } from
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 import { db } from '~/server/db/client.server'
 import { z } from 'zod'
-import { episodeActivity, episodes, podcasts, siteSettings, type ActivitySource, type ActivityType } from '~/server/db/schema'
+import { episodeActivity, episodes, shows, siteSettings, type ActivitySource, type ActivityType } from '~/server/db/schema'
 import { lookupLocation } from '~/server/geoip.server'
 import { internalKeyPrefix } from '~/server/site-settings.server'
 import { describeUserAgent, isBot } from '~/server/user-agent.server'
@@ -38,7 +38,7 @@ export async function recordActivity(request: Request, input: ActivityInput) {
   const userAgent = request.headers.get('user-agent')
   if (isBot(userAgent)) return false
   const [episode] = await db
-    .select({ podcastId: episodes.podcastId })
+    .select({ showId: episodes.showId })
     .from(episodes)
     .where(and(eq(episodes.id, input.episodeId), eq(episodes.status, 'ready'), isNotNull(episodes.audioUrl)))
     .limit(1)
@@ -50,7 +50,7 @@ export async function recordActivity(request: Request, input: ActivityInput) {
     .insert(episodeActivity)
     .values({
       episodeId: input.episodeId,
-      podcastId: episode.podcastId,
+      showId: episode.showId,
       type: input.type,
       source: input.source,
       detail: input.detail ?? null,
@@ -144,19 +144,19 @@ function referrerHost(referrer: string | null, request: Request) {
 
 export type ActivitySummary = Awaited<ReturnType<typeof summariseActivity>>
 
-// Whose activity to summarise: one podcast, one of its episodes, or all of
-// a user's podcasts.
-export type ActivityScope = { podcastId: string; episodeId?: string } | { userId: string }
+// Whose activity to summarise: one show, one of its episodes, or all of
+// a user's shows.
+export type ActivityScope = { showId: string; episodeId?: string } | { userId: string }
 
 export function activityInScope(scope: ActivityScope) {
   if ('userId' in scope) {
     return inArray(
-      episodeActivity.podcastId,
-      db.select({ id: podcasts.id }).from(podcasts).where(eq(podcasts.userId, scope.userId)),
+      episodeActivity.showId,
+      db.select({ id: shows.id }).from(shows).where(eq(shows.userId, scope.userId)),
     )
   }
   return and(
-    eq(episodeActivity.podcastId, scope.podcastId),
+    eq(episodeActivity.showId, scope.showId),
     scope.episodeId ? eq(episodeActivity.episodeId, scope.episodeId) : undefined,
   )
 }

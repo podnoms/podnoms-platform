@@ -4,7 +4,7 @@ import { clientIp, recordActivity, saltFor, summariseActivity, visitorHash, visi
 import { episodeActivity, siteSettings } from '~/server/db/schema'
 import { lookupLocation } from '~/server/geoip.server'
 import { resetDb } from '../db'
-import { createEpisode, createPodcast, createUser, db } from '../helpers'
+import { createEpisode, createShow, createUser, db } from '../helpers'
 
 // Locations are tested in geoip.server.test.ts.
 vi.mock('~/server/geoip.server', () => ({ lookupLocation: vi.fn(async () => null) }))
@@ -19,9 +19,9 @@ beforeEach(async () => {
 })
 
 async function publishedEpisode() {
-  const podcast = await createPodcast((await createUser()).id)
-  const episode = await createEpisode(podcast.id, { status: 'ready', audioUrl: '/api/episodes/x/audio', durationSeconds: 60 })
-  return { podcast, episode }
+  const show = await createShow((await createUser()).id)
+  const episode = await createEpisode(show.id, { status: 'ready', audioUrl: '/api/episodes/x/audio', durationSeconds: 60 })
+  return { show, episode }
 }
 
 function request(headers: Record<string, string> = {}) {
@@ -33,7 +33,7 @@ function request(headers: Record<string, string> = {}) {
 
 describe('recordActivity', () => {
   it('records where it came from, without the IP address', async () => {
-    const { podcast, episode } = await publishedEpisode()
+    const { show, episode } = await publishedEpisode()
     vi.mocked(lookupLocation).mockResolvedValue({ country: 'IE', region: 'L', city: 'Dublin' })
     expect(
       await recordActivity(request({ 'x-forwarded-for': '203.0.113.7, 10.0.0.1' }), {
@@ -48,7 +48,7 @@ describe('recordActivity', () => {
     const [row] = await db.select().from(episodeActivity)
     expect(row).toMatchObject({
       episodeId: episode.id,
-      podcastId: podcast.id,
+      showId: show.id,
       type: 'play',
       source: 'embed',
       country: 'IE',
@@ -83,8 +83,8 @@ describe('recordActivity', () => {
   })
 
   it("doesn't count episodes that aren't published", async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const pending = await createEpisode(podcast.id, { status: 'processing' })
+    const show = await createShow((await createUser()).id)
+    const pending = await createEpisode(show.id, { status: 'processing' })
     expect(await recordActivity(request(), { episodeId: pending.id, type: 'play', source: 'web' })).toBe(false)
     expect(await recordActivity(request(), { episodeId: 'nope', type: 'play', source: 'web' })).toBe(false)
   })
@@ -99,7 +99,7 @@ describe('recordActivity', () => {
     }
     expect(episode).toBeTruthy()
     expect(await referred({ referer: 'https://news.example.org/a' })).toBe('news.example.org')
-    expect(await referred({ referer: 'https://podnoms.test/podcasts/show' })).toBeNull()
+    expect(await referred({ referer: 'https://podnoms.test/shows/show' })).toBeNull()
     expect(await referred({ referer: 'https://podnoms.test/' }, 'https://social.example/')).toBe('social.example')
     expect(await referred({}, 'not a url')).toBeNull()
     expect(await referred({}, 'android-app://com.example')).toBeNull()
@@ -150,11 +150,11 @@ describe('clientIp', () => {
 describe('summariseActivity', () => {
   const now = new Date('2026-10-03T12:00:00Z')
 
-  async function insert(rows: Partial<typeof episodeActivity.$inferInsert>[], episodeId: string, podcastId: string) {
+  async function insert(rows: Partial<typeof episodeActivity.$inferInsert>[], episodeId: string, showId: string) {
     await db.insert(episodeActivity).values(
       rows.map((row, i) => ({
         episodeId,
-        podcastId,
+        showId,
         type: 'play' as const,
         source: 'web' as const,
         visitorHash: `v${i}`,
@@ -165,7 +165,7 @@ describe('summariseActivity', () => {
   }
 
   it('totals, counts by day and lists the top countries, apps and referrers', async () => {
-    const { podcast, episode } = await publishedEpisode()
+    const { show, episode } = await publishedEpisode()
     await insert(
       [
         { country: 'IE', client: 'Overcast' },
@@ -176,10 +176,10 @@ describe('summariseActivity', () => {
         { country: 'FR', occurredAt: new Date('2026-09-01T00:00:00Z') },
       ],
       episode.id,
-      podcast.id,
+      show.id,
     )
 
-    const summary = await summariseActivity({ podcastId: podcast.id, days: 7, now })
+    const summary = await summariseActivity({ showId: show.id, days: 7, now })
     expect(summary.totals).toEqual({ play: 2, download: 1, share: 1 })
     expect(summary.daily).toHaveLength(7)
     expect(summary.daily.at(0)?.day).toBe('2026-09-27')
@@ -197,17 +197,17 @@ describe('summariseActivity', () => {
   })
 
   it('covers just one episode when asked', async () => {
-    const { podcast, episode } = await publishedEpisode()
-    const other = await createEpisode(podcast.id, { status: 'ready', audioUrl: '/a' })
-    await insert([{}, {}], episode.id, podcast.id)
-    await insert([{ visitorHash: 'other' }], other.id, podcast.id)
-    const summary = await summariseActivity({ podcastId: podcast.id, episodeId: other.id, days: 7, now })
+    const { show, episode } = await publishedEpisode()
+    const other = await createEpisode(show.id, { status: 'ready', audioUrl: '/a' })
+    await insert([{}, {}], episode.id, show.id)
+    await insert([{ visitorHash: 'other' }], other.id, show.id)
+    const summary = await summariseActivity({ showId: show.id, episodeId: other.id, days: 7, now })
     expect(summary.totals.play).toBe(1)
   })
 
   it('is all zeros with no activity', async () => {
-    const { podcast } = await publishedEpisode()
-    const summary = await summariseActivity({ podcastId: podcast.id, days: 30, now })
+    const { show } = await publishedEpisode()
+    const summary = await summariseActivity({ showId: show.id, days: 30, now })
     expect(summary.totals).toEqual({ play: 0, download: 0, share: 0 })
     expect(summary.daily).toHaveLength(30)
     expect(summary.countries).toEqual([])

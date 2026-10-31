@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { saveMyPlaybackPosition } from '~/functions/podcasts'
+import { saveMyPlaybackPosition } from '~/functions/shows'
 import { reportActivity, reportTrackedLinkVisit } from '~/lib/activity'
 import { readLastEpisode, storeLastEpisode } from '~/lib/last-episode'
 import { defaultVolume, readStoredVolume, storeVolume, type Volume } from '~/lib/volume'
@@ -9,12 +9,12 @@ export type PlayerEpisode = {
   title: string
   audioUrl: string
   imageUrl: string | null
-  podcastTitle: string
+  showTitle: string
   // For linking to the episode: its manage page for its owner, else its
   // public page. Missing for an episode remembered in this browser from
   // before they were kept.
   slug?: string
-  podcastSlug?: string
+  showSlug?: string
   isOwner?: boolean
   // Where the listener left off, as last loaded from the server.
   positionSeconds: number | null
@@ -60,7 +60,7 @@ const PlayerContext = createContext<PlayerContextValue | null>(null)
 
 // One audio element for the whole app, so playback carries on while you move
 // between pages. Signed-out listeners' positions are only kept in this browser.
-// `source` is where plays are reported as coming from, for the podcast's stats.
+// `source` is where plays are reported as coming from, for the show's stats.
 // On a share page opened through a tracked link, `trackedLink` is that link,
 // whose episode's first play is reported to it too.
 export function PlayerProvider({
@@ -254,7 +254,7 @@ export function PlayerProvider({
     [episode, queue, queueIndex, playQueue, step, playing, currentTime, duration, rate, volume, play, positionOf, savePosition, changeVolume],
   )
 
-  // Report each episode's first play on this page, for the podcast's stats.
+  // Report each episode's first play on this page, for the show's stats.
   const reported = useRef(new Set<string>())
   useEffect(() => {
     if (!playing || !episode || reported.current.has(episode.id)) return

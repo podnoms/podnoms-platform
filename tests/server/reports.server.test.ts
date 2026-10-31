@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { contentReports, episodes, podcasts, users } from '~/server/db/schema'
+import { contentReports, episodes, shows, users } from '~/server/db/schema'
 import type { EmailMessage } from '~/server/emails.server'
 import { listNotifications } from '~/server/inbox.server'
 import {
@@ -13,7 +13,7 @@ import {
 } from '~/server/reports.server'
 import { imagePath, quarantinePath } from '~/server/storage.server'
 import { resetDb } from '../db'
-import { createEpisode, createPodcast, createUser, db, exists, storeTestImage } from '../helpers'
+import { createEpisode, createShow, createUser, db, exists, storeTestImage } from '../helpers'
 
 const email = vi.hoisted(() => ({ sendEmail: vi.fn(async (_email: EmailMessage & { to: string }) => {}) }))
 vi.mock('~/server/email.server', () => ({
@@ -32,7 +32,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 50))
 let admin: Awaited<ReturnType<typeof createUser>>
 let owner: Awaited<ReturnType<typeof createUser>>
 let image: Awaited<ReturnType<typeof storeTestImage>>
-let podcast: Awaited<ReturnType<typeof createPodcast>>
+let show: Awaited<ReturnType<typeof createShow>>
 
 beforeEach(async () => {
   await resetDb(db)
@@ -40,7 +40,7 @@ beforeEach(async () => {
   admin = await createUser({ isAdmin: true, email: 'admin@example.com' })
   owner = await createUser({ name: 'Owner', email: 'owner@example.com' })
   image = await storeTestImage()
-  podcast = await createPodcast(owner.id, { title: 'Pods', imageUrl: image.url })
+  show = await createShow(owner.id, { title: 'Pods', imageUrl: image.url })
 })
 
 afterEach(() => {
@@ -51,13 +51,13 @@ afterEach(() => {
 })
 
 const report = (reason: 'childSafety' | 'sexual' | 'other' = 'sexual', who = visitor()) =>
-  createReport(who, { targetKind: 'podcast', targetId: podcast.id, reason, details: null })
+  createReport(who, { targetKind: 'show', targetId: show.id, reason, details: null })
 
 describe('createReport', () => {
   it('records a report of the image as it is now, with whose it is', async () => {
     expect(await report()).toBe(true)
     const [row] = await db.select().from(contentReports)
-    expect(row).toMatchObject({ targetKind: 'podcast', imageUrl: image.url, ownerId: owner.id, reason: 'sexual' })
+    expect(row).toMatchObject({ targetKind: 'show', imageUrl: image.url, ownerId: owner.id, reason: 'sexual' })
     expect(row!.reporterHash).not.toContain('203.0.113')
   })
 
@@ -70,15 +70,15 @@ describe('createReport', () => {
 
   it('stops a visitor reporting too much', async () => {
     for (let n = 0; n < maxReportsPerDay; n++) {
-      const other = await createPodcast(owner.id, { imageUrl: image.url })
-      await createReport(visitor(), { targetKind: 'podcast', targetId: other.id, reason: 'other', details: null })
+      const other = await createShow(owner.id, { imageUrl: image.url })
+      await createReport(visitor(), { targetKind: 'show', targetId: other.id, reason: 'other', details: null })
     }
     expect(await report()).toBe(false)
   })
 
   it("ignores reports of things without an image, or that don't exist", async () => {
-    const plain = await createPodcast(owner.id)
-    expect(await createReport(visitor(), { targetKind: 'podcast', targetId: plain.id, reason: 'other', details: null })).toBe(false)
+    const plain = await createShow(owner.id)
+    expect(await createReport(visitor(), { targetKind: 'show', targetId: plain.id, reason: 'other', details: null })).toBe(false)
     expect(await createReport(visitor(), { targetKind: 'user', targetId: 'nobody', reason: 'other', details: null })).toBe(false)
   })
 
@@ -105,10 +105,10 @@ describe('listOpenReports', () => {
     const [listed, ...rest] = await listOpenReports()
     expect(rest).toEqual([])
     expect(listed).toMatchObject({
-      targetKind: 'podcast',
+      targetKind: 'show',
       imageUrl: image.url,
-      what: 'the podcast “Pods”',
-      path: `/${podcast.slug}`,
+      what: 'the show “Pods”',
+      path: `/${show.slug}`,
       owner: 'Owner (owner@example.com)',
       current: true,
       childSafety: true,
@@ -118,7 +118,7 @@ describe('listOpenReports', () => {
 
   it('says when the image has changed since', async () => {
     await report()
-    await db.update(podcasts).set({ imageUrl: null }).where(eq(podcasts.id, podcast.id))
+    await db.update(shows).set({ imageUrl: null }).where(eq(shows.id, show.id))
     expect(await listOpenReports()).toMatchObject([{ current: false }])
   })
 })
@@ -130,7 +130,7 @@ describe('resolveReport', () => {
     await report()
     await report('other', visitor(2))
     expect(await resolveReport(admin.id, await openReportId(), 'removed')).toEqual({ purged: null })
-    const [row] = await db.select({ imageUrl: podcasts.imageUrl }).from(podcasts).where(eq(podcasts.id, podcast.id))
+    const [row] = await db.select({ imageUrl: shows.imageUrl }).from(shows).where(eq(shows.id, show.id))
     expect(row!.imageUrl).toBeNull()
     expect(await exists(image.path)).toBe(false)
     expect(await listOpenReports()).toEqual([])
@@ -150,7 +150,7 @@ describe('resolveReport', () => {
     expect(row).toMatchObject({
       resolution: 'preserved',
       ownerId: null,
-      evidence: { ownerId: owner.id, ownerName: 'Owner', ownerEmail: 'owner@example.com', what: 'the podcast “Pods”' },
+      evidence: { ownerId: owner.id, ownerName: 'Owner', ownerEmail: 'owner@example.com', what: 'the show “Pods”' },
     })
   })
 
@@ -163,7 +163,7 @@ describe('resolveReport', () => {
 
   it("only takes an episode's own image off it", async () => {
     const own = await storeTestImage()
-    const episode = await createEpisode(podcast.id, { imageUrl: own.url })
+    const episode = await createEpisode(show.id, { imageUrl: own.url })
     await createReport(visitor(), { targetKind: 'episode', targetId: episode.id, reason: 'other', details: null })
     await resolveReport(admin.id, await openReportId(), 'removed')
     const [row] = await db.select({ imageUrl: episodes.imageUrl }).from(episodes).where(eq(episodes.id, episode.id))

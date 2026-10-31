@@ -9,13 +9,13 @@ const uploadsDir = resolve(env.MEDIA_DIR, 'uploads')
 // Uploaded files waiting to be converted, kept until the episode is ready so a
 // failed conversion can be retried.
 const sourcesDir = resolve(env.MEDIA_DIR, 'sources')
-// Podcast and episode artwork, as JPEGs.
+// Show and episode artwork, as JPEGs.
 const imagesDir = resolve(env.MEDIA_DIR, 'images')
-// Images users have uploaded but not yet saved to a podcast or episode.
+// Images users have uploaded but not yet saved to a show or episode.
 const stagedImagesDir = resolve(env.MEDIA_DIR, 'staged-images')
 // Episode waveforms, as JSON (see waveforms.server.ts).
 const waveformsDir = resolve(env.MEDIA_DIR, 'waveforms')
-// Live broadcasts as MediaMTX records them, one folder per podcast under
+// Live broadcasts as MediaMTX records them, one folder per show under
 // "live/" (its path names), until they're made into episodes (see
 // live-recordings.server.ts). MediaMTX must write to the same place.
 const liveRecordingsDir = resolve(env.MEDIA_DIR, 'live-recordings')
@@ -29,6 +29,9 @@ const geoipDir = resolve(env.MEDIA_DIR, 'geoip')
 // Never served, and never cleaned up: only deleted by hand, once the
 // authorities no longer need them.
 const quarantineDir = resolve(env.MEDIA_DIR, 'quarantine')
+// Deleted shows' files, one folder per show, kept for 30 days before they're
+// removed for good (see deleted-shows.server.ts). Never served.
+const deletedDir = resolve(env.MEDIA_DIR, 'deleted')
 
 // Every folder above, for the media clean-up job (see media-cleanup.server.ts).
 export const mediaDirs = {
@@ -147,9 +150,9 @@ export function episodeSourcePath(episodeId: string) {
   return join(sourcesDir, safeId(episodeId))
 }
 
-// Where MediaMTX records the podcast's broadcasts (its path is "live/<podcast id>").
-export function podcastLiveRecordingsDir(podcastId: string) {
-  return join(liveRecordingsDir, 'live', safeId(podcastId))
+// Where MediaMTX records the show's broadcasts (its path is "live/<show id>").
+export function showLiveRecordingsDir(showId: string) {
+  return join(liveRecordingsDir, 'live', safeId(showId))
 }
 
 export async function ensureImagesDir() {
@@ -194,6 +197,14 @@ export async function ensureQuarantineDir() {
 
 export function quarantinePath(reportId: string) {
   return join(quarantineDir, `${safeId(reportId)}.jpg`)
+}
+
+export function deletedShowsDir() {
+  return deletedDir
+}
+
+export function deletedShowDir(showId: string) {
+  return join(deletedDir, safeId(showId))
 }
 
 export function stagedImagePath(userId: string, imageId: string) {

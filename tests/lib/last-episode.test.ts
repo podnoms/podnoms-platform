@@ -7,7 +7,7 @@ const episode: LastEpisode = {
   title: 'Episode One',
   audioUrl: '/api/episodes/ep-1/audio',
   imageUrl: null,
-  podcastTitle: 'The Show',
+  showTitle: 'The Show',
   positionSeconds: 42,
 }
 

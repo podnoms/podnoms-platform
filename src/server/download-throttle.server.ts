@@ -9,8 +9,8 @@
 //     for 30 minutes, doubling each time up to 6 hours, until one succeeds;
 //     or, when the remote fetcher can't be reached (a FetcherUnavailableError,
 //     see fetcher.server.ts), for 2 minutes, doubling up to 30.
-// Waiters with a higher priority go first; among equals, keys (podcasts) take
-// turns, so one podcast's big import doesn't hold everyone else up.
+// Waiters with a higher priority go first; among equals, keys (shows) take
+// turns, so one show's big import doesn't hold everyone else up.
 //
 // The settings are read live (see site-settings.server.ts). State is in
 // memory, as the app runs as a single instance.

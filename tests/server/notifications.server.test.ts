@@ -10,7 +10,7 @@ import {
 import { renderEmail, type EmailMessage } from '~/server/emails.server'
 import { resetDb } from '../db'
 import { listNotifications } from '~/server/inbox.server'
-import { createEpisode, createPodcast, createUser, db } from '../helpers'
+import { createEpisode, createShow, createUser, db } from '../helpers'
 
 const email = vi.hoisted(() => ({
   enabled: true,
@@ -43,16 +43,16 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 50))
 
 async function failedEpisode(userValues: Parameters<typeof createUser>[0] = {}) {
   const user = await createUser({ email: 'owner@example.com', ...userValues })
-  const podcast = await createPodcast(user.id, { title: 'My Show', slug: 'my-show' })
-  const episode = await createEpisode(podcast.id, { title: 'Ep 1', slug: 'ep-1', status: 'failed' })
-  return { user, podcast, episode }
+  const show = await createShow(user.id, { title: 'My Show', slug: 'my-show' })
+  const episode = await createEpisode(show.id, { title: 'Ep 1', slug: 'ep-1', status: 'failed' })
+  return { user, show, episode }
 }
 
 describe('notifications', () => {
   it('sends a few minutes of events as one email', async () => {
-    const { podcast, episode } = await failedEpisode()
+    const { show, episode } = await failedEpisode()
     notifyEpisodeFailed(episode.id, 'Video unavailable')
-    notifyNewEpisodes(podcast.id, 2)
+    notifyNewEpisodes(show.id, 2)
     await settle()
     expect(email.sendEmail).not.toHaveBeenCalled()
 
@@ -62,7 +62,7 @@ describe('notifications', () => {
     expect(sent.to).toBe('owner@example.com')
     expect(sent.subject).toBe('1 episode failed, 2 new')
     const { text } = await renderEmail(sent, 'https://pods.example')
-    expect(text).toContain('https://pods.example/my-show/episodes/ep-1/manage')
+    expect(text).toContain('https://pods.example/my-show/ep-1/manage')
   })
 
   it('sends after the batch delay', async () => {
@@ -76,9 +76,9 @@ describe('notifications', () => {
   })
 
   it("respects the owner's choices", async () => {
-    const { podcast, episode } = await failedEpisode({ notifyEpisodeFailed: false, notifyNewEpisodes: false })
+    const { show, episode } = await failedEpisode({ notifyEpisodeFailed: false, notifyNewEpisodes: false })
     notifyEpisodeFailed(episode.id, null)
-    notifyNewEpisodes(podcast.id, 3)
+    notifyNewEpisodes(show.id, 3)
     await settle()
     await flushAllNotifications()
     expect(email.sendEmail).not.toHaveBeenCalled()
@@ -103,13 +103,13 @@ describe('notifications', () => {
   })
 })
 
-describe('emails about podcasts the user follows', () => {
-  const podcast = { title: 'Loved', slug: 'loved' }
+describe('emails about shows the user follows', () => {
+  const show = { title: 'Loved', slug: 'loved' }
 
   it('adds new episodes to the next email, if the user chose them', async () => {
     const wants = await createUser({ email: 'wants@example.com', emailFollowedEpisodes: true })
     const not = await createUser({ email: 'not@example.com' })
-    for (const user of [wants, not]) emailFollowedEpisodes(user.id, podcast, [{ title: 'Late Night Mix', slug: 'late-night' }])
+    for (const user of [wants, not]) emailFollowedEpisodes(user.id, show, [{ title: 'Late Night Mix', slug: 'late-night' }])
     await settle()
     expect(email.sendEmail).not.toHaveBeenCalled()
     await flushAllNotifications()
@@ -118,13 +118,13 @@ describe('emails about podcasts the user follows', () => {
     expect(sent.to).toBe('wants@example.com')
     expect(sent.subject).toBe('New from Loved: Late Night Mix')
     const { text } = await renderEmail(sent, 'https://pods.example')
-    expect(text).toContain('https://pods.example/loved/episodes/late-night')
+    expect(text).toContain('https://pods.example/loved/late-night')
   })
 
   it('sends going live at once, if the user chose it', async () => {
     const wants = await createUser({ email: 'wants@example.com', emailLive: true })
     const not = await createUser({ email: 'not@example.com' })
-    for (const user of [wants, not]) emailFollowerLive(user.id, podcast, 'Q&A night')
+    for (const user of [wants, not]) emailFollowerLive(user.id, show, 'Q&A night')
     await settle()
     expect(email.sendEmail).toHaveBeenCalledTimes(1)
     const [sent] = email.sendEmail.mock.calls[0]!
@@ -139,7 +139,7 @@ describe('the notifications menu', () => {
     notifyEpisodeFailed(episode.id, 'Video unavailable')
     await settle()
     expect((await listNotifications(user.id)).items).toMatchObject([
-      { kind: 'episodeFailed', title: 'Ep 1 couldn’t be processed', body: 'Video unavailable', url: '/my-show/episodes/ep-1/manage' },
+      { kind: 'episodeFailed', title: 'Ep 1 couldn’t be processed', body: 'Video unavailable', url: '/my-show/ep-1/manage' },
     ])
   })
 })

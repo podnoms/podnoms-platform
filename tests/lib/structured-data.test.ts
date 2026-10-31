@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isoDuration, podcastEpisodeJsonLd, podcastSeriesJsonLd, websiteJsonLd } from '~/lib/structured-data'
+import { isoDuration, showEpisodeJsonLd, showSeriesJsonLd, websiteJsonLd } from '~/lib/structured-data'
 
 describe('isoDuration', () => {
   it.each([
@@ -13,10 +13,10 @@ describe('isoDuration', () => {
   })
 })
 
-describe('podcastSeriesJsonLd', () => {
-  it('describes the podcast in plain text', () => {
+describe('showSeriesJsonLd', () => {
+  it('describes the show in plain text', () => {
     expect(
-      podcastSeriesJsonLd({
+      showSeriesJsonLd({
         title: 'Show',
         description: '<p>About <b>it</b></p>',
         pageUrl: 'https://pods.example/show',
@@ -39,7 +39,7 @@ describe('podcastSeriesJsonLd', () => {
   })
 
   it('links its directory listings', () => {
-    const data = podcastSeriesJsonLd({
+    const data = showSeriesJsonLd({
       title: 'Show',
       description: null,
       pageUrl: 'https://pods.example/show',
@@ -52,8 +52,8 @@ describe('podcastSeriesJsonLd', () => {
     expect(data.sameAs).toEqual(['https://podcasts.apple.com/podcast/id1'])
   })
 
-  it('leaves out what the podcast lacks', () => {
-    const data = podcastSeriesJsonLd({
+  it('leaves out what the show lacks', () => {
+    const data = showSeriesJsonLd({
       title: 'Show',
       description: null,
       pageUrl: 'https://pods.example/show',
@@ -72,10 +72,10 @@ describe('podcastSeriesJsonLd', () => {
   })
 })
 
-describe('podcastEpisodeJsonLd', () => {
+describe('showEpisodeJsonLd', () => {
   const page = {
     siteName: 'Pods',
-    podcast: { title: 'Show', slug: 'show' },
+    show: { title: 'Show', slug: 'show' },
     episode: {
       title: 'Ep 1',
       description: '<p>Notes</p>',
@@ -83,13 +83,13 @@ describe('podcastEpisodeJsonLd', () => {
       createdAt: new Date('2026-01-01T00:00:00Z'),
       durationSeconds: 3725,
     },
-    pageUrl: 'https://pods.example/show/episodes/ep-1',
+    pageUrl: 'https://pods.example/show/ep-1',
     audioUrl: 'https://pods.example/api/episodes/1/audio',
     image: null,
   }
 
-  it('describes the episode, its audio and its podcast', () => {
-    const [episode] = podcastEpisodeJsonLd(page)
+  it('describes the episode, its audio and its show', () => {
+    const [episode] = showEpisodeJsonLd(page)
     expect(episode).toMatchObject({
       '@type': 'PodcastEpisode',
       name: 'Ep 1',
@@ -103,12 +103,12 @@ describe('podcastEpisodeJsonLd', () => {
   })
 
   it('dates an episode without a publish date by when it was added', () => {
-    const [episode] = podcastEpisodeJsonLd({ ...page, episode: { ...page.episode, publishedAt: null } })
+    const [episode] = showEpisodeJsonLd({ ...page, episode: { ...page.episode, publishedAt: null } })
     expect(episode!.datePublished).toBe('2026-01-01T00:00:00.000Z')
   })
 
-  it('gives breadcrumbs from the site through the podcast', () => {
-    const [, breadcrumbs] = podcastEpisodeJsonLd(page)
+  it('gives breadcrumbs from the site through the show', () => {
+    const [, breadcrumbs] = showEpisodeJsonLd(page)
     expect(breadcrumbs!.itemListElement).toEqual([
       { '@type': 'ListItem', position: 1, name: 'Pods', item: 'https://pods.example/' },
       { '@type': 'ListItem', position: 2, name: 'Show', item: 'https://pods.example/show' },

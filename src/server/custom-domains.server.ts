@@ -1,6 +1,6 @@
-// Podcasts served from their owners' own domains.
+// Shows served from their owners' own domains.
 //
-// An owner sets a domain on the podcast's Distribution tab and adds two DNS
+// An owner sets a domain on the show's Distribution tab and adds two DNS
 // records: a CNAME pointing it at us (customDomainTarget), and a TXT record
 // holding a token we made, which proves they control the domain (so nobody
 // can claim a domain that someone else pointed at us). Once both check out,
@@ -17,7 +17,7 @@ import { and, eq, isNotNull } from 'drizzle-orm'
 import { env } from '~/env'
 import { domainFeedPath, isSharedPath, normalizeDomain, toSitePath, txtRecordName, txtRecordValue } from '~/lib/custom-domain'
 import { db } from '~/server/db/client.server'
-import { podcasts } from '~/server/db/schema'
+import { shows } from '~/server/db/schema'
 import { ExpiringStore } from '~/server/expiring-store.server'
 import { logger } from '~/server/logger.server'
 import { siteOrigin } from '~/server/site-url.server'
@@ -123,23 +123,23 @@ export async function checkDomain(domain: string, token: string): Promise<Domain
 
 const passes = (check: DomainCheck) => check.cname.ok && check.txt.ok
 
-// Which podcast each custom domain shows, looked up on every request to one.
+// Which show each custom domain shows, looked up on every request to one.
 const domainSlugs = new ExpiringStore<{ slug: string | null }>(60_000)
 
 function forget(...domains: (string | null | undefined)[]) {
   for (const domain of domains) if (domain) domainSlugs.delete(domain)
 }
 
-// The slug of the podcast verified for this domain, or null.
-export async function podcastForDomain(host: string) {
+// The slug of the show verified for this domain, or null.
+export async function showForDomain(host: string) {
   const cached = domainSlugs.get(host)
   if (cached) return cached.slug
-  const [podcast] = await db
-    .select({ slug: podcasts.slug })
-    .from(podcasts)
-    .where(and(eq(podcasts.customDomain, host), isNotNull(podcasts.customDomainVerifiedAt)))
+  const [show] = await db
+    .select({ slug: shows.slug })
+    .from(shows)
+    .where(and(eq(shows.customDomain, host), isNotNull(shows.customDomainVerifiedAt)))
     .limit(1)
-  const slug = podcast?.slug ?? null
+  const slug = show?.slug ?? null
   domainSlugs.set(host, { slug })
   return slug
 }
@@ -147,11 +147,11 @@ export async function podcastForDomain(host: string) {
 // Every verified domain, for the edge's configuration.
 export async function verifiedDomains() {
   return db
-    .select({ podcastId: podcasts.id, domain: podcasts.customDomain })
-    .from(podcasts)
-    .where(and(isNotNull(podcasts.customDomain), isNotNull(podcasts.customDomainVerifiedAt)))
-    .orderBy(podcasts.customDomain)
-    .then((rows) => rows.map((row) => ({ podcastId: row.podcastId, domain: row.domain! })))
+    .select({ showId: shows.id, domain: shows.customDomain })
+    .from(shows)
+    .where(and(isNotNull(shows.customDomain), isNotNull(shows.customDomainVerifiedAt)))
+    .orderBy(shows.customDomain)
+    .then((rows) => rows.map((row) => ({ showId: row.showId, domain: row.domain! })))
 }
 
 function isDomainConflict(error: unknown): boolean {
@@ -159,7 +159,7 @@ function isDomainConflict(error: unknown): boolean {
   // Drizzle wraps the database's error in its own.
   if ('cause' in error && isDomainConflict(error.cause)) return true
   const { code, constraint_name } = error as { code?: string; constraint_name?: string }
-  return code === '23505' && constraint_name === 'podcast_customDomain_unique'
+  return code === '23505' && constraint_name === 'show_customDomain_unique'
 }
 
 export class CustomDomainError extends Error {
@@ -179,7 +179,7 @@ export async function catchDomainError<T>(run: () => Promise<T>): Promise<{ valu
 
 const newToken = () => crypto.randomUUID().replaceAll('-', '')
 
-// The columns to set for a podcast's domain: a fresh token and no verification,
+// The columns to set for a show's domain: a fresh token and no verification,
 // unless the domain hasn't changed.
 export function customDomainValues(domain: string | null) {
   if (domain && isSiteDomain(domain)) throw new CustomDomainError("That's this site's own domain; use one of yours")
@@ -196,44 +196,44 @@ export async function withDomainConflict<T>(run: () => Promise<T>) {
   try {
     return await run()
   } catch (error) {
-    if (isDomainConflict(error)) throw new CustomDomainError('That domain is already used by another podcast')
+    if (isDomainConflict(error)) throw new CustomDomainError('That domain is already used by another show')
     throw error
   }
 }
 
-// Sets (or, with null, removes) a podcast's domain. Returns false unless the
-// podcast belongs to the user.
-export async function setCustomDomain(userId: string, podcastId: string, domain: string | null) {
-  const [podcast] = await db
-    .select({ customDomain: podcasts.customDomain })
-    .from(podcasts)
-    .where(and(eq(podcasts.id, podcastId), eq(podcasts.userId, userId)))
+// Sets (or, with null, removes) a show's domain. Returns false unless the
+// show belongs to the user.
+export async function setCustomDomain(userId: string, showId: string, domain: string | null) {
+  const [show] = await db
+    .select({ customDomain: shows.customDomain })
+    .from(shows)
+    .where(and(eq(shows.id, showId), eq(shows.userId, userId)))
     .limit(1)
-  if (!podcast) return false
+  if (!show) return false
   // Saving the same domain again keeps its token, so the owner's TXT record stays right.
-  if (podcast.customDomain === domain) return true
+  if (show.customDomain === domain) return true
   const values = customDomainValues(domain)
-  await withDomainConflict(() => db.update(podcasts).set(values).where(eq(podcasts.id, podcastId)))
-  forget(podcast.customDomain, domain)
+  await withDomainConflict(() => db.update(shows).set(values).where(eq(shows.id, showId)))
+  forget(show.customDomain, domain)
   return true
 }
 
-// Checks a podcast's domain's records now, marking it verified if they're
-// right and unverified if not. Null unless the podcast is the user's and has a domain.
-export async function verifyCustomDomain(userId: string, podcastId: string) {
-  const [podcast] = await db
-    .select({ domain: podcasts.customDomain, token: podcasts.customDomainToken })
-    .from(podcasts)
-    .where(and(eq(podcasts.id, podcastId), eq(podcasts.userId, userId)))
+// Checks a show's domain's records now, marking it verified if they're
+// right and unverified if not. Null unless the show is the user's and has a domain.
+export async function verifyCustomDomain(userId: string, showId: string) {
+  const [show] = await db
+    .select({ domain: shows.customDomain, token: shows.customDomainToken })
+    .from(shows)
+    .where(and(eq(shows.id, showId), eq(shows.userId, userId)))
     .limit(1)
-  if (!podcast?.domain || !podcast.token) return null
-  const check = await checkDomain(podcast.domain, podcast.token)
+  if (!show?.domain || !show.token) return null
+  const check = await checkDomain(show.domain, show.token)
   const verifiedAt = passes(check) ? new Date() : null
   await db
-    .update(podcasts)
+    .update(shows)
     .set({ customDomainVerifiedAt: verifiedAt, customDomainFailingSince: null })
-    .where(eq(podcasts.id, podcastId))
-  forget(podcast.domain)
+    .where(eq(shows.id, showId))
+  forget(show.domain)
   return { ...check, verifiedAt }
 }
 
@@ -243,35 +243,35 @@ export async function verifyCustomDomain(userId: string, podcastId: string) {
 export async function recheckCustomDomains(now = new Date()) {
   const rows = await db
     .select({
-      id: podcasts.id,
-      domain: podcasts.customDomain,
-      token: podcasts.customDomainToken,
-      failingSince: podcasts.customDomainFailingSince,
+      id: shows.id,
+      domain: shows.customDomain,
+      token: shows.customDomainToken,
+      failingSince: shows.customDomainFailingSince,
     })
-    .from(podcasts)
-    .where(and(isNotNull(podcasts.customDomain), isNotNull(podcasts.customDomainVerifiedAt)))
+    .from(shows)
+    .where(and(isNotNull(shows.customDomain), isNotNull(shows.customDomainVerifiedAt)))
   let failing = 0
   let dropped = 0
   for (const row of rows) {
     const check = await checkDomain(row.domain!, row.token ?? '')
     if (passes(check)) {
       if (row.failingSince) {
-        await db.update(podcasts).set({ customDomainFailingSince: null }).where(eq(podcasts.id, row.id))
+        await db.update(shows).set({ customDomainFailingSince: null }).where(eq(shows.id, row.id))
       }
       continue
     }
     const since = row.failingSince ?? now
     if (now.getTime() - since.getTime() >= failureGraceMs) {
       await db
-        .update(podcasts)
+        .update(shows)
         .set({ customDomainVerifiedAt: null, customDomainFailingSince: null })
-        .where(eq(podcasts.id, row.id))
+        .where(eq(shows.id, row.id))
       forget(row.domain)
-      logger.warn({ podcastId: row.id, domain: row.domain, check }, 'Custom domain dropped: its DNS records are gone')
+      logger.warn({ showId: row.id, domain: row.domain, check }, 'Custom domain dropped: its DNS records are gone')
       dropped++
     } else {
       if (!row.failingSince) {
-        await db.update(podcasts).set({ customDomainFailingSince: now }).where(eq(podcasts.id, row.id))
+        await db.update(shows).set({ customDomainFailingSince: now }).where(eq(shows.id, row.id))
       }
       failing++
     }
@@ -279,7 +279,7 @@ export async function recheckCustomDomains(now = new Date()) {
   return { checked: rows.length, failing, dropped }
 }
 
-// Which podcast's domain the current request is on, for the router (see
+// Which show's domain the current request is on, for the router (see
 // src/lib/current-domain.ts) and the public server functions.
 const state = globalThis as { podnomsCustomDomain?: AsyncLocalStorage<string> }
 const requestDomain = (state.podnomsCustomDomain ??= new AsyncLocalStorage<string>())
@@ -289,8 +289,8 @@ export function currentRequestDomainSlug() {
 }
 
 // Request handling for custom domains, from the middleware in src/start.ts.
-// The site itself is left alone. On a podcast's verified domain, its pages
-// (and what they load) are served with the podcast recorded for the router;
+// The site itself is left alone. On a show's verified domain, its pages
+// (and what they load) are served with the show recorded for the router;
 // its feed is served here; anything else is sent to the site, where sign-in
 // works. Domains we don't know of are sent to the site too.
 export async function handleCustomDomain<T>(request: Request, next: () => T | Promise<T>): Promise<T | Response> {
@@ -298,13 +298,13 @@ export async function handleCustomDomain<T>(request: Request, next: () => T | Pr
   if (!isCustomHost(host)) return next()
   const url = new URL(request.url)
   const { pathname } = url
-  const slug = await podcastForDomain(host)
+  const slug = await showForDomain(host)
   // The edge's own endpoints are reached by internal names (http://app:3000).
   if (!slug) return isSharedPath(pathname) ? next() : toSite(url)
   if (pathname === domainFeedPath) {
-    // Imported here, as the feed needs podcasts.server.ts, which needs this.
-    const { buildPodcastFeed } = await import('~/server/feed.server')
-    const xml = await buildPodcastFeed(slug, siteOrigin()!, { domain: host, key: url.searchParams.get('key') })
+    // Imported here, as the feed needs shows.server.ts, which needs this.
+    const { buildShowFeed } = await import('~/server/feed.server')
+    const xml = await buildShowFeed(slug, siteOrigin()!, { domain: host, key: url.searchParams.get('key') })
     if (!xml) return new Response('Not found', { status: 404 })
     return new Response(xml, {
       headers: { 'Content-Type': 'application/rss+xml; charset=utf-8', 'Cache-Control': 'public, max-age=300' },
@@ -331,12 +331,12 @@ export async function traefikConfig() {
   if (!domains.length) return {}
   const tlsService = 'podnoms-edge-tls'
   const httpService = 'podnoms-edge-http'
-  const name = (podcastId: string) => `podnoms-domain-${podcastId}`
+  const name = (showId: string) => `podnoms-domain-${showId}`
   return {
     tcp: {
       routers: Object.fromEntries(
-        domains.map(({ podcastId, domain }) => [
-          name(podcastId),
+        domains.map(({ showId, domain }) => [
+          name(showId),
           {
             rule: `HostSNI(\`${domain}\`)`,
             entryPoints: [env.TRAEFIK_TLS_ENTRYPOINT],
@@ -352,8 +352,8 @@ export async function traefikConfig() {
     },
     http: {
       routers: Object.fromEntries(
-        domains.map(({ podcastId, domain }) => [
-          name(podcastId),
+        domains.map(({ showId, domain }) => [
+          name(showId),
           { rule: `Host(\`${domain}\`)`, entryPoints: [env.TRAEFIK_HTTP_ENTRYPOINT], service: httpService },
         ]),
       ),

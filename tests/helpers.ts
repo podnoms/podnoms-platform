@@ -4,7 +4,7 @@ import { mkdir, stat, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import sharp from 'sharp'
 import { db as appDb } from '~/server/db/client.server'
-import { episodes, podcasts, users, type NewEpisode, type NewPodcast } from '~/server/db/schema'
+import { episodes, shows, users, type NewEpisode, type NewShow } from '~/server/db/schema'
 import type { TestDb } from './db'
 
 // The test database (see setup.ts), typed as what it really is.
@@ -48,20 +48,20 @@ export async function createUser(values: Partial<typeof users.$inferInsert> = {}
   return user!
 }
 
-export async function createPodcast(userId: string, values: Partial<NewPodcast> = {}) {
-  const slug = values.slug ?? `podcast-${crypto.randomUUID().slice(0, 8)}`
-  const [podcast] = await db
-    .insert(podcasts)
-    .values({ userId, title: 'Test Podcast', slug, ...values })
+export async function createShow(userId: string, values: Partial<NewShow> = {}) {
+  const slug = values.slug ?? `show-${crypto.randomUUID().slice(0, 8)}`
+  const [show] = await db
+    .insert(shows)
+    .values({ userId, title: 'Test Show', slug, ...values })
     .returning()
-  return podcast!
+  return show!
 }
 
-export async function createEpisode(podcastId: string, values: Partial<NewEpisode> = {}) {
+export async function createEpisode(showId: string, values: Partial<NewEpisode> = {}) {
   const [episode] = await db
     .insert(episodes)
     .values({
-      podcastId,
+      showId,
       title: 'Test Episode',
       slug: `episode-${crypto.randomUUID().slice(0, 8)}`,
       ...values,
@@ -93,7 +93,7 @@ export async function stageTestImage(userId: string) {
   return imageId
 }
 
-// A stored image, as if committed to a podcast or episode.
+// A stored image, as if committed to a show or episode.
 export async function storeTestImage() {
   const { imagePath, imageUrl } = await import('~/server/storage.server')
   const imageId = crypto.randomUUID()

@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { credentialsSchema } from '~/lib/auth-schema'
 import { commentMaxLength } from '~/lib/comment-schema'
+import { chatGifSchema } from '~/lib/gifs'
+import { chatMessageMaxLength } from '~/lib/live-schema'
 
 // What the mobile app sends to /api/mobile/*.
 
@@ -38,12 +40,36 @@ export const mobileOAuthExchangeSchema = z.object({
   deviceName: z.string().trim().max(100).optional(),
 })
 
-// A comment, or a reply to `parentId`, from the app: text only (GIFs are
-// picked on the site), at `atSeconds` in the episode.
-export const mobileCommentSchema = z.object({
-  body: z.string().trim().min(1, 'Write something first').max(commentMaxLength),
-  atSeconds: z.number().min(0),
-  parentId: z.string().min(1).optional(),
-})
+// A comment, or a reply to `parentId`, from the app, at `atSeconds` in the
+// episode: text, a GIF (from the provider's own servers, as on the site), or both.
+export const mobileCommentSchema = z
+  .object({
+    body: z.string().trim().max(commentMaxLength).default(''),
+    gif: chatGifSchema.optional(),
+    atSeconds: z.number().min(0),
+    parentId: z.string().min(1).optional(),
+  })
+  .refine((comment) => comment.body || comment.gif, { message: 'Write something first', path: ['body'] })
 
 export const mobileCommentLikeSchema = z.object({ like: z.boolean() })
+
+// A message in a broadcast's chat: text, a GIF, or both, as on the site.
+export const mobileChatSchema = z
+  .object({
+    body: z.string().trim().max(chatMessageMaxLength).default(''),
+    gif: chatGifSchema.optional(),
+  })
+  .refine((message) => message.body || message.gif, { message: 'Write something first', path: ['body'] })
+
+// Which notifications the user gets on the app about the shows they follow.
+export const mobileNotificationPrefsSchema = z.object({ live: z.boolean(), newEpisodes: z.boolean() })
+
+export const mobileShowNotifySchema = z.object({ showId: z.string().min(1), notify: z.boolean() })
+
+// An Expo push token, as the device got it from Expo.
+export const mobilePushDeviceSchema = z.object({
+  pushToken: z
+    .string()
+    .regex(/^Expo(nent)?PushToken\[[\w-]+\]$/)
+    .nullable(),
+})

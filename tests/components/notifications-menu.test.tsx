@@ -31,7 +31,7 @@ beforeEach(() => {
           kind: 'mention',
           title: 'Bob mentioned you',
           body: 'Hey @ann',
-          url: '/show/episodes/one#comment-1',
+          url: '/show/one#comment-1',
           image: null,
           read: false,
           createdAt: new Date(),

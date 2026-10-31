@@ -7,7 +7,7 @@ import { imageSrc } from '~/lib/images'
 // may not have reached the server yet, or OBS is reconnecting).
 const retryMs = 3000
 
-// The podcast's live video while `broadcastId` is set, through the app's HLS
+// The show's live video while `broadcastId` is set, through the app's HLS
 // proxy; the artwork and a note while it isn't, saying so if the broadcast
 // the page was showing has ended. hls.js is used where the
 // browser can play it (most), and the browser's own HLS elsewhere (older iOS).
@@ -31,7 +31,7 @@ export function LivePlayer({
   useEffect(() => {
     const element = video.current
     if (!broadcastId || !element) return
-    const src = `/api/podcasts/${encodeURIComponent(slug)}/live/hls/index.m3u8`
+    const src = `/api/shows/${encodeURIComponent(slug)}/live/hls/index.m3u8`
     let hls: Hls | null = null
     let retry: ReturnType<typeof setTimeout> | undefined
     let stopped = false
@@ -125,7 +125,7 @@ export function LivePlayer({
             />
           )}
           <Icons.broadcast className="relative size-10 opacity-80" />
-          <p className="relative font-medium">{ended ? 'This show has ended' : 'Not live right now'}</p>
+          <p className="relative font-medium">{ended ? 'This broadcast has ended' : 'Not live right now'}</p>
           <p className="relative text-sm text-muted-foreground">
             {ended
               ? 'Thanks for watching! The next broadcast will start playing here.'

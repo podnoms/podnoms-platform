@@ -8,7 +8,7 @@ import { RateLimitedError, resetThrottle, withDownloadSlot } from '~/server/down
 import { subscribeToEpisodeEvents, type EpisodeEvent } from '~/server/episode-events.server'
 import { linkDetailSources, lookUpLink, saveLinkArtwork, youtubeVideoId } from '~/server/link-details.server'
 import { resetDb } from '../db'
-import { createEpisode, createPodcast, createUser, db, exists, makeImage } from '../helpers'
+import { createEpisode, createShow, createUser, db, exists, makeImage } from '../helpers'
 
 // Stands in for YouTube's oEmbed and image CDN, SoundCloud's oEmbed and Mixcloud's API.
 let server: Server
@@ -58,8 +58,8 @@ afterEach(() => resetThrottle())
 
 async function linkEpisode(sourceUrl: string, values: Parameters<typeof createEpisode>[1] = {}) {
   const user = await createUser()
-  const podcast = await createPodcast(user.id)
-  return createEpisode(podcast.id, { sourceUrl, title: sourceUrl, status: 'pending', ...values })
+  const show = await createShow(user.id)
+  return createEpisode(show.id, { sourceUrl, title: sourceUrl, status: 'pending', ...values })
 }
 
 async function imageOf(id: string) {

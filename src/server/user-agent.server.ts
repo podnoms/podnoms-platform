@@ -11,6 +11,8 @@ export type UserAgentInfo = { client: string | null; os: string | null; device: 
 
 // Checked in order: the first match names the client.
 const podcastApps: [RegExp, string][] = [
+  // Our own mobile app (podnoms-mobile).
+  [/^PodNoms\//, 'PodNoms app'],
   [/^Overcast\//, 'Overcast'],
   [/Pocket ?Casts/i, 'Pocket Casts'],
   [/^Castro /, 'Castro'],

@@ -29,7 +29,7 @@ vi.mock('~/server/fonts.server', () => ({ prepareFonts: vi.fn(async () => {}) })
 const input: BrandingInput = {
   name: 'Pods',
   tagline: 'Shows for all',
-  description: 'Podcasts from anything.',
+  description: 'Shows from anything.',
   contactEmail: 'hi@pods.example',
   landing: null,
   privacyHtml: null,
@@ -62,7 +62,7 @@ describe('getBranding', () => {
       ...defaultBranding,
       name: 'Pods',
       tagline: 'Shows for all',
-      description: 'Podcasts from anything.',
+      description: 'Shows from anything.',
       contactEmail: 'hi@pods.example',
       landing: { ...defaultLandingCopy, heroTitle: 'Make *shows*' },
       privacyHtml: '<h2>Data</h2><p>We keep <b>little</b>.</p>',

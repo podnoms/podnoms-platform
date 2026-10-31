@@ -20,7 +20,7 @@ const countryNames = new Intl.DisplayNames(['en'], { type: 'region' })
 const dayLabel = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 const number = new Intl.NumberFormat('en')
 
-// A podcast's plays, downloads and shares (or one episode's), for its owner.
+// A show's plays, downloads and shares (or one episode's), for its owner.
 // Fetched when shown rather than with the page, so the page's own reloads
 // (while episodes process) don't redo it.
 export function ActivityPanel({ slug, episodeSlug }: { slug: string; episodeSlug?: string }) {

@@ -6,7 +6,7 @@ describe('noindexPath', () => {
     expect(noindexPath(path)).toBe(true)
   })
 
-  it.each(['/', '/podcasts/show', '/admin', '/apiary', '/feed/show'])('is false for %s', (path) => {
+  it.each(['/', '/shows/show', '/admin', '/apiary', '/feed/show'])('is false for %s', (path) => {
     expect(noindexPath(path)).toBe(false)
   })
 })

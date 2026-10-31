@@ -4,7 +4,7 @@ import { getAdminOverview, saveSiteSettings, setUserChannelLimit } from '~/serve
 import { channels, users } from '~/server/db/schema'
 import { updateSiteSettings } from '~/server/site-settings.server'
 import { resetDb } from '../db'
-import { createPodcast, createUser, db } from '../helpers'
+import { createShow, createUser, db } from '../helpers'
 
 beforeEach(() => resetDb(db))
 afterEach(() => updateSiteSettings({ downloadConcurrency: 3, perPlatformConcurrency: 2, downloadDelaySeconds: 0, channelCheckHours: 6, downloadRateLimit: null }))
@@ -12,8 +12,8 @@ afterEach(() => updateSiteSettings({ downloadConcurrency: 3, perPlatformConcurre
 describe('the admin page', () => {
   it('shows the settings, the downloads and each user with how many channels they follow', async () => {
     const user = await createUser({ email: 'a@example.com' })
-    const podcast = await createPodcast(user.id)
-    await db.insert(channels).values({ podcastId: podcast.id, platform: 'youtube', url: 'https://www.youtube.com/@x/videos' })
+    const show = await createShow(user.id)
+    await db.insert(channels).values({ showId: show.id, platform: 'youtube', url: 'https://www.youtube.com/@x/videos' })
     await createUser({ email: 'b@example.com', channelEpisodeLimit: 4 })
 
     const overview = await getAdminOverview()

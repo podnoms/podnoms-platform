@@ -50,7 +50,7 @@ export const landingStepCount = 3
 export const landingFeatureCount = 6
 
 export const defaultLandingCopy: LandingCopy = {
-  heroTitle: 'Turn any link into a *podcast*.',
+  heroTitle: 'Turn any link into a *show*.',
   heroText:
     'Paste a YouTube, Mixcloud or SoundCloud link, or upload your own audio. {name} turns it into an episode and drops it straight into your podcast app.',
   stepsTitle: 'How it works',
@@ -65,7 +65,7 @@ export const defaultLandingCopy: LandingCopy = {
     },
     {
       title: 'Listen anywhere',
-      description: 'Every podcast gets its own RSS feed, so episodes turn up in whatever podcast app you already use.',
+      description: 'Every show gets its own RSS feed, so episodes turn up in whatever podcast app you already use.',
     },
   ],
   featuresTitle: 'Everything your feed needs',
@@ -93,14 +93,14 @@ export const defaultLandingCopy: LandingCopy = {
   exploreTitle: 'Listen on {name}',
   exploreText: 'Shows people have made here, for anyone to listen to.',
   ctaTitle: 'Your first episode is one link away',
-  ctaText: "Create a podcast, paste a link, and subscribe. That's it.",
+  ctaText: "Create a show, paste a link, and subscribe. That's it.",
 }
 
 export const defaultBranding: Branding = {
   name: 'podnoms',
-  tagline: 'Robot powered podcasts',
+  tagline: 'Robot powered shows',
   description:
-    'Turn YouTube, Mixcloud and SoundCloud links, or your own audio and video, into podcasts with their own RSS feeds.',
+    'Turn YouTube, Mixcloud and SoundCloud links, or your own audio and video, into shows with their own RSS feeds.',
   contactEmail: 'hello@podnoms.com',
   logoVersion: null,
   landing: defaultLandingCopy,

@@ -1,19 +1,25 @@
 // Public pages, by slug. Absolute versions (for feeds, Open Graph and embed
 // snippets) are built against the site's public URL on the server.
-// Podcasts are at the top level, so their slugs can't be any of
-// reservedPodcastSlugs.
-export function podcastPath(slug: string) {
+// Shows are at the top level, so their slugs can't be any of
+// reservedShowSlugs.
+export function showPath(slug: string) {
   return `/${slug}`
 }
 
+// Episodes are right under their show, so their slugs can't be any of
+// reservedEpisodeSlugs.
 export function episodePath(slug: string, episodeSlug: string) {
-  return `/${slug}/episodes/${episodeSlug}`
+  return `/${slug}/${episodeSlug}`
 }
 
-// The site's own top-level paths, which a podcast slug would clash with
+// Paths under a show that an episode slug would clash with: the show's manage
+// page, and the old /<show>/episodes/<episode> addresses, which redirect.
+export const reservedEpisodeSlugs = new Set(['episodes', 'manage'])
+
+// The site's own top-level paths, which a show slug would clash with
 // (tests/lib/paths.test.ts checks every route in src/routes is here). Some
 // are spare, for pages to come.
-export const reservedPodcastSlugs = new Set([
+export const reservedShowSlugs = new Set([
   'about',
   'admin',
   'api',
@@ -39,6 +45,7 @@ export const reservedPodcastSlugs = new Set([
   'search',
   'security',
   'settings',
+  'shows',
   'signup',
   'src',
   'tags',
@@ -51,7 +58,7 @@ export function userPath(slug: string) {
   return `/u/${slug}`
 }
 
-// The podcast's live page: its broadcast, when there is one, and its chat.
+// The show's live page: its broadcast, when there is one, and its chat.
 export function livePath(slug: string) {
   return `/live/${slug}`
 }
@@ -70,7 +77,7 @@ export function trackedSharePath(shortSlug: string, token: string) {
   return `${shortPath(shortSlug)}?t=${encodeURIComponent(token)}`
 }
 
-// A URL or path with a private podcast's feed key added, so its feed and audio
+// A URL or path with a private show's feed key added, so its feed and audio
 // links work in podcast apps, which can't sign in. Unchanged without a key.
 export function withFeedKey(url: string, feedKey: string | null | undefined) {
   return feedKey ? `${url}${url.includes('?') ? '&' : '?'}key=${encodeURIComponent(feedKey)}` : url

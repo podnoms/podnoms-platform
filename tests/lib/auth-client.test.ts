@@ -41,8 +41,8 @@ describe('signIn', () => {
   })
 
   it('lets the caller override the callback URL', async () => {
-    await signIn('google', { callbackUrl: '/podcasts/x' })
-    expect(fields(submitted[0]!).callbackUrl).toBe('/podcasts/x')
+    await signIn('google', { callbackUrl: '/shows/x' })
+    expect(fields(submitted[0]!).callbackUrl).toBe('/shows/x')
   })
 })
 
@@ -54,7 +54,7 @@ describe('signOut', () => {
   })
 
   it("forgets the player's episode but keeps the volume", async () => {
-    storeLastEpisode({ id: 'e', title: 'T', audioUrl: '/a', imageUrl: null, podcastTitle: 'P', positionSeconds: 3 })
+    storeLastEpisode({ id: 'e', title: 'T', audioUrl: '/a', imageUrl: null, showTitle: 'P', positionSeconds: 3 })
     storeVolume({ level: 0.4, muted: false })
     await signOut()
     expect(readLastEpisode()).toBeNull()

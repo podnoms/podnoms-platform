@@ -5,7 +5,7 @@ import { getSession } from '~/server/auth.server'
 import { trackedLinks } from '~/server/db/schema'
 import { createTrackedLink, listTrackedLinks } from '~/server/tracked-links.server'
 import { resetDb } from '../db'
-import { callRoute, createEpisode, createPodcast, createUser, db } from '../helpers'
+import { callRoute, createEpisode, createShow, createUser, db } from '../helpers'
 
 vi.mock('~/server/auth.server', async (importOriginal) => ({
   ...(await importOriginal<typeof import('~/server/auth.server')>()),
@@ -35,7 +35,7 @@ const post = (token: string, body: unknown) =>
 describe('POST /api/tracked-links/:token', () => {
   it('counts an open, answering the same for unknown tokens', async () => {
     const owner = await createUser()
-    const episode = await createEpisode((await createPodcast(owner.id)).id, { status: 'ready' })
+    const episode = await createEpisode((await createShow(owner.id)).id, { status: 'ready' })
     await createTrackedLink(owner.id, episode.id, 'Alex')
     const [{ token }] = (await db.select({ token: trackedLinks.token }).from(trackedLinks)) as [{ token: string }]
 
@@ -46,7 +46,7 @@ describe('POST /api/tracked-links/:token', () => {
 
   it("doesn't count the owner opening their own link", async () => {
     const owner = await createUser()
-    const episode = await createEpisode((await createPodcast(owner.id)).id, { status: 'ready' })
+    const episode = await createEpisode((await createShow(owner.id)).id, { status: 'ready' })
     await createTrackedLink(owner.id, episode.id, 'Alex')
     const [{ token }] = (await db.select({ token: trackedLinks.token }).from(trackedLinks)) as [{ token: string }]
     vi.mocked(getSession).mockResolvedValue({ user: { id: owner.id }, expires: '' })

@@ -1,4 +1,4 @@
-// Searches for artwork that suits a podcast or episode, from what's known
+// Searches for artwork that suits a show or episode, from what's known
 // about it so far (see image-suggestions.server.ts).
 import { z } from 'zod'
 import { htmlToText } from '~/lib/rich-text'
@@ -7,7 +7,7 @@ export const imageSuggestionSchema = z.object({
   title: z.string().max(500).optional(),
   // HTML, as descriptions are stored.
   description: z.string().max(20000).optional(),
-  // More to go on when the rest says little, e.g. an episode's podcast title.
+  // More to go on when the rest says little, e.g. an episode's show title.
   context: z.string().max(500).optional(),
   // Images already suggested in this form, so the next one is different.
   exclude: z.array(z.string().max(100)).max(200).default([]),
@@ -22,7 +22,7 @@ const fillerWords = new Set(
   our ours ourselves out over own same she should so some such than that the their theirs them themselves then there
   these they this those through to too under until up very was we were what when where which while who whom why will
   with you your yours yourself yourselves
-  episode episodes podcast podcasts show part feat featuring ft vol volume edition special presents present new best
+  episode episodes podcast podcasts show shows part feat featuring ft vol volume edition special presents present new best
   www com http https html`
     .split(/\s+/)
     .filter(Boolean),

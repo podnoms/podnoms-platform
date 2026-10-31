@@ -5,7 +5,7 @@ import { InputGroupButton } from '~/components/ui/input-group'
 import { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger } from '~/components/ui/popover'
 import { cn } from '~/lib/utils'
 
-// Shows the podcast's RSS feed URL, ready to copy into a podcast app.
+// Shows the show's RSS feed URL, ready to copy into a podcast app.
 // `iconOnMobile` drops the label (keeping it for screen readers) below md, where
 // a row of buttons has to fit.
 export function FeedUrlButton({

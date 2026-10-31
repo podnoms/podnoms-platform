@@ -5,10 +5,10 @@ import { chatGifSchema } from '~/lib/gifs'
 export const chatMessageMaxLength = 500
 export const liveTitleMaxLength = 200
 
-export const livePodcastSchema = z.object({ podcastId: z.string().min(1) })
+export const liveShowSchema = z.object({ showId: z.string().min(1) })
 
 export const liveTitleSchema = z.object({
-  podcastId: z.string().min(1),
+  showId: z.string().min(1),
   title: z.string().trim().max(liveTitleMaxLength),
 })
 

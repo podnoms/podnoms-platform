@@ -231,7 +231,7 @@ export async function isAdmin(userId: string) {
   return user?.isAdmin ?? false
 }
 
-// How many of a channel's newest uploads the user's podcasts import (see
+// How many of a channel's newest uploads the user's shows import (see
 // channels.server.ts); 0 if there's no such user.
 export async function getChannelEpisodeLimit(userId: string) {
   const [user] = await db

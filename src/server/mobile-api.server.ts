@@ -1,5 +1,5 @@
 // What the mobile app's API (src/routes/api/mobile/*) sends back: episodes and
-// podcasts with full URLs, as the app isn't on this site, and descriptions as
+// shows with full URLs, as the app isn't on this site, and descriptions as
 // plain text, as it doesn't render HTML.
 import '@tanstack/react-start/server-only'
 import { and, eq, or } from 'drizzle-orm'
@@ -8,12 +8,17 @@ import { htmlToText } from '~/lib/rich-text'
 import type { ModeStyles } from '~/lib/theme-schema'
 import { storedMentionPattern } from '~/lib/user-slug'
 import { listComments, type CommentReply, type EpisodeComment } from '~/server/comments.server'
+import { getAppPushPrefs } from '~/server/app-push.server'
 import { db } from '~/server/db/client.server'
-import { episodes, playbackPositions, podcasts } from '~/server/db/schema'
+import { episodes, playbackPositions, shows } from '~/server/db/schema'
 import { getEpisodeProgress } from '~/server/episode-processor.server'
-import { listenerPosition, visibleTo, type listEpisodes } from '~/server/episodes.server'
+import { listenerPosition, visibleTo, type listEpisodes, type listPublishedEpisodes } from '~/server/episodes.server'
+import { noteAppViewer, viewerCount } from '~/server/live-events.server'
+import { getOpenBroadcast, gifConfig, liveEnabled, listChat, liveShowIdsAmong, type ChatMessage } from '~/server/live.server'
 import { siteUrl } from '~/server/extension-api.server'
-import type { listContinueListening } from '~/server/library.server'
+import { listFollowedShows, listTrendingShows, type listContinueListening } from '~/server/library.server'
+import { listFollowNotify } from '~/server/follower-notifications.server'
+import { getPublicShow, listShows } from '~/server/shows.server'
 import { getSiteSettings } from '~/server/site-settings.server'
 
 // The app's web build (for development) calls the API from another origin.
@@ -41,17 +46,20 @@ export async function handleMobileCors<T extends { response: Response }>(
 
 const absolute = (request: Request, path: string | null) => path && siteUrl(request, path)
 
-export function mobilePodcast(
+export function mobileShow(
   request: Request,
-  podcast: { id: string; slug: string; title: string; imageUrl: string | null; private?: boolean; description?: string | null },
+  show: { id: string; slug: string; title: string; imageUrl: string | null; private?: boolean; description?: string | null },
+  // Whether it's broadcasting right now, for a badge linking to its live page.
+  live: boolean,
 ) {
   return {
-    id: podcast.id,
-    slug: podcast.slug,
-    title: podcast.title,
-    description: podcast.description ? htmlToText(podcast.description) : null,
-    imageUrl: absolute(request, podcast.imageUrl),
-    private: podcast.private ?? false,
+    id: show.id,
+    slug: show.slug,
+    title: show.title,
+    description: show.description ? htmlToText(show.description) : null,
+    imageUrl: absolute(request, show.imageUrl),
+    private: show.private ?? false,
+    live,
   }
 }
 
@@ -78,19 +86,74 @@ export function mobileEpisode(request: Request, episode: OwnedEpisode) {
   }
 }
 
+type PublishedEpisode = Awaited<ReturnType<typeof listPublishedEpisodes>>[number]
+
+// An episode of someone else's show, in the same shape: always ready, with
+// nothing about how it was made.
+export function mobilePublishedEpisode(request: Request, episode: PublishedEpisode) {
+  return {
+    id: episode.id,
+    slug: episode.slug,
+    title: episode.title,
+    description: episode.description ? htmlToText(episode.description) : null,
+    sourceUrl: null,
+    imageUrl: absolute(request, episode.imageUrl),
+    audioUrl: absolute(request, episode.audioUrl),
+    durationSeconds: episode.durationSeconds,
+    status: 'ready' as const,
+    error: null,
+    private: false,
+    createdAt: episode.createdAt,
+    publishedAt: episode.publishedAt,
+    positionSeconds: episode.positionSeconds ?? 0,
+    progress: null,
+  }
+}
+
 type ListenerEpisode = Awaited<ReturnType<typeof listContinueListening>>[number]
 
-// An episode to carry on listening to, from any podcast the user can see.
+// An episode to carry on listening to, from any show the user can see.
 export function mobileListenerEpisode(request: Request, episode: ListenerEpisode) {
   return {
     id: episode.id,
     slug: episode.slug,
     title: episode.title,
-    imageUrl: absolute(request, episode.imageUrl ?? episode.podcast.imageUrl),
+    imageUrl: absolute(request, episode.imageUrl ?? episode.show.imageUrl),
     audioUrl: absolute(request, episode.audioUrl),
     durationSeconds: episode.durationSeconds,
     positionSeconds: episode.positionSeconds ?? 0,
-    podcast: { slug: episode.podcast.slug, title: episode.podcast.title },
+    show: { slug: episode.show.slug, title: episode.show.title },
+  }
+}
+
+type ShowCard = Awaited<ReturnType<typeof listTrendingShows>>[number]
+
+function mobileShowCard(request: Request, show: ShowCard, live: boolean) {
+  return {
+    id: show.id,
+    slug: show.slug,
+    title: show.title,
+    author: show.author,
+    imageUrl: absolute(request, show.imageUrl),
+    episodeCount: show.episodeCount,
+    followerCount: show.followerCount,
+    live,
+  }
+}
+
+// The app's home page: the shows the user follows, shows to discover, and any
+// of their own.
+export async function mobileHome(request: Request, userId: string) {
+  const [following, trending, yours] = await Promise.all([
+    listFollowedShows(userId),
+    listTrendingShows(userId),
+    listShows(userId),
+  ])
+  const live = await liveShowIdsAmong([...following, ...trending, ...yours].map((show) => show.id))
+  return {
+    following: following.map((show) => mobileShowCard(request, show, live.has(show.id))),
+    trending: trending.map((show) => mobileShowCard(request, show, live.has(show.id))),
+    yours: yours.map((show) => mobileShow(request, show, live.has(show.id))),
   }
 }
 
@@ -142,8 +205,9 @@ export async function mobileTheme() {
 // --- Episode pages ------------------------------------------------------------
 
 // An episode for its page in the app: one of the user's own, in any state, or
-// any they may see (from Continue listening, say), with its podcast and the
-// comments, which are only on ready episodes. Null if they can't see it.
+// any they may see (from Continue listening, say), with its show, the
+// comments (only on ready episodes) and how to search for GIFs to add to
+// them. Null if they can't see it.
 export async function mobileEpisodePage(request: Request, userId: string, episodeId: string) {
   const [row] = await db
     .select({
@@ -161,22 +225,22 @@ export async function mobileEpisodePage(request: Request, userId: string, episod
       createdAt: episodes.createdAt,
       publishedAt: episodes.publishedAt,
       positionSeconds: playbackPositions.positionSeconds,
-      podcast: { id: podcasts.id, slug: podcasts.slug, title: podcasts.title, imageUrl: podcasts.imageUrl, ownerId: podcasts.userId },
+      show: { id: shows.id, slug: shows.slug, title: shows.title, imageUrl: shows.imageUrl, ownerId: shows.userId },
     })
     .from(episodes)
-    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .innerJoin(shows, eq(shows.id, episodes.showId))
     .leftJoin(playbackPositions, listenerPosition(userId))
-    .where(and(eq(episodes.id, episodeId), or(eq(podcasts.userId, userId), visibleTo(userId))))
+    .where(and(eq(episodes.id, episodeId), or(eq(shows.userId, userId), visibleTo(userId))))
     .limit(1)
   if (!row) return null
-  const { podcast, ...episode } = row
-  const isOwner = podcast.ownerId === userId
+  const { show, ...episode } = row
+  const isOwner = show.ownerId === userId
   const comments = episode.status === 'ready' ? await listComments(episode.id, userId) : []
   return {
     episode: {
       ...episode,
       description: episode.description ? htmlToText(episode.description) : null,
-      imageUrl: absolute(request, episode.imageUrl ?? podcast.imageUrl),
+      imageUrl: absolute(request, episode.imageUrl ?? show.imageUrl),
       audioUrl: episode.status === 'ready' ? absolute(request, episode.audioUrl) : null,
       positionSeconds: episode.positionSeconds ?? 0,
       // Only the owner sees where it came from, or why it failed.
@@ -184,8 +248,11 @@ export async function mobileEpisodePage(request: Request, userId: string, episod
       error: isOwner ? episode.error : null,
       progress: isOwner ? getEpisodeProgress(episode.id) : null,
     },
-    podcast: { id: podcast.id, slug: podcast.slug, title: podcast.title, imageUrl: absolute(request, podcast.imageUrl), isOwner },
+    show: { id: show.id, slug: show.slug, title: show.title, imageUrl: absolute(request, show.imageUrl), isOwner },
     comments: comments.map((comment) => mobileComment(request, comment)),
+    // The GIF provider and its public key, for the app to search with, as
+    // the site's pages get them; null when none is set up.
+    gifs: gifConfig(),
   }
 }
 
@@ -224,4 +291,63 @@ function mobileReply(request: Request, comment: CommentReply) {
 
 export function mobileComment(request: Request, comment: EpisodeComment) {
   return { ...mobileReply(request, comment), replies: comment.replies.map((reply) => mobileReply(request, reply)) }
+}
+
+// --- Live pages -----------------------------------------------------------------
+
+export function mobileChatMessage(request: Request, message: ChatMessage) {
+  return {
+    id: message.id,
+    author: { name: message.author.name, imageUrl: absolute(request, message.author.image) },
+    body: message.body,
+    gif: message.gif,
+    createdAt: message.createdAt,
+    canDelete: message.canDelete,
+  }
+}
+
+// A show's live page in the app, which it asks for every few seconds as it
+// has no event stream: what's on, if anything, where to watch it, its chat so
+// far and how many are watching, this viewer among them. Null if live
+// broadcasts aren't set up or they can't see the show.
+export async function mobileLivePage(request: Request, userId: string, slug: string) {
+  if (!liveEnabled()) return null
+  const show = await getPublicShow(slug, userId)
+  if (!show) return null
+  noteAppViewer(show.id, userId)
+  const broadcast = await getOpenBroadcast(show.id)
+  const chat = broadcast ? await listChat(show, broadcast.id, userId) : []
+  return {
+    show: { id: show.id, slug: show.slug, title: show.title, author: show.author, imageUrl: absolute(request, show.imageUrl) },
+    broadcast: broadcast && {
+      id: broadcast.id,
+      title: broadcast.title,
+      startedAt: broadcast.startedAt,
+      // The stream has dropped out, and may come back.
+      interrupted: broadcast.interruptedAt !== null,
+    },
+    hlsUrl: siteUrl(request, `/api/mobile/live/${encodeURIComponent(show.slug)}/hls/index.m3u8`),
+    chat: chat.map((message) => mobileChatMessage(request, message)),
+    viewers: viewerCount(show.id),
+    gifs: gifConfig(),
+  }
+}
+
+// --- Notifications ----------------------------------------------------------------
+
+// The app's notification settings: which kinds the user gets, and the shows
+// they follow, which they can mute one by one.
+export async function mobileNotificationSettings(request: Request, userId: string) {
+  const [prefs, follows] = await Promise.all([getAppPushPrefs(userId), listFollowNotify(userId)])
+  return {
+    live: prefs?.live ?? true,
+    newEpisodes: prefs?.newEpisodes ?? true,
+    shows: follows.map((follow) => ({
+      id: follow.showId,
+      slug: follow.slug,
+      title: follow.title,
+      imageUrl: absolute(request, follow.imageUrl),
+      notify: follow.notify,
+    })),
+  }
 }

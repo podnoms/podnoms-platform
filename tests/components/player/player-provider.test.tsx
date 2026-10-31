@@ -2,10 +2,10 @@
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PlayerProvider, usePlayer, type PlayerEpisode } from '~/components/player/player-provider'
-import { saveMyPlaybackPosition } from '~/functions/podcasts'
+import { saveMyPlaybackPosition } from '~/functions/shows'
 
-vi.mock('~/functions/podcasts', () => ({ saveMyPlaybackPosition: vi.fn(() => Promise.resolve()) }))
-// Playing reports a play for the podcast's stats; not from tests.
+vi.mock('~/functions/shows', () => ({ saveMyPlaybackPosition: vi.fn(() => Promise.resolve()) }))
+// Playing reports a play for the show's stats; not from tests.
 vi.mock('~/lib/activity', () => ({ reportActivity: vi.fn() }))
 
 const episode = (id: string): PlayerEpisode => ({
@@ -13,9 +13,9 @@ const episode = (id: string): PlayerEpisode => ({
   title: id,
   audioUrl: `/api/episodes/${id}/audio`,
   imageUrl: null,
-  podcastTitle: 'Show',
+  showTitle: 'Show',
   slug: id,
-  podcastSlug: 'show',
+  showSlug: 'show',
   positionSeconds: null,
 })
 

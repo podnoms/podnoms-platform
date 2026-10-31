@@ -1,16 +1,16 @@
 // Notification emails (each also goes in the notifications menu, see
-// inbox.server.ts, whether or not it's emailed): to podcast owners about their podcasts (episodes that
+// inbox.server.ts, whether or not it's emailed): to show owners about their shows (episodes that
 // couldn't be processed, and new episodes from a channel), and to listeners
-// about the podcasts they follow (new episodes, and going live; see
+// about the shows they follow (new episodes, and going live; see
 // follower-notifications.server.ts). Events are collected for a few minutes
 // and sent as one email, so a bulk upload that fails doesn't send one email
 // per episode; going live is sent at once. Like episode progress, batches
 // waiting to be sent are kept in memory and lost if the app restarts.
 import '@tanstack/react-start/server-only'
 import { eq } from 'drizzle-orm'
-import { episodePath, livePath, podcastPath } from '~/lib/paths'
+import { episodePath, livePath, showPath } from '~/lib/paths'
 import { db } from '~/server/db/client.server'
-import { episodes, podcasts, users } from '~/server/db/schema'
+import { episodes, shows, users } from '~/server/db/schema'
 import { emailEnabled, emailOrigin, sendEmail } from '~/server/email.server'
 import { liveEmail, notificationDigestEmail, type NotificationEvent } from '~/server/emails.server'
 import { recordNotification } from '~/server/inbox.server'
@@ -75,85 +75,85 @@ export function notifyEpisodeFailed(episodeId: string, error: string | null) {
     (async () => {
       const [row] = await db
         .select({
-          userId: podcasts.userId,
-          podcastTitle: podcasts.title,
-          podcastSlug: podcasts.slug,
+          userId: shows.userId,
+          showTitle: shows.title,
+          showSlug: shows.slug,
           episodeTitle: episodes.title,
           episodeSlug: episodes.slug,
         })
         .from(episodes)
-        .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+        .innerJoin(shows, eq(shows.id, episodes.showId))
         .where(eq(episodes.id, episodeId))
         .limit(1)
       if (!row) return
       await recordNotification([row.userId], {
         kind: 'episodeFailed',
         title: `${row.episodeTitle} couldn’t be processed`,
-        body: error ?? row.podcastTitle,
-        url: `${episodePath(row.podcastSlug, row.episodeSlug)}/manage`,
+        body: error ?? row.showTitle,
+        url: `${episodePath(row.showSlug, row.episodeSlug)}/manage`,
       })
       await queue(row.userId, 'notifyEpisodeFailed', {
         type: 'episodeFailed',
-        podcastTitle: row.podcastTitle,
+        showTitle: row.showTitle,
         episodeTitle: row.episodeTitle,
         error,
-        link: link(`${episodePath(row.podcastSlug, row.episodeSlug)}/manage`),
+        link: link(`${episodePath(row.showSlug, row.episodeSlug)}/manage`),
       })
     })(),
   )
 }
 
-export function notifyNewEpisodes(podcastId: string, count: number) {
+export function notifyNewEpisodes(showId: string, count: number) {
   if (count <= 0) return
   safely(
     (async () => {
-      const [podcast] = await db
-        .select({ userId: podcasts.userId, title: podcasts.title, slug: podcasts.slug })
-        .from(podcasts)
-        .where(eq(podcasts.id, podcastId))
+      const [show] = await db
+        .select({ userId: shows.userId, title: shows.title, slug: shows.slug })
+        .from(shows)
+        .where(eq(shows.id, showId))
         .limit(1)
-      if (!podcast) return
-      await recordNotification([podcast.userId], {
+      if (!show) return
+      await recordNotification([show.userId], {
         kind: 'channelEpisodes',
-        title: `${count === 1 ? 'A new episode' : `${count} new episodes`} from ${podcast.title}’s channel`,
-        url: `${podcastPath(podcast.slug)}/manage`,
+        title: `${count === 1 ? 'A new episode' : `${count} new episodes`} from ${show.title}’s channel`,
+        url: `${showPath(show.slug)}/manage`,
       })
-      await queue(podcast.userId, 'notifyNewEpisodes', {
+      await queue(show.userId, 'notifyNewEpisodes', {
         type: 'newEpisodes',
-        podcastTitle: podcast.title,
+        showTitle: show.title,
         count,
-        link: link(`${podcastPath(podcast.slug)}/manage`),
+        link: link(`${showPath(show.slug)}/manage`),
       })
     })(),
   )
 }
 
-// New episodes from a podcast the user follows, for their next email.
+// New episodes from a show the user follows, for their next email.
 export function emailFollowedEpisodes(
   userId: string,
-  podcast: { title: string; slug: string },
+  show: { title: string; slug: string },
   episodes: { title: string; slug: string }[],
 ) {
   if (!episodes.length) return
   safely(
     queue(userId, 'emailFollowedEpisodes', {
       type: 'followedEpisodes',
-      podcastTitle: podcast.title,
+      showTitle: show.title,
       titles: episodes.map((episode) => episode.title),
-      link: link(episodes.length === 1 ? episodePath(podcast.slug, episodes[0]!.slug) : podcastPath(podcast.slug)),
+      link: link(episodes.length === 1 ? episodePath(show.slug, episodes[0]!.slug) : showPath(show.slug)),
     }),
   )
 }
 
-// A podcast the user follows has gone live: sent at once, as it won't wait.
-export function emailFollowerLive(userId: string, podcast: { title: string; slug: string }, broadcastTitle: string) {
+// A show the user follows has gone live: sent at once, as it won't wait.
+export function emailFollowerLive(userId: string, show: { title: string; slug: string }, broadcastTitle: string) {
   safely(
     (async () => {
       const to = await addressFor(userId, 'emailLive')
       if (!to) return
       await sendEmail({
         to,
-        ...liveEmail(podcast.title, broadcastTitle, link(livePath(podcast.slug)), link('/settings/notifications')),
+        ...liveEmail(show.title, broadcastTitle, link(livePath(show.slug)), link('/settings/notifications')),
       })
     })(),
   )

@@ -6,14 +6,14 @@ import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
-import { saveCustomDomain, testCustomDomain } from '~/functions/podcasts'
+import { saveCustomDomain, testCustomDomain } from '~/functions/shows'
 import { domainFeedPath, txtRecordName, txtRecordValue } from '~/lib/custom-domain'
 import { formatDate } from '~/lib/format'
 import { withFeedKey } from '~/lib/paths'
-import { customDomainSchema } from '~/lib/podcast-schema'
+import { customDomainSchema } from '~/lib/show-schema'
 import { useBranding } from '~/lib/branding'
 
-type Podcast = {
+type Show = {
   id: string
   customDomain: string | null
   customDomainToken: string | null
@@ -29,15 +29,15 @@ type TestResult = { cname: RecordCheck; txt: RecordCheck }
 // How long a verified domain's records may stay broken (see custom-domains.server.ts).
 const graceDays = 3
 
-// Serving the podcast from the owner's own domain: the domain, the two DNS
+// Serving the show from the owner's own domain: the domain, the two DNS
 // records to add for it, and a button that checks them.
 export function CustomDomainCard({
-  podcast,
+  show,
   target,
   txtLabel,
   onChanged,
 }: {
-  podcast: Podcast
+  show: Show
   // Where the CNAME points.
   target: string
   // What the TXT record is named after (see txtRecordName).
@@ -48,11 +48,11 @@ export function CustomDomainCard({
   const [pending, setPending] = useState<'save' | 'remove' | 'test'>()
   const [error, setError] = useState<string>()
   const [result, setResult] = useState<TestResult>()
-  const domain = podcast.customDomain
-  const verified = Boolean(podcast.customDomainVerifiedAt)
+  const domain = show.customDomain
+  const verified = Boolean(show.customDomainVerifiedAt)
 
   async function save(value: string) {
-    const parsed = customDomainSchema.safeParse({ id: podcast.id, domain: value })
+    const parsed = customDomainSchema.safeParse({ id: show.id, domain: value })
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message)
       return
@@ -80,7 +80,7 @@ export function CustomDomainCard({
     setError(undefined)
     setPending('test')
     try {
-      setResult(await testCustomDomain({ data: { id: podcast.id } }))
+      setResult(await testCustomDomain({ data: { id: show.id } }))
       await onChanged()
     } catch {
       setError('Something went wrong checking the domain. Please try again.')
@@ -89,7 +89,7 @@ export function CustomDomainCard({
     }
   }
 
-  const failingSince = podcast.customDomainFailingSince
+  const failingSince = show.customDomainFailingSince
   const dropsOn = failingSince && new Date(failingSince.getTime() + graceDays * 24 * 60 * 60 * 1000)
 
   return (
@@ -103,7 +103,7 @@ export function CustomDomainCard({
             </Badge>
           )}
         </CardTitle>
-        <CardDescription>Serve the podcast's page and feed from a domain of your own, such as pod.example.com.</CardDescription>
+        <CardDescription>Serve the show's page and feed from a domain of your own, such as pod.example.com.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <form onSubmit={onSubmit}>
@@ -140,7 +140,7 @@ export function CustomDomainCard({
           </FieldGroup>
         </form>
 
-        {domain && podcast.customDomainToken && (
+        {domain && show.customDomainToken && (
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <h3 className="text-sm font-semibold">DNS records</h3>
@@ -153,7 +153,7 @@ export function CustomDomainCard({
             <DnsRecord
               type="TXT"
               name={txtRecordName(domain, txtLabel)}
-              value={txtRecordValue(podcast.customDomainToken, txtLabel)}
+              value={txtRecordValue(show.customDomainToken, txtLabel)}
               check={result?.txt}
             />
             <div className="flex flex-wrap items-center gap-3">
@@ -161,9 +161,9 @@ export function CustomDomainCard({
                 <Icons.retry />
                 {pending === 'test' ? 'Testing…' : 'Test DNS records'}
               </Button>
-              {podcast.customDomainVerifiedAt && !failingSince && (
+              {show.customDomainVerifiedAt && !failingSince && (
                 <span className="text-sm text-muted-foreground">
-                  Verified {formatDate(podcast.customDomainVerifiedAt)}
+                  Verified {formatDate(show.customDomainVerifiedAt)}
                 </span>
               )}
               {dropsOn && (
@@ -184,7 +184,7 @@ export function CustomDomainCard({
                 so there's no need to move existing subscribers.
               </p>
             </div>
-            <CopyField label="Podcast page" value={`https://${domain}/`}>
+            <CopyField label="Show page" value={`https://${domain}/`}>
               <a
                 href={`https://${domain}/`}
                 target="_blank"
@@ -196,7 +196,7 @@ export function CustomDomainCard({
                 <span className="sr-only">Open</span>
               </a>
             </CopyField>
-            <CopyField label="RSS feed on your domain" value={withFeedKey(`https://${domain}${domainFeedPath}`, podcast.private ? podcast.feedKey : null)} />
+            <CopyField label="RSS feed on your domain" value={withFeedKey(`https://${domain}${domainFeedPath}`, show.private ? show.feedKey : null)} />
           </div>
         )}
       </CardContent>

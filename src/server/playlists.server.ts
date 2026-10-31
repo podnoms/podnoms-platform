@@ -1,4 +1,4 @@
-// Users' playlists: episodes from any podcasts, in an order they choose, to
+// Users' playlists: episodes from any shows, in an order they choose, to
 // play through one after another. A playlist is private until its owner makes
 // it public, which gives it a page at /u/<user slug>/playlists/<slug> and a
 // place on their profile. Only episodes the user can see can go in, and a
@@ -8,7 +8,7 @@ import '@tanstack/react-start/server-only'
 import { and, asc, count, desc, eq, like, max, or, sql } from 'drizzle-orm'
 import { firstFreeSlug, slugify } from '~/lib/slug'
 import { db } from '~/server/db/client.server'
-import { episodes, playlistItems, playlists, podcasts, users } from '~/server/db/schema'
+import { episodes, playlistItems, playlists, shows, users } from '~/server/db/schema'
 import { visibleTo } from '~/server/episodes.server'
 import { listenerEpisodes, withOwnership } from '~/server/library.server'
 
@@ -66,7 +66,7 @@ export async function addToPlaylist(userId: string, playlistId: string, episodeI
   const [episode] = await db
     .select({ id: episodes.id })
     .from(episodes)
-    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .innerJoin(shows, eq(shows.id, episodes.showId))
     .where(and(eq(episodes.id, episodeId), visibleTo(userId)))
     .limit(1)
   if (!episode) return false
@@ -151,7 +151,7 @@ export async function listPublicPlaylists(ownerId: string) {
     .from(playlists)
     .leftJoin(playlistItems, eq(playlistItems.playlistId, playlists.id))
     .leftJoin(episodes, eq(episodes.id, playlistItems.episodeId))
-    .leftJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .leftJoin(shows, eq(shows.id, episodes.showId))
     .where(and(eq(playlists.userId, ownerId), eq(playlists.private, false)))
     .groupBy(playlists.id)
     .orderBy(desc(playlists.updatedAt))

@@ -16,13 +16,13 @@ import {
 import { FieldDescription, FieldError } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
 import { Progress } from '~/components/ui/progress'
-import { createMyEpisodes } from '~/functions/podcasts'
+import { createMyEpisodes } from '~/functions/shows'
 import { bulkUploadEpisodesSchema, maxBulkUploadFiles, maxUploadBytes } from '~/lib/episode-schema'
 import { formatBytes, formatClock } from '~/lib/format'
 
 // Wraps a trigger (a button) that opens a form for uploading a folder of audio
-// files (or several chosen at once), each to become an episode of the podcast.
-export function BulkUploadDialog({ podcastId, children }: { podcastId: string; children: ReactNode }) {
+// files (or several chosen at once), each to become an episode of the show.
+export function BulkUploadDialog({ showId, children }: { showId: string; children: ReactNode }) {
   const router = useRouter()
   const folderInput = useRef<HTMLInputElement>(null)
   const filesInput = useRef<HTMLInputElement>(null)
@@ -55,7 +55,7 @@ export function BulkUploadDialog({ podcastId, children }: { podcastId: string; c
 
   async function onSubmit() {
     const parsed = bulkUploadEpisodesSchema.safeParse({
-      podcastId,
+      showId,
       episodes: ready.map((upload) => ({ uploadId: upload.result.uploadId, title: titles[upload.id] })),
     })
     if (!parsed.success) {
@@ -68,7 +68,7 @@ export function BulkUploadDialog({ podcastId, children }: { podcastId: string; c
       await createMyEpisodes({ data: parsed.data })
       setOpen(false)
       clear()
-      // Reload the podcast page so the new episodes are listed.
+      // Reload the show page so the new episodes are listed.
       await router.invalidate()
     } catch {
       setError('Something went wrong adding the episodes. Please try again.')

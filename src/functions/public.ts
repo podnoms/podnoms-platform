@@ -1,6 +1,6 @@
 // Server functions for the public pages, which anyone can see, except private
-// podcasts' and episodes', which only their owner can. A signed-in visitor
-// also gets where they left off, and whether the podcast is theirs.
+// shows' and episodes', which only their owner can. A signed-in visitor
+// also gets where they left off, and whether the show is theirs.
 import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { episodePageSchema, episodePageSize } from '~/lib/episode-pages'
 import { toDomainPath } from '~/lib/custom-domain'
 import { openGraphImage } from '~/lib/images'
-import { embedPath, episodePath, podcastPath, shortPath } from '~/lib/paths'
+import { embedPath, episodePath, showPath, shortPath } from '~/lib/paths'
 import { getSession } from '~/server/auth.server'
 import { listComments } from '~/server/comments.server'
 import { currentRequestDomainSlug, requestHost } from '~/server/custom-domains.server'
@@ -23,18 +23,18 @@ import {
 } from '~/server/episodes.server'
 import { feedPath } from '~/server/feed.server'
 import { getOpenBroadcast, gifConfig, liveEnabled } from '~/server/live.server'
-import { listUserPodcasts } from '~/server/library.server'
+import { listUserShows } from '~/server/library.server'
 import { listPublicPlaylists } from '~/server/playlists.server'
-import { getPublicPodcast } from '~/server/podcasts.server'
+import { getPublicShow } from '~/server/shows.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
-import { getEpisodeTags, getPodcastTags, withEpisodeTags } from '~/server/tags-store.server'
+import { getEpisodeTags, getShowTags, withEpisodeTags } from '~/server/tags-store.server'
 import { getPublicProfile } from '~/server/users.server'
 import { readWaveform, withWaveforms } from '~/server/waveforms.server'
 
 async function visitor() {
   const request = getRequest()
   const session = await getSession(request)
-  // On a podcast's own domain, its pages' links use that domain's short paths.
+  // On a show's own domain, its pages' links use that domain's short paths.
   const domainSlug = currentRequestDomainSlug()
   const origin = domainSlug ? `https://${requestHost(request)}` : publicUrl(request).origin
   const onDomain = (path: string) => (domainSlug && toDomainPath(path, domainSlug)) || path
@@ -51,7 +51,7 @@ function previewImage(artwork: string | null, absolute: (path: string) => string
   return { ...image, url: absolute(image.url) }
 }
 
-// A user's public profile (/u/<slug>): who they are, and their public podcasts.
+// A user's public profile (/u/<slug>): who they are, and their public shows.
 export const fetchUserProfile = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: z.string() }))
   .handler(async ({ data }) => {
@@ -64,36 +64,36 @@ export const fetchUserProfile = createServerFn({ method: 'GET' })
       // Sanitised when saved; again here, as it's rendered as HTML.
       description: sanitizeDescription(profile.description),
       isYou: userId === id,
-      podcasts: await listUserPodcasts(userId, id),
+      shows: await listUserShows(userId, id),
       playlists: await listPublicPlaylists(id),
     }
   })
 
-// A podcast's public page, with its first page of episodes; the rest are
-// fetched with fetchPodcastEpisodes as the list is scrolled.
-export const fetchPodcastPage = createServerFn({ method: 'GET' })
+// A show's public page, with its first page of episodes; the rest are
+// fetched with fetchShowEpisodes as the list is scrolled.
+export const fetchShowPage = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: z.string() }))
   .handler(async ({ data }) => {
     const { userId, absolute } = await visitor()
-    const podcast = await getPublicPodcast(data.slug, userId)
-    if (!podcast) throw notFound()
+    const show = await getPublicShow(data.slug, userId)
+    if (!show) throw notFound()
     const [episodes, summary, broadcast, tags] = await Promise.all([
-      listPublishedEpisodes(podcast.id, userId, { offset: 0, limit: episodePageSize }).then(withEpisodeTags),
-      summarisePublishedEpisodes(podcast.id),
-      liveEnabled() ? getOpenBroadcast(podcast.id) : null,
-      getPodcastTags(podcast.id),
+      listPublishedEpisodes(show.id, userId, { offset: 0, limit: episodePageSize }).then(withEpisodeTags),
+      summarisePublishedEpisodes(show.id),
+      liveEnabled() ? getOpenBroadcast(show.id) : null,
+      getShowTags(show.id),
     ])
-    const { userId: ownerId, feedKey, ...rest } = podcast
+    const { userId: ownerId, feedKey, ...rest } = show
     return {
       ...rest,
       tags,
       // Sanitised when saved; again here, as it's rendered as HTML.
-      description: sanitizeDescription(podcast.description),
+      description: sanitizeDescription(show.description),
       isOwner: userId === ownerId,
-      pageUrl: absolute(podcastPath(podcast.slug)),
-      // Only the owner sees a private podcast, so only they get its key.
-      feedUrl: absolute(feedPath(podcast.slug, podcast.private ? feedKey : null)),
-      previewImage: previewImage(podcast.imageUrl, absolute),
+      pageUrl: absolute(showPath(show.slug)),
+      // Only the owner sees a private show, so only they get its key.
+      feedUrl: absolute(feedPath(show.slug, show.private ? feedKey : null)),
+      previewImage: previewImage(show.imageUrl, absolute),
       // Sanitised when saved; again here, as they're rendered as HTML.
       episodes: await withWaveforms(
         episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) })),
@@ -106,14 +106,14 @@ export const fetchPodcastPage = createServerFn({ method: 'GET' })
     }
   })
 
-// More of a podcast's published episodes, for its public page.
-export const fetchPodcastEpisodes = createServerFn({ method: 'GET' })
+// More of a show's published episodes, for its public page.
+export const fetchShowEpisodes = createServerFn({ method: 'GET' })
   .validator(episodePageSchema)
   .handler(async ({ data }) => {
     const { userId } = await visitor()
-    const podcast = await getPublicPodcast(data.slug, userId)
-    if (!podcast) throw notFound()
-    const episodes = await listPublishedEpisodes(podcast.id, userId, data).then(withEpisodeTags)
+    const show = await getPublicShow(data.slug, userId)
+    if (!show) throw notFound()
+    const episodes = await listPublishedEpisodes(show.id, userId, data).then(withEpisodeTags)
     // Sanitised when saved; again here, as they're rendered as HTML.
     return withWaveforms(
       episodes.map((episode) => ({ ...episode, description: sanitizeDescription(episode.description) })),
@@ -142,18 +142,18 @@ async function episodePage(slug: string, episodeSlug: string) {
   const { userId, absolute } = await visitor()
   const found = await getPublicEpisode(slug, episodeSlug, userId)
   if (!found) return null
-  const { userId: ownerId, feedKey, ...podcast } = found.podcast
+  const { userId: ownerId, feedKey, ...show } = found.show
   const { episode } = found
-  const artwork = episode.imageUrl ?? podcast.imageUrl
-  const [waveform, comments, episodeTags, podcastTags, moreEpisodes] = await Promise.all([
+  const artwork = episode.imageUrl ?? show.imageUrl
+  const [waveform, comments, episodeTags, showTags, moreEpisodes] = await Promise.all([
     readWaveform(episode.id),
     listComments(episode.id, userId),
     getEpisodeTags(episode.id),
-    getPodcastTags(podcast.id),
-    listNeighbouringEpisodes({ ...episode, podcastId: podcast.id }),
+    getShowTags(show.id),
+    listNeighbouringEpisodes({ ...episode, showId: show.id }),
   ])
   return {
-    podcast: { ...podcast, tags: podcastTags },
+    show: { ...show, tags: showTags },
     episode: {
       ...episode,
       tags: episodeTags,
@@ -164,14 +164,14 @@ async function episodePage(slug: string, episodeSlug: string) {
     comments,
     // For GIFs in comments: the provider and its public key, or null without one.
     gifs: gifConfig(),
-    // The episodes either side of this one, for "More from" the podcast.
+    // The episodes either side of this one, for "More from" the show.
     moreEpisodes,
-    pageUrl: absolute(episodePath(podcast.slug, episode.slug)),
+    pageUrl: absolute(episodePath(show.slug, episode.slug)),
     // The episode's share page, which the Share button gives out.
     shareUrl: absolute(shortPath(episode.shortSlug)),
-    embedUrl: absolute(embedPath(podcast.slug, episode.slug)),
-    // Only the owner sees a private podcast, so only they get its key.
-    feedUrl: absolute(feedPath(podcast.slug, podcast.private ? feedKey : null)),
+    embedUrl: absolute(embedPath(show.slug, episode.slug)),
+    // Only the owner sees a private show, so only they get its key.
+    feedUrl: absolute(feedPath(show.slug, show.private ? feedKey : null)),
     audioUrl: absolute(episode.audioUrl!),
     previewImage: previewImage(artwork, absolute),
     // The smoother of the two shapes, as Mixcloud draws them.

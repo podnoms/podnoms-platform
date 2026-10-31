@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { descriptionHtml, imageChange } from '~/lib/podcast-schema'
+import { descriptionHtml, imageChange } from '~/lib/show-schema'
 import { userSlugSchema } from '~/lib/user-slug'
 
 export const editProfileSchema = z.object({
@@ -16,7 +16,7 @@ export const editProfileSchema = z.object({
 })
 export type EditProfileInput = z.infer<typeof editProfileSchema>
 
-// Which emails the user gets about their podcasts, and the ones they follow.
+// Which emails the user gets about their shows, and the ones they follow.
 export const notificationPrefsSchema = z.object({
   notifyEpisodeFailed: z.boolean(),
   notifyNewEpisodes: z.boolean(),
@@ -25,8 +25,8 @@ export const notificationPrefsSchema = z.object({
   emailMentions: z.boolean(),
 })
 
-// Mutes or unmutes a podcast the user follows, for every kind of notification.
+// Mutes or unmutes a show the user follows, for every kind of notification.
 export const followNotifySchema = z.object({
-  podcastId: z.string().min(1),
+  showId: z.string().min(1),
   notify: z.boolean(),
 })

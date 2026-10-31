@@ -3,17 +3,17 @@ import { eq, ilike, inArray, like, or, sql } from 'drizzle-orm'
 import { firstFreeSlug, slugify } from '~/lib/slug'
 import { normalizeTagName, tagNamesSchema, type Tag } from '~/lib/tag-schema'
 import { db } from '~/server/db/client.server'
-import { episodes, episodeTags, podcasts, podcastTags, tags } from '~/server/db/schema'
+import { episodes, episodeTags, shows, showTags, tags } from '~/server/db/schema'
 
 export type TagTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
 
 // Call after checking ownership, inside the transaction that creates or edits
 // the show/episode. Locking the parent serialises simultaneous replacements.
-export async function syncPodcastTags(tx: TagTransaction, podcastId: string, names: string[]) {
-  await tx.select({ id: podcasts.id }).from(podcasts).where(eq(podcasts.id, podcastId)).for('update')
+export async function syncShowTags(tx: TagTransaction, showId: string, names: string[]) {
+  await tx.select({ id: shows.id }).from(shows).where(eq(shows.id, showId)).for('update')
   const selected = await resolveTags(tx, names)
-  await tx.delete(podcastTags).where(eq(podcastTags.podcastId, podcastId))
-  if (selected.length) await tx.insert(podcastTags).values(selected.map(({ id: tagId }) => ({ podcastId, tagId })))
+  await tx.delete(showTags).where(eq(showTags.showId, showId))
+  if (selected.length) await tx.insert(showTags).values(selected.map(({ id: tagId }) => ({ showId, tagId })))
 }
 
 export async function syncEpisodeTags(tx: TagTransaction, episodeId: string, names: string[]) {
@@ -69,10 +69,10 @@ export async function getTagBySlug(slug: string): Promise<Tag | null> {
 
 // Entity reads are internal helpers: their callers first enforce the show's
 // or episode's visibility. Suggestions share names, never private content.
-export function getPodcastTags(podcastId: string): Promise<Tag[]> {
+export function getShowTags(showId: string): Promise<Tag[]> {
   return db.select({ id: tags.id, name: tags.name, slug: tags.slug }).from(tags)
-    .innerJoin(podcastTags, eq(podcastTags.tagId, tags.id))
-    .where(eq(podcastTags.podcastId, podcastId)).orderBy(tags.name)
+    .innerJoin(showTags, eq(showTags.tagId, tags.id))
+    .where(eq(showTags.showId, showId)).orderBy(tags.name)
 }
 
 export function getEpisodeTags(episodeId: string): Promise<Tag[]> {

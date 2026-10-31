@@ -1,21 +1,21 @@
 // Live broadcasts. Owners stream from OBS to a MediaMTX server, which asks us
 // (through /api/live/auth) whether each stream may publish: OBS sends
-// "live/<podcast id>?key=<the podcast's live key>". The key is kept
+// "live/<show id>?key=<the show's live key>". The key is kept
 // encrypted, so its owner can see it again in the Go live dialog. MediaMTX
 // records the stream and serves it as HLS, which only the app may read;
-// viewers get it through /api/podcasts/$slug/live/hls, which applies the
-// podcast's privacy. The app polls MediaMTX's API to see
-// which podcasts are live, opening and ending live_broadcast rows; a
+// viewers get it through /api/shows/$slug/live/hls, which applies the
+// show's privacy. The app polls MediaMTX's API to see
+// which shows are live, opening and ending live_broadcast rows; a
 // broadcast's recording becomes a private episode once it ends (see
 // live-recordings.server.ts). Like episode processing, this runs in-process,
 // so only a single app instance may run.
 import '@tanstack/react-start/server-only'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
-import { and, desc, eq, isNotNull, isNull, or } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, isNull, or } from 'drizzle-orm'
 import { env } from '~/env'
 import type { ChatGif, GifConfig } from '~/lib/gifs'
 import { db } from '~/server/db/client.server'
-import { episodes, liveBroadcasts, liveChatMessages, podcasts, users, type LiveBroadcast } from '~/server/db/schema'
+import { episodes, liveBroadcasts, liveChatMessages, shows, users, type LiveBroadcast } from '~/server/db/schema'
 import { ExpiringStore } from '~/server/expiring-store.server'
 import { notifyFollowersLive } from '~/server/follower-notifications.server'
 import { publishLiveEvent, type ChatMessageRecord } from '~/server/live-events.server'
@@ -46,9 +46,9 @@ export function liveEnabled() {
 }
 
 const livePath = /^live\/([0-9a-f-]{36})$/
-export const livePathFor = (podcastId: string) => `live/${podcastId}`
+export const livePathFor = (showId: string) => `live/${showId}`
 
-// The podcast's key, or null if it hasn't one (or it can't be read, as when
+// The show's key, or null if it hasn't one (or it can't be read, as when
 // AUTH_SECRET has changed; the owner can make a new one).
 function readKey(stored: string | null) {
   if (!stored) return null
@@ -59,7 +59,7 @@ function readKey(stored: string | null) {
   }
 }
 
-const streamKeyFor = (podcastId: string, key: string) => `${podcastId}?key=${key}`
+const streamKeyFor = (showId: string, key: string) => `${showId}?key=${key}`
 
 function sameText(a: string, b: string) {
   const left = Buffer.from(a)
@@ -87,54 +87,54 @@ export function liveTokenFrom(url: string) {
 
 // --- Keys -------------------------------------------------------------------
 
-// Makes the podcast a new live key, replacing any it had (so the old one stops
-// working), and returns what goes in OBS. Null unless the podcast belongs to
+// Makes the show a new live key, replacing any it had (so the old one stops
+// working), and returns what goes in OBS. Null unless the show belongs to
 // the user.
-export async function createLiveKey(userId: string, podcastId: string) {
+export async function createLiveKey(userId: string, showId: string) {
   const key = randomBytes(24).toString('base64url')
   const updated = await db
-    .update(podcasts)
+    .update(shows)
     .set({ liveKey: encryptSecret('podnoms live key', key) })
-    .where(and(eq(podcasts.id, podcastId), eq(podcasts.userId, userId)))
-    .returning({ id: podcasts.id })
+    .where(and(eq(shows.id, showId), eq(shows.userId, userId)))
+    .returning({ id: shows.id })
   if (updated.length === 0) return null
-  return { server: env.LIVE_RTMP_URL ?? '', streamKey: streamKeyFor(podcastId, key) }
+  return { server: env.LIVE_RTMP_URL ?? '', streamKey: streamKeyFor(showId, key) }
 }
 
-// Stops the podcast's key working; it can't go live until it gets a new one.
-// Returns false unless the podcast belongs to the user.
-export async function revokeLiveKey(userId: string, podcastId: string) {
+// Stops the show's key working; it can't go live until it gets a new one.
+// Returns false unless the show belongs to the user.
+export async function revokeLiveKey(userId: string, showId: string) {
   const updated = await db
-    .update(podcasts)
+    .update(shows)
     .set({ liveKey: null })
-    .where(and(eq(podcasts.id, podcastId), eq(podcasts.userId, userId)))
-    .returning({ id: podcasts.id })
+    .where(and(eq(shows.id, showId), eq(shows.userId, userId)))
+    .returning({ id: shows.id })
   return updated.length > 0
 }
 
 // The title for the next broadcast (or, while live, this one). Empty for the
-// default. Returns false unless the podcast belongs to the user.
-export async function setLiveTitle(userId: string, podcastId: string, title: string) {
+// default. Returns false unless the show belongs to the user.
+export async function setLiveTitle(userId: string, showId: string, title: string) {
   const liveTitle = title.trim() || null
   const updated = await db
-    .update(podcasts)
+    .update(shows)
     .set({ liveTitle })
-    .where(and(eq(podcasts.id, podcastId), eq(podcasts.userId, userId)))
-    .returning({ id: podcasts.id })
+    .where(and(eq(shows.id, showId), eq(shows.userId, userId)))
+    .returning({ id: shows.id })
   if (updated.length === 0) return false
   if (!liveTitle) return true
   const open = await db
     .update(liveBroadcasts)
     .set({ title: liveTitle })
-    .where(and(eq(liveBroadcasts.podcastId, podcastId), isNull(liveBroadcasts.endedAt)))
+    .where(and(eq(liveBroadcasts.showId, showId), isNull(liveBroadcasts.endedAt)))
     .returning({ id: liveBroadcasts.id })
-  if (open.length > 0) publishLiveEvent({ type: 'status', podcastId })
+  if (open.length > 0) publishLiveEvent({ type: 'status', showId })
   return true
 }
 
-export function defaultLiveTitle(podcastTitle: string, date: Date) {
+export function defaultLiveTitle(showTitle: string, date: Date) {
   const day = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
-  return `${podcastTitle} live, ${day}`
+  return `${showTitle} live, ${day}`
 }
 
 // --- MediaMTX -----------------------------------------------------------------
@@ -151,21 +151,21 @@ export type LiveAuthRequest = {
 }
 
 // Whether MediaMTX may let the request through: a stream publishing with its
-// podcast's key, or the app reading one or calling the API.
+// show's key, or the app reading one or calling the API.
 export async function authorizeLive(request: LiveAuthRequest) {
   if (!liveEnabled()) return false
   switch (request.action) {
     case 'publish': {
-      const podcastId = livePath.exec(request.path ?? '')?.[1]
+      const showId = livePath.exec(request.path ?? '')?.[1]
       const key = new URLSearchParams(request.query ?? '').get('key')
       let allowed = false
-      if (podcastId && key) {
-        const [podcast] = await db
-          .select({ liveKey: podcasts.liveKey })
-          .from(podcasts)
-          .where(eq(podcasts.id, podcastId))
+      if (showId && key) {
+        const [show] = await db
+          .select({ liveKey: shows.liveKey })
+          .from(shows)
+          .where(eq(shows.id, showId))
           .limit(1)
-        const expected = readKey(podcast?.liveKey ?? null)
+        const expected = readKey(show?.liveKey ?? null)
         allowed = expected !== null && sameText(key, expected)
       }
       if (allowed) {
@@ -188,8 +188,8 @@ export async function authorizeLive(request: LiveAuthRequest) {
 
 type PathList = { pageCount?: number; items?: { name?: string; ready?: boolean; available?: boolean }[] }
 
-// The podcasts MediaMTX has a stream from right now.
-export async function listLivePodcastIds() {
+// The shows MediaMTX has a stream from right now.
+export async function listLiveShowIds() {
   const live = new Set<string>()
   for (let page = 0, pages = 1; page < pages; page++) {
     const url = new URL(`/v3/paths/list?itemsPerPage=500&page=${page}`, env.LIVE_API_URL)
@@ -201,60 +201,60 @@ export async function listLivePodcastIds() {
     const list = (await response.json()) as PathList
     pages = list.pageCount ?? 1
     for (const item of list.items ?? []) {
-      const podcastId = livePath.exec(item.name ?? '')?.[1]
-      if (podcastId && (item.ready ?? item.available)) live.add(podcastId)
+      const showId = livePath.exec(item.name ?? '')?.[1]
+      if (showId && (item.ready ?? item.available)) live.add(showId)
     }
   }
   return live
 }
 
 // Brings live_broadcast in line with what MediaMTX is streaming: opens a
-// broadcast for each podcast that has started, and ends those whose stream
+// broadcast for each show that has started, and ends those whose stream
 // has been gone longer than the grace period, making their recordings into
 // episodes. Throws, changing nothing, if MediaMTX can't be reached.
 export async function syncLiveBroadcasts(now = new Date()) {
-  const live = await listLivePodcastIds()
+  const live = await listLiveShowIds()
   const open = await db.select().from(liveBroadcasts).where(isNull(liveBroadcasts.endedAt))
-  const openByPodcast = new Map(open.map((broadcast) => [broadcast.podcastId, broadcast]))
+  const openByShow = new Map(open.map((broadcast) => [broadcast.showId, broadcast]))
 
-  for (const podcastId of live) {
-    if (openByPodcast.has(podcastId)) continue
-    const [podcast] = await db
-      .select({ title: podcasts.title, liveTitle: podcasts.liveTitle })
-      .from(podcasts)
-      .where(eq(podcasts.id, podcastId))
+  for (const showId of live) {
+    if (openByShow.has(showId)) continue
+    const [show] = await db
+      .select({ title: shows.title, liveTitle: shows.liveTitle })
+      .from(shows)
+      .where(eq(shows.id, showId))
       .limit(1)
     // Deleted while it was live.
-    if (!podcast) continue
-    const title = podcast.liveTitle ?? defaultLiveTitle(podcast.title, now)
+    if (!show) continue
+    const title = show.liveTitle ?? defaultLiveTitle(show.title, now)
     const started = await db
       .insert(liveBroadcasts)
-      .values({ podcastId, title, startedAt: now, lastSeenAt: now })
+      .values({ showId, title, startedAt: now, lastSeenAt: now })
       .onConflictDoNothing()
       .returning({ id: liveBroadcasts.id })
     if (started.length > 0) {
-      logger.info({ podcastId }, 'Broadcast started')
-      publishLiveEvent({ type: 'status', podcastId })
-      notifyFollowersLive(podcastId, title)
+      logger.info({ showId }, 'Broadcast started')
+      publishLiveEvent({ type: 'status', showId })
+      notifyFollowersLive(showId, title)
     }
   }
 
   for (const broadcast of open) {
-    if (live.has(broadcast.podcastId)) {
+    if (live.has(broadcast.showId)) {
       await db
         .update(liveBroadcasts)
         .set({ lastSeenAt: now, interruptedAt: null })
         .where(eq(liveBroadcasts.id, broadcast.id))
       if (broadcast.interruptedAt) {
         logger.info({ broadcastId: broadcast.id }, 'Broadcast reconnected')
-        publishLiveEvent({ type: 'status', podcastId: broadcast.podcastId })
+        publishLiveEvent({ type: 'status', showId: broadcast.showId })
       }
     } else if (now.getTime() - broadcast.lastSeenAt.getTime() > reconnectGraceMs) {
       await closeBroadcast(broadcast, broadcast.lastSeenAt)
     } else if (!broadcast.interruptedAt) {
       await db.update(liveBroadcasts).set({ interruptedAt: now }).where(eq(liveBroadcasts.id, broadcast.id))
       logger.info({ broadcastId: broadcast.id }, 'Broadcast interrupted')
-      publishLiveEvent({ type: 'status', podcastId: broadcast.podcastId })
+      publishLiveEvent({ type: 'status', showId: broadcast.showId })
     }
   }
 }
@@ -269,8 +269,8 @@ async function closeBroadcast(broadcast: LiveBroadcast, endedAt: Date) {
     .where(and(eq(liveBroadcasts.id, broadcast.id), isNull(liveBroadcasts.endedAt)))
     .returning({ id: liveBroadcasts.id })
   if (closed.length === 0) return false
-  logger.info({ podcastId: broadcast.podcastId, broadcastId: broadcast.id }, 'Broadcast ended')
-  publishLiveEvent({ type: 'status', podcastId: broadcast.podcastId })
+  logger.info({ showId: broadcast.showId, broadcastId: broadcast.id }, 'Broadcast ended')
+  publishLiveEvent({ type: 'status', showId: broadcast.showId })
   // MediaMTX has finished writing the recording by now: the stream is gone.
   void finishRecording(broadcast).catch((error: unknown) =>
     reportError(error, { broadcastId: broadcast.id, msg: "Could not make a broadcast's recording into an episode" }),
@@ -286,11 +286,11 @@ export async function endBroadcast(userId: string, broadcastId: string) {
   const [row] = await db
     .select({ broadcast: liveBroadcasts })
     .from(liveBroadcasts)
-    .innerJoin(podcasts, eq(podcasts.id, liveBroadcasts.podcastId))
+    .innerJoin(shows, eq(shows.id, liveBroadcasts.showId))
     .where(
       and(
         eq(liveBroadcasts.id, broadcastId),
-        eq(podcasts.userId, userId),
+        eq(shows.userId, userId),
         isNull(liveBroadcasts.endedAt),
         isNotNull(liveBroadcasts.interruptedAt),
       ),
@@ -336,8 +336,8 @@ export function startLivePoller() {
 
 // --- Status -------------------------------------------------------------------
 
-// The podcast's open broadcast, if it's live (or interrupted, waiting for OBS).
-export async function getOpenBroadcast(podcastId: string) {
+// The show's open broadcast, if it's live (or interrupted, waiting for OBS).
+export async function getOpenBroadcast(showId: string) {
   const [broadcast] = await db
     .select({
       id: liveBroadcasts.id,
@@ -347,38 +347,59 @@ export async function getOpenBroadcast(podcastId: string) {
       interruptedAt: liveBroadcasts.interruptedAt,
     })
     .from(liveBroadcasts)
-    .where(and(eq(liveBroadcasts.podcastId, podcastId), isNull(liveBroadcasts.endedAt)))
+    .where(and(eq(liveBroadcasts.showId, showId), isNull(liveBroadcasts.endedAt)))
     .limit(1)
   return broadcast ?? null
 }
 
 export type OpenBroadcast = NonNullable<Awaited<ReturnType<typeof getOpenBroadcast>>>
 
-// The podcast, by slug, if the viewer may watch it: anyone, unless it's
+// Which of these shows have an open broadcast.
+export async function liveShowIdsAmong(showIds: string[]) {
+  if (!liveEnabled() || showIds.length === 0) return new Set<string>()
+  const open = await db
+    .select({ showId: liveBroadcasts.showId })
+    .from(liveBroadcasts)
+    .where(and(inArray(liveBroadcasts.showId, showIds), isNull(liveBroadcasts.endedAt)))
+  return new Set(open.map((broadcast) => broadcast.showId))
+}
+
+// The slugs of the live shows the viewer may watch.
+export async function listLiveSlugs(viewerId: string) {
+  if (!liveEnabled()) return []
+  const live = await db
+    .select({ slug: shows.slug })
+    .from(liveBroadcasts)
+    .innerJoin(shows, eq(shows.id, liveBroadcasts.showId))
+    .where(and(isNull(liveBroadcasts.endedAt), or(eq(shows.private, false), eq(shows.userId, viewerId))))
+  return live.map((show) => show.slug)
+}
+
+// The show, by slug, if the viewer may watch it: anyone, unless it's
 // private, when only its owner may.
-export async function getWatchablePodcast(slug: string, viewerId: string | null) {
-  const [podcast] = await db
-    .select({ id: podcasts.id, userId: podcasts.userId })
-    .from(podcasts)
+export async function getWatchableShow(slug: string, viewerId: string | null) {
+  const [show] = await db
+    .select({ id: shows.id, userId: shows.userId })
+    .from(shows)
     .where(
       and(
-        eq(podcasts.slug, slug),
-        viewerId ? or(eq(podcasts.private, false), eq(podcasts.userId, viewerId)) : eq(podcasts.private, false),
+        eq(shows.slug, slug),
+        viewerId ? or(eq(shows.private, false), eq(shows.userId, viewerId)) : eq(shows.private, false),
       ),
     )
     .limit(1)
-  return podcast ?? null
+  return show ?? null
 }
 
 // For the owner's Go live dialog: the stream key, what's on now, and the
 // broadcasts so far with the episodes made from them.
-export async function getLiveSettings(userId: string, podcastId: string) {
-  const [podcast] = await db
-    .select({ liveKey: podcasts.liveKey, liveTitle: podcasts.liveTitle })
-    .from(podcasts)
-    .where(and(eq(podcasts.id, podcastId), eq(podcasts.userId, userId)))
+export async function getLiveSettings(userId: string, showId: string) {
+  const [show] = await db
+    .select({ liveKey: shows.liveKey, liveTitle: shows.liveTitle })
+    .from(shows)
+    .where(and(eq(shows.id, showId), eq(shows.userId, userId)))
     .limit(1)
-  if (!podcast) return null
+  if (!show) return null
   const broadcasts = await db
     .select({
       id: liveBroadcasts.id,
@@ -389,14 +410,14 @@ export async function getLiveSettings(userId: string, podcastId: string) {
     })
     .from(liveBroadcasts)
     .leftJoin(episodes, eq(episodes.id, liveBroadcasts.episodeId))
-    .where(eq(liveBroadcasts.podcastId, podcastId))
+    .where(eq(liveBroadcasts.showId, showId))
     .orderBy(desc(liveBroadcasts.startedAt))
     .limit(20)
-  const key = readKey(podcast.liveKey)
+  const key = readKey(show.liveKey)
   return {
     // What goes in OBS, or null until the owner makes a key.
-    streamKey: key === null ? null : streamKeyFor(podcastId, key),
-    liveTitle: podcast.liveTitle,
+    streamKey: key === null ? null : streamKeyFor(showId, key),
+    liveTitle: show.liveTitle,
     server: env.LIVE_RTMP_URL ?? '',
     live: broadcasts.find((broadcast) => broadcast.endedAt === null) ?? null,
     broadcasts: broadcasts.map(({ episode, ...broadcast }) => ({ ...broadcast, episode: episode?.slug ? episode : null })),
@@ -431,9 +452,9 @@ export function chatMessageFor(message: ChatMessageRecord, viewerId: string | nu
 
 export type ChatMessage = ReturnType<typeof chatMessageFor>
 
-// The newest messages of one of the podcast's broadcasts, oldest first.
+// The newest messages of one of the show's broadcasts, oldest first.
 export async function listChat(
-  podcast: { id: string; userId: string },
+  show: { id: string; userId: string },
   broadcastId: string,
   viewerId: string | null,
 ) {
@@ -442,10 +463,10 @@ export async function listChat(
     .from(liveChatMessages)
     .innerJoin(users, eq(users.id, liveChatMessages.userId))
     .innerJoin(liveBroadcasts, eq(liveBroadcasts.id, liveChatMessages.broadcastId))
-    .where(and(eq(liveChatMessages.broadcastId, broadcastId), eq(liveBroadcasts.podcastId, podcast.id)))
+    .where(and(eq(liveChatMessages.broadcastId, broadcastId), eq(liveBroadcasts.showId, show.id)))
     .orderBy(desc(liveChatMessages.createdAt), desc(liveChatMessages.id))
     .limit(chatHistoryLimit)
-  return rows.reverse().map((message) => chatMessageFor(message, viewerId, podcast.userId))
+  return rows.reverse().map((message) => chatMessageFor(message, viewerId, show.userId))
 }
 
 export class ChatTooFastError extends Error {
@@ -461,14 +482,14 @@ const lastMessageAt = new ExpiringStore<true>(chatIntervalMs)
 // Returns the message, or null if there's no such broadcast for them.
 export async function addChatMessage(userId: string, broadcastId: string, body: string, gif?: ChatGif) {
   const [broadcast] = await db
-    .select({ podcastId: liveBroadcasts.podcastId, ownerId: podcasts.userId })
+    .select({ showId: liveBroadcasts.showId, ownerId: shows.userId })
     .from(liveBroadcasts)
-    .innerJoin(podcasts, eq(podcasts.id, liveBroadcasts.podcastId))
+    .innerJoin(shows, eq(shows.id, liveBroadcasts.showId))
     .where(
       and(
         eq(liveBroadcasts.id, broadcastId),
         isNull(liveBroadcasts.endedAt),
-        or(eq(podcasts.private, false), eq(podcasts.userId, userId)),
+        or(eq(shows.private, false), eq(shows.userId, userId)),
       ),
     )
     .limit(1)
@@ -484,48 +505,48 @@ export async function addChatMessage(userId: string, broadcastId: string, body: 
     .from(liveChatMessages)
     .innerJoin(users, eq(users.id, liveChatMessages.userId))
     .where(eq(liveChatMessages.id, inserted!.id))
-  publishLiveEvent({ type: 'message', podcastId: broadcast.podcastId, message: message! })
+  publishLiveEvent({ type: 'message', showId: broadcast.showId, message: message! })
   return chatMessageFor(message!, userId, broadcast.ownerId)
 }
 
-// Deletes a message the user wrote, or one on their own podcast's broadcast.
+// Deletes a message the user wrote, or one on their own show's broadcast.
 // Returns whether one was deleted.
 export async function deleteChatMessage(userId: string, messageId: string) {
   const [message] = await db
-    .select({ writerId: liveChatMessages.userId, ownerId: podcasts.userId, podcastId: podcasts.id })
+    .select({ writerId: liveChatMessages.userId, ownerId: shows.userId, showId: shows.id })
     .from(liveChatMessages)
     .innerJoin(liveBroadcasts, eq(liveBroadcasts.id, liveChatMessages.broadcastId))
-    .innerJoin(podcasts, eq(podcasts.id, liveBroadcasts.podcastId))
+    .innerJoin(shows, eq(shows.id, liveBroadcasts.showId))
     .where(eq(liveChatMessages.id, messageId))
     .limit(1)
   if (!message || (message.writerId !== userId && message.ownerId !== userId)) return false
   await db.delete(liveChatMessages).where(eq(liveChatMessages.id, messageId))
-  publishLiveEvent({ type: 'deleted', podcastId: message.podcastId, messageId })
+  publishLiveEvent({ type: 'deleted', showId: message.showId, messageId })
   return true
 }
 
 // --- Video ----------------------------------------------------------------------
 
-// Who may watch which podcast, remembered briefly: players fetch a new part
+// Who may watch which show, remembered briefly: players fetch a new part
 // of the stream every second or so.
 const watchable = new ExpiringStore<{ id: string; userId: string } | null>(10_000)
 
-export async function getWatchablePodcastCached(slug: string, viewerId: string | null) {
+export async function getWatchableShowCached(slug: string, viewerId: string | null) {
   const key = `${slug}\n${viewerId ?? ''}`
   const known = watchable.get(key)
   if (known !== undefined) return known
-  const podcast = await getWatchablePodcast(slug, viewerId)
-  watchable.set(key, podcast)
-  return podcast
+  const show = await getWatchableShow(slug, viewerId)
+  watchable.set(key, show)
+  return show
 }
 
 // The HLS files players ask for: playlists and segments, named by MediaMTX.
 export const hlsFileName = /^[\w-]+(\.[\w-]+)*$/
 
-// A file of the podcast's HLS stream from MediaMTX, passed on as it comes.
+// A file of the show's HLS stream from MediaMTX, passed on as it comes.
 // Players' query (for low-latency HLS's blocking playlist reloads) goes too.
-export async function fetchLiveHls(podcastId: string, file: string, search: string, signal?: AbortSignal) {
-  const url = new URL(`/${livePathFor(podcastId)}/${file}${search}`, env.LIVE_HLS_URL)
+export async function fetchLiveHls(showId: string, file: string, search: string, signal?: AbortSignal) {
+  const url = new URL(`/${livePathFor(showId)}/${file}${search}`, env.LIVE_HLS_URL)
   let upstream: Response
   try {
     upstream = await fetch(url, {
@@ -534,7 +555,7 @@ export async function fetchLiveHls(podcastId: string, file: string, search: stri
     })
   } catch (error) {
     if (signal?.aborted) return new Response(null, { status: 499 })
-    reportError(error, { podcastId, msg: 'Could not reach MediaMTX for live video' })
+    reportError(error, { showId, msg: 'Could not reach MediaMTX for live video' })
     return new Response('Live video is unavailable', { status: 502 })
   }
   if (upstream.status === 404) return new Response('Not live', { status: 404 })
@@ -544,7 +565,7 @@ export async function fetchLiveHls(podcastId: string, file: string, search: stri
     if (value) headers.set(name, value)
   }
   // Playlists change every second; segments never do. Neither is for shared
-  // caches, as a private podcast's video is only for its owner.
+  // caches, as a private show's video is only for its owner.
   headers.set('Cache-Control', file.endsWith('.m3u8') ? 'no-store' : 'private, max-age=3600')
   return new Response(upstream.body, { status: upstream.status, headers })
 }

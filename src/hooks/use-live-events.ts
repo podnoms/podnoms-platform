@@ -1,4 +1,4 @@
-// Follows a podcast's live event stream (/api/podcasts/$slug/live/events):
+// Follows a show's live event stream (/api/shows/$slug/live/events):
 // the broadcast starting and ending, its chat as it's written and deleted,
 // and how many are watching. Starts from what the page loaded.
 import { useEffect, useRef, useState } from 'react'
@@ -25,7 +25,7 @@ export function useLiveEvents(slug: string, initial: { broadcast: OpenBroadcast 
   const broadcastId = useRef(initial.broadcast?.id ?? null)
 
   useEffect(() => {
-    const source = new EventSource(`/api/podcasts/${encodeURIComponent(slug)}/live/events?watching=1`)
+    const source = new EventSource(`/api/shows/${encodeURIComponent(slug)}/live/events?watching=1`)
     let opened = false
     const data = <T,>(event: Event) => JSON.parse((event as MessageEvent<string>).data) as T
 
@@ -61,7 +61,7 @@ export function useLiveEvents(slug: string, initial: { broadcast: OpenBroadcast 
   return { broadcast, chat, setChat, viewers, ended }
 }
 
-// Calls `onStart` when the podcast starts broadcasting while `active`: for
+// Calls `onStart` when the show starts broadcasting while `active`: for
 // its pages, to take visitors to the live page. Only a start counts, from not
 // live to live, so a page opened during a broadcast stays where it is.
 // Returns whether it's live now, as the page loaded it and then as it changes.
@@ -74,7 +74,7 @@ export function useLiveStart(slug: string, active: boolean, initiallyLive: boole
   useEffect(() => {
     if (!active) return
     let wasLive = initiallyLive
-    const source = new EventSource(`/api/podcasts/${encodeURIComponent(slug)}/live/events`)
+    const source = new EventSource(`/api/shows/${encodeURIComponent(slug)}/live/events`)
     source.addEventListener('status', (event) => {
       const { broadcast } = JSON.parse((event as MessageEvent<string>).data) as { broadcast: unknown }
       const isLive = broadcast !== null

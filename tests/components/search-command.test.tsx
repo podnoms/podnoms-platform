@@ -8,7 +8,7 @@ import { searchMyLibrary } from '~/functions/search'
 const navigate = vi.fn(() => Promise.resolve())
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigate,
-  useLoaderData: () => ({ podcasts: [{ id: 'p1', title: 'Deep House Sessions', slug: 'deep-house', imageUrl: null }] }),
+  useLoaderData: () => ({ shows: [{ id: 'p1', title: 'Deep House Sessions', slug: 'deep-house', imageUrl: null }] }),
 }))
 vi.mock('~/functions/search', () => ({ searchMyLibrary: vi.fn() }))
 
@@ -23,15 +23,15 @@ beforeEach(() => {
 afterEach(cleanup)
 
 const results = {
-  podcasts: [{ id: 'p1', title: 'Deep House Sessions', slug: 'deep-house', imageUrl: null, excerpt: null }],
+  shows: [{ id: 'p1', title: 'Deep House Sessions', slug: 'deep-house', imageUrl: null, excerpt: null }],
   episodes: [
     {
       id: 'e1',
       title: 'Late Night Mix',
       slug: 'late-night',
       imageUrl: '/images/a.jpg',
-      podcastTitle: 'Deep House Sessions',
-      podcastSlug: 'deep-house',
+      showTitle: 'Deep House Sessions',
+      showSlug: 'deep-house',
       excerpt: '…recorded at a house party…',
     },
   ],
@@ -44,7 +44,7 @@ function openPalette() {
 }
 
 describe('SearchCommand', () => {
-  it('opens from the button, listing the podcasts before anything is typed', async () => {
+  it('opens from the button, listing the shows before anything is typed', async () => {
     render(<SearchCommand />)
     await userEvent.click(screen.getByRole('button', { name: /search/i }))
     expect(screen.getByText('Your shows')).toBeTruthy()
@@ -80,7 +80,7 @@ describe('SearchCommand', () => {
     await screen.findByText('Late Night Mix')
     expect(searchMyLibrary).toHaveBeenCalledTimes(1)
     expect(searchMyLibrary).toHaveBeenCalledWith({ data: { query: 'house' } })
-    expect(screen.getByText('Podcasts')).toBeTruthy()
+    expect(screen.getByText('Shows')).toBeTruthy()
     expect(screen.getByText('Episodes')).toBeTruthy()
     expect(screen.getByText('…recorded at a house party…')).toBeTruthy()
     expect(screen.queryByText('Your shows')).toBeNull()
@@ -92,13 +92,13 @@ describe('SearchCommand', () => {
     await userEvent.click(await screen.findByText('Late Night Mix'))
 
     expect(navigate).toHaveBeenCalledWith({
-      to: '/$slug/episodes/$episodeSlug/manage',
+      to: '/$slug/$episodeSlug/manage',
       params: { slug: 'deep-house', episodeSlug: 'late-night' },
     })
     await waitFor(() => expect(screen.queryByPlaceholderText('Search shows and episodes…')).toBeNull())
   })
 
-  it('opens the chosen podcast', async () => {
+  it('opens the chosen show', async () => {
     vi.mocked(searchMyLibrary).mockResolvedValue(results as never)
     await userEvent.type(openPalette(), 'deep')
     await screen.findByText('Late Night Mix')
@@ -108,9 +108,9 @@ describe('SearchCommand', () => {
   })
 
   it('says when nothing matches', async () => {
-    vi.mocked(searchMyLibrary).mockResolvedValue({ podcasts: [], episodes: [] })
+    vi.mocked(searchMyLibrary).mockResolvedValue({ shows: [], episodes: [] })
     await userEvent.type(openPalette(), 'zzz')
-    expect(await screen.findByText('No podcasts or episodes match “zzz”.')).toBeTruthy()
+    expect(await screen.findByText('No shows or episodes match “zzz”.')).toBeTruthy()
   })
 
   it('says when searching fails', async () => {

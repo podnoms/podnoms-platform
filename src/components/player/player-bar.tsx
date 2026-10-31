@@ -75,7 +75,7 @@ export function PlayerBar() {
         )}
         <div className="min-w-0">
           <EpisodeTitle episode={episode} />
-          <p className="truncate text-xs text-muted-foreground">{episode.podcastTitle}</p>
+          <p className="truncate text-xs text-muted-foreground">{episode.showTitle}</p>
           {queue && (
             // What it's playing through, e.g. a playlist; in the same tab, so
             // playback carries on.
@@ -174,10 +174,10 @@ export function PlayerBar() {
 // from there). In the same tab, so playback carries on.
 function EpisodeTitle({ episode }: { episode: PlayerEpisode }) {
   const className = 'block truncate text-sm font-medium'
-  if (!episode.slug || !episode.podcastSlug) return <p className={className}>{episode.title}</p>
-  const params = { slug: episode.podcastSlug, episodeSlug: episode.slug }
+  if (!episode.slug || !episode.showSlug) return <p className={className}>{episode.title}</p>
+  const params = { slug: episode.showSlug, episodeSlug: episode.slug }
   return (
-    <Link to="/$slug/episodes/$episodeSlug" params={params} className={`${className} hover:underline`}>
+    <Link to="/$slug/$episodeSlug" params={params} className={`${className} hover:underline`}>
       {episode.title}
     </Link>
   )

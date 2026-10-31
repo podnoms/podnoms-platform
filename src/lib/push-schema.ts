@@ -13,7 +13,7 @@ export const removePushSubscriptionSchema = z.union([
   z.object({ endpoint: z.url().max(2000) }),
 ])
 
-// Which desktop notifications the user gets about the podcasts they follow.
+// Which desktop notifications the user gets about the shows they follow.
 export const pushPrefsSchema = z.object({
   pushLive: z.boolean(),
   pushNewEpisodes: z.boolean(),

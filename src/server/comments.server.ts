@@ -3,7 +3,7 @@
 // they're listed in that order. A comment can have replies, one level deep:
 // a reply to a reply joins the same thread. Only signed-in users can comment,
 // reply or like a comment, on episodes they can see; a comment (with its
-// replies) can be deleted by whoever wrote it or by the podcast's owner.
+// replies) can be deleted by whoever wrote it or by the show's owner.
 //
 // @slug in a comment mentions that user: it's stored as <@userId> (see
 // comment_mention), so it follows them if their slug changes, and they're
@@ -14,16 +14,16 @@ import type { ChatGif } from '~/lib/gifs'
 import { mentionPattern, mentionedSlugs, storedMention, type CommentMentions } from '~/lib/user-slug'
 import { notifyCommentRecipients } from '~/server/comment-notifications.server'
 import { db } from '~/server/db/client.server'
-import { commentLikes, commentMentions, episodeComments, episodes, podcasts, users } from '~/server/db/schema'
+import { commentLikes, commentMentions, episodeComments, episodes, shows, users } from '~/server/db/schema'
 import { visibleTo } from '~/server/episodes.server'
 import { usersBySlug } from '~/server/users.server'
 
-// The episode, if the viewer can see it, with who owns its podcast.
+// The episode, if the viewer can see it, with who owns its show.
 export async function visibleEpisode(episodeId: string, viewerId: string | null) {
   const [episode] = await db
-    .select({ id: episodes.id, durationSeconds: episodes.durationSeconds, ownerId: podcasts.userId })
+    .select({ id: episodes.id, durationSeconds: episodes.durationSeconds, ownerId: shows.userId })
     .from(episodes)
-    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .innerJoin(shows, eq(shows.id, episodes.showId))
     .where(and(eq(episodes.id, episodeId), visibleTo(viewerId)))
     .limit(1)
   return episode ?? null
@@ -170,14 +170,14 @@ export async function setCommentLike(userId: string, commentId: string, like: bo
   return { likeCount: row!.count, liked: like }
 }
 
-// Deletes a comment the user wrote, or one on their own podcast, with its
+// Deletes a comment the user wrote, or one on their own show, with its
 // replies. Returns whether one was deleted.
 export async function deleteComment(userId: string, commentId: string) {
   const [comment] = await db
-    .select({ writerId: episodeComments.userId, ownerId: podcasts.userId })
+    .select({ writerId: episodeComments.userId, ownerId: shows.userId })
     .from(episodeComments)
     .innerJoin(episodes, eq(episodes.id, episodeComments.episodeId))
-    .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+    .innerJoin(shows, eq(shows.id, episodes.showId))
     .where(eq(episodeComments.id, commentId))
     .limit(1)
   if (!comment || (comment.writerId !== userId && comment.ownerId !== userId)) return false

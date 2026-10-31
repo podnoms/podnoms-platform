@@ -1,5 +1,5 @@
 // Alerts to the site's admins about the site itself, rather than anyone's
-// podcasts, in their notifications menu and by email: a platform asking us to
+// shows, in their notifications menu and by email: a platform asking us to
 // prove we're not a bot, which stops downloads from it for every user until
 // someone gives yt-dlp fresh cookies (YTDLP_COOKIES_FILE); someone trying to
 // use an explicit image (image-moderation.server.ts); and reports of images

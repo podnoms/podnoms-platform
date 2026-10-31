@@ -2,7 +2,7 @@ import { Link, useLoaderData } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { Icons, type Icon } from '~/components/icons'
 import { ModeToggle } from '~/components/mode-toggle'
-import { PodcastGrid, type PodcastCardData } from '~/components/podcast-card'
+import { ShowGrid, type ShowCardData } from '~/components/show-card'
 import { Button } from '~/components/ui/button'
 import { brandLogoUrl, useBranding, withSiteName } from '~/lib/branding'
 
@@ -111,9 +111,9 @@ function HeroPreview() {
   )
 }
 
-// `podcasts`: some of the site's public shows, so visitors (and search
+// `shows`: some of the site's public shows, so visitors (and search
 // engines) can go on to listen.
-export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
+export function LandingPage({ shows }: { shows: ShowCardData[] }) {
   const branding = useBranding()
   const copy = branding.landing
   const text = (value: string) => withSiteName(value, branding)
@@ -136,7 +136,7 @@ export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
               Get started free
               <Icons.back className="rotate-180" />
             </SignUpButton>
-            <ExploreButton>Explore podcasts</ExploreButton>
+            <ExploreButton>Explore shows</ExploreButton>
           </div>
           <p className="text-sm text-muted-foreground">
             Already have an account?{' '}
@@ -194,16 +194,16 @@ export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
         </div>
       </section>
 
-      {podcasts.length > 0 && (
+      {shows.length > 0 && (
         <section className="mx-auto w-full max-w-6xl px-4 pb-16 md:pb-24">
           <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{text(copy.exploreTitle)}</h2>
               <p className="mt-2 text-muted-foreground">{text(copy.exploreText)}</p>
             </div>
-            <ExploreButton>Explore all podcasts</ExploreButton>
+            <ExploreButton>Explore all shows</ExploreButton>
           </div>
-          <PodcastGrid podcasts={podcasts} />
+          <ShowGrid shows={shows} />
         </section>
       )}
 
@@ -216,7 +216,7 @@ export function LandingPage({ podcasts }: { podcasts: PodcastCardData[] }) {
           <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{text(copy.ctaTitle)}</h2>
           <p className="mx-auto mt-3 max-w-md text-muted-foreground">{text(copy.ctaText)}</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <SignUpButton>Create your podcast</SignUpButton>
+            <SignUpButton>Create your show</SignUpButton>
             <SignInButton />
           </div>
         </div>

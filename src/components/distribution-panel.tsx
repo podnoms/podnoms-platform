@@ -8,22 +8,22 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/c
 import { Input } from '~/components/ui/input'
 import { NativeSelect, NativeSelectOptGroup, NativeSelectOption } from '~/components/ui/native-select'
 import { Switch } from '~/components/ui/switch'
-import { saveDirectoryDetails, saveDirectoryLink, submitMyPodcastToIndex } from '~/functions/podcasts'
+import { saveDirectoryDetails, saveDirectoryLink, submitMyShowToIndex } from '~/functions/shows'
 import {
   appleCategories,
   categoryNames,
   directories,
   isReady,
   languageName,
-  podcastLanguages,
+  showLanguages,
   type AppleCategory,
   type Directory,
   type DirectoryLinks,
   type ReadinessItem,
 } from '~/lib/podcast-directories'
-import { directoryDetailsSchema, directoryLinkSchema } from '~/lib/podcast-schema'
+import { directoryDetailsSchema, directoryLinkSchema } from '~/lib/show-schema'
 
-type Podcast = {
+type Show = {
   id: string
   feedUrl: string
   category: string | null
@@ -42,40 +42,40 @@ type Distribution = {
   podcastIndexAvailable: boolean
 }
 
-// Getting the podcast into Apple Podcasts, Spotify and the rest: what it still
+// Getting the show into Apple Podcasts, Spotify and the rest: what it still
 // needs, the details directories show, and a card for each directory.
 export function DistributionPanel({
-  podcast,
+  show,
   distribution,
   onChanged,
   onEditDetails,
 }: {
-  podcast: Podcast
+  show: Show
   distribution: Distribution
   onChanged: () => Promise<void>
-  // Opens the podcast's edit dialog, for the title, description and artwork.
+  // Opens the show's edit dialog, for the title, description and artwork.
   onEditDetails: () => void
 }) {
   const ready = isReady(distribution.readiness)
   return (
     <div className="flex flex-col gap-6">
       <Readiness items={distribution.readiness} onEditDetails={onEditDetails} />
-      <DetailsForm podcast={podcast} distribution={distribution} onSaved={onChanged} />
+      <DetailsForm show={show} distribution={distribution} onSaved={onChanged} />
       <Card>
         <CardHeader>
           <CardTitle>Your feed</CardTitle>
           <CardDescription>Each directory asks for this address. Your episodes reach them through it.</CardDescription>
         </CardHeader>
         <CardContent>
-          <CopyField label="RSS feed URL" value={podcast.feedUrl} />
+          <CopyField label="RSS feed URL" value={show.feedUrl} />
         </CardContent>
       </Card>
       <div className="flex flex-col gap-1">
         <h3 className="font-semibold">Directories</h3>
         <p className="text-sm text-muted-foreground">
           {ready
-            ? 'Podcast aggregators are super flaky but this is our current best guidance. Assuming the checklist above passes you\'re probably better off adding these yourself. Add your podcast to each one. Overcast, Castro and most other apps find shows through Apple Podcasts, so listing there reaches them too.'
-            : 'Once the checklist above is complete, you can add your podcast to each one.'}
+            ? 'Podcast aggregators are super flaky but this is our current best guidance. Assuming the checklist above passes you\'re probably better off adding these yourself. Add your show to each one. Overcast, Castro and most other apps find shows through Apple Podcasts, so listing there reaches them too.'
+            : 'Once the checklist above is complete, you can add your show to each one.'}
         </p>
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
@@ -83,8 +83,8 @@ export function DistributionPanel({
           <DirectoryCard
             key={directory.id}
             directory={directory}
-            podcastId={podcast.id}
-            link={podcast.directoryLinks[directory.id] ?? null}
+            showId={show.id}
+            link={show.directoryLinks[directory.id] ?? null}
             ready={ready}
             canSubmit={directory.id === 'podcastIndex' && distribution.podcastIndexAvailable}
             onChanged={onChanged}
@@ -97,7 +97,7 @@ export function DistributionPanel({
 
 function Readiness({ items, onEditDetails }: { items: ReadinessItem[]; onEditDetails: () => void }) {
   const ready = isReady(items)
-  // Title, description and artwork are edited in the podcast's edit dialog;
+  // Title, description and artwork are edited in the show's edit dialog;
   // the rest in the form below.
   const inEditDialog = new Set(['title', 'description', 'artwork'])
   const fieldFor: Partial<Record<ReadinessItem['id'], string>> = {
@@ -134,7 +134,7 @@ function Readiness({ items, onEditDetails }: { items: ReadinessItem[]; onEditDet
                     {item.fix}{' '}
                     {inEditDialog.has(item.id) ? (
                       <button type="button" className="underline underline-offset-4" onClick={onEditDetails}>
-                        Edit podcast
+                        Edit show
                       </button>
                     ) : fieldFor[item.id] ? (
                       <button
@@ -157,17 +157,17 @@ function Readiness({ items, onEditDetails }: { items: ReadinessItem[]; onEditDet
 }
 
 function DetailsForm({
-  podcast,
+  show,
   distribution,
   onSaved,
 }: {
-  podcast: Podcast
+  show: Show
   distribution: Distribution
   onSaved: () => Promise<void>
 }) {
-  const [category, setCategory] = useState(podcast.category ?? '')
-  const [ownerEmail, setOwnerEmail] = useState(podcast.ownerEmail ?? '')
-  const [explicit, setExplicit] = useState(podcast.explicit)
+  const [category, setCategory] = useState(show.category ?? '')
+  const [ownerEmail, setOwnerEmail] = useState(show.ownerEmail ?? '')
+  const [explicit, setExplicit] = useState(show.explicit)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string>()
   const [saved, setSaved] = useState(false)
@@ -177,7 +177,7 @@ function DetailsForm({
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     const parsed = directoryDetailsSchema.safeParse({
-      id: podcast.id,
+      id: show.id,
       category: form.get('category'),
       subcategory: form.get('subcategory') ?? null,
       language: form.get('language'),
@@ -206,7 +206,7 @@ function DetailsForm({
     <Card>
       <CardHeader>
         <CardTitle>Directory details</CardTitle>
-        <CardDescription>How your podcast is described in its feed, and so in every directory and app.</CardDescription>
+        <CardDescription>How your show is described in its feed, and so in every directory and app.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} onChange={() => setSaved(false)}>
@@ -238,7 +238,7 @@ function DetailsForm({
                   key={category}
                   id="distribution-subcategory"
                   name="subcategory"
-                  defaultValue={category === podcast.category ? (podcast.subcategory ?? '') : ''}
+                  defaultValue={category === show.category ? (show.subcategory ?? '') : ''}
                   disabled={subcategories.length === 0}
                 >
                   <NativeSelectOption value="">None</NativeSelectOption>
@@ -253,8 +253,8 @@ function DetailsForm({
               </Field>
               <Field>
                 <FieldLabel htmlFor="distribution-language">Language</FieldLabel>
-                <NativeSelect id="distribution-language" name="language" defaultValue={podcast.language} required>
-                  {podcastLanguages.map((code) => (
+                <NativeSelect id="distribution-language" name="language" defaultValue={show.language} required>
+                  {showLanguages.map((code) => (
                     <NativeSelectOption key={code} value={code}>
                       {languageName(code)}
                     </NativeSelectOption>
@@ -266,8 +266,8 @@ function DetailsForm({
                 <Input
                   id="distribution-author"
                   name="author"
-                  defaultValue={podcast.author ?? distribution.accountName ?? ''}
-                  placeholder="Who makes the podcast"
+                  defaultValue={show.author ?? distribution.accountName ?? ''}
+                  placeholder="Who makes the show"
                   maxLength={255}
                   required
                 />
@@ -298,7 +298,7 @@ function DetailsForm({
               </div>
               <FieldDescription>
                 Public: anyone who reads your feed can see it. Spotify, Amazon and YouTube send a code here to confirm
-                the podcast is yours, and it stops other hosts importing your feed without your say. Leave it empty to
+                the show is yours, and it stops other hosts importing your feed without your say. Leave it empty to
                 keep your email out of the feed.
               </FieldDescription>
             </Field>
@@ -318,14 +318,14 @@ function DetailsForm({
 
 function DirectoryCard({
   directory,
-  podcastId,
+  showId,
   link,
   ready,
   canSubmit,
   onChanged,
 }: {
   directory: Directory
-  podcastId: string
+  showId: string
   link: string | null
   ready: boolean
   // Podcast Index can be submitted to from here, when this site has a key.
@@ -357,7 +357,7 @@ function DirectoryCard({
   function saveLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const parsed = directoryLinkSchema.safeParse({
-      id: podcastId,
+      id: showId,
       directory: directory.id,
       link: new FormData(event.currentTarget).get('link'),
     })
@@ -373,7 +373,7 @@ function DirectoryCard({
 
   const submit = () =>
     run(async () => {
-      const result = await submitMyPodcastToIndex({ data: { id: podcastId } })
+      const result = await submitMyShowToIndex({ data: { id: showId } })
       return result.ok ? undefined : result.error
     })
 

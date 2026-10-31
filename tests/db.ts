@@ -69,7 +69,7 @@ export async function resetDb(db: TestDb) {
   if (!(db.$client instanceof PGlite)) {
     throw new Error('resetDb was given a real database; run the tests with `bun run test`')
   }
-  await db.execute(sql`truncate "user", auth."account", auth."session", auth."verification_token", "podcast", "episode", "playback_position", "tag" cascade`)
+  await db.execute(sql`truncate "user", auth."account", auth."session", auth."verification_token", "show", "episode", "playback_position", "tag" cascade`)
   // The settings stay (tests put back what they change); the app's own values go.
   await db.execute(sql`delete from site_settings where starts_with(key, '__')`)
 }

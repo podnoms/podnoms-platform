@@ -4,7 +4,7 @@ import { notifyCommentRecipients } from '~/server/comment-notifications.server'
 import { addComment, deleteComment, listComments, setCommentLike } from '~/server/comments.server'
 import { users } from '~/server/db/schema'
 import { resetDb } from '../db'
-import { createEpisode, createPodcast, createUser, db } from '../helpers'
+import { createEpisode, createShow, createUser, db } from '../helpers'
 
 vi.mock('~/server/comment-notifications.server', () => ({ notifyCommentRecipients: vi.fn() }))
 
@@ -15,16 +15,16 @@ beforeEach(async () => {
 
 const ready = { status: 'ready' as const, audioUrl: '/api/episodes/x/audio', durationSeconds: 600 }
 
-async function show(values: Parameters<typeof createPodcast>[1] = {}) {
+async function makeShow(values: Parameters<typeof createShow>[1] = {}) {
   const owner = await createUser({ name: 'Ada' })
-  const podcast = await createPodcast(owner.id, { slug: 'show', ...values })
-  return { owner, podcast }
+  const show = await createShow(owner.id, { slug: 'show', ...values })
+  return { owner, show }
 }
 
 describe('addComment', () => {
   it('lists comments in the order they come in the episode, with who wrote them', async () => {
-    const { podcast } = await show()
-    const episode = await createEpisode(podcast.id, ready)
+    const { show } = await makeShow()
+    const episode = await createEpisode(show.id, ready)
     const ann = await createUser({ name: 'Ann' })
     const bob = await createUser({ name: 'Bob' })
     await addComment(ann.id, episode.id, '  Later bit  ', 300)
@@ -39,17 +39,17 @@ describe('addComment', () => {
   })
 
   it('keeps the time within the episode', async () => {
-    const { podcast } = await show()
-    const episode = await createEpisode(podcast.id, ready)
+    const { show } = await makeShow()
+    const episode = await createEpisode(show.id, ready)
     const listener = await createUser()
     const comments = await addComment(listener.id, episode.id, 'Past the end', 9999)
     expect(comments).toMatchObject([{ atSeconds: 600 }])
   })
 
   it("won't comment on what the user can't see", async () => {
-    const { owner, podcast } = await show()
-    const hidden = await createEpisode(podcast.id, { ...ready, private: true })
-    const pending = await createEpisode(podcast.id, { status: 'pending' })
+    const { owner, show } = await makeShow()
+    const hidden = await createEpisode(show.id, { ...ready, private: true })
+    const pending = await createEpisode(show.id, { status: 'pending' })
     const listener = await createUser()
     expect(await addComment(listener.id, hidden.id, 'Hi', 0)).toBeNull()
     expect(await addComment(listener.id, pending.id, 'Hi', 0)).toBeNull()
@@ -62,9 +62,9 @@ describe('addComment', () => {
 })
 
 describe('deleteComment', () => {
-  it('lets the writer and the podcast owner delete a comment, and nobody else', async () => {
-    const { owner, podcast } = await show()
-    const episode = await createEpisode(podcast.id, ready)
+  it('lets the writer and the show owner delete a comment, and nobody else', async () => {
+    const { owner, show } = await makeShow()
+    const episode = await createEpisode(show.id, ready)
     const writer = await createUser()
     const other = await createUser()
     const [first] = (await addComment(writer.id, episode.id, 'One', 1))!
@@ -83,8 +83,8 @@ describe('deleteComment', () => {
 
 describe('replies', () => {
   it('lists replies under their comment, oldest first, at its time, and a reply to a reply joins the thread', async () => {
-    const { podcast } = await show()
-    const episode = await createEpisode(podcast.id, ready)
+    const { show } = await makeShow()
+    const episode = await createEpisode(show.id, ready)
     const ann = await createUser({ name: 'Ann' })
     const bob = await createUser({ name: 'Bob' })
     const [top] = (await addComment(ann.id, episode.id, 'Top', 120))!
@@ -99,17 +99,17 @@ describe('replies', () => {
   })
 
   it("won't reply to a comment on another episode", async () => {
-    const { podcast } = await show()
-    const one = await createEpisode(podcast.id, ready)
-    const other = await createEpisode(podcast.id, ready)
+    const { show } = await makeShow()
+    const one = await createEpisode(show.id, ready)
+    const other = await createEpisode(show.id, ready)
     const user = await createUser()
     const [top] = (await addComment(user.id, one.id, 'Here', 1))!
     expect(await addComment(user.id, other.id, 'There', 1, top!.id)).toBeNull()
   })
 
   it('goes with its comment when that is deleted', async () => {
-    const { podcast } = await show()
-    const episode = await createEpisode(podcast.id, ready)
+    const { show } = await makeShow()
+    const episode = await createEpisode(show.id, ready)
     const user = await createUser()
     const [top] = (await addComment(user.id, episode.id, 'Top', 1))!
     await addComment(user.id, episode.id, 'Reply', 1, top!.id)
@@ -120,8 +120,8 @@ describe('replies', () => {
 
 describe('mentions', () => {
   it("stores mentions of users who exist by their id, so they follow a new slug, and tells them", async () => {
-    const { podcast } = await show()
-    const episode = await createEpisode(podcast.id, ready)
+    const { show } = await makeShow()
+    const episode = await createEpisode(show.id, ready)
     const writer = await createUser()
     const ann = await createUser({ slug: 'ann', name: 'Ann' })
     const [comment] = (await addComment(writer.id, episode.id, 'Hey @Ann and @nobody, mail me at me@ann.ie', 1))!
@@ -137,8 +137,8 @@ describe('mentions', () => {
 
 describe('likes', () => {
   it('counts likes, says whether the viewer likes each, and likes once per user', async () => {
-    const { podcast } = await show()
-    const episode = await createEpisode(podcast.id, ready)
+    const { show } = await makeShow()
+    const episode = await createEpisode(show.id, ready)
     const ann = await createUser()
     const bob = await createUser()
     const [comment] = (await addComment(ann.id, episode.id, 'Like me', 1))!
@@ -151,8 +151,8 @@ describe('likes', () => {
   })
 
   it("can't like a comment on an episode the user can't see", async () => {
-    const { owner, podcast } = await show()
-    const episode = await createEpisode(podcast.id, { ...ready, private: true })
+    const { owner, show } = await makeShow()
+    const episode = await createEpisode(show.id, { ...ready, private: true })
     const [comment] = (await addComment(owner.id, episode.id, 'Mine', 1))!
     expect(await setCommentLike((await createUser()).id, comment!.id, true)).toBeNull()
   })
@@ -162,8 +162,8 @@ describe('GIFs', () => {
   const gif = { provider: 'giphy' as const, id: 'g1', title: 'Wave', url: 'https://media.giphy.com/media/g1/giphy.gif', width: 200, height: 150 }
 
   it('takes a GIF with words, or alone, but not nothing at all', async () => {
-    const { podcast } = await show()
-    const episode = await createEpisode(podcast.id, ready)
+    const { show } = await makeShow()
+    const episode = await createEpisode(show.id, ready)
     const user = await createUser()
     await addComment(user.id, episode.id, 'Ha', 5, null, gif)
     await addComment(user.id, episode.id, '', 6, null, gif)

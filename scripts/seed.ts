@@ -1,5 +1,5 @@
-// Fills the database in .env with fake podcasts and episodes for development:
-// 50 podcasts with 20–100 episodes each, owned by the first user (or the user
+// Fills the database in .env with fake shows and episodes for development:
+// 50 shows with 20–100 episodes each, owned by the first user (or the user
 // with the email given as an argument). Every episode plays the same minute
 // of generated audio, with the same waveform: one MP3 and one waveform file in
 // MEDIA_DIR/seed, hard-linked to each episode's paths, so they take no extra
@@ -10,7 +10,7 @@
 //                                   episode that has none, and adds nothing
 //
 // Images are remote URLs; the app downloads them into MEDIA_DIR the first
-// time a podcast page is opened (see localiseRemoteImages).
+// time a show page is opened (see localiseRemoteImages).
 import { execFileSync } from 'node:child_process'
 import { copyFile, link, mkdir, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
@@ -20,11 +20,11 @@ import { env } from '~/env'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { firstFreeSlug, slugify } from '~/lib/slug'
 import { db } from '~/server/db/client.server'
-import { episodes, podcasts, users, type NewEpisode } from '~/server/db/schema'
+import { episodes, shows, users, type NewEpisode } from '~/server/db/schema'
 import { ensureAudioDir, episodeAudioPath, episodeAudioUrl, episodeWaveformPath } from '~/server/storage.server'
 import { computeWaveform } from '~/server/waveforms.server'
 
-const podcastCount = 50
+const showCount = 50
 const minEpisodes = 20
 const maxEpisodes = 100
 
@@ -36,7 +36,7 @@ const sampleWaveform = resolve(sampleDir, 'sample-waveform.json')
 const image = () => faker.image.urlPicsumPhotos({ width: 600, height: 600, grayscale: false, blur: 0 })
 const paragraphs = (count: number) => plainTextToHtml(faker.lorem.paragraphs(count, '\n\n'))
 
-function podcastTitle() {
+function showTitle() {
   return faker.helpers.arrayElement([
     () => `The ${faker.word.adjective()} ${faker.word.noun()}`,
     () => `${faker.person.firstName()}'s ${faker.music.genre()} Hour`,
@@ -119,16 +119,16 @@ try {
       await db.select({ id: users.id, email: users.email }).from(users).orderBy(asc(sql`ctid`)).limit(1)
   if (!owner) throw new Error(email ? `No user with the email ${email}` : 'There are no users; sign up first')
 
-  // Podcast slugs are unique across all users.
-  const takenPodcastSlugs = new Set((await db.select({ slug: podcasts.slug }).from(podcasts)).map((row) => row.slug))
+  // Show slugs are unique across all users.
+  const takenShowSlugs = new Set((await db.select({ slug: shows.slug }).from(shows)).map((row) => row.slug))
   let episodeTotal = 0
 
-  for (let i = 0; i < podcastCount; i++) {
-    const title = podcastTitle()
-    const slug = firstFreeSlug(slugify(title, 'podcast'), takenPodcastSlugs)
-    takenPodcastSlugs.add(slug)
-    const [podcast] = await db
-      .insert(podcasts)
+  for (let i = 0; i < showCount; i++) {
+    const title = showTitle()
+    const slug = firstFreeSlug(slugify(title, 'show'), takenShowSlugs)
+    takenShowSlugs.add(slug)
+    const [show] = await db
+      .insert(shows)
       .values({
         userId: owner.id,
         title,
@@ -138,7 +138,7 @@ try {
         category: faker.helpers.arrayElement(['Music', 'Comedy', 'Technology', 'News', 'Arts', 'Education']),
         explicit: faker.datatype.boolean(0.1),
       })
-      .returning({ id: podcasts.id })
+      .returning({ id: shows.id })
 
     const count = faker.number.int({ min: minEpisodes, max: maxEpisodes })
     const takenEpisodeSlugs = new Set<string>()
@@ -150,11 +150,11 @@ try {
       const id = crypto.randomUUID()
       return {
         id,
-        podcastId: podcast!.id,
+        showId: show!.id,
         title,
         slug,
         description: paragraphs(faker.number.int({ min: 1, max: 4 })),
-        // Some episodes use the podcast's artwork.
+        // Some episodes use the show's artwork.
         imageUrl: faker.datatype.boolean(0.7) ? image() : null,
         ...sampleAudioColumns(id, size),
         status: 'ready',
@@ -165,10 +165,10 @@ try {
     await addSampleAudio(rows.map((row) => row.id!))
     await db.insert(episodes).values(rows)
     episodeTotal += rows.length
-    console.log(`${String(i + 1).padStart(2)}/${podcastCount} ${title} (${rows.length} episodes)`)
+    console.log(`${String(i + 1).padStart(2)}/${showCount} ${title} (${rows.length} episodes)`)
   }
 
-  console.log(`\nAdded ${podcastCount} podcasts and ${episodeTotal} episodes for ${owner.email ?? owner.id}.`)
+  console.log(`\nAdded ${showCount} shows and ${episodeTotal} episodes for ${owner.email ?? owner.id}.`)
 } catch (error) {
   console.error(error)
   process.exit(1)

@@ -1,6 +1,6 @@
 // Live updates about episodes being processed, for the event stream that
-// podcast and episode pages listen to while something is in progress (see
-// /api/podcasts/$slug/events). In memory, like the processing itself.
+// show and episode pages listen to while something is in progress (see
+// /api/shows/$slug/events). In memory, like the processing itself.
 import '@tanstack/react-start/server-only'
 import { EventEmitter } from 'node:events'
 import type { EpisodeProgress } from '~/server/episode-processor.server'

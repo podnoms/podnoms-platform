@@ -22,7 +22,7 @@ describe('slugify', () => {
   })
 
   it('uses the fallback when nothing usable is left', () => {
-    expect(slugify('', 'podcast')).toBe('podcast')
+    expect(slugify('', 'show')).toBe('show')
     expect(slugify('!!! ???', 'episode')).toBe('episode')
     expect(slugify('日本語', 'episode')).toBe('episode')
   })

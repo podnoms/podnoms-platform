@@ -14,14 +14,14 @@ import {
 } from '~/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
-import { podcastSlugField } from '~/lib/podcast-schema'
+import { showSlugField } from '~/lib/show-schema'
 
 export type Details = {
   title: string
   description: string | null
   imageUrl: string | null
   tags?: { id: string; name: string }[]
-  // A podcast's, which the form then lets the owner change.
+  // A show's, which the form then lets the owner change.
   slug?: string
 }
 
@@ -35,7 +35,7 @@ export type DetailsChange = {
   slug?: string
 }
 
-// Edits the title, artwork, description and tags of a podcast or an episode.
+// Edits the title, artwork, description and tags of a show or an episode.
 export function EditDetailsDialog({
   open,
   onOpenChange,
@@ -52,7 +52,7 @@ export function EditDetailsDialog({
   description: string
   details: Details
   maxTitleLength: number
-  // More for a random image to go on, e.g. an episode's podcast title.
+  // More for a random image to go on, e.g. an episode's show title.
   imageContext?: string
   // Resolves once saved, or with a message for the form to show; the form
   // shows a general error if it throws.
@@ -106,7 +106,7 @@ function DetailsForm({
       setError('Give it a title')
       return
     }
-    const newSlug = slugChanged ? podcastSlugField.safeParse(slug) : null
+    const newSlug = slugChanged ? showSlugField.safeParse(slug) : null
     if (newSlug && !newSlug.success) {
       setError(newSlug.error.issues[0]?.message)
       return
@@ -174,7 +174,7 @@ function DetailsForm({
                 </div>
                 {slugChanged && (
                   <FieldDescription>
-                    The podcast's page and feed move to the new address, and the old ones stop working. Podcast apps
+                    The show's page and feed move to the new address, and the old ones stop working. Podcast apps
                     and directories using the old feed won't get new episodes until it's updated there.
                   </FieldDescription>
                 )}

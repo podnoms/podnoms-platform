@@ -60,6 +60,18 @@ export async function mobileUserId(request: Request) {
   return row.userId
 }
 
+// Where to send notifications for the device whose token the request carries.
+// A device has one push token, so whoever signed in on it last gets them, if
+// someone before them didn't sign out.
+export async function setMobilePushToken(request: Request, pushToken: string | null) {
+  const token = bearerToken(request)
+  if (!token) return
+  await db.transaction(async (tx) => {
+    if (pushToken) await tx.update(mobileTokens).set({ pushToken: null }).where(eq(mobileTokens.pushToken, pushToken))
+    await tx.update(mobileTokens).set({ pushToken }).where(eq(mobileTokens.tokenHash, hashToken(token)))
+  })
+}
+
 // The token the request carries, to sign out with.
 export function requestMobileToken(request: Request) {
   return bearerToken(request)

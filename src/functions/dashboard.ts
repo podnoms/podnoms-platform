@@ -4,7 +4,7 @@ import { dashboardQuerySchema } from '~/lib/activity-schema'
 import { getSession } from '~/server/auth.server'
 import { getDashboard } from '~/server/dashboard.server'
 
-// Counts and stats across all of the signed-in user's podcasts, for the home page.
+// Counts and stats across all of the signed-in user's shows, for the home page.
 export const fetchDashboard = createServerFn({ method: 'GET' })
   .validator(dashboardQuerySchema)
   .handler(async ({ data }) => {

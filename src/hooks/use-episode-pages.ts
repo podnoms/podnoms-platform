@@ -4,13 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { episodePageSize } from '~/lib/episode-pages'
 
 export function useEpisodePages<T extends { id: string }>({
-  podcastSlug,
+  showSlug,
   first,
   total,
   fetchMore,
 }: {
-  // Moving to another podcast starts its list afresh.
-  podcastSlug: string
+  // Moving to another show starts its list afresh.
+  showSlug: string
   // The first page, from the loader. When the page reloads (after an edit, or
   // as episodes finish processing) it's replaced, and the episodes loaded
   // after it are fetched again so they don't go stale.
@@ -56,12 +56,12 @@ export function useEpisodePages<T extends { id: string }>({
 
   const moreCount = useRef(0)
   moreCount.current = more.length
-  const previous = useRef({ first, podcastSlug })
+  const previous = useRef({ first, showSlug })
   useEffect(() => {
     if (previous.current.first === first) return
-    const samePodcast = previous.current.podcastSlug === podcastSlug
-    previous.current = { first, podcastSlug }
-    if (samePodcast && moreCount.current > 0) {
+    const sameShow = previous.current.showSlug === showSlug
+    previous.current = { first, showSlug }
+    if (sameShow && moreCount.current > 0) {
       void load(first.length, moreCount.current, true)
       return
     }
@@ -70,7 +70,7 @@ export function useEpisodePages<T extends { id: string }>({
     setLoading(false)
     setFailed(false)
     setDone(false)
-  }, [first, podcastSlug, load])
+  }, [first, showSlug, load])
 
   // Loads the next page when the sentinel (put after the list) comes within
   // a screen's height of view. Observing afresh after each page means a short

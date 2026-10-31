@@ -2,8 +2,8 @@
 // what a visitor sends, and what an admin does about one.
 import { z } from 'zod'
 
-// What can be reported: a podcast's or episode's artwork, or a profile picture.
-export const reportTargetKinds = ['podcast', 'episode', 'user'] as const
+// What can be reported: a show's or episode's artwork, or a profile picture.
+export const reportTargetKinds = ['show', 'episode', 'user'] as const
 export type ReportTargetKind = (typeof reportTargetKinds)[number]
 
 export const reportReasons = ['childSafety', 'sexual', 'violence', 'hate', 'other'] as const

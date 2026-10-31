@@ -1,4 +1,4 @@
-# The edge for podcasts' custom domains (see "Custom domains" in README.md).
+# The edge for shows' custom domains (see "Custom domains" in README.md).
 #
 # Traefik passes these domains' TLS connections through untouched (by SNI, with
 # the PROXY protocol), so the certificates live here, in this container's

@@ -4,7 +4,7 @@ import { searchSchema } from '~/lib/search-schema'
 import { getSession } from '~/server/auth.server'
 import { searchLibrary } from '~/server/search.server'
 
-// The signed-in user's podcasts and episodes matching a search.
+// The signed-in user's shows and episodes matching a search.
 export const searchMyLibrary = createServerFn({ method: 'GET' })
   .validator(searchSchema)
   .handler(async ({ data }) => {

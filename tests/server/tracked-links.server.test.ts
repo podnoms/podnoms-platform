@@ -8,7 +8,7 @@ import {
   recordTrackedLinkVisit,
 } from '~/server/tracked-links.server'
 import { resetDb } from '../db'
-import { createEpisode, createPodcast, createUser, db } from '../helpers'
+import { createEpisode, createShow, createUser, db } from '../helpers'
 
 const chrome =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
@@ -18,8 +18,8 @@ beforeEach(() => resetDb(db))
 
 async function setup() {
   const owner = await createUser()
-  const podcast = await createPodcast(owner.id)
-  const episode = await createEpisode(podcast.id, { status: 'ready', audioUrl: '/api/episodes/x/audio' })
+  const show = await createShow(owner.id)
+  const episode = await createEpisode(show.id, { status: 'ready', audioUrl: '/api/episodes/x/audio' })
   return { owner, episode }
 }
 
@@ -64,7 +64,7 @@ describe('tracked links', () => {
 
   it("doesn't count the owner, crawlers, or a token used for another episode", async () => {
     const { owner, episode } = await setup()
-    const other = await createEpisode(episode.podcastId, { status: 'ready' })
+    const other = await createEpisode(episode.showId, { status: 'ready' })
     const { id } = await createTrackedLink(owner.id, episode.id, 'Alex')
     const token = await tokenOf(id)
 

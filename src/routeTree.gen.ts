@@ -21,6 +21,7 @@ import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SiteDotwebmanifestRouteImport } from './routes/site[.]webmanifest'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TosRouteImport } from './routes/tos'
+import { Route as SlugEpisodeSlugRouteImport } from './routes/$slug_.$episodeSlug'
 import { Route as AuthedFollowingRouteImport } from './routes/_authed/following'
 import { Route as AuthedLikesRouteImport } from './routes/_authed/likes'
 import { Route as AuthedPlaylistsRouteImport } from './routes/_authed/playlists'
@@ -35,7 +36,7 @@ import { Route as LiveSlugRouteImport } from './routes/live/$slug'
 import { Route as SShortSlugRouteImport } from './routes/s/$shortSlug'
 import { Route as TagsTagSlugRouteImport } from './routes/tags.$tagSlug'
 import { Route as USlugRouteImport } from './routes/u.$slug'
-import { Route as SlugEpisodesEpisodeSlugRouteImport } from './routes/$slug_.episodes.$episodeSlug'
+import { Route as SlugEpisodesSplatRouteImport } from './routes/$slug_.episodes.$'
 import { Route as AuthedSlugManageRouteImport } from './routes/_authed/$slug.manage'
 import { Route as AuthedAdminIndexRouteImport } from './routes/_authed/admin/index'
 import { Route as AuthedSettingsIndexRouteImport } from './routes/_authed/settings/index'
@@ -46,9 +47,11 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiBrandingLogoRouteImport } from './routes/api/branding/logo'
 import { Route as ApiDomainsAllowedRouteImport } from './routes/api/domains/allowed'
 import { Route as ApiExtensionEpisodesRouteImport } from './routes/api/extension/episodes'
-import { Route as ApiExtensionPodcastsRouteImport } from './routes/api/extension/podcasts'
+import { Route as ApiExtensionShowsRouteImport } from './routes/api/extension/shows'
 import { Route as ApiLiveAuthRouteImport } from './routes/api/live/auth'
 import { Route as ApiMobileContinueListeningRouteImport } from './routes/api/mobile/continue-listening'
+import { Route as ApiMobileFollowsRouteImport } from './routes/api/mobile/follows'
+import { Route as ApiMobileHomeRouteImport } from './routes/api/mobile/home'
 import { Route as ApiMobileMeRouteImport } from './routes/api/mobile/me'
 import { Route as ApiMobileThemeRouteImport } from './routes/api/mobile/theme'
 import { Route as ApiTrackedLinksTokenRouteImport } from './routes/api/tracked-links/$token'
@@ -56,29 +59,37 @@ import { Route as ApiTraefikConfigRouteImport } from './routes/api/traefik/confi
 import { Route as EmbedSlugEpisodeSlugRouteImport } from './routes/embed/$slug.$episodeSlug'
 import { Route as FontsFamilyFileRouteImport } from './routes/fonts.$family.$file'
 import { Route as ListenSlugEpisodeSlugRouteImport } from './routes/listen/$slug.$episodeSlug'
+import { Route as AuthedSlugEpisodeSlugManageRouteImport } from './routes/_authed/$slug_.$episodeSlug.manage'
 import { Route as ApiEpisodesIdActivityRouteImport } from './routes/api/episodes/$id/activity'
 import { Route as ApiEpisodesIdAudioRouteImport } from './routes/api/episodes/$id/audio'
 import { Route as ApiMobileAuthProvidersRouteImport } from './routes/api/mobile/auth/providers'
 import { Route as ApiMobileAuthSignInRouteImport } from './routes/api/mobile/auth/sign-in'
 import { Route as ApiMobileAuthSignOutRouteImport } from './routes/api/mobile/auth/sign-out'
 import { Route as ApiMobileAuthTwoFactorRouteImport } from './routes/api/mobile/auth/two-factor'
+import { Route as ApiMobileChatIdRouteImport } from './routes/api/mobile/chat/$id'
 import { Route as ApiMobileEpisodesIndexRouteImport } from './routes/api/mobile/episodes/index'
-import { Route as ApiMobilePodcastsIndexRouteImport } from './routes/api/mobile/podcasts/index'
-import { Route as ApiMobilePodcastsSlugRouteImport } from './routes/api/mobile/podcasts/$slug'
-import { Route as ApiPodcastsSlugEventsRouteImport } from './routes/api/podcasts/$slug/events'
+import { Route as ApiMobileLiveIndexRouteImport } from './routes/api/mobile/live/index'
+import { Route as ApiMobileNotificationsIndexRouteImport } from './routes/api/mobile/notifications/index'
+import { Route as ApiMobileNotificationsDeviceRouteImport } from './routes/api/mobile/notifications/device'
+import { Route as ApiMobileNotificationsShowsRouteImport } from './routes/api/mobile/notifications/shows'
+import { Route as ApiMobileShowsIndexRouteImport } from './routes/api/mobile/shows/index'
+import { Route as ApiMobileShowsSlugRouteImport } from './routes/api/mobile/shows/$slug'
+import { Route as ApiShowsSlugEventsRouteImport } from './routes/api/shows/$slug/events'
 import { Route as USlugPlaylistsPlaylistSlugRouteImport } from './routes/u.$slug_.playlists.$playlistSlug'
-import { Route as AuthedSlugEpisodesEpisodeSlugManageRouteImport } from './routes/_authed/$slug_.episodes.$episodeSlug.manage'
 import { Route as ApiMobileAuthOauthProviderRouteImport } from './routes/api/mobile/auth/oauth/$provider'
 import { Route as ApiMobileAuthOauthExchangeRouteImport } from './routes/api/mobile/auth/oauth/exchange'
 import { Route as ApiMobileAuthOauthFinishRouteImport } from './routes/api/mobile/auth/oauth/finish'
+import { Route as ApiMobileBroadcastsIdChatRouteImport } from './routes/api/mobile/broadcasts/$id/chat'
 import { Route as ApiMobileCommentsIdIndexRouteImport } from './routes/api/mobile/comments/$id/index'
 import { Route as ApiMobileCommentsIdLikeRouteImport } from './routes/api/mobile/comments/$id/like'
 import { Route as ApiMobileEpisodesIdIndexRouteImport } from './routes/api/mobile/episodes/$id/index'
 import { Route as ApiMobileEpisodesIdCommentsRouteImport } from './routes/api/mobile/episodes/$id/comments'
 import { Route as ApiMobileEpisodesIdPositionRouteImport } from './routes/api/mobile/episodes/$id/position'
 import { Route as ApiMobileEpisodesIdRetryRouteImport } from './routes/api/mobile/episodes/$id/retry'
-import { Route as ApiPodcastsSlugLiveEventsRouteImport } from './routes/api/podcasts/$slug/live/events'
-import { Route as ApiPodcastsSlugLiveHlsSplatRouteImport } from './routes/api/podcasts/$slug/live/hls/$'
+import { Route as ApiMobileLiveSlugIndexRouteImport } from './routes/api/mobile/live/$slug/index'
+import { Route as ApiShowsSlugLiveEventsRouteImport } from './routes/api/shows/$slug/live/events'
+import { Route as ApiMobileLiveSlugHlsSplatRouteImport } from './routes/api/mobile/live/$slug/hls/$'
+import { Route as ApiShowsSlugLiveHlsSplatRouteImport } from './routes/api/shows/$slug/live/hls/$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -137,6 +148,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
 const TosRoute = TosRouteImport.update({
   id: '/tos',
   path: '/tos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SlugEpisodeSlugRoute = SlugEpisodeSlugRouteImport.update({
+  id: '/$slug_/$episodeSlug',
+  path: '/$slug/$episodeSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedFollowingRoute = AuthedFollowingRouteImport.update({
@@ -209,9 +225,9 @@ const USlugRoute = USlugRouteImport.update({
   path: '/u/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SlugEpisodesEpisodeSlugRoute = SlugEpisodesEpisodeSlugRouteImport.update({
-  id: '/$slug_/episodes/$episodeSlug',
-  path: '/$slug/episodes/$episodeSlug',
+const SlugEpisodesSplatRoute = SlugEpisodesSplatRouteImport.update({
+  id: '/$slug_/episodes/$',
+  path: '/$slug/episodes/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedSlugManageRoute = AuthedSlugManageRouteImport.update({
@@ -265,9 +281,9 @@ const ApiExtensionEpisodesRoute = ApiExtensionEpisodesRouteImport.update({
   path: '/api/extension/episodes',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiExtensionPodcastsRoute = ApiExtensionPodcastsRouteImport.update({
-  id: '/api/extension/podcasts',
-  path: '/api/extension/podcasts',
+const ApiExtensionShowsRoute = ApiExtensionShowsRouteImport.update({
+  id: '/api/extension/shows',
+  path: '/api/extension/shows',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiLiveAuthRoute = ApiLiveAuthRouteImport.update({
@@ -281,6 +297,16 @@ const ApiMobileContinueListeningRoute =
     path: '/api/mobile/continue-listening',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiMobileFollowsRoute = ApiMobileFollowsRouteImport.update({
+  id: '/api/mobile/follows',
+  path: '/api/mobile/follows',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobileHomeRoute = ApiMobileHomeRouteImport.update({
+  id: '/api/mobile/home',
+  path: '/api/mobile/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMobileMeRoute = ApiMobileMeRouteImport.update({
   id: '/api/mobile/me',
   path: '/api/mobile/me',
@@ -316,6 +342,12 @@ const ListenSlugEpisodeSlugRoute = ListenSlugEpisodeSlugRouteImport.update({
   path: '/listen/$slug/$episodeSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedSlugEpisodeSlugManageRoute =
+  AuthedSlugEpisodeSlugManageRouteImport.update({
+    id: '/$slug_/$episodeSlug/manage',
+    path: '/$slug/$episodeSlug/manage',
+    getParentRoute: () => AuthedRoute,
+  } as any)
 const ApiEpisodesIdActivityRoute = ApiEpisodesIdActivityRouteImport.update({
   id: '/api/episodes/$id/activity',
   path: '/api/episodes/$id/activity',
@@ -346,24 +378,52 @@ const ApiMobileAuthTwoFactorRoute = ApiMobileAuthTwoFactorRouteImport.update({
   path: '/api/mobile/auth/two-factor',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMobileChatIdRoute = ApiMobileChatIdRouteImport.update({
+  id: '/api/mobile/chat/$id',
+  path: '/api/mobile/chat/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMobileEpisodesIndexRoute = ApiMobileEpisodesIndexRouteImport.update({
   id: '/api/mobile/episodes/',
   path: '/api/mobile/episodes/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiMobilePodcastsIndexRoute = ApiMobilePodcastsIndexRouteImport.update({
-  id: '/api/mobile/podcasts/',
-  path: '/api/mobile/podcasts/',
+const ApiMobileLiveIndexRoute = ApiMobileLiveIndexRouteImport.update({
+  id: '/api/mobile/live/',
+  path: '/api/mobile/live/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiMobilePodcastsSlugRoute = ApiMobilePodcastsSlugRouteImport.update({
-  id: '/api/mobile/podcasts/$slug',
-  path: '/api/mobile/podcasts/$slug',
+const ApiMobileNotificationsIndexRoute =
+  ApiMobileNotificationsIndexRouteImport.update({
+    id: '/api/mobile/notifications/',
+    path: '/api/mobile/notifications/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiMobileNotificationsDeviceRoute =
+  ApiMobileNotificationsDeviceRouteImport.update({
+    id: '/api/mobile/notifications/device',
+    path: '/api/mobile/notifications/device',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiMobileNotificationsShowsRoute =
+  ApiMobileNotificationsShowsRouteImport.update({
+    id: '/api/mobile/notifications/shows',
+    path: '/api/mobile/notifications/shows',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiMobileShowsIndexRoute = ApiMobileShowsIndexRouteImport.update({
+  id: '/api/mobile/shows/',
+  path: '/api/mobile/shows/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPodcastsSlugEventsRoute = ApiPodcastsSlugEventsRouteImport.update({
-  id: '/api/podcasts/$slug/events',
-  path: '/api/podcasts/$slug/events',
+const ApiMobileShowsSlugRoute = ApiMobileShowsSlugRouteImport.update({
+  id: '/api/mobile/shows/$slug',
+  path: '/api/mobile/shows/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShowsSlugEventsRoute = ApiShowsSlugEventsRouteImport.update({
+  id: '/api/shows/$slug/events',
+  path: '/api/shows/$slug/events',
   getParentRoute: () => rootRouteImport,
 } as any)
 const USlugPlaylistsPlaylistSlugRoute =
@@ -371,12 +431,6 @@ const USlugPlaylistsPlaylistSlugRoute =
     id: '/u/$slug_/playlists/$playlistSlug',
     path: '/u/$slug/playlists/$playlistSlug',
     getParentRoute: () => rootRouteImport,
-  } as any)
-const AuthedSlugEpisodesEpisodeSlugManageRoute =
-  AuthedSlugEpisodesEpisodeSlugManageRouteImport.update({
-    id: '/$slug_/episodes/$episodeSlug/manage',
-    path: '/$slug/episodes/$episodeSlug/manage',
-    getParentRoute: () => AuthedRoute,
   } as any)
 const ApiMobileAuthOauthProviderRoute =
   ApiMobileAuthOauthProviderRouteImport.update({
@@ -394,6 +448,12 @@ const ApiMobileAuthOauthFinishRoute =
   ApiMobileAuthOauthFinishRouteImport.update({
     id: '/api/mobile/auth/oauth/finish',
     path: '/api/mobile/auth/oauth/finish',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiMobileBroadcastsIdChatRoute =
+  ApiMobileBroadcastsIdChatRouteImport.update({
+    id: '/api/mobile/broadcasts/$id/chat',
+    path: '/api/mobile/broadcasts/$id/chat',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiMobileCommentsIdIndexRoute =
@@ -431,16 +491,26 @@ const ApiMobileEpisodesIdRetryRoute =
     path: '/api/mobile/episodes/$id/retry',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPodcastsSlugLiveEventsRoute =
-  ApiPodcastsSlugLiveEventsRouteImport.update({
-    id: '/api/podcasts/$slug/live/events',
-    path: '/api/podcasts/$slug/live/events',
+const ApiMobileLiveSlugIndexRoute = ApiMobileLiveSlugIndexRouteImport.update({
+  id: '/api/mobile/live/$slug/',
+  path: '/api/mobile/live/$slug/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShowsSlugLiveEventsRoute = ApiShowsSlugLiveEventsRouteImport.update({
+  id: '/api/shows/$slug/live/events',
+  path: '/api/shows/$slug/live/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMobileLiveSlugHlsSplatRoute =
+  ApiMobileLiveSlugHlsSplatRouteImport.update({
+    id: '/api/mobile/live/$slug/hls/$',
+    path: '/api/mobile/live/$slug/hls/$',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPodcastsSlugLiveHlsSplatRoute =
-  ApiPodcastsSlugLiveHlsSplatRouteImport.update({
-    id: '/api/podcasts/$slug/live/hls/$',
-    path: '/api/podcasts/$slug/live/hls/$',
+const ApiShowsSlugLiveHlsSplatRoute =
+  ApiShowsSlugLiveHlsSplatRouteImport.update({
+    id: '/api/shows/$slug/live/hls/$',
+    path: '/api/shows/$slug/live/hls/$',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -456,6 +526,7 @@ export interface FileRoutesByFullPath {
   '/site.webmanifest': typeof SiteDotwebmanifestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tos': typeof TosRoute
+  '/$slug/$episodeSlug': typeof SlugEpisodeSlugRoute
   '/following': typeof AuthedFollowingRoute
   '/likes': typeof AuthedLikesRoute
   '/playlists': typeof AuthedPlaylistsRoute
@@ -470,7 +541,7 @@ export interface FileRoutesByFullPath {
   '/s/$shortSlug': typeof SShortSlugRoute
   '/tags/$tagSlug': typeof TagsTagSlugRoute
   '/u/$slug': typeof USlugRoute
-  '/$slug/episodes/$episodeSlug': typeof SlugEpisodesEpisodeSlugRoute
+  '/$slug/episodes/$': typeof SlugEpisodesSplatRoute
   '/$slug/manage': typeof AuthedSlugManageRoute
   '/settings/notifications': typeof AuthedSettingsNotificationsRoute
   '/settings/security': typeof AuthedSettingsSecurityRoute
@@ -479,9 +550,11 @@ export interface FileRoutesByFullPath {
   '/api/branding/logo': typeof ApiBrandingLogoRoute
   '/api/domains/allowed': typeof ApiDomainsAllowedRoute
   '/api/extension/episodes': typeof ApiExtensionEpisodesRoute
-  '/api/extension/podcasts': typeof ApiExtensionPodcastsRoute
+  '/api/extension/shows': typeof ApiExtensionShowsRoute
   '/api/live/auth': typeof ApiLiveAuthRoute
   '/api/mobile/continue-listening': typeof ApiMobileContinueListeningRoute
+  '/api/mobile/follows': typeof ApiMobileFollowsRoute
+  '/api/mobile/home': typeof ApiMobileHomeRoute
   '/api/mobile/me': typeof ApiMobileMeRoute
   '/api/mobile/theme': typeof ApiMobileThemeRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
@@ -491,29 +564,37 @@ export interface FileRoutesByFullPath {
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/admin/': typeof AuthedAdminIndexRoute
   '/settings/': typeof AuthedSettingsIndexRoute
+  '/$slug/$episodeSlug/manage': typeof AuthedSlugEpisodeSlugManageRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/mobile/auth/providers': typeof ApiMobileAuthProvidersRoute
   '/api/mobile/auth/sign-in': typeof ApiMobileAuthSignInRoute
   '/api/mobile/auth/sign-out': typeof ApiMobileAuthSignOutRoute
   '/api/mobile/auth/two-factor': typeof ApiMobileAuthTwoFactorRoute
-  '/api/mobile/podcasts/$slug': typeof ApiMobilePodcastsSlugRoute
-  '/api/podcasts/$slug/events': typeof ApiPodcastsSlugEventsRoute
+  '/api/mobile/chat/$id': typeof ApiMobileChatIdRoute
+  '/api/mobile/notifications/device': typeof ApiMobileNotificationsDeviceRoute
+  '/api/mobile/notifications/shows': typeof ApiMobileNotificationsShowsRoute
+  '/api/mobile/shows/$slug': typeof ApiMobileShowsSlugRoute
+  '/api/shows/$slug/events': typeof ApiShowsSlugEventsRoute
   '/u/$slug/playlists/$playlistSlug': typeof USlugPlaylistsPlaylistSlugRoute
   '/api/mobile/episodes/': typeof ApiMobileEpisodesIndexRoute
-  '/api/mobile/podcasts/': typeof ApiMobilePodcastsIndexRoute
-  '/$slug/episodes/$episodeSlug/manage': typeof AuthedSlugEpisodesEpisodeSlugManageRoute
+  '/api/mobile/live/': typeof ApiMobileLiveIndexRoute
+  '/api/mobile/notifications/': typeof ApiMobileNotificationsIndexRoute
+  '/api/mobile/shows/': typeof ApiMobileShowsIndexRoute
   '/api/mobile/auth/oauth/$provider': typeof ApiMobileAuthOauthProviderRoute
   '/api/mobile/auth/oauth/exchange': typeof ApiMobileAuthOauthExchangeRoute
   '/api/mobile/auth/oauth/finish': typeof ApiMobileAuthOauthFinishRoute
+  '/api/mobile/broadcasts/$id/chat': typeof ApiMobileBroadcastsIdChatRoute
   '/api/mobile/comments/$id/like': typeof ApiMobileCommentsIdLikeRoute
   '/api/mobile/episodes/$id/comments': typeof ApiMobileEpisodesIdCommentsRoute
   '/api/mobile/episodes/$id/position': typeof ApiMobileEpisodesIdPositionRoute
   '/api/mobile/episodes/$id/retry': typeof ApiMobileEpisodesIdRetryRoute
-  '/api/podcasts/$slug/live/events': typeof ApiPodcastsSlugLiveEventsRoute
+  '/api/shows/$slug/live/events': typeof ApiShowsSlugLiveEventsRoute
   '/api/mobile/comments/$id/': typeof ApiMobileCommentsIdIndexRoute
   '/api/mobile/episodes/$id/': typeof ApiMobileEpisodesIdIndexRoute
-  '/api/podcasts/$slug/live/hls/$': typeof ApiPodcastsSlugLiveHlsSplatRoute
+  '/api/mobile/live/$slug/': typeof ApiMobileLiveSlugIndexRoute
+  '/api/mobile/live/$slug/hls/$': typeof ApiMobileLiveSlugHlsSplatRoute
+  '/api/shows/$slug/live/hls/$': typeof ApiShowsSlugLiveHlsSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -527,6 +608,7 @@ export interface FileRoutesByTo {
   '/site.webmanifest': typeof SiteDotwebmanifestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tos': typeof TosRoute
+  '/$slug/$episodeSlug': typeof SlugEpisodeSlugRoute
   '/following': typeof AuthedFollowingRoute
   '/likes': typeof AuthedLikesRoute
   '/playlists': typeof AuthedPlaylistsRoute
@@ -540,7 +622,7 @@ export interface FileRoutesByTo {
   '/s/$shortSlug': typeof SShortSlugRoute
   '/tags/$tagSlug': typeof TagsTagSlugRoute
   '/u/$slug': typeof USlugRoute
-  '/$slug/episodes/$episodeSlug': typeof SlugEpisodesEpisodeSlugRoute
+  '/$slug/episodes/$': typeof SlugEpisodesSplatRoute
   '/$slug/manage': typeof AuthedSlugManageRoute
   '/settings/notifications': typeof AuthedSettingsNotificationsRoute
   '/settings/security': typeof AuthedSettingsSecurityRoute
@@ -549,9 +631,11 @@ export interface FileRoutesByTo {
   '/api/branding/logo': typeof ApiBrandingLogoRoute
   '/api/domains/allowed': typeof ApiDomainsAllowedRoute
   '/api/extension/episodes': typeof ApiExtensionEpisodesRoute
-  '/api/extension/podcasts': typeof ApiExtensionPodcastsRoute
+  '/api/extension/shows': typeof ApiExtensionShowsRoute
   '/api/live/auth': typeof ApiLiveAuthRoute
   '/api/mobile/continue-listening': typeof ApiMobileContinueListeningRoute
+  '/api/mobile/follows': typeof ApiMobileFollowsRoute
+  '/api/mobile/home': typeof ApiMobileHomeRoute
   '/api/mobile/me': typeof ApiMobileMeRoute
   '/api/mobile/theme': typeof ApiMobileThemeRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
@@ -561,29 +645,37 @@ export interface FileRoutesByTo {
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/admin': typeof AuthedAdminIndexRoute
   '/settings': typeof AuthedSettingsIndexRoute
+  '/$slug/$episodeSlug/manage': typeof AuthedSlugEpisodeSlugManageRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/mobile/auth/providers': typeof ApiMobileAuthProvidersRoute
   '/api/mobile/auth/sign-in': typeof ApiMobileAuthSignInRoute
   '/api/mobile/auth/sign-out': typeof ApiMobileAuthSignOutRoute
   '/api/mobile/auth/two-factor': typeof ApiMobileAuthTwoFactorRoute
-  '/api/mobile/podcasts/$slug': typeof ApiMobilePodcastsSlugRoute
-  '/api/podcasts/$slug/events': typeof ApiPodcastsSlugEventsRoute
+  '/api/mobile/chat/$id': typeof ApiMobileChatIdRoute
+  '/api/mobile/notifications/device': typeof ApiMobileNotificationsDeviceRoute
+  '/api/mobile/notifications/shows': typeof ApiMobileNotificationsShowsRoute
+  '/api/mobile/shows/$slug': typeof ApiMobileShowsSlugRoute
+  '/api/shows/$slug/events': typeof ApiShowsSlugEventsRoute
   '/u/$slug/playlists/$playlistSlug': typeof USlugPlaylistsPlaylistSlugRoute
   '/api/mobile/episodes': typeof ApiMobileEpisodesIndexRoute
-  '/api/mobile/podcasts': typeof ApiMobilePodcastsIndexRoute
-  '/$slug/episodes/$episodeSlug/manage': typeof AuthedSlugEpisodesEpisodeSlugManageRoute
+  '/api/mobile/live': typeof ApiMobileLiveIndexRoute
+  '/api/mobile/notifications': typeof ApiMobileNotificationsIndexRoute
+  '/api/mobile/shows': typeof ApiMobileShowsIndexRoute
   '/api/mobile/auth/oauth/$provider': typeof ApiMobileAuthOauthProviderRoute
   '/api/mobile/auth/oauth/exchange': typeof ApiMobileAuthOauthExchangeRoute
   '/api/mobile/auth/oauth/finish': typeof ApiMobileAuthOauthFinishRoute
+  '/api/mobile/broadcasts/$id/chat': typeof ApiMobileBroadcastsIdChatRoute
   '/api/mobile/comments/$id/like': typeof ApiMobileCommentsIdLikeRoute
   '/api/mobile/episodes/$id/comments': typeof ApiMobileEpisodesIdCommentsRoute
   '/api/mobile/episodes/$id/position': typeof ApiMobileEpisodesIdPositionRoute
   '/api/mobile/episodes/$id/retry': typeof ApiMobileEpisodesIdRetryRoute
-  '/api/podcasts/$slug/live/events': typeof ApiPodcastsSlugLiveEventsRoute
+  '/api/shows/$slug/live/events': typeof ApiShowsSlugLiveEventsRoute
   '/api/mobile/comments/$id': typeof ApiMobileCommentsIdIndexRoute
   '/api/mobile/episodes/$id': typeof ApiMobileEpisodesIdIndexRoute
-  '/api/podcasts/$slug/live/hls/$': typeof ApiPodcastsSlugLiveHlsSplatRoute
+  '/api/mobile/live/$slug': typeof ApiMobileLiveSlugIndexRoute
+  '/api/mobile/live/$slug/hls/$': typeof ApiMobileLiveSlugHlsSplatRoute
+  '/api/shows/$slug/live/hls/$': typeof ApiShowsSlugLiveHlsSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -599,6 +691,7 @@ export interface FileRoutesById {
   '/site.webmanifest': typeof SiteDotwebmanifestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tos': typeof TosRoute
+  '/$slug_/$episodeSlug': typeof SlugEpisodeSlugRoute
   '/_authed/following': typeof AuthedFollowingRoute
   '/_authed/likes': typeof AuthedLikesRoute
   '/_authed/playlists': typeof AuthedPlaylistsRoute
@@ -613,7 +706,7 @@ export interface FileRoutesById {
   '/s/$shortSlug': typeof SShortSlugRoute
   '/tags/$tagSlug': typeof TagsTagSlugRoute
   '/u/$slug': typeof USlugRoute
-  '/$slug_/episodes/$episodeSlug': typeof SlugEpisodesEpisodeSlugRoute
+  '/$slug_/episodes/$': typeof SlugEpisodesSplatRoute
   '/_authed/$slug/manage': typeof AuthedSlugManageRoute
   '/_authed/settings/notifications': typeof AuthedSettingsNotificationsRoute
   '/_authed/settings/security': typeof AuthedSettingsSecurityRoute
@@ -622,9 +715,11 @@ export interface FileRoutesById {
   '/api/branding/logo': typeof ApiBrandingLogoRoute
   '/api/domains/allowed': typeof ApiDomainsAllowedRoute
   '/api/extension/episodes': typeof ApiExtensionEpisodesRoute
-  '/api/extension/podcasts': typeof ApiExtensionPodcastsRoute
+  '/api/extension/shows': typeof ApiExtensionShowsRoute
   '/api/live/auth': typeof ApiLiveAuthRoute
   '/api/mobile/continue-listening': typeof ApiMobileContinueListeningRoute
+  '/api/mobile/follows': typeof ApiMobileFollowsRoute
+  '/api/mobile/home': typeof ApiMobileHomeRoute
   '/api/mobile/me': typeof ApiMobileMeRoute
   '/api/mobile/theme': typeof ApiMobileThemeRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
@@ -634,29 +729,37 @@ export interface FileRoutesById {
   '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/_authed/admin/': typeof AuthedAdminIndexRoute
   '/_authed/settings/': typeof AuthedSettingsIndexRoute
+  '/_authed/$slug_/$episodeSlug/manage': typeof AuthedSlugEpisodeSlugManageRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/mobile/auth/providers': typeof ApiMobileAuthProvidersRoute
   '/api/mobile/auth/sign-in': typeof ApiMobileAuthSignInRoute
   '/api/mobile/auth/sign-out': typeof ApiMobileAuthSignOutRoute
   '/api/mobile/auth/two-factor': typeof ApiMobileAuthTwoFactorRoute
-  '/api/mobile/podcasts/$slug': typeof ApiMobilePodcastsSlugRoute
-  '/api/podcasts/$slug/events': typeof ApiPodcastsSlugEventsRoute
+  '/api/mobile/chat/$id': typeof ApiMobileChatIdRoute
+  '/api/mobile/notifications/device': typeof ApiMobileNotificationsDeviceRoute
+  '/api/mobile/notifications/shows': typeof ApiMobileNotificationsShowsRoute
+  '/api/mobile/shows/$slug': typeof ApiMobileShowsSlugRoute
+  '/api/shows/$slug/events': typeof ApiShowsSlugEventsRoute
   '/u/$slug_/playlists/$playlistSlug': typeof USlugPlaylistsPlaylistSlugRoute
   '/api/mobile/episodes/': typeof ApiMobileEpisodesIndexRoute
-  '/api/mobile/podcasts/': typeof ApiMobilePodcastsIndexRoute
-  '/_authed/$slug_/episodes/$episodeSlug/manage': typeof AuthedSlugEpisodesEpisodeSlugManageRoute
+  '/api/mobile/live/': typeof ApiMobileLiveIndexRoute
+  '/api/mobile/notifications/': typeof ApiMobileNotificationsIndexRoute
+  '/api/mobile/shows/': typeof ApiMobileShowsIndexRoute
   '/api/mobile/auth/oauth/$provider': typeof ApiMobileAuthOauthProviderRoute
   '/api/mobile/auth/oauth/exchange': typeof ApiMobileAuthOauthExchangeRoute
   '/api/mobile/auth/oauth/finish': typeof ApiMobileAuthOauthFinishRoute
+  '/api/mobile/broadcasts/$id/chat': typeof ApiMobileBroadcastsIdChatRoute
   '/api/mobile/comments/$id/like': typeof ApiMobileCommentsIdLikeRoute
   '/api/mobile/episodes/$id/comments': typeof ApiMobileEpisodesIdCommentsRoute
   '/api/mobile/episodes/$id/position': typeof ApiMobileEpisodesIdPositionRoute
   '/api/mobile/episodes/$id/retry': typeof ApiMobileEpisodesIdRetryRoute
-  '/api/podcasts/$slug/live/events': typeof ApiPodcastsSlugLiveEventsRoute
+  '/api/shows/$slug/live/events': typeof ApiShowsSlugLiveEventsRoute
   '/api/mobile/comments/$id/': typeof ApiMobileCommentsIdIndexRoute
   '/api/mobile/episodes/$id/': typeof ApiMobileEpisodesIdIndexRoute
-  '/api/podcasts/$slug/live/hls/$': typeof ApiPodcastsSlugLiveHlsSplatRoute
+  '/api/mobile/live/$slug/': typeof ApiMobileLiveSlugIndexRoute
+  '/api/mobile/live/$slug/hls/$': typeof ApiMobileLiveSlugHlsSplatRoute
+  '/api/shows/$slug/live/hls/$': typeof ApiShowsSlugLiveHlsSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -672,6 +775,7 @@ export interface FileRouteTypes {
     | '/site.webmanifest'
     | '/sitemap.xml'
     | '/tos'
+    | '/$slug/$episodeSlug'
     | '/following'
     | '/likes'
     | '/playlists'
@@ -686,7 +790,7 @@ export interface FileRouteTypes {
     | '/s/$shortSlug'
     | '/tags/$tagSlug'
     | '/u/$slug'
-    | '/$slug/episodes/$episodeSlug'
+    | '/$slug/episodes/$'
     | '/$slug/manage'
     | '/settings/notifications'
     | '/settings/security'
@@ -695,9 +799,11 @@ export interface FileRouteTypes {
     | '/api/branding/logo'
     | '/api/domains/allowed'
     | '/api/extension/episodes'
-    | '/api/extension/podcasts'
+    | '/api/extension/shows'
     | '/api/live/auth'
     | '/api/mobile/continue-listening'
+    | '/api/mobile/follows'
+    | '/api/mobile/home'
     | '/api/mobile/me'
     | '/api/mobile/theme'
     | '/api/tracked-links/$token'
@@ -707,29 +813,37 @@ export interface FileRouteTypes {
     | '/listen/$slug/$episodeSlug'
     | '/admin/'
     | '/settings/'
+    | '/$slug/$episodeSlug/manage'
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
     | '/api/mobile/auth/providers'
     | '/api/mobile/auth/sign-in'
     | '/api/mobile/auth/sign-out'
     | '/api/mobile/auth/two-factor'
-    | '/api/mobile/podcasts/$slug'
-    | '/api/podcasts/$slug/events'
+    | '/api/mobile/chat/$id'
+    | '/api/mobile/notifications/device'
+    | '/api/mobile/notifications/shows'
+    | '/api/mobile/shows/$slug'
+    | '/api/shows/$slug/events'
     | '/u/$slug/playlists/$playlistSlug'
     | '/api/mobile/episodes/'
-    | '/api/mobile/podcasts/'
-    | '/$slug/episodes/$episodeSlug/manage'
+    | '/api/mobile/live/'
+    | '/api/mobile/notifications/'
+    | '/api/mobile/shows/'
     | '/api/mobile/auth/oauth/$provider'
     | '/api/mobile/auth/oauth/exchange'
     | '/api/mobile/auth/oauth/finish'
+    | '/api/mobile/broadcasts/$id/chat'
     | '/api/mobile/comments/$id/like'
     | '/api/mobile/episodes/$id/comments'
     | '/api/mobile/episodes/$id/position'
     | '/api/mobile/episodes/$id/retry'
-    | '/api/podcasts/$slug/live/events'
+    | '/api/shows/$slug/live/events'
     | '/api/mobile/comments/$id/'
     | '/api/mobile/episodes/$id/'
-    | '/api/podcasts/$slug/live/hls/$'
+    | '/api/mobile/live/$slug/'
+    | '/api/mobile/live/$slug/hls/$'
+    | '/api/shows/$slug/live/hls/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -743,6 +857,7 @@ export interface FileRouteTypes {
     | '/site.webmanifest'
     | '/sitemap.xml'
     | '/tos'
+    | '/$slug/$episodeSlug'
     | '/following'
     | '/likes'
     | '/playlists'
@@ -756,7 +871,7 @@ export interface FileRouteTypes {
     | '/s/$shortSlug'
     | '/tags/$tagSlug'
     | '/u/$slug'
-    | '/$slug/episodes/$episodeSlug'
+    | '/$slug/episodes/$'
     | '/$slug/manage'
     | '/settings/notifications'
     | '/settings/security'
@@ -765,9 +880,11 @@ export interface FileRouteTypes {
     | '/api/branding/logo'
     | '/api/domains/allowed'
     | '/api/extension/episodes'
-    | '/api/extension/podcasts'
+    | '/api/extension/shows'
     | '/api/live/auth'
     | '/api/mobile/continue-listening'
+    | '/api/mobile/follows'
+    | '/api/mobile/home'
     | '/api/mobile/me'
     | '/api/mobile/theme'
     | '/api/tracked-links/$token'
@@ -777,29 +894,37 @@ export interface FileRouteTypes {
     | '/listen/$slug/$episodeSlug'
     | '/admin'
     | '/settings'
+    | '/$slug/$episodeSlug/manage'
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
     | '/api/mobile/auth/providers'
     | '/api/mobile/auth/sign-in'
     | '/api/mobile/auth/sign-out'
     | '/api/mobile/auth/two-factor'
-    | '/api/mobile/podcasts/$slug'
-    | '/api/podcasts/$slug/events'
+    | '/api/mobile/chat/$id'
+    | '/api/mobile/notifications/device'
+    | '/api/mobile/notifications/shows'
+    | '/api/mobile/shows/$slug'
+    | '/api/shows/$slug/events'
     | '/u/$slug/playlists/$playlistSlug'
     | '/api/mobile/episodes'
-    | '/api/mobile/podcasts'
-    | '/$slug/episodes/$episodeSlug/manage'
+    | '/api/mobile/live'
+    | '/api/mobile/notifications'
+    | '/api/mobile/shows'
     | '/api/mobile/auth/oauth/$provider'
     | '/api/mobile/auth/oauth/exchange'
     | '/api/mobile/auth/oauth/finish'
+    | '/api/mobile/broadcasts/$id/chat'
     | '/api/mobile/comments/$id/like'
     | '/api/mobile/episodes/$id/comments'
     | '/api/mobile/episodes/$id/position'
     | '/api/mobile/episodes/$id/retry'
-    | '/api/podcasts/$slug/live/events'
+    | '/api/shows/$slug/live/events'
     | '/api/mobile/comments/$id'
     | '/api/mobile/episodes/$id'
-    | '/api/podcasts/$slug/live/hls/$'
+    | '/api/mobile/live/$slug'
+    | '/api/mobile/live/$slug/hls/$'
+    | '/api/shows/$slug/live/hls/$'
   id:
     | '__root__'
     | '/'
@@ -814,6 +939,7 @@ export interface FileRouteTypes {
     | '/site.webmanifest'
     | '/sitemap.xml'
     | '/tos'
+    | '/$slug_/$episodeSlug'
     | '/_authed/following'
     | '/_authed/likes'
     | '/_authed/playlists'
@@ -828,7 +954,7 @@ export interface FileRouteTypes {
     | '/s/$shortSlug'
     | '/tags/$tagSlug'
     | '/u/$slug'
-    | '/$slug_/episodes/$episodeSlug'
+    | '/$slug_/episodes/$'
     | '/_authed/$slug/manage'
     | '/_authed/settings/notifications'
     | '/_authed/settings/security'
@@ -837,9 +963,11 @@ export interface FileRouteTypes {
     | '/api/branding/logo'
     | '/api/domains/allowed'
     | '/api/extension/episodes'
-    | '/api/extension/podcasts'
+    | '/api/extension/shows'
     | '/api/live/auth'
     | '/api/mobile/continue-listening'
+    | '/api/mobile/follows'
+    | '/api/mobile/home'
     | '/api/mobile/me'
     | '/api/mobile/theme'
     | '/api/tracked-links/$token'
@@ -849,29 +977,37 @@ export interface FileRouteTypes {
     | '/listen/$slug/$episodeSlug'
     | '/_authed/admin/'
     | '/_authed/settings/'
+    | '/_authed/$slug_/$episodeSlug/manage'
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
     | '/api/mobile/auth/providers'
     | '/api/mobile/auth/sign-in'
     | '/api/mobile/auth/sign-out'
     | '/api/mobile/auth/two-factor'
-    | '/api/mobile/podcasts/$slug'
-    | '/api/podcasts/$slug/events'
+    | '/api/mobile/chat/$id'
+    | '/api/mobile/notifications/device'
+    | '/api/mobile/notifications/shows'
+    | '/api/mobile/shows/$slug'
+    | '/api/shows/$slug/events'
     | '/u/$slug_/playlists/$playlistSlug'
     | '/api/mobile/episodes/'
-    | '/api/mobile/podcasts/'
-    | '/_authed/$slug_/episodes/$episodeSlug/manage'
+    | '/api/mobile/live/'
+    | '/api/mobile/notifications/'
+    | '/api/mobile/shows/'
     | '/api/mobile/auth/oauth/$provider'
     | '/api/mobile/auth/oauth/exchange'
     | '/api/mobile/auth/oauth/finish'
+    | '/api/mobile/broadcasts/$id/chat'
     | '/api/mobile/comments/$id/like'
     | '/api/mobile/episodes/$id/comments'
     | '/api/mobile/episodes/$id/position'
     | '/api/mobile/episodes/$id/retry'
-    | '/api/podcasts/$slug/live/events'
+    | '/api/shows/$slug/live/events'
     | '/api/mobile/comments/$id/'
     | '/api/mobile/episodes/$id/'
-    | '/api/podcasts/$slug/live/hls/$'
+    | '/api/mobile/live/$slug/'
+    | '/api/mobile/live/$slug/hls/$'
+    | '/api/shows/$slug/live/hls/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -887,6 +1023,7 @@ export interface RootRouteChildren {
   SiteDotwebmanifestRoute: typeof SiteDotwebmanifestRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TosRoute: typeof TosRoute
+  SlugEpisodeSlugRoute: typeof SlugEpisodeSlugRoute
   ApiImagesRoute: typeof ApiImagesRoute
   ApiUploadsRoute: typeof ApiUploadsRoute
   BrandFileRoute: typeof BrandFileRoute
@@ -896,15 +1033,17 @@ export interface RootRouteChildren {
   SShortSlugRoute: typeof SShortSlugRoute
   TagsTagSlugRoute: typeof TagsTagSlugRoute
   USlugRoute: typeof USlugRoute
-  SlugEpisodesEpisodeSlugRoute: typeof SlugEpisodesEpisodeSlugRoute
+  SlugEpisodesSplatRoute: typeof SlugEpisodesSplatRoute
   AdminQueuesSplatRoute: typeof AdminQueuesSplatRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiBrandingLogoRoute: typeof ApiBrandingLogoRoute
   ApiDomainsAllowedRoute: typeof ApiDomainsAllowedRoute
   ApiExtensionEpisodesRoute: typeof ApiExtensionEpisodesRoute
-  ApiExtensionPodcastsRoute: typeof ApiExtensionPodcastsRoute
+  ApiExtensionShowsRoute: typeof ApiExtensionShowsRoute
   ApiLiveAuthRoute: typeof ApiLiveAuthRoute
   ApiMobileContinueListeningRoute: typeof ApiMobileContinueListeningRoute
+  ApiMobileFollowsRoute: typeof ApiMobileFollowsRoute
+  ApiMobileHomeRoute: typeof ApiMobileHomeRoute
   ApiMobileMeRoute: typeof ApiMobileMeRoute
   ApiMobileThemeRoute: typeof ApiMobileThemeRoute
   ApiTrackedLinksTokenRoute: typeof ApiTrackedLinksTokenRoute
@@ -918,22 +1057,30 @@ export interface RootRouteChildren {
   ApiMobileAuthSignInRoute: typeof ApiMobileAuthSignInRoute
   ApiMobileAuthSignOutRoute: typeof ApiMobileAuthSignOutRoute
   ApiMobileAuthTwoFactorRoute: typeof ApiMobileAuthTwoFactorRoute
-  ApiMobilePodcastsSlugRoute: typeof ApiMobilePodcastsSlugRoute
-  ApiPodcastsSlugEventsRoute: typeof ApiPodcastsSlugEventsRoute
+  ApiMobileChatIdRoute: typeof ApiMobileChatIdRoute
+  ApiMobileNotificationsDeviceRoute: typeof ApiMobileNotificationsDeviceRoute
+  ApiMobileNotificationsShowsRoute: typeof ApiMobileNotificationsShowsRoute
+  ApiMobileShowsSlugRoute: typeof ApiMobileShowsSlugRoute
+  ApiShowsSlugEventsRoute: typeof ApiShowsSlugEventsRoute
   USlugPlaylistsPlaylistSlugRoute: typeof USlugPlaylistsPlaylistSlugRoute
   ApiMobileEpisodesIndexRoute: typeof ApiMobileEpisodesIndexRoute
-  ApiMobilePodcastsIndexRoute: typeof ApiMobilePodcastsIndexRoute
+  ApiMobileLiveIndexRoute: typeof ApiMobileLiveIndexRoute
+  ApiMobileNotificationsIndexRoute: typeof ApiMobileNotificationsIndexRoute
+  ApiMobileShowsIndexRoute: typeof ApiMobileShowsIndexRoute
   ApiMobileAuthOauthProviderRoute: typeof ApiMobileAuthOauthProviderRoute
   ApiMobileAuthOauthExchangeRoute: typeof ApiMobileAuthOauthExchangeRoute
   ApiMobileAuthOauthFinishRoute: typeof ApiMobileAuthOauthFinishRoute
+  ApiMobileBroadcastsIdChatRoute: typeof ApiMobileBroadcastsIdChatRoute
   ApiMobileCommentsIdLikeRoute: typeof ApiMobileCommentsIdLikeRoute
   ApiMobileEpisodesIdCommentsRoute: typeof ApiMobileEpisodesIdCommentsRoute
   ApiMobileEpisodesIdPositionRoute: typeof ApiMobileEpisodesIdPositionRoute
   ApiMobileEpisodesIdRetryRoute: typeof ApiMobileEpisodesIdRetryRoute
-  ApiPodcastsSlugLiveEventsRoute: typeof ApiPodcastsSlugLiveEventsRoute
+  ApiShowsSlugLiveEventsRoute: typeof ApiShowsSlugLiveEventsRoute
   ApiMobileCommentsIdIndexRoute: typeof ApiMobileCommentsIdIndexRoute
   ApiMobileEpisodesIdIndexRoute: typeof ApiMobileEpisodesIdIndexRoute
-  ApiPodcastsSlugLiveHlsSplatRoute: typeof ApiPodcastsSlugLiveHlsSplatRoute
+  ApiMobileLiveSlugIndexRoute: typeof ApiMobileLiveSlugIndexRoute
+  ApiMobileLiveSlugHlsSplatRoute: typeof ApiMobileLiveSlugHlsSplatRoute
+  ApiShowsSlugLiveHlsSplatRoute: typeof ApiShowsSlugLiveHlsSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1020,6 +1167,13 @@ declare module '@tanstack/react-router' {
       path: '/tos'
       fullPath: '/tos'
       preLoaderRoute: typeof TosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$slug_/$episodeSlug': {
+      id: '/$slug_/$episodeSlug'
+      path: '/$slug/$episodeSlug'
+      fullPath: '/$slug/$episodeSlug'
+      preLoaderRoute: typeof SlugEpisodeSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/following': {
@@ -1120,11 +1274,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof USlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$slug_/episodes/$episodeSlug': {
-      id: '/$slug_/episodes/$episodeSlug'
-      path: '/$slug/episodes/$episodeSlug'
-      fullPath: '/$slug/episodes/$episodeSlug'
-      preLoaderRoute: typeof SlugEpisodesEpisodeSlugRouteImport
+    '/$slug_/episodes/$': {
+      id: '/$slug_/episodes/$'
+      path: '/$slug/episodes/$'
+      fullPath: '/$slug/episodes/$'
+      preLoaderRoute: typeof SlugEpisodesSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/$slug/manage': {
@@ -1197,11 +1351,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiExtensionEpisodesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/extension/podcasts': {
-      id: '/api/extension/podcasts'
-      path: '/api/extension/podcasts'
-      fullPath: '/api/extension/podcasts'
-      preLoaderRoute: typeof ApiExtensionPodcastsRouteImport
+    '/api/extension/shows': {
+      id: '/api/extension/shows'
+      path: '/api/extension/shows'
+      fullPath: '/api/extension/shows'
+      preLoaderRoute: typeof ApiExtensionShowsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/live/auth': {
@@ -1216,6 +1370,20 @@ declare module '@tanstack/react-router' {
       path: '/api/mobile/continue-listening'
       fullPath: '/api/mobile/continue-listening'
       preLoaderRoute: typeof ApiMobileContinueListeningRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/follows': {
+      id: '/api/mobile/follows'
+      path: '/api/mobile/follows'
+      fullPath: '/api/mobile/follows'
+      preLoaderRoute: typeof ApiMobileFollowsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/home': {
+      id: '/api/mobile/home'
+      path: '/api/mobile/home'
+      fullPath: '/api/mobile/home'
+      preLoaderRoute: typeof ApiMobileHomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/mobile/me': {
@@ -1267,6 +1435,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ListenSlugEpisodeSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/$slug_/$episodeSlug/manage': {
+      id: '/_authed/$slug_/$episodeSlug/manage'
+      path: '/$slug/$episodeSlug/manage'
+      fullPath: '/$slug/$episodeSlug/manage'
+      preLoaderRoute: typeof AuthedSlugEpisodeSlugManageRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/api/episodes/$id/activity': {
       id: '/api/episodes/$id/activity'
       path: '/api/episodes/$id/activity'
@@ -1309,6 +1484,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileAuthTwoFactorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mobile/chat/$id': {
+      id: '/api/mobile/chat/$id'
+      path: '/api/mobile/chat/$id'
+      fullPath: '/api/mobile/chat/$id'
+      preLoaderRoute: typeof ApiMobileChatIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mobile/episodes/': {
       id: '/api/mobile/episodes/'
       path: '/api/mobile/episodes'
@@ -1316,25 +1498,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileEpisodesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/mobile/podcasts/': {
-      id: '/api/mobile/podcasts/'
-      path: '/api/mobile/podcasts'
-      fullPath: '/api/mobile/podcasts/'
-      preLoaderRoute: typeof ApiMobilePodcastsIndexRouteImport
+    '/api/mobile/live/': {
+      id: '/api/mobile/live/'
+      path: '/api/mobile/live'
+      fullPath: '/api/mobile/live/'
+      preLoaderRoute: typeof ApiMobileLiveIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/mobile/podcasts/$slug': {
-      id: '/api/mobile/podcasts/$slug'
-      path: '/api/mobile/podcasts/$slug'
-      fullPath: '/api/mobile/podcasts/$slug'
-      preLoaderRoute: typeof ApiMobilePodcastsSlugRouteImport
+    '/api/mobile/notifications/': {
+      id: '/api/mobile/notifications/'
+      path: '/api/mobile/notifications'
+      fullPath: '/api/mobile/notifications/'
+      preLoaderRoute: typeof ApiMobileNotificationsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/podcasts/$slug/events': {
-      id: '/api/podcasts/$slug/events'
-      path: '/api/podcasts/$slug/events'
-      fullPath: '/api/podcasts/$slug/events'
-      preLoaderRoute: typeof ApiPodcastsSlugEventsRouteImport
+    '/api/mobile/notifications/device': {
+      id: '/api/mobile/notifications/device'
+      path: '/api/mobile/notifications/device'
+      fullPath: '/api/mobile/notifications/device'
+      preLoaderRoute: typeof ApiMobileNotificationsDeviceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/notifications/shows': {
+      id: '/api/mobile/notifications/shows'
+      path: '/api/mobile/notifications/shows'
+      fullPath: '/api/mobile/notifications/shows'
+      preLoaderRoute: typeof ApiMobileNotificationsShowsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/shows/': {
+      id: '/api/mobile/shows/'
+      path: '/api/mobile/shows'
+      fullPath: '/api/mobile/shows/'
+      preLoaderRoute: typeof ApiMobileShowsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/shows/$slug': {
+      id: '/api/mobile/shows/$slug'
+      path: '/api/mobile/shows/$slug'
+      fullPath: '/api/mobile/shows/$slug'
+      preLoaderRoute: typeof ApiMobileShowsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/shows/$slug/events': {
+      id: '/api/shows/$slug/events'
+      path: '/api/shows/$slug/events'
+      fullPath: '/api/shows/$slug/events'
+      preLoaderRoute: typeof ApiShowsSlugEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/u/$slug_/playlists/$playlistSlug': {
@@ -1343,13 +1553,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/u/$slug/playlists/$playlistSlug'
       preLoaderRoute: typeof USlugPlaylistsPlaylistSlugRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_authed/$slug_/episodes/$episodeSlug/manage': {
-      id: '/_authed/$slug_/episodes/$episodeSlug/manage'
-      path: '/$slug/episodes/$episodeSlug/manage'
-      fullPath: '/$slug/episodes/$episodeSlug/manage'
-      preLoaderRoute: typeof AuthedSlugEpisodesEpisodeSlugManageRouteImport
-      parentRoute: typeof AuthedRoute
     }
     '/api/mobile/auth/oauth/$provider': {
       id: '/api/mobile/auth/oauth/$provider'
@@ -1370,6 +1573,13 @@ declare module '@tanstack/react-router' {
       path: '/api/mobile/auth/oauth/finish'
       fullPath: '/api/mobile/auth/oauth/finish'
       preLoaderRoute: typeof ApiMobileAuthOauthFinishRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/broadcasts/$id/chat': {
+      id: '/api/mobile/broadcasts/$id/chat'
+      path: '/api/mobile/broadcasts/$id/chat'
+      fullPath: '/api/mobile/broadcasts/$id/chat'
+      preLoaderRoute: typeof ApiMobileBroadcastsIdChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/mobile/comments/$id/': {
@@ -1414,18 +1624,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileEpisodesIdRetryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/podcasts/$slug/live/events': {
-      id: '/api/podcasts/$slug/live/events'
-      path: '/api/podcasts/$slug/live/events'
-      fullPath: '/api/podcasts/$slug/live/events'
-      preLoaderRoute: typeof ApiPodcastsSlugLiveEventsRouteImport
+    '/api/mobile/live/$slug/': {
+      id: '/api/mobile/live/$slug/'
+      path: '/api/mobile/live/$slug'
+      fullPath: '/api/mobile/live/$slug/'
+      preLoaderRoute: typeof ApiMobileLiveSlugIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/podcasts/$slug/live/hls/$': {
-      id: '/api/podcasts/$slug/live/hls/$'
-      path: '/api/podcasts/$slug/live/hls/$'
-      fullPath: '/api/podcasts/$slug/live/hls/$'
-      preLoaderRoute: typeof ApiPodcastsSlugLiveHlsSplatRouteImport
+    '/api/shows/$slug/live/events': {
+      id: '/api/shows/$slug/live/events'
+      path: '/api/shows/$slug/live/events'
+      fullPath: '/api/shows/$slug/live/events'
+      preLoaderRoute: typeof ApiShowsSlugLiveEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mobile/live/$slug/hls/$': {
+      id: '/api/mobile/live/$slug/hls/$'
+      path: '/api/mobile/live/$slug/hls/$'
+      fullPath: '/api/mobile/live/$slug/hls/$'
+      preLoaderRoute: typeof ApiMobileLiveSlugHlsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/shows/$slug/live/hls/$': {
+      id: '/api/shows/$slug/live/hls/$'
+      path: '/api/shows/$slug/live/hls/$'
+      fullPath: '/api/shows/$slug/live/hls/$'
+      preLoaderRoute: typeof ApiShowsSlugLiveHlsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -1455,7 +1679,7 @@ interface AuthedRouteChildren {
   AuthedSettingsRoute: typeof AuthedSettingsRouteWithChildren
   AuthedSlugManageRoute: typeof AuthedSlugManageRoute
   AuthedAdminIndexRoute: typeof AuthedAdminIndexRoute
-  AuthedSlugEpisodesEpisodeSlugManageRoute: typeof AuthedSlugEpisodesEpisodeSlugManageRoute
+  AuthedSlugEpisodeSlugManageRoute: typeof AuthedSlugEpisodeSlugManageRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
@@ -1466,8 +1690,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedSettingsRoute: AuthedSettingsRouteWithChildren,
   AuthedSlugManageRoute: AuthedSlugManageRoute,
   AuthedAdminIndexRoute: AuthedAdminIndexRoute,
-  AuthedSlugEpisodesEpisodeSlugManageRoute:
-    AuthedSlugEpisodesEpisodeSlugManageRoute,
+  AuthedSlugEpisodeSlugManageRoute: AuthedSlugEpisodeSlugManageRoute,
 }
 
 const AuthedRouteWithChildren =
@@ -1486,6 +1709,7 @@ const rootRouteChildren: RootRouteChildren = {
   SiteDotwebmanifestRoute: SiteDotwebmanifestRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TosRoute: TosRoute,
+  SlugEpisodeSlugRoute: SlugEpisodeSlugRoute,
   ApiImagesRoute: ApiImagesRoute,
   ApiUploadsRoute: ApiUploadsRoute,
   BrandFileRoute: BrandFileRoute,
@@ -1495,15 +1719,17 @@ const rootRouteChildren: RootRouteChildren = {
   SShortSlugRoute: SShortSlugRoute,
   TagsTagSlugRoute: TagsTagSlugRoute,
   USlugRoute: USlugRoute,
-  SlugEpisodesEpisodeSlugRoute: SlugEpisodesEpisodeSlugRoute,
+  SlugEpisodesSplatRoute: SlugEpisodesSplatRoute,
   AdminQueuesSplatRoute: AdminQueuesSplatRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiBrandingLogoRoute: ApiBrandingLogoRoute,
   ApiDomainsAllowedRoute: ApiDomainsAllowedRoute,
   ApiExtensionEpisodesRoute: ApiExtensionEpisodesRoute,
-  ApiExtensionPodcastsRoute: ApiExtensionPodcastsRoute,
+  ApiExtensionShowsRoute: ApiExtensionShowsRoute,
   ApiLiveAuthRoute: ApiLiveAuthRoute,
   ApiMobileContinueListeningRoute: ApiMobileContinueListeningRoute,
+  ApiMobileFollowsRoute: ApiMobileFollowsRoute,
+  ApiMobileHomeRoute: ApiMobileHomeRoute,
   ApiMobileMeRoute: ApiMobileMeRoute,
   ApiMobileThemeRoute: ApiMobileThemeRoute,
   ApiTrackedLinksTokenRoute: ApiTrackedLinksTokenRoute,
@@ -1517,22 +1743,30 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobileAuthSignInRoute: ApiMobileAuthSignInRoute,
   ApiMobileAuthSignOutRoute: ApiMobileAuthSignOutRoute,
   ApiMobileAuthTwoFactorRoute: ApiMobileAuthTwoFactorRoute,
-  ApiMobilePodcastsSlugRoute: ApiMobilePodcastsSlugRoute,
-  ApiPodcastsSlugEventsRoute: ApiPodcastsSlugEventsRoute,
+  ApiMobileChatIdRoute: ApiMobileChatIdRoute,
+  ApiMobileNotificationsDeviceRoute: ApiMobileNotificationsDeviceRoute,
+  ApiMobileNotificationsShowsRoute: ApiMobileNotificationsShowsRoute,
+  ApiMobileShowsSlugRoute: ApiMobileShowsSlugRoute,
+  ApiShowsSlugEventsRoute: ApiShowsSlugEventsRoute,
   USlugPlaylistsPlaylistSlugRoute: USlugPlaylistsPlaylistSlugRoute,
   ApiMobileEpisodesIndexRoute: ApiMobileEpisodesIndexRoute,
-  ApiMobilePodcastsIndexRoute: ApiMobilePodcastsIndexRoute,
+  ApiMobileLiveIndexRoute: ApiMobileLiveIndexRoute,
+  ApiMobileNotificationsIndexRoute: ApiMobileNotificationsIndexRoute,
+  ApiMobileShowsIndexRoute: ApiMobileShowsIndexRoute,
   ApiMobileAuthOauthProviderRoute: ApiMobileAuthOauthProviderRoute,
   ApiMobileAuthOauthExchangeRoute: ApiMobileAuthOauthExchangeRoute,
   ApiMobileAuthOauthFinishRoute: ApiMobileAuthOauthFinishRoute,
+  ApiMobileBroadcastsIdChatRoute: ApiMobileBroadcastsIdChatRoute,
   ApiMobileCommentsIdLikeRoute: ApiMobileCommentsIdLikeRoute,
   ApiMobileEpisodesIdCommentsRoute: ApiMobileEpisodesIdCommentsRoute,
   ApiMobileEpisodesIdPositionRoute: ApiMobileEpisodesIdPositionRoute,
   ApiMobileEpisodesIdRetryRoute: ApiMobileEpisodesIdRetryRoute,
-  ApiPodcastsSlugLiveEventsRoute: ApiPodcastsSlugLiveEventsRoute,
+  ApiShowsSlugLiveEventsRoute: ApiShowsSlugLiveEventsRoute,
   ApiMobileCommentsIdIndexRoute: ApiMobileCommentsIdIndexRoute,
   ApiMobileEpisodesIdIndexRoute: ApiMobileEpisodesIdIndexRoute,
-  ApiPodcastsSlugLiveHlsSplatRoute: ApiPodcastsSlugLiveHlsSplatRoute,
+  ApiMobileLiveSlugIndexRoute: ApiMobileLiveSlugIndexRoute,
+  ApiMobileLiveSlugHlsSplatRoute: ApiMobileLiveSlugHlsSplatRoute,
+  ApiShowsSlugLiveHlsSplatRoute: ApiShowsSlugLiveHlsSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -14,8 +14,8 @@ export const landingCopySchema = z.object({
   featuresTitle: text(80, 'The features heading'),
   featuresText: text(300, 'The features introduction'),
   features: z.array(copyItem).length(landingFeatureCount),
-  exploreTitle: text(80, 'The podcasts heading'),
-  exploreText: text(300, 'The podcasts introduction'),
+  exploreTitle: text(80, 'The heading over shows'),
+  exploreText: text(300, 'The introduction to shows'),
   ctaTitle: text(80, 'The closing heading'),
   ctaText: text(300, 'The closing text'),
 })

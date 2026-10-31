@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { episodes, liveBroadcasts } from '~/server/db/schema'
+import { writeDeletedShowManifest } from '~/server/deleted-shows.server'
 import { cleanUpMedia, failedSourceRemovedError } from '~/server/media-cleanup.server'
 import {
   episodeAudioPath,
@@ -11,13 +12,13 @@ import {
   imagePath,
   imageVariantPath,
   mediaDirs,
-  podcastLiveRecordingsDir,
+  showLiveRecordingsDir,
   replacementAudioPath,
   stagedImagePath,
   stagedUploadPath,
 } from '~/server/storage.server'
 import { resetDb } from '../db'
-import { createEpisode, createPodcast, createUser, db, exists } from '../helpers'
+import { createEpisode, createShow, createUser, db, exists } from '../helpers'
 
 const day = 24 * 60 * 60 * 1000
 // Files written now count as this old.
@@ -34,8 +35,8 @@ beforeEach(() => resetDb(db))
 
 describe('cleanUpMedia', () => {
   it("removes episode files whose episode is gone, keeping the others'", async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const kept = await createEpisode(podcast.id)
+    const show = await createShow((await createUser()).id)
+    const kept = await createEpisode(show.id)
     const keptFiles = [episodeAudioPath(kept.id), replacementAudioPath(kept.id), episodeWaveformPath(kept.id), episodeSourcePath(kept.id)]
     const gone = crypto.randomUUID()
     const goneFiles = [episodeAudioPath(gone), replacementAudioPath(gone), episodeWaveformPath(gone), episodeSourcePath(gone)]
@@ -48,8 +49,28 @@ describe('cleanUpMedia', () => {
     expect(removed).toMatchObject({ audio: 2, waveforms: 1, sources: 1 })
   })
 
+  it("leaves a deleted show's files for the show-archive job to move", async () => {
+    await createEpisode((await createShow((await createUser()).id)).id)
+    const [showId, episodeId, image] = [crypto.randomUUID(), crypto.randomUUID(), imageId()]
+    await writeDeletedShowManifest({
+      id: showId,
+      title: 'Gone',
+      slug: 'gone',
+      userId: 'u1',
+      imageUrl: `/images/${image}.jpg`,
+      deletedAt: new Date().toISOString(),
+      episodes: [{ id: episodeId, title: 'One', slug: 'one', imageUrl: null }],
+    })
+    const files = [episodeAudioPath(episodeId), episodeSourcePath(episodeId), imagePath(image), join(showLiveRecordingsDir(showId), 'a.mp4')]
+    for (const path of files) await touch(path)
+
+    await cleanUpMedia(later(30 * day))
+
+    for (const path of files) expect(await exists(path)).toBe(true)
+  })
+
   it('leaves orphaned files younger than a day', async () => {
-    await createEpisode((await createPodcast((await createUser()).id)).id)
+    await createEpisode((await createShow((await createUser()).id)).id)
     const path = episodeAudioPath(crypto.randomUUID())
     await touch(path)
     await cleanUpMedia(later(day / 2))
@@ -64,11 +85,11 @@ describe('cleanUpMedia', () => {
   })
 
   it('removes images, and their resized copies, that nothing refers to', async () => {
-    const [podcastImage, episodeImage, userImage, unused] = [imageId(), imageId(), imageId(), imageId()]
+    const [showImage, episodeImage, userImage, unused] = [imageId(), imageId(), imageId(), imageId()]
     const user = await createUser({ image: `/images/${userImage}.jpg` })
-    const podcast = await createPodcast(user.id, { imageUrl: `/images/${podcastImage}.jpg` })
-    await createEpisode(podcast.id, { imageUrl: `/images/${episodeImage}.jpg` })
-    for (const id of [podcastImage, episodeImage, userImage, unused]) {
+    const show = await createShow(user.id, { imageUrl: `/images/${showImage}.jpg` })
+    await createEpisode(show.id, { imageUrl: `/images/${episodeImage}.jpg` })
+    for (const id of [showImage, episodeImage, userImage, unused]) {
       await touch(imagePath(id))
       await touch(imageVariantPath(id, 128, 'webp'))
     }
@@ -76,7 +97,7 @@ describe('cleanUpMedia', () => {
 
     const removed = await cleanUpMedia(later(2 * day))
 
-    for (const id of [podcastImage, episodeImage, userImage]) {
+    for (const id of [showImage, episodeImage, userImage]) {
       expect(await exists(imagePath(id))).toBe(true)
       expect(await exists(imageVariantPath(id, 128, 'webp'))).toBe(true)
     }
@@ -103,8 +124,8 @@ describe('cleanUpMedia', () => {
   })
 
   it('removes the kept upload of an episode failed for a week, saying to upload it again', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const failed = await createEpisode(podcast.id, { status: 'failed', error: 'ffmpeg failed', sourceUrl: null })
+    const show = await createShow((await createUser()).id)
+    const failed = await createEpisode(show.id, { status: 'failed', error: 'ffmpeg failed', sourceUrl: null })
     await touch(episodeSourcePath(failed.id))
 
     expect(await cleanUpMedia(later(6 * day))).toMatchObject({ failedSources: 0 })
@@ -117,9 +138,9 @@ describe('cleanUpMedia', () => {
   })
 
   it('keeps the files of failed episodes from links, and of other episodes, however old', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const fromLink = await createEpisode(podcast.id, { status: 'failed', sourceUrl: 'https://video.test/x' })
-    const pending = await createEpisode(podcast.id, { status: 'pending', sourceUrl: null })
+    const show = await createShow((await createUser()).id)
+    const fromLink = await createEpisode(show.id, { status: 'failed', sourceUrl: 'https://video.test/x' })
+    const pending = await createEpisode(show.id, { status: 'pending', sourceUrl: null })
     for (const { id } of [fromLink, pending]) await touch(episodeSourcePath(id))
 
     expect(await cleanUpMedia(later(30 * day))).toMatchObject({ failedSources: 0, sources: 0 })
@@ -140,13 +161,13 @@ describe('cleanUpMedia', () => {
     })
   })
 
-  it("removes live recordings after a week, unless their podcast is live", async () => {
+  it("removes live recordings after a week, unless their show is live", async () => {
     const user = await createUser()
-    const quiet = await createPodcast(user.id)
-    const onAir = await createPodcast(user.id)
-    await db.insert(liveBroadcasts).values({ podcastId: onAir.id, title: 'On air' })
-    const quietFile = join(podcastLiveRecordingsDir(quiet.id), '2026-10-01_20-00-00-000000.mp4')
-    const onAirFile = join(podcastLiveRecordingsDir(onAir.id), '2026-10-01_20-00-00-000000.mp4')
+    const quiet = await createShow(user.id)
+    const onAir = await createShow(user.id)
+    await db.insert(liveBroadcasts).values({ showId: onAir.id, title: 'On air' })
+    const quietFile = join(showLiveRecordingsDir(quiet.id), '2026-10-01_20-00-00-000000.mp4')
+    const onAirFile = join(showLiveRecordingsDir(onAir.id), '2026-10-01_20-00-00-000000.mp4')
     for (const path of [quietFile, onAirFile]) await touch(path)
 
     expect(await cleanUpMedia(later(6 * day))).toMatchObject({ liveRecordings: 0 })

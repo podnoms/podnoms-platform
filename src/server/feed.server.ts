@@ -1,18 +1,18 @@
-// A podcast's RSS feed, with the iTunes tags podcast apps expect. Descriptions
+// A show's RSS feed, with the iTunes tags podcast apps expect. Descriptions
 // are HTML, which RSS carries escaped; the iTunes summaries are plain text.
 import '@tanstack/react-start/server-only'
 import { and, eq } from 'drizzle-orm'
 import { domainFeedPath, toDomainPath } from '~/lib/custom-domain'
-import { episodePath, podcastPath, withFeedKey } from '~/lib/paths'
+import { episodePath, showPath, withFeedKey } from '~/lib/paths'
 import { htmlToText } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
-import { episodes, podcasts, users } from '~/server/db/schema'
+import { episodes, shows, users } from '~/server/db/schema'
 import { isListed, newestPublishedFirst } from '~/server/episodes.server'
-import { podcastAuthor } from '~/server/podcasts.server'
+import { showAuthor } from '~/server/shows.server'
 import { uuidV5 } from '~/server/uuid.server'
 import { getBranding } from '~/server/branding.server'
 
-// A private podcast's feed is only served with its feed key.
+// A private show's feed is only served with its feed key.
 export function feedPath(slug: string, feedKey?: string | null) {
   return withFeedKey(`/feed/${slug}`, feedKey)
 }
@@ -50,62 +50,62 @@ function itunesExplicit(explicit: boolean) {
   return explicit ? 'true' : 'false'
 }
 
-// Null if there's no podcast with that slug. Private podcasts have feeds too,
-// as that's how their listeners subscribe, but only with the podcast's feed
+// Null if there's no show with that slug. Private shows have feeds too,
+// as that's how their listeners subscribe, but only with the show's feed
 // key (options.key); their audio links carry it too.
-export async function buildPodcastFeed(
+export async function buildShowFeed(
   slug: string,
   origin: string,
   options: { domain?: string; key?: string | null } = {},
 ) {
-  const [podcast] = await db
+  const [show] = await db
     .select({
-      id: podcasts.id,
-      title: podcasts.title,
-      slug: podcasts.slug,
-      description: podcasts.description,
-      imageUrl: podcasts.imageUrl,
-      category: podcasts.category,
-      subcategory: podcasts.subcategory,
-      language: podcasts.language,
-      explicit: podcasts.explicit,
-      private: podcasts.private,
-      feedKey: podcasts.feedKey,
-      updatedAt: podcasts.updatedAt,
-      author: podcastAuthor,
-      ownerEmail: podcasts.ownerEmail,
+      id: shows.id,
+      title: shows.title,
+      slug: shows.slug,
+      description: shows.description,
+      imageUrl: shows.imageUrl,
+      category: shows.category,
+      subcategory: shows.subcategory,
+      language: shows.language,
+      explicit: shows.explicit,
+      private: shows.private,
+      feedKey: shows.feedKey,
+      updatedAt: shows.updatedAt,
+      author: showAuthor,
+      ownerEmail: shows.ownerEmail,
     })
-    .from(podcasts)
-    .innerJoin(users, eq(users.id, podcasts.userId))
-    .where(eq(podcasts.slug, slug))
+    .from(shows)
+    .innerJoin(users, eq(users.id, shows.userId))
+    .where(eq(shows.slug, slug))
     .limit(1)
-  if (!podcast) return null
-  if (podcast.private && (!podcast.feedKey || options.key !== podcast.feedKey)) return null
-  const key = podcast.private ? podcast.feedKey : null
+  if (!show) return null
+  if (show.private && (!show.feedKey || options.key !== show.feedKey)) return null
+  const key = show.private ? show.feedKey : null
 
   const items = await db
     .select()
     .from(episodes)
-    .where(and(eq(episodes.podcastId, podcast.id), isListed))
+    .where(and(eq(episodes.showId, show.id), isListed))
     .orderBy(newestPublishedFirst)
 
-  // On the podcast's own domain, its links are to that domain's short paths.
+  // On the show's own domain, its links are to that domain's short paths.
   const domainOrigin = options.domain ? `https://${options.domain}` : null
   const absolute = (url: string) => new URL(url, domainOrigin ?? origin).toString()
-  const page = (path: string) => (options.domain ? (toDomainPath(path, podcast.slug) ?? path) : path)
-  const siteFeedUrl = new URL(feedPath(podcast.slug), origin).toString()
+  const page = (path: string) => (options.domain ? (toDomainPath(path, show.slug) ?? path) : path)
+  const siteFeedUrl = new URL(feedPath(show.slug), origin).toString()
   const feedUrl = withFeedKey(options.domain ? absolute(domainFeedPath) : siteFeedUrl, key)
-  const pageUrl = absolute(page(podcastPath(podcast.slug)))
-  const artwork = podcast.imageUrl ?? items.find((item) => item.imageUrl)?.imageUrl ?? null
-  const description = podcast.description || podcast.title
-  const latest = items[0] ? (items[0].publishedAt ?? items[0].createdAt) : podcast.updatedAt
+  const pageUrl = absolute(page(showPath(show.slug)))
+  const artwork = show.imageUrl ?? items.find((item) => item.imageUrl)?.imageUrl ?? null
+  const description = show.description || show.title
+  const latest = items[0] ? (items[0].publishedAt ?? items[0].createdAt) : show.updatedAt
 
   const itemXml = items.map((item) => {
     const published = item.publishedAt ?? item.createdAt
     return [
       '<item>',
       tag('title', item.title),
-      tag('link', absolute(page(episodePath(podcast.slug, item.slug)))),
+      tag('link', absolute(page(episodePath(show.slug, item.slug)))),
       tag('description', item.description),
       tag('itunes:summary', item.description && htmlToText(item.description)),
       `<guid isPermaLink="false">${escapeXml(item.id)}</guid>`,
@@ -126,29 +126,29 @@ export async function buildPodcastFeed(
 <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     ${[
-      tag('title', podcast.title),
+      tag('title', show.title),
       tag('link', pageUrl),
       `<atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml"/>`,
       tag('description', description),
       tag('itunes:summary', htmlToText(description)),
-      tag('language', podcast.language),
-      tag('itunes:author', podcast.author),
+      tag('language', show.language),
+      tag('itunes:author', show.author),
       artwork ? `<itunes:image href="${escapeXml(absolute(artwork))}"/>` : '',
-      artwork ? `<image><url>${escapeXml(absolute(artwork))}</url>${tag('title', podcast.title)}${tag('link', pageUrl)}</image>` : '',
-      categoryXml(podcast.category, podcast.subcategory),
-      podcast.ownerEmail
-        ? `<itunes:owner>${tag('itunes:name', podcast.author ?? podcast.title)}${tag('itunes:email', podcast.ownerEmail)}</itunes:owner>`
+      artwork ? `<image><url>${escapeXml(absolute(artwork))}</url>${tag('title', show.title)}${tag('link', pageUrl)}</image>` : '',
+      categoryXml(show.category, show.subcategory),
+      show.ownerEmail
+        ? `<itunes:owner>${tag('itunes:name', show.author ?? show.title)}${tag('itunes:email', show.ownerEmail)}</itunes:owner>`
         : '',
-      `<itunes:explicit>${itunesExplicit(podcast.explicit)}</itunes:explicit>`,
-      // Keeps private podcasts out of directories that honour it.
-      podcast.private ? '<itunes:block>Yes</itunes:block>' : '',
+      `<itunes:explicit>${itunesExplicit(show.explicit)}</itunes:explicit>`,
+      // Keeps private shows out of directories that honour it.
+      show.private ? '<itunes:block>Yes</itunes:block>' : '',
       '<itunes:type>episodic</itunes:type>',
-      // From the site's feed URL, so the podcast keeps one id on any domain.
+      // From the site's feed URL, so the show keeps one id on any domain.
       `<podcast:guid>${podcastGuid(siteFeedUrl)}</podcast:guid>`,
       // Asks other hosts not to import the feed, unless the owner (who can be
       // emailed) agrees.
-      podcast.ownerEmail
-        ? `<podcast:locked owner="${escapeXml(podcast.ownerEmail)}">yes</podcast:locked>`
+      show.ownerEmail
+        ? `<podcast:locked owner="${escapeXml(show.ownerEmail)}">yes</podcast:locked>`
         : '<podcast:locked>no</podcast:locked>',
       `<generator>${escapeXml((await getBranding()).name)}</generator>`,
       `<lastBuildDate>${latest.toUTCString()}</lastBuildDate>`,

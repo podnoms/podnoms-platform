@@ -4,7 +4,7 @@ import { Readable } from 'node:stream'
 import { createFileRoute } from '@tanstack/react-router'
 import { imageVariant, openGraphImage } from '~/server/images.server'
 
-// Serves stored podcast and episode artwork. `?w=` asks for a smaller copy, at
+// Serves stored show and episode artwork. `?w=` asks for a smaller copy, at
 // least that wide (see imageWidths), as WebP when the browser accepts it.
 // `?og` asks for the JPEG laid out for link previews (see openGraphImage).
 // Without it, the original JPEG is served, which is what podcast feeds link to.

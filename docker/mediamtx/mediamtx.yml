@@ -35,7 +35,7 @@ srt: no
 pathDefaults:
   # Recorded into the media volume the app shares, which makes each broadcast
   # an episode when it ends and deletes the files; recordDeleteAfter is a
-  # backstop. The path is "live/<podcast id>".
+  # backstop. The path is "live/<show id>".
   record: yes
   recordPath: /app/media/live-recordings/%path/%Y-%m-%d_%H-%M-%S-%f
   recordFormat: fmp4
@@ -43,5 +43,5 @@ pathDefaults:
   recordDeleteAfter: 7d
 
 paths:
-  # Only podcasts' paths: OBS's stream key is "<podcast id>?key=<key>".
+  # Only shows' paths: OBS's stream key is "<show id>?key=<key>".
   "~^live/[0-9a-f-]{36}$":

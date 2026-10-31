@@ -1,9 +1,9 @@
-// The signed-in home page: how a user's podcasts are doing, across all of them.
+// The signed-in home page: how a user's shows are doing, across all of them.
 import '@tanstack/react-start/server-only'
 import { and, count, desc, eq, gte, isNotNull, lt, sql } from 'drizzle-orm'
 import { activityInScope, activityPeriod, summariseActivity } from '~/server/activity.server'
 import { db } from '~/server/db/client.server'
-import { episodeActivity, episodes, podcasts } from '~/server/db/schema'
+import { episodeActivity, episodes, shows } from '~/server/db/schema'
 
 export type Dashboard = Awaited<ReturnType<typeof getDashboard>>
 
@@ -12,7 +12,7 @@ export async function getDashboard(userId: string, days: number, now = new Date(
   const previousStart = new Date(start.getTime() - days * 86_400_000)
   const inPeriod = and(activityInScope({ userId }), gte(episodeActivity.occurredAt, start))
 
-  const [activity, previous, podcastCount, episodeCounts, topEpisodes, recentEpisodes, countries] = await Promise.all([
+  const [activity, previous, showCount, episodeCounts, topEpisodes, recentEpisodes, countries] = await Promise.all([
     summariseActivity({ userId, days, now }),
     // The period before, to compare against.
     db
@@ -26,29 +26,29 @@ export async function getDashboard(userId: string, days: number, now = new Date(
         ),
       )
       .groupBy(episodeActivity.type),
-    db.$count(podcasts, eq(podcasts.userId, userId)),
+    db.$count(shows, eq(shows.userId, userId)),
     db
       .select({ status: episodes.status, count: count(), seconds: sql<number>`coalesce(sum(${episodes.durationSeconds}), 0)`.mapWith(Number) })
       .from(episodes)
-      .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
-      .where(eq(podcasts.userId, userId))
+      .innerJoin(shows, eq(shows.id, episodes.showId))
+      .where(eq(shows.userId, userId))
       .groupBy(episodes.status),
     db
       .select({
         id: episodes.id,
         title: episodes.title,
         slug: episodes.slug,
-        imageUrl: sql<string | null>`coalesce(${episodes.imageUrl}, ${podcasts.imageUrl})`,
-        podcastTitle: podcasts.title,
-        podcastSlug: podcasts.slug,
+        imageUrl: sql<string | null>`coalesce(${episodes.imageUrl}, ${shows.imageUrl})`,
+        showTitle: shows.title,
+        showSlug: shows.slug,
         plays: sql<number>`count(*) filter (where ${episodeActivity.type} = 'play')`.mapWith(Number),
         downloads: sql<number>`count(*) filter (where ${episodeActivity.type} = 'download')`.mapWith(Number),
       })
       .from(episodeActivity)
       .innerJoin(episodes, eq(episodes.id, episodeActivity.episodeId))
-      .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+      .innerJoin(shows, eq(shows.id, episodes.showId))
       .where(and(inPeriod, sql`${episodeActivity.type} <> 'share'`))
-      .groupBy(episodes.id, podcasts.id)
+      .groupBy(episodes.id, shows.id)
       .orderBy(desc(count()), episodes.title)
       .limit(5),
     db
@@ -57,15 +57,15 @@ export async function getDashboard(userId: string, days: number, now = new Date(
         title: episodes.title,
         slug: episodes.slug,
         status: episodes.status,
-        imageUrl: sql<string | null>`coalesce(${episodes.imageUrl}, ${podcasts.imageUrl})`,
+        imageUrl: sql<string | null>`coalesce(${episodes.imageUrl}, ${shows.imageUrl})`,
         durationSeconds: episodes.durationSeconds,
         createdAt: episodes.createdAt,
-        podcastTitle: podcasts.title,
-        podcastSlug: podcasts.slug,
+        showTitle: shows.title,
+        showSlug: shows.slug,
       })
       .from(episodes)
-      .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
-      .where(eq(podcasts.userId, userId))
+      .innerJoin(shows, eq(shows.id, episodes.showId))
+      .where(eq(shows.userId, userId))
       .orderBy(desc(episodes.createdAt), episodes.title)
       .limit(5),
     // Plays and downloads from every country, for the map.
@@ -92,7 +92,7 @@ export async function getDashboard(userId: string, days: number, now = new Date(
 
   return {
     days,
-    podcasts: podcastCount,
+    shows: showCount,
     episodes: {
       total: byStatus.pending + byStatus.processing + byStatus.ready + byStatus.failed,
       inProgress: byStatus.pending + byStatus.processing,

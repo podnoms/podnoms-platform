@@ -15,7 +15,7 @@ import { ytDlpConfig } from '~/server/ytdlp.server'
 import { episodeAudioPath, episodeSourcePath, episodeWaveformPath, replacementAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import { startFakeFetcher } from '../fixtures/fake-fetcher'
-import { createEpisode, createPodcast, createUser, db, exists, hasFfmpeg, makeImage, makeTone } from '../helpers'
+import { createEpisode, createShow, createUser, db, exists, hasFfmpeg, makeImage, makeTone } from '../helpers'
 
 vi.mock('~/server/follower-notifications.server', () => ({ notifyFollowersNewEpisode: vi.fn() }))
 vi.mock('~/server/logger.server', async (importOriginal) => ({
@@ -65,8 +65,8 @@ function link(path: string, params: Record<string, string> = {}) {
 }
 
 async function linkEpisode(values: Partial<Episode> & { sourceUrl: string }) {
-  const podcast = await createPodcast((await createUser()).id)
-  return createEpisode(podcast.id, { title: values.sourceUrl, slug: 'episode-temp', ...values })
+  const show = await createShow((await createUser()).id)
+  return createEpisode(show.id, { title: values.sourceUrl, slug: 'episode-temp', ...values })
 }
 
 describe.skipIf(!hasFfmpeg)('episodes from links', () => {
@@ -141,7 +141,7 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
 
   it('numbers the new slug when another episode has it', async () => {
     const episode = await linkEpisode({ sourceUrl: link('/watch', { title: 'Taken' }) })
-    await createEpisode(episode.podcastId, { slug: 'taken' })
+    await createEpisode(episode.showId, { slug: 'taken' })
     enqueueEpisode(episode.id)
     expect((await processed(episode.id)).slug).toBe('taken-2')
   })
@@ -160,7 +160,7 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     expect(await processed(episode.id)).toMatchObject({ status: 'failed', error: 'This video is unavailable', audioUrl: null })
     expect(reportError).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'This video is unavailable' }),
-      expect.objectContaining({ episodeId: episode.id, podcastId: episode.podcastId, msg: 'Episode processing failed' }),
+      expect.objectContaining({ episodeId: episode.id, showId: episode.showId, msg: 'Episode processing failed' }),
     )
   })
 
@@ -207,12 +207,12 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     expect(leftovers).toEqual([])
   })
 
-  it("tells the podcast's followers once the episode is ready", async () => {
+  it("tells the show's followers once the episode is ready", async () => {
     vi.mocked(notifyFollowersNewEpisode).mockClear()
     const episode = await linkEpisode({ sourceUrl: link('/watch') })
     enqueueEpisode(episode.id)
     const ready = await processed(episode.id)
-    expect(notifyFollowersNewEpisode).toHaveBeenCalledExactlyOnceWith(episode.id, episode.podcastId, ready.publishedAt)
+    expect(notifyFollowersNewEpisode).toHaveBeenCalledExactlyOnceWith(episode.id, episode.showId, ready.publishedAt)
   })
 
   it('asks yt-dlp for the audio alone, to convert itself', async () => {
@@ -252,7 +252,7 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     const fromChannel = await linkEpisode({ sourceUrl: link('/watch', { upload_date: '20260115', hold: '400' }) })
     const [channel] = await db
       .insert(channels)
-      .values({ podcastId: fromChannel.podcastId, platform: 'other', url: 'https://video.test/channel' })
+      .values({ showId: fromChannel.showId, platform: 'other', url: 'https://video.test/channel' })
       .returning()
     await db.insert(channelItems).values({ channelId: channel!.id, sourceKey: 'other:1', episodeId: fromChannel.id })
     const byHand = await linkEpisode({ sourceUrl: link('/watch', { upload_date: '20260115' }) })
@@ -288,7 +288,7 @@ describe.skipIf(!hasFfmpeg)('when the platform refuses us', () => {
     enqueueEpisode(refused.id)
     await vi.waitFor(() => expect(throttleStatus().cooldowns).toHaveLength(1))
 
-    const upload = await createEpisode(refused.podcastId, { title: 'Upload', slug: 'upload' })
+    const upload = await createEpisode(refused.showId, { title: 'Upload', slug: 'upload' })
     await makeTone(episodeSourcePath(upload.id), 1, ['-f', 'wav'])
     const waiting = await linkEpisode({ sourceUrl: link('/watch') })
     enqueueEpisode(upload.id)
@@ -298,8 +298,8 @@ describe.skipIf(!hasFfmpeg)('when the platform refuses us', () => {
   })
 
   it('keeps an episode waiting for new audio, with its current audio', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const episode = await createEpisode(podcast.id, {
+    const show = await createShow((await createUser()).id)
+    const episode = await createEpisode(show.id, {
       status: 'ready',
       audioUrl: '/api/episodes/x/audio',
       replacement: { sourceUrl: link('/rate-limited') },
@@ -344,8 +344,8 @@ describe.skipIf(!hasFfmpeg)('through the remote fetcher', () => {
 
 describe.skipIf(!hasFfmpeg)('episodes from uploads', () => {
   it('converts the upload to MP3 and removes the source', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const episode = await createEpisode(podcast.id, { title: 'Upload', slug: 'upload', durationSeconds: 99 })
+    const show = await createShow((await createUser()).id)
+    const episode = await createEpisode(show.id, { title: 'Upload', slug: 'upload', durationSeconds: 99 })
     // Uploads are kept without an extension, so the format is given.
     await makeTone(episodeSourcePath(episode.id), 2, ['-f', 'wav'])
 
@@ -358,8 +358,8 @@ describe.skipIf(!hasFfmpeg)('episodes from uploads', () => {
   })
 
   it('tells open pages how it is going, and when it is done', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const episode = await createEpisode(podcast.id)
+    const show = await createShow((await createUser()).id)
+    const episode = await createEpisode(show.id)
     await makeTone(episodeSourcePath(episode.id), 2, ['-f', 'wav'])
     const events: EpisodeEvent[] = []
     const unsubscribe = subscribeToEpisodeEvents((event) => {
@@ -379,8 +379,8 @@ describe.skipIf(!hasFfmpeg)('episodes from uploads', () => {
   })
 
   it('fails, keeping nothing, when the upload is missing', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const episode = await createEpisode(podcast.id)
+    const show = await createShow((await createUser()).id)
+    const episode = await createEpisode(show.id)
     enqueueEpisode(episode.id)
     expect(await processed(episode.id)).toMatchObject({
       status: 'failed',
@@ -405,8 +405,8 @@ describe.skipIf(!hasFfmpeg)('replacing audio', () => {
 
   // A ready episode with some old audio and waveform.
   async function readyEpisode(values: Partial<Episode> = {}) {
-    const podcast = await createPodcast((await createUser()).id)
-    const episode = await createEpisode(podcast.id, {
+    const show = await createShow((await createUser()).id)
+    const episode = await createEpisode(show.id, {
       title: 'Mine',
       slug: 'mine',
       description: '<p>Mine</p>',
@@ -507,9 +507,9 @@ describe.skipIf(!hasFfmpeg)('replacing audio', () => {
 
 describe.skipIf(!hasFfmpeg)('the queue', () => {
   it('reports how many are ahead', async () => {
-    const podcast = await createPodcast((await createUser()).id)
+    const show = await createShow((await createUser()).id)
     const make = (slug: string) =>
-      createEpisode(podcast.id, { slug, sourceUrl: link('/watch', { hold: '100' }), title: slug })
+      createEpisode(show.id, { slug, sourceUrl: link('/watch', { hold: '100' }), title: slug })
     const [a, b, c] = [await make('a'), await make('b'), await make('c')]
     enqueueEpisode(a.id)
     enqueueEpisode(b.id)
@@ -532,11 +532,11 @@ describe.skipIf(!hasFfmpeg)('the queue', () => {
 
 describe.skipIf(!hasFfmpeg)('resumeUnfinishedEpisodes', () => {
   it('requeues pending and processing episodes, once per server process', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const pending = await createEpisode(podcast.id, { status: 'pending', sourceUrl: link('/watch'), title: 'p' })
-    const processing = await createEpisode(podcast.id, { status: 'processing', sourceUrl: link('/watch'), title: 'q' })
-    const failed = await createEpisode(podcast.id, { status: 'failed', sourceUrl: link('/watch'), title: 'f' })
-    const replacing = await createEpisode(podcast.id, { status: 'ready', title: 'r', replacement: { sourceUrl: link('/watch') } })
+    const show = await createShow((await createUser()).id)
+    const pending = await createEpisode(show.id, { status: 'pending', sourceUrl: link('/watch'), title: 'p' })
+    const processing = await createEpisode(show.id, { status: 'processing', sourceUrl: link('/watch'), title: 'q' })
+    const failed = await createEpisode(show.id, { status: 'failed', sourceUrl: link('/watch'), title: 'f' })
+    const replacing = await createEpisode(show.id, { status: 'ready', title: 'r', replacement: { sourceUrl: link('/watch') } })
 
     await resumeUnfinishedEpisodes()
     expect((await processed(pending.id)).status).toBe('ready')
@@ -545,7 +545,7 @@ describe.skipIf(!hasFfmpeg)('resumeUnfinishedEpisodes', () => {
     expect(await exists(episodeAudioPath(replacing.id))).toBe(true)
     expect((await getRow(failed.id)).status).toBe('failed')
 
-    const later = await createEpisode(podcast.id, { status: 'pending', sourceUrl: link('/watch'), title: 'l' })
+    const later = await createEpisode(show.id, { status: 'pending', sourceUrl: link('/watch'), title: 'l' })
     await resumeUnfinishedEpisodes()
     await new Promise((resolve) => setTimeout(resolve, 200))
     expect((await getRow(later.id)).status).toBe('pending')

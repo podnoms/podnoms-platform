@@ -41,7 +41,7 @@ async function signIn(email: string, password: string) {
   return { response, cookie: cookiesFrom(csrf, response) }
 }
 
-const pageRequest = (cookie: string) => new Request(`${origin}/podcasts`, { headers: { cookie } })
+const pageRequest = (cookie: string) => new Request(`${origin}/shows`, { headers: { cookie } })
 const sessionFor = (cookie: string) => getSession(pageRequest(cookie))
 
 // Updates the session the way updateSession in auth-client.ts does, returning

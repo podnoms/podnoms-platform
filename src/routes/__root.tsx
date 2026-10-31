@@ -13,10 +13,10 @@ import { TwoFactorDialog } from '~/components/two-factor-dialog'
 import { fetchOAuthProviders, fetchAuthState } from '~/functions/auth'
 import { fetchBranding } from '~/functions/branding'
 import { fetchErrorReportingDsn } from '~/functions/error-reporting'
-import { fetchFollowedPodcasts } from '~/functions/library'
-import { fetchMyPodcasts } from '~/functions/podcasts'
+import { fetchFollowedShows } from '~/functions/library'
+import { fetchMyShows } from '~/functions/shows'
 import { fetchSiteLinks } from '~/functions/site-links'
-import { readPodcastSort } from '~/lib/podcast-sort'
+import { readShowSort } from '~/lib/show-sort'
 import { brandIconUrl, defaultBranding, siteThemeStyleId } from '~/lib/branding'
 import { fontCssUrl } from '~/lib/theme-fonts'
 import { startClientErrorReporting } from '~/lib/client-errors'
@@ -29,10 +29,10 @@ declare module '@tanstack/react-router' {
     // Renders the page on its own, without the app's shell, header, player or
     // dialogs, as for the embeddable player.
     bare?: boolean
-    // A public page (a podcast or episode anyone can visit). Visitors get it
-    // with the player but without the public header, as the podcast's own
+    // A public page (a show or episode anyone can visit). Visitors get it
+    // with the player but without the public header, as the show's own
     // page; signed-in users get it in the app's shell, so their library is a
-    // click away, except on the podcast's own domain.
+    // click away, except on the show's own domain.
     publicPage?: boolean
     // Draws its own header, so visitors don't get the public header, as for
     // the landing page.
@@ -47,21 +47,21 @@ export const Route = createRootRoute({
   // and, while a sign-in waits for its second factor, `context.twoFactor`.
   beforeLoad: () => fetchAuthState(),
   validateSearch: loginSearchSchema,
-  // OAuth providers with keys (for the login dialog), the user's podcasts and
+  // OAuth providers with keys (for the login dialog), the user's shows and
   // the ones they follow (for the sidebar), where to report browser errors,
   // where to donate and chat (for the top nav), and the site's branding.
-  // Loaded once; creating or following a podcast, or saving the branding,
+  // Loaded once; creating or following a show, or saving the branding,
   // calls router.invalidate().
   loader: async ({ context }) => {
-    const [providers, podcasts, following, errorReportingDsn, siteLinks, branding] = await Promise.all([
+    const [providers, shows, following, errorReportingDsn, siteLinks, branding] = await Promise.all([
       fetchOAuthProviders(),
-      context.session ? fetchMyPodcasts() : [],
-      context.session ? fetchFollowedPodcasts() : [],
+      context.session ? fetchMyShows() : [],
+      context.session ? fetchFollowedShows() : [],
       fetchErrorReportingDsn(),
       fetchSiteLinks(),
       fetchBranding(),
     ])
-    return { providers, podcasts, following, podcastSort: readPodcastSort(), errorReportingDsn, siteLinks, branding }
+    return { providers, shows, following, showSort: readShowSort(), errorReportingDsn, siteLinks, branding }
   },
   staleTime: Infinity,
   // Defaults: a page's own tags of the same name or property replace these.

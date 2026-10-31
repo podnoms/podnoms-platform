@@ -71,11 +71,11 @@ function PlaylistPage() {
               id: episode.id,
               title: episode.title,
               audioUrl: episode.audioUrl,
-              imageUrl: episode.imageUrl ?? episode.podcast.imageUrl,
-              podcastTitle: episode.podcast.title,
+              imageUrl: episode.imageUrl ?? episode.show.imageUrl,
+              showTitle: episode.show.title,
               slug: episode.slug,
-              podcastSlug: episode.podcast.slug,
-              isOwner: episode.podcast.isOwner,
+              showSlug: episode.show.slug,
+              isOwner: episode.show.isOwner,
               positionSeconds: episode.positionSeconds,
             },
           ]
@@ -84,8 +84,8 @@ function PlaylistPage() {
   }
   const playingThis = player.queue?.href === href
   const total = episodes.reduce((sum, episode) => sum + (episode.durationSeconds ?? 0), 0)
-  const cover = episodes.find((episode) => episode.imageUrl ?? episode.podcast.imageUrl)
-  const coverUrl = cover ? (cover.imageUrl ?? cover.podcast.imageUrl) : null
+  const cover = episodes.find((episode) => episode.imageUrl ?? episode.show.imageUrl)
+  const coverUrl = cover ? (cover.imageUrl ?? cover.show.imageUrl) : null
 
   function playFrom(episodeId: string) {
     const index = queue.episodes.findIndex((episode) => episode.id === episodeId)
@@ -193,11 +193,11 @@ function PlaylistPage() {
             <PublicEpisodeRow
               key={episode.id}
               episode={episode}
-              podcastSlug={episode.podcast.slug}
-              podcastTitle={episode.podcast.title}
-              podcastImageUrl={episode.podcast.imageUrl}
-              isOwner={episode.podcast.isOwner}
-              showPodcast
+              showSlug={episode.show.slug}
+              showTitle={episode.show.title}
+              showImageUrl={episode.show.imageUrl}
+              isOwner={episode.show.isOwner}
+              withShow
               onPlay={() => playFrom(episode.id)}
               actions={
                 playlist.isOwner && (

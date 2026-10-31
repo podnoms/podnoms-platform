@@ -223,7 +223,7 @@ async function processEpisode(episodeId: string) {
   await db.update(episodes).set({ status: 'processing', error: null }).where(eq(episodes.id, episodeId))
   publishEpisodeEvent({ type: 'changed', episodeId })
 
-  const job = { episodeId, podcastId: episode.podcastId, sourceUrl: episode.sourceUrl }
+  const job = { episodeId, showId: episode.showId, sourceUrl: episode.sourceUrl }
   const started = Date.now()
   logger.info(job, 'Episode processing started')
   try {
@@ -264,7 +264,7 @@ async function detailsFromSource(episode: Episode, source: SourceDetails) {
   // Titles default to the link, and slugs are temporary, until the source's
   // real title is known.
   const titled = episode.title === episode.sourceUrl && source.title ? source.title : null
-  const slug = titled ? await availableEpisodeSlug(episode.podcastId, titled, episode.id) : episode.slug
+  const slug = titled ? await availableEpisodeSlug(episode.showId, titled, episode.id) : episode.slug
   return { title: titled ?? episode.title, slug, description, imageUrl }
 }
 
@@ -312,7 +312,7 @@ async function markReady(episodeId: string, audio: ProcessedAudio) {
     audioSizeBytes: size,
     publishedAt,
   })
-  notifyFollowersNewEpisode(episode.id, episode.podcastId, publishedAt)
+  notifyFollowersNewEpisode(episode.id, episode.showId, publishedAt)
 }
 
 async function isFromChannel(episodeId: string) {
@@ -357,7 +357,7 @@ async function replaceAudio(episode: Episode, { sourceUrl }: EpisodeReplacement)
       logger.warn({ episodeId: id, sourceUrl, err: error }, 'Audio replacement was refused by the platform; will retry')
       throw error
     }
-    reportError(error, { episodeId: id, podcastId: episode.podcastId, sourceUrl, stage: progress.get(id)?.stage, msg: 'Episode audio replacement failed' })
+    reportError(error, { episodeId: id, showId: episode.showId, sourceUrl, stage: progress.get(id)?.stage, msg: 'Episode audio replacement failed' })
     const message = error instanceof Error ? error.message : String(error)
     await rm(replacementAudioPath(id), { force: true })
     await db
@@ -394,7 +394,7 @@ async function run(episodeId: string) {
   let retry = false
   try {
     const [episode] = await db
-      .select({ podcastId: episodes.podcastId, title: episodes.title, sourceUrl: episodes.sourceUrl, replacement: episodes.replacement, priority: episodes.priority })
+      .select({ showId: episodes.showId, title: episodes.title, sourceUrl: episodes.sourceUrl, replacement: episodes.replacement, priority: episodes.priority })
       .from(episodes)
       .where(eq(episodes.id, episodeId))
       .limit(1)
@@ -402,7 +402,7 @@ async function run(episodeId: string) {
     const sourceUrl = episode.replacement ? episode.replacement.sourceUrl : episode.sourceUrl
     if (sourceUrl) {
       jobs.set(episodeId, 'download')
-      const slot = { priority: episode.priority, key: episode.podcastId, id: episodeId, label: episode.title }
+      const slot = { priority: episode.priority, key: episode.showId, id: episodeId, label: episode.title }
       await withDownloadSlot(platformOf(sourceUrl), slot, () => processEpisode(episodeId))
     } else {
       jobs.set(episodeId, 'local')
@@ -469,7 +469,7 @@ export function getEpisodeProgress(episodeId: string): EpisodeProgress | null {
 
 // Episodes left pending or mid-download, or with audio waiting to be
 // replaced, when the server last stopped. Picked
-// up the first time the app handles a podcast request after starting.
+// up the first time the app handles a show request after starting.
 let resumed = false
 export async function resumeUnfinishedEpisodes() {
   if (resumed) return

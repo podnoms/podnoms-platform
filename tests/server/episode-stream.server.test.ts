@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { publishEpisodeEvent } from '~/server/episode-events.server'
-import { flushIntervalMs, podcastEventStream } from '~/server/episode-stream.server'
+import { flushIntervalMs, showEventStream } from '~/server/episode-stream.server'
 import { resetDb } from '../db'
-import { createEpisode, createPodcast, createUser, db } from '../helpers'
+import { createEpisode, createShow, createUser, db } from '../helpers'
 
 beforeEach(() => resetDb(db))
 
 type Received = { event: string; data: unknown }
 
 // Opens the stream and collects its events until `until` holds.
-async function openStream(podcastId: string) {
+async function openStream(showId: string) {
   const abort = new AbortController()
-  const reader = podcastEventStream(podcastId, abort.signal).getReader()
+  const reader = showEventStream(showId, abort.signal).getReader()
   const decoder = new TextDecoder()
   const received: Received[] = []
   const raw: string[] = []
@@ -47,12 +47,12 @@ afterEach(async () => {
   close = undefined
 })
 
-describe('podcastEventStream', () => {
+describe('showEventStream', () => {
   it('starts with a reconnect delay and the progress of episodes in progress', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const pending = await createEpisode(podcast.id, { status: 'pending' })
-    await createEpisode(podcast.id, { status: 'ready' })
-    const stream = await openStream(podcast.id)
+    const show = await createShow((await createUser()).id)
+    const pending = await createEpisode(show.id, { status: 'pending' })
+    await createEpisode(show.id, { status: 'ready' })
+    const stream = await openStream(show.id)
     close = stream.close
 
     await vi.waitFor(() => expect(stream.received).toHaveLength(1))
@@ -61,9 +61,9 @@ describe('podcastEventStream', () => {
   })
 
   it("sends its episodes' progress, only the latest of each burst", async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const episode = await createEpisode(podcast.id, { status: 'ready' })
-    const stream = await openStream(podcast.id)
+    const show = await createShow((await createUser()).id)
+    const episode = await createEpisode(show.id, { status: 'ready' })
+    const stream = await openStream(show.id)
     close = stream.close
     await new Promise((resolve) => setTimeout(resolve, 50))
 
@@ -79,10 +79,10 @@ describe('podcastEventStream', () => {
   })
 
   it('says when an episode changes, including one added after the stream opened', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const stream = await openStream(podcast.id)
+    const show = await createShow((await createUser()).id)
+    const stream = await openStream(show.id)
     close = stream.close
-    const added = await createEpisode(podcast.id)
+    const added = await createEpisode(show.id)
 
     publishEpisodeEvent({ type: 'changed', episodeId: added.id })
     publishEpisodeEvent({ type: 'changed', episodeId: added.id })
@@ -93,12 +93,12 @@ describe('podcastEventStream', () => {
     expect(stream.received.find((r) => r.event === 'changed')!.data).toEqual({ episodeId: added.id })
   })
 
-  it("leaves out other podcasts' episodes", async () => {
+  it("leaves out other shows' episodes", async () => {
     const user = await createUser()
-    const podcast = await createPodcast(user.id)
-    const other = await createEpisode((await createPodcast(user.id)).id)
-    const ours = await createEpisode(podcast.id, { status: 'ready' })
-    const stream = await openStream(podcast.id)
+    const show = await createShow(user.id)
+    const other = await createEpisode((await createShow(user.id)).id)
+    const ours = await createEpisode(show.id, { status: 'ready' })
+    const stream = await openStream(show.id)
     close = stream.close
     await new Promise((resolve) => setTimeout(resolve, 50))
 
@@ -114,8 +114,8 @@ describe('podcastEventStream', () => {
   })
 
   it('stops listening and ends when the client goes away', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const stream = await openStream(podcast.id)
+    const show = await createShow((await createUser()).id)
+    const stream = await openStream(show.id)
     await stream.close()
     // Publishing afterwards reaches no one and doesn't throw.
     expect(() => publishEpisodeEvent({ type: 'changed', episodeId: crypto.randomUUID() })).not.toThrow()

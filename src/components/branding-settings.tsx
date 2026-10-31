@@ -343,7 +343,7 @@ function LandingFields({ copy, onChange }: { copy: LandingCopy; onChange: (copy:
         {text('featuresText', 'Introduction', true)}
         <div className="grid gap-4 md:grid-cols-2">{items('features', 'Feature')}</div>
       </Section>
-      <Section title="Podcasts">
+      <Section title="Shows">
         {text('exploreTitle', 'Heading')}
         {text('exploreText', 'Introduction')}
       </Section>

@@ -1,5 +1,5 @@
-// Removes media files nothing needs any more: files no podcast, episode or
-// user refers to, uploads that never became an episode, and the kept upload of
+// Removes media files nothing needs any more: files no show, episode or
+// user refers to (bar those of deleted shows, see deleted-shows.server.ts), uploads that never became an episode, and the kept upload of
 // an episode that has been failed for a week, and live recordings that were
 // never made into episodes. Run daily as a job (see
 // jobs.server.ts); safe to run at any time, and to run again.
@@ -8,7 +8,8 @@ import { readdir, rm, rmdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { and, eq, isNotNull, isNull, lt } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
-import { episodes, liveBroadcasts, podcasts, users } from '~/server/db/schema'
+import { deletedShowMedia } from '~/server/deleted-shows.server'
+import { episodes, liveBroadcasts, shows, users } from '~/server/db/schema'
 import { localImageUrl } from '~/server/images.server'
 import { logger } from '~/server/logger.server'
 import { notifyEpisodeFailed } from '~/server/notifications.server'
@@ -95,18 +96,20 @@ async function removeOldFailedSources(now: number) {
 }
 
 // A broadcast's recording is removed once it's an episode; one that failed is
-// kept a week, in case it's wanted. Never while the podcast is live.
-async function removeOldLiveRecordings(now: number) {
+// kept a week, in case it's wanted. Never while the show is live, nor once
+// it's deleted (its recordings are archived with it).
+async function removeOldLiveRecordings(now: number, deletedShowIds: Set<string>) {
   const live = new Set(
-    (await db.select({ podcastId: liveBroadcasts.podcastId }).from(liveBroadcasts).where(isNull(liveBroadcasts.endedAt))).map(
-      (row) => row.podcastId,
+    (await db.select({ showId: liveBroadcasts.showId }).from(liveBroadcasts).where(isNull(liveBroadcasts.endedAt))).map(
+      (row) => row.showId,
     ),
   )
+  for (const showId of deletedShowIds) live.add(showId)
   const root = join(mediaDirs.liveRecordings, 'live')
   let removed = 0
-  for (const podcastDir of await readdir(root, { withFileTypes: true }).catch(() => [])) {
-    if (!podcastDir.isDirectory() || live.has(podcastDir.name)) continue
-    const path = join(root, podcastDir.name)
+  for (const showDir of await readdir(root, { withFileTypes: true }).catch(() => [])) {
+    if (!showDir.isDirectory() || live.has(showDir.name)) continue
+    const path = join(root, showDir.name)
     for (const file of await filesIn(path)) {
       if (now - file.modified < liveRecordingMaxAgeMs) continue
       await rm(file.path, { force: true })
@@ -118,6 +121,9 @@ async function removeOldLiveRecordings(now: number) {
 }
 
 export async function cleanUpMedia(now = Date.now()) {
+  // Deleted shows' files are left for the show-archive job to move, should
+  // it not have run yet (see deleted-shows.server.ts).
+  const deleted = await deletedShowMedia()
   const episodeIds = new Set((await db.select({ id: episodes.id }).from(episodes)).map((row) => row.id))
 
   // A database with no episodes while there are audio files is more likely
@@ -126,14 +132,17 @@ export async function cleanUpMedia(now = Date.now()) {
   const audioFiles = await filesIn(mediaDirs.audio)
   const keepEpisodeFiles = episodeIds.size === 0 && audioFiles.length > 0
   if (keepEpisodeFiles) logger.warn('No episodes in the database; leaving episode files alone')
-  const episodeWanted = (id: string) => keepEpisodeFiles || episodeIds.has(id)
+  const episodeWanted = (id: string) => keepEpisodeFiles || episodeIds.has(id) || deleted.episodeIds.has(id)
 
   const imageRows = await Promise.all([
-    db.select({ url: podcasts.imageUrl }).from(podcasts).where(isNotNull(podcasts.imageUrl)),
+    db.select({ url: shows.imageUrl }).from(shows).where(isNotNull(shows.imageUrl)),
     db.select({ url: episodes.imageUrl }).from(episodes).where(isNotNull(episodes.imageUrl)),
     db.select({ url: users.image }).from(users).where(isNotNull(users.image)),
   ])
-  const imageIds = new Set(imageRows.flat().flatMap(({ url }) => localImageUrl.exec(url ?? '')?.[1] ?? []))
+  const imageIds = new Set([
+    ...imageRows.flat().flatMap(({ url }) => localImageUrl.exec(url ?? '')?.[1] ?? []),
+    ...deleted.imageIds,
+  ])
 
   const removed = {
     failedSources: await removeOldFailedSources(now),
@@ -145,7 +154,7 @@ export async function cleanUpMedia(now = Date.now()) {
     imageVariants: await removeUnwanted(mediaDirs.imageVariants, now, (name) => name.slice(0, 36), (id) => imageIds.has(id)),
     stagedUploads: await removeStaleStaged(mediaDirs.uploads, now),
     stagedImages: await removeStaleStaged(mediaDirs.stagedImages, now),
-    liveRecordings: await removeOldLiveRecordings(now),
+    liveRecordings: await removeOldLiveRecordings(now, deleted.showIds),
   }
   return removed
 }

@@ -22,11 +22,11 @@ export type EpisodePageData = Awaited<ReturnType<typeof fetchEpisodePage>>
 
 // An episode as listeners see it: artwork, player and show notes. On the
 // episode page it sits in the site's shell; `standalone`, it's the whole share
-// page (see /s/$shortSlug): it names its podcast itself, and is just the player,
+// page (see /s/$shortSlug): it names its show itself, and is just the player,
 // without the show notes, comments, the owner's controls or the share and
 // embed buttons.
 export function PublicEpisode({ page, standalone = false }: { page: EpisodePageData; standalone?: boolean }) {
-  const { podcast, episode, waveform, isOwner, shareUrl, embedUrl } = page
+  const { show, episode, waveform, isOwner, shareUrl, embedUrl } = page
   const player = usePlayer()
   // Shown with the details rather than on the button; the button keeps it current.
   const [likeCount, setLikeCount] = useState(episode.likeCount)
@@ -40,10 +40,10 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
   const isPlaying = isCurrent && player.playing
   const position = isCurrent ? player.currentTime : player.positionOf(episode.id, episode.positionSeconds)
   const duration = (isCurrent && player.duration) || episode.durationSeconds || 0
-  const artwork = episode.imageUrl ?? podcast.imageUrl
+  const artwork = episode.imageUrl ?? show.imageUrl
   // The share page leaves out the date and length; the waveform shows the length.
   const meta = [
-    podcast.author ? <AuthorLink key="by" author={podcast.author} slug={podcast.ownerSlug} /> : null,
+    show.author ? <AuthorLink key="by" author={show.author} slug={show.ownerSlug} /> : null,
     standalone ? null : formatDate(episode.publishedAt ?? episode.createdAt),
     !standalone && episode.durationSeconds != null ? formatClock(episode.durationSeconds) : null,
     likeCount > 0 ? pluralise(likeCount, 'like') : null,
@@ -57,9 +57,9 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
         title: episode.title,
         audioUrl: episode.audioUrl,
         imageUrl: artwork,
-        podcastTitle: podcast.title,
+        showTitle: show.title,
         slug: episode.slug,
-        podcastSlug: podcast.slug,
+        showSlug: show.slug,
         isOwner,
         positionSeconds: episode.positionSeconds,
       },
@@ -77,11 +77,11 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
       {!standalone && (
         <Link
           to="/$slug"
-          params={{ slug: podcast.slug }}
+          params={{ slug: show.slug }}
           className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <Icons.back className="size-4" />
-          {podcast.title}
+          {show.title}
         </Link>
       )}
 
@@ -99,14 +99,14 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <p className="truncate text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            {standalone ? podcast.title : 'Episode'}
+            {standalone ? show.title : 'Episode'}
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-balance">{episode.title}</h1>
           <p className="text-sm text-muted-foreground">
             <Separated items={meta} />
           </p>
           <TagList tags={episode.tags} />
-          <TagList tags={podcast.tags.filter((tag) => !episode.tags.some((own) => own.id === tag.id))} label="Show tags" />
+          <TagList tags={show.tags.filter((tag) => !episode.tags.some((own) => own.id === tag.id))} label="Show tags" />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Button size="icon-lg" className="size-14 rounded-full [&_svg]:size-6!" onClick={() => play()}>
               {isPlaying ? <Icons.pause /> : <Icons.play />}
@@ -125,8 +125,8 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
               {isOwner && !standalone && (
                 <Button variant="outline" asChild>
                   <Link
-                    to="/$slug/episodes/$episodeSlug/manage"
-                    params={{ slug: podcast.slug, episodeSlug: episode.slug }}
+                    to="/$slug/$episodeSlug/manage"
+                    params={{ slug: show.slug, episodeSlug: episode.slug }}
                   >
                     <Icons.settings />
                     Manage
@@ -148,8 +148,8 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
               </Button>
               {artwork && !isOwner && (
                 <ReportImageButton
-                  targetKind={episode.imageUrl ? 'episode' : 'podcast'}
-                  targetId={episode.imageUrl ? episode.id : podcast.id}
+                  targetKind={episode.imageUrl ? 'episode' : 'show'}
+                  targetId={episode.imageUrl ? episode.id : show.id}
                 />
               )}
             </div>
@@ -229,13 +229,13 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
 
       {!standalone && page.moreEpisodes.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold">More from {podcast.title}</h2>
+          <h2 className="text-lg font-semibold">More from {show.title}</h2>
           <ul className="flex flex-col divide-y rounded-lg border">
             {page.moreEpisodes.map((other) => (
               <li key={other.id}>
                 <Link
-                  to="/$slug/episodes/$episodeSlug"
-                  params={{ slug: podcast.slug, episodeSlug: other.slug }}
+                  to="/$slug/$episodeSlug"
+                  params={{ slug: show.slug, episodeSlug: other.slug }}
                   className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm hover:bg-muted/50"
                 >
                   <span className="min-w-0 truncate font-medium">{other.title}</span>
@@ -270,15 +270,15 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
 export function episodeHeadOptions(page: EpisodePageData) {
   return {
     title: page.episode.title,
-    documentTitle: `${page.episode.title} – ${page.podcast.title}`,
+    documentTitle: `${page.episode.title} – ${page.show.title}`,
     description: page.episode.description,
-    fallbackDescription: `An episode of ${page.podcast.title}`,
+    fallbackDescription: `An episode of ${page.show.title}`,
     url: page.pageUrl,
     image: page.previewImage,
     type: 'music.song' as const,
     audioUrl: page.audioUrl,
     feedUrl: page.feedUrl,
-    feedTitle: page.podcast.title,
-    noindex: page.podcast.private,
+    feedTitle: page.show.title,
+    noindex: page.show.private,
   }
 }

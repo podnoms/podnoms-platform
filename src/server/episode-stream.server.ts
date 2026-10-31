@@ -1,4 +1,4 @@
-// A podcast's episode events as a server-sent event stream: what podcast and
+// A show's episode events as a server-sent event stream: what show and
 // episode pages listen to, instead of polling, while something is processing.
 import '@tanstack/react-start/server-only'
 import { and, eq, isNotNull, or, inArray } from 'drizzle-orm'
@@ -15,18 +15,18 @@ export const heartbeatIntervalMs = 20_000
 const encoder = new TextEncoder()
 const message = (event: string, data: unknown) => encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
 
-export function podcastEventStream(podcastId: string, signal: AbortSignal) {
-  // Whether each episode seen belongs to this podcast. Episodes added after
+export function showEventStream(showId: string, signal: AbortSignal) {
+  // Whether each episode seen belongs to this show. Episodes added after
   // the stream opened are looked up the first time they come by.
   const belongs = new Map<string, Promise<boolean>>()
   const isOurs = (episodeId: string) => {
     let known = belongs.get(episodeId)
     if (!known) {
       known = db
-        .select({ podcastId: episodes.podcastId })
+        .select({ showId: episodes.showId })
         .from(episodes)
         .where(eq(episodes.id, episodeId))
-        .then(([row]) => row?.podcastId === podcastId)
+        .then(([row]) => row?.showId === showId)
       belongs.set(episodeId, known)
     }
     return known
@@ -64,14 +64,14 @@ export function podcastEventStream(podcastId: string, signal: AbortSignal) {
 
       // Reconnect after 3s if the connection drops, then the progress so far.
       controller.enqueue(encoder.encode('retry: 3000\n\n'))
-      const ours = await db.select({ id: episodes.id }).from(episodes).where(eq(episodes.podcastId, podcastId))
+      const ours = await db.select({ id: episodes.id }).from(episodes).where(eq(episodes.showId, showId))
       for (const { id } of ours) belongs.set(id, Promise.resolve(true))
       const inProgress = await db
         .select({ id: episodes.id })
         .from(episodes)
         .where(
           and(
-            eq(episodes.podcastId, podcastId),
+            eq(episodes.showId, showId),
             or(inArray(episodes.status, ['pending', 'processing']), isNotNull(episodes.replacement)),
           ),
         )

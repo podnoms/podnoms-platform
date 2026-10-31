@@ -16,7 +16,7 @@ import { Textarea } from '~/components/ui/textarea'
 import { reportImage } from '~/functions/reports'
 import { reportReasonNames, reportReasons, type ReportReason, type ReportTargetKind } from '~/lib/report-schema'
 
-// Lets anyone tell the site's admins that an image (a podcast's or episode's
+// Lets anyone tell the site's admins that an image (a show's or episode's
 // artwork, or a profile picture) shouldn't be here (see reports.server.ts).
 export function ReportImageButton({ targetKind, targetId }: { targetKind: ReportTargetKind; targetId: string }) {
   const [open, setOpen] = useState(false)

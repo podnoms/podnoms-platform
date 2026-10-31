@@ -7,7 +7,7 @@ import { env } from '~/env'
 import type { Platform } from '~/lib/platforms'
 import type { EmailSettingsInput, SiteSettingsInput } from '~/lib/site-settings-schema'
 import { db } from '~/server/db/client.server'
-import { channels, podcasts, users } from '~/server/db/schema'
+import { channels, shows, users } from '~/server/db/schema'
 import { clearCooldown, pump, throttleStatus } from '~/server/download-throttle.server'
 import { fetcherHealth } from '~/server/fetcher.server'
 import { configFromSettings, getEmailConfig, getEmailStatus, sendEmail, updateEmailSettings } from '~/server/email.server'
@@ -33,8 +33,8 @@ export async function getAdminOverview() {
         channels: count(channels.id),
       })
       .from(users)
-      .leftJoin(podcasts, eq(podcasts.userId, users.id))
-      .leftJoin(channels, eq(channels.podcastId, podcasts.id))
+      .leftJoin(shows, eq(shows.userId, users.id))
+      .leftJoin(channels, eq(channels.showId, shows.id))
       .groupBy(users.id)
       .orderBy(asc(users.email)),
   ])

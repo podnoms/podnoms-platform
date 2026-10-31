@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { deleteComment } from '~/server/comments.server'
 import { mobileApiUserId } from '~/server/mobile-auth.server'
 
-// Deletes a comment the user wrote, or one on their own podcast, with its replies.
+// Deletes a comment the user wrote, or one on their own show, with its replies.
 export const Route = createFileRoute('/api/mobile/comments/$id/')({
   server: {
     handlers: {

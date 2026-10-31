@@ -33,7 +33,7 @@ export function imageFromClipboard(data: DataTransfer | null) {
 // a button to remove it on hover. Pasting an image anywhere on the page, while
 // it's shown, replaces it too. With
 // `suggest`, it also offers a random image to suit what `suggest` returns:
-// what's known so far about the podcast or episode.
+// what's known so far about the show or episode.
 export function ImageField({
   id,
   imageUrl,

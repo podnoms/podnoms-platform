@@ -43,7 +43,7 @@ function TagPage() {
   const navigate = Route.useNavigate()
   const { episodes, ...more } = useEpisodePages({
     // A different tag or ordering starts a fresh list.
-    podcastSlug: `tag:${tag.id}:${sort}`,
+    showSlug: `tag:${tag.id}:${sort}`,
     first,
     total,
     fetchMore: (offset, limit) => fetchTagEpisodes({ data: { tagSlug: tag.slug, sort, offset, limit } }),

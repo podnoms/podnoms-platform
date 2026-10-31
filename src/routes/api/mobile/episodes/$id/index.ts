@@ -6,7 +6,7 @@ import { mobileApiUserId } from '~/server/mobile-auth.server'
 export const Route = createFileRoute('/api/mobile/episodes/$id/')({
   server: {
     handlers: {
-      // An episode's page: the episode, its podcast and its comments.
+      // An episode's page: the episode, its show and its comments.
       GET: async ({ request, params }) => {
         const userId = await mobileApiUserId(request)
         if (userId instanceof Response) return userId

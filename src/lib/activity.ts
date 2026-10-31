@@ -4,7 +4,7 @@ import type { TrackedLinkVisit } from '~/lib/tracked-link-schema'
 // Omit, for each kind of activity.
 type WithoutReferrer<T> = T extends unknown ? Omit<T, 'referrer'> : never
 
-// Tells the server about a play or share, for the podcast's stats. Best
+// Tells the server about a play or share, for the show's stats. Best
 // effort: it's sent even as the page closes, and failures are ignored. The
 // page's own referrer goes with it, as the request's would name this site.
 export function reportActivity(episodeId: string, activity: WithoutReferrer<ReportedActivity>) {

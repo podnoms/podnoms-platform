@@ -19,18 +19,18 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/c
 import { Input } from '~/components/ui/input'
 import { Spinner } from '~/components/ui/spinner'
 import { Textarea } from '~/components/ui/textarea'
-import { createMyEpisode, lookUpEpisodeLink } from '~/functions/podcasts'
+import { createMyEpisode, lookUpEpisodeLink } from '~/functions/shows'
 import { linkEpisodeSchema, linkLookupSchema, uploadEpisodeSchema } from '~/lib/episode-schema'
 import { platformOf } from '~/lib/platforms'
 
-// Wraps a trigger (a button) that opens the "New episode" form for a podcast.
+// Wraps a trigger (a button) that opens the "New episode" form for a show.
 export function NewEpisodeDialog({
-  podcastId,
-  podcastTitle,
+  showId,
+  showTitle,
   children,
 }: {
-  podcastId: string
-  podcastTitle: string
+  showId: string
+  showTitle: string
   children: ReactNode
 }) {
   const router = useRouter()
@@ -69,7 +69,7 @@ export function NewEpisodeDialog({
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const fields = { ...Object.fromEntries(new FormData(event.currentTarget)), podcastId, imageId: imageIdToSave(image) ?? undefined, tags }
+    const fields = { ...Object.fromEntries(new FormData(event.currentTarget)), showId, imageId: imageIdToSave(image) ?? undefined, tags }
     const parsed =
       source === 'link'
         ? linkEpisodeSchema.safeParse(fields)
@@ -86,7 +86,7 @@ export function NewEpisodeDialog({
     try {
       await createMyEpisode({ data: parsed.data })
       setOpen(false)
-      // Reload the podcast page so the new episode is listed.
+      // Reload the show page so the new episode is listed.
       await router.invalidate()
     } catch {
       setError('Something went wrong adding the episode. Please try again.')
@@ -163,7 +163,7 @@ export function NewEpisodeDialog({
                   imageUrl={null}
                   value={image}
                   onChange={setImage}
-                  suggest={() => ({ title, description, context: podcastTitle })}
+                  suggest={() => ({ title, description, context: showTitle })}
                 />
               </Field>
               <Field className="min-w-0">

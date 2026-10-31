@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { isSharedPath, normalizeDomain, toDomainPath, toSitePath, txtRecordName, txtRecordValue } from '~/lib/custom-domain'
 
 describe('custom domain paths', () => {
-  it("map the domain's pages to the podcast's routes", () => {
+  it("map the domain's pages to the show's routes", () => {
     expect(toSitePath('/', 'show')).toBe('/show')
-    expect(toSitePath('/episodes/ep-1', 'show')).toBe('/show/episodes/ep-1')
-    expect(toSitePath('/episodes/ep-1/', 'show')).toBe('/show/episodes/ep-1')
+    expect(toSitePath('/episodes/ep-1', 'show')).toBe('/show/ep-1')
+    expect(toSitePath('/episodes/ep-1/', 'show')).toBe('/show/ep-1')
     expect(toSitePath('/live', 'show')).toBe('/live/show')
   })
 
@@ -15,16 +15,16 @@ describe('custom domain paths', () => {
     }
   })
 
-  it("map the podcast's routes back to the domain's short paths", () => {
+  it("map the show's routes back to the domain's short paths", () => {
     expect(toDomainPath('/show', 'show')).toBe('/')
     expect(toDomainPath('/show/', 'show')).toBe('/')
-    expect(toDomainPath('/show/episodes/ep-1', 'show')).toBe('/episodes/ep-1')
+    expect(toDomainPath('/show/ep-1', 'show')).toBe('/episodes/ep-1')
     expect(toDomainPath('/feed/show', 'show')).toBe('/feed')
     expect(toDomainPath('/live/show', 'show')).toBe('/live')
   })
 
-  it("leave other podcasts' and the app's paths alone", () => {
-    for (const path of ['/other', '/show/manage', '/live/other', '/live/showy', '/showy/episodes/x', '/feed/other', '/']) {
+  it("leave other shows' and the app's paths alone", () => {
+    for (const path of ['/other', '/show/manage', '/live/other', '/live/showy', '/showy/x', '/show/episodes', '/show/ep-1/manage', '/feed/other', '/']) {
       expect(toDomainPath(path, 'show')).toBeNull()
     }
   })

@@ -6,9 +6,9 @@ import { episodes, liveBroadcasts } from '~/server/db/schema'
 import { enqueueEpisode } from '~/server/episode-processor.server'
 import { finishRecording } from '~/server/live-recordings.server'
 import { probeAudio } from '~/server/media.server'
-import { episodeSourcePath, podcastLiveRecordingsDir } from '~/server/storage.server'
+import { episodeSourcePath, showLiveRecordingsDir } from '~/server/storage.server'
 import { resetDb } from '../db'
-import { createPodcast, createUser, db, exists, hasFfmpeg, makeTone } from '../helpers'
+import { createShow, createUser, db, exists, hasFfmpeg, makeTone } from '../helpers'
 
 vi.mock('~/server/episode-processor.server', () => ({ enqueueEpisode: vi.fn() }))
 
@@ -17,10 +17,10 @@ beforeEach(async () => {
   vi.mocked(enqueueEpisode).mockClear()
 })
 
-async function endedBroadcast(podcastId: string, startedAt: Date) {
+async function endedBroadcast(showId: string, startedAt: Date) {
   const [broadcast] = await db
     .insert(liveBroadcasts)
-    .values({ podcastId, title: 'Friday night live', startedAt, lastSeenAt: new Date(), endedAt: new Date() })
+    .values({ showId, title: 'Friday night live', startedAt, lastSeenAt: new Date(), endedAt: new Date() })
     .returning()
   return broadcast!
 }
@@ -31,10 +31,10 @@ const segment = (dir: string, name: string, seconds: number) =>
 
 describe.skipIf(!hasFfmpeg)('finishRecording', () => {
   it("joins the broadcast's segments into a private episode, queued for conversion", async () => {
-    const podcast = await createPodcast((await createUser()).id)
+    const show = await createShow((await createUser()).id)
     const startedAt = new Date(Date.now() - 10_000)
-    const broadcast = await endedBroadcast(podcast.id, startedAt)
-    const dir = podcastLiveRecordingsDir(podcast.id)
+    const broadcast = await endedBroadcast(show.id, startedAt)
+    const dir = showLiveRecordingsDir(show.id)
     // From a broadcast long ago, whose episode failed: not this one's.
     const old = await segment(dir, '2026-10-01_20-00-00-000000', 1)
     await utimes(old, new Date('2026-10-01T21:00:00Z'), new Date('2026-10-01T21:00:00Z'))
@@ -44,7 +44,7 @@ describe.skipIf(!hasFfmpeg)('finishRecording', () => {
 
     const [episode] = await db.select().from(episodes).where(eq(episodes.id, episodeId!))
     expect(episode).toMatchObject({
-      podcastId: podcast.id,
+      showId: show.id,
       title: 'Friday night live',
       slug: 'friday-night-live',
       private: true,
@@ -62,8 +62,8 @@ describe.skipIf(!hasFfmpeg)('finishRecording', () => {
   })
 
   it('makes no episode when nothing was recorded', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const broadcast = await endedBroadcast(podcast.id, new Date())
+    const show = await createShow((await createUser()).id)
+    const broadcast = await endedBroadcast(show.id, new Date())
 
     expect(await finishRecording(broadcast)).toBeNull()
     expect(await db.select().from(episodes)).toEqual([])

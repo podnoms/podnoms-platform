@@ -1,5 +1,5 @@
 // The sites episodes are downloaded from. Downloads are throttled per platform
-// (see download-throttle.server.ts), and a podcast can follow a channel on
+// (see download-throttle.server.ts), and a show can follow a channel on
 // any platform in channelProviders.
 
 export type Platform = 'youtube' | 'mixcloud' | 'soundcloud' | 'other'
@@ -48,7 +48,7 @@ export type ChannelProvider = {
   parseChannelUrl: (url: URL) => string | null
 }
 
-// The platforms a podcast can follow a channel on. To add one, add an entry
+// The platforms a show can follow a channel on. To add one, add an entry
 // that recognises its channel links; yt-dlp does the rest.
 export const channelProviders: ChannelProvider[] = [
   {
@@ -118,7 +118,7 @@ export function parseChannelUrl(url: string) {
 }
 
 // The platforms whose playlists admins can import whole (see
-// createPlaylistPodcast in channels.server.ts). yt-dlp lists them all.
+// createPlaylistShow in channels.server.ts). yt-dlp lists them all.
 export const playlistPlatforms = 'YouTube, Mixcloud or SoundCloud'
 
 // A playlist's platform and normalised URL, or null if the link isn't to one.

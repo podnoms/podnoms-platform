@@ -1,6 +1,6 @@
 // The desktop notifications card on the notification settings: turning them
 // on or off in this browser, which kinds the user gets, and the other
-// browsers they're on in. Muting a podcast is FollowedPodcastNotifications'.
+// browsers they're on in. Muting a show is FollowedShowNotifications'.
 import { useEffect, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert'
 import { Button } from '~/components/ui/button'
@@ -18,8 +18,8 @@ type Settings = Awaited<ReturnType<typeof fetchPushSettings>>
 type Pref = 'pushLive' | 'pushNewEpisodes' | 'pushMentions'
 
 const kinds: { pref: Pref; label: string; description: string }[] = [
-  { pref: 'pushLive', label: 'Going live', description: 'When a podcast you follow starts a live broadcast.' },
-  { pref: 'pushNewEpisodes', label: 'New episodes', description: 'When a podcast you follow has a new episode.' },
+  { pref: 'pushLive', label: 'Going live', description: 'When a show you follow starts a live broadcast.' },
+  { pref: 'pushNewEpisodes', label: 'New episodes', description: 'When a show you follow has a new episode.' },
   { pref: 'pushMentions', label: 'Mentions and replies', description: 'When someone @mentions you in a comment, or replies to yours.' },
 ]
 
@@ -92,7 +92,7 @@ export function DesktopNotifications({ settings, onChange }: { settings: Setting
       <CardHeader>
         <CardTitle>Desktop notifications</CardTitle>
         <CardDescription>
-          About the podcasts you follow and your comments, shown by your browser even when {branding.name} isn't open.
+          About the shows you follow and your comments, shown by your browser even when {branding.name} isn't open.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
@@ -181,7 +181,7 @@ function ThisBrowser({
         <FieldLabel>{state === 'on' ? 'On in this browser' : 'Off in this browser'}</FieldLabel>
         <FieldDescription>
           {state === 'on'
-            ? "You'll get them here for the kinds and podcasts chosen below."
+            ? "You'll get them here for the kinds and shows chosen below."
             : `Your browser will ask whether ${branding.name} may show notifications.`}
         </FieldDescription>
       </FieldContent>

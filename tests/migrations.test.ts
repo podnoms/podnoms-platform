@@ -21,6 +21,71 @@ async function runMigration(pg: PGlite, tag: string) {
 const tagOf = (prefix: string) => migrationStatements().find((m) => m.tag.startsWith(prefix))!.tag
 
 describe('migrations', () => {
+  it("0039 renames episodes whose slugs clash with paths under their show, and moves the inbox's links", async () => {
+    const pg = new PGlite()
+    try {
+      await migrateUntil(pg, tagOf('0039'))
+      await pg.exec(`insert into "user" (id, email, slug) values ('u1', 'u@example.com', 'u');
+        insert into show (id, "userId", title, slug) values ('p1', 'u1', 'Mixes', 'mixes');
+        insert into episode (id, "showId", title, slug, "shortSlug") values
+          ('e1', 'p1', 'Manage', 'manage', 'aaaaaaaa'),
+          ('e2', 'p1', 'Episodes', 'episodes', 'bbbbbbbb'),
+          ('e3', 'p1', 'November', 'november', 'cccccccc');
+        insert into notification (id, "userId", kind, title, url) values
+          ('n1', 'u1', 'mention', 'Hi', '/mixes/episodes/november#comment-1'),
+          ('n2', 'u1', 'episodeFailed', 'Oops', '/mixes/episodes/november/manage'),
+          ('n3', 'u1', 'live', 'Live', '/live/mixes');`)
+      await runMigration(pg, tagOf('0039'))
+
+      const { rows: episodes } = await pg.query<{ id: string; slug: string }>(`select id, slug from episode order by id`)
+      expect(episodes[0]!.slug).toMatch(/^manage-[0-9a-f]{6}$/)
+      expect(episodes[1]!.slug).toMatch(/^episodes-[0-9a-f]{6}$/)
+      expect(episodes[2]!.slug).toBe('november')
+      expect((await pg.query(`select id, url from notification order by id`)).rows).toEqual([
+        { id: 'n1', url: '/mixes/november#comment-1' },
+        { id: 'n2', url: '/mixes/november/manage' },
+        { id: 'n3', url: '/live/mixes' },
+      ])
+    } finally {
+      await pg.close()
+    }
+  })
+
+  it('0038 renames podcasts to shows, keeping their episodes, tags, follows and reports', async () => {
+    const pg = new PGlite()
+    try {
+      await migrateUntil(pg, tagOf('0038'))
+      await pg.exec(`insert into "user" (id, email, slug) values ('u1', 'u@example.com', 'u');
+        insert into podcast (id, "userId", title, slug) values ('p1', 'u1', 'Mixes', 'mixes');
+        insert into episode (id, "podcastId", title, slug, "shortSlug") values ('e1', 'p1', 'One', 'one', 'abcdefgh');
+        insert into tag (id, name, slug) values ('t1', 'House', 'house');
+        insert into podcast_tag ("podcastId", "tagId") values ('p1', 't1');
+        insert into podcast_follow ("userId", "podcastId") values ('u1', 'p1');
+        insert into content_report (id, "targetKind", "targetId", "imageUrl", reason, "reporterHash") values
+          ('r1', 'podcast', 'p1', '/images/a.webp', 'sexual', 'h1'),
+          ('r2', 'episode', 'e1', '/images/b.webp', 'sexual', 'h1');`)
+      await runMigration(pg, tagOf('0038'))
+
+      expect((await pg.query(`select id, slug from show`)).rows).toEqual([{ id: 'p1', slug: 'mixes' }])
+      expect((await pg.query(`select id, "showId" from episode`)).rows).toEqual([{ id: 'e1', showId: 'p1' }])
+      expect((await pg.query(`select "showId", "tagId" from show_tag`)).rows).toEqual([{ showId: 'p1', tagId: 't1' }])
+      expect((await pg.query(`select "userId", "showId" from show_follow`)).rows).toEqual([{ userId: 'u1', showId: 'p1' }])
+      expect((await pg.query(`select id, "targetKind" from content_report order by id`)).rows).toEqual([
+        { id: 'r1', targetKind: 'show' },
+        { id: 'r2', targetKind: 'episode' },
+      ])
+      // Slug conflicts are recognised by these names (isSlugConflict).
+      await expect(pg.exec(`insert into show (id, "userId", title, slug) values ('p2', 'u1', 'Again', 'mixes')`)).rejects.toMatchObject({
+        message: expect.stringContaining('show_slug_unique'),
+      })
+      // Deleting a show still takes its episodes with it.
+      await pg.exec(`delete from show where id = 'p1'`)
+      expect((await pg.query(`select id from episode`)).rows).toEqual([])
+    } finally {
+      await pg.close()
+    }
+  })
+
   it('0033 gives every user a slug from their name or email, each unique', async () => {
     const pg = new PGlite()
     try {
@@ -142,10 +207,10 @@ describe('migrations', () => {
       'playback_position',
       'playlist',
       'playlist_item',
-      'podcast',
-      'podcast_follow',
-      'podcast_tag',
       'push_subscription',
+      'show',
+      'show_follow',
+      'show_tag',
       'site_settings',
       'tag',
       'tracked_link',

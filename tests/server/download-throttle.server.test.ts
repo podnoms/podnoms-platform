@@ -45,7 +45,7 @@ function job(platform: Platform, options: Partial<SlotOptions> = {}) {
     finish: () => {},
     fail: (_error: Error) => {},
   }
-  const done = withDownloadSlot(platform, { key: 'podcast', ...options }, () => {
+  const done = withDownloadSlot(platform, { key: 'show', ...options }, () => {
     state.started = true
     return new Promise<void>((resolve, reject) => {
       state.finish = resolve

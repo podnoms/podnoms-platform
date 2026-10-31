@@ -1,4 +1,4 @@
-// Desktop notifications (Web Push), which tell listeners about the podcasts
+// Desktop notifications (Web Push), which tell listeners about the shows
 // they follow (see follower-notifications.server.ts). Each browser a user
 // turns them on in (on /settings/notifications) has a push_subscription, and
 // the service worker (public/push-sw.js) shows what's sent.

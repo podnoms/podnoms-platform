@@ -10,7 +10,7 @@ import { useLiveEvents } from '~/hooks/use-live-events'
 import { formatCount } from '~/lib/format'
 import { pageTitle } from '~/lib/branding'
 
-// A podcast's live page, at /live/:slug: its broadcast from OBS
+// A show's live page, at /live/:slug: its broadcast from OBS
 // while there is one, and the chat beside it. It follows the broadcast
 // starting and ending without a reload.
 export const Route = createFileRoute('/live/$slug')({
@@ -20,8 +20,8 @@ export const Route = createFileRoute('/live/$slug')({
     page
       ? {
           meta: [
-            { title: pageTitle(matches, `${page.podcast.title} live`) },
-            ...(page.podcast.private ? [{ name: 'robots', content: 'noindex' }] : []),
+            { title: pageTitle(matches, `${page.show.title} live`) },
+            ...(page.show.private ? [{ name: 'robots', content: 'noindex' }] : []),
           ],
         }
       : {},
@@ -32,17 +32,17 @@ const startedFormat = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minu
 
 function LivePage() {
   const page = Route.useLoaderData()
-  const { podcast } = page
-  const { broadcast, chat, setChat, viewers, ended } = useLiveEvents(podcast.slug, page)
+  const { show } = page
+  const { broadcast, chat, setChat, viewers, ended } = useLiveEvents(show.slug, page)
   const interrupted = Boolean(broadcast?.interruptedAt)
 
   return (
     <div className="mx-auto grid w-full max-w-7xl gap-6 p-4 md:p-6 xl:h-[calc(100dvh-var(--top-nav-height,0px)-var(--player-height,0px))] xl:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="flex min-w-0 flex-col gap-4">
         <LivePlayer
-          slug={podcast.slug}
+          slug={show.slug}
           broadcastId={broadcast?.id ?? null}
-          artwork={podcast.imageUrl}
+          artwork={show.imageUrl}
           interrupted={interrupted}
           ended={ended}
         />
@@ -72,23 +72,23 @@ function LivePage() {
                 </span>
               )}
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-balance">{broadcast?.title ?? podcast.title}</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-balance">{broadcast?.title ?? show.title}</h1>
             <p className="text-sm text-muted-foreground">
-              {podcast.title}
-              {podcast.author && ` · by ${podcast.author}`}
+              {show.title}
+              {show.author && ` · by ${show.author}`}
             </p>
           </div>
           <div className="flex gap-2">
             {page.isOwner && (
               <Button variant="outline" asChild>
-                <Link to="/$slug/manage" params={{ slug: podcast.slug }}>
+                <Link to="/$slug/manage" params={{ slug: show.slug }}>
                   <Icons.settings />
                   Manage
                 </Link>
               </Button>
             )}
             <Button variant="outline" asChild>
-              <Link to="/$slug" params={{ slug: podcast.slug }}>
+              <Link to="/$slug" params={{ slug: show.slug }}>
                 <Icons.logo />
                 Episodes
               </Link>

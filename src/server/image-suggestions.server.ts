@@ -1,4 +1,4 @@
-// Finds artwork to suggest for a podcast or episode and stages it as if it
+// Finds artwork to suggest for a show or episode and stages it as if it
 // had been uploaded: it's kept only if the form is saved with it (see
 // images.server.ts). Photos come from the first source in `imageSources`
 // that's configured (see image-sources/).

@@ -1,6 +1,6 @@
 // Schema.org structured data (JSON-LD) for search engines: what a page is
 // about, beyond what its HTML says. See https://schema.org/PodcastSeries.
-import { podcastPath } from '~/lib/paths'
+import { showPath } from '~/lib/paths'
 import { htmlToText } from '~/lib/rich-text'
 
 type JsonLd = Record<string, unknown>
@@ -46,7 +46,7 @@ export function websiteJsonLd(site: {
   ]
 }
 
-export function podcastSeriesJsonLd(podcast: {
+export function showSeriesJsonLd(show: {
   title: string
   description: string | null
   pageUrl: string
@@ -60,21 +60,21 @@ export function podcastSeriesJsonLd(podcast: {
   return {
     '@context': 'https://schema.org',
     '@type': 'PodcastSeries',
-    name: podcast.title,
-    description: plainText(podcast.description),
-    url: podcast.pageUrl,
-    webFeed: podcast.feedUrl,
-    image: podcast.image ?? undefined,
-    author: podcast.author ? { '@type': 'Person', name: podcast.author } : undefined,
-    genre: podcast.category ?? undefined,
-    sameAs: podcast.listings?.length ? podcast.listings : undefined,
+    name: show.title,
+    description: plainText(show.description),
+    url: show.pageUrl,
+    webFeed: show.feedUrl,
+    image: show.image ?? undefined,
+    author: show.author ? { '@type': 'Person', name: show.author } : undefined,
+    genre: show.category ?? undefined,
+    sameAs: show.listings?.length ? show.listings : undefined,
   }
 }
 
-// The episode, and the breadcrumbs from the site to it through its podcast.
-export function podcastEpisodeJsonLd(page: {
+// The episode, and the breadcrumbs from the site to it through its show.
+export function showEpisodeJsonLd(page: {
   siteName: string
-  podcast: { title: string; slug: string }
+  show: { title: string; slug: string }
   episode: {
     title: string
     description: string | null
@@ -86,7 +86,7 @@ export function podcastEpisodeJsonLd(page: {
   audioUrl: string
   image: string | null
 }): JsonLd[] {
-  const podcastUrl = new URL(podcastPath(page.podcast.slug), page.pageUrl).toString()
+  const showUrl = new URL(showPath(page.show.slug), page.pageUrl).toString()
   const duration = page.episode.durationSeconds ? isoDuration(page.episode.durationSeconds) : undefined
   return [
     {
@@ -99,14 +99,14 @@ export function podcastEpisodeJsonLd(page: {
       duration,
       image: page.image ?? undefined,
       associatedMedia: { '@type': 'AudioObject', contentUrl: page.audioUrl, encodingFormat: 'audio/mpeg', duration },
-      partOfSeries: { '@type': 'PodcastSeries', name: page.podcast.title, url: podcastUrl },
+      partOfSeries: { '@type': 'PodcastSeries', name: page.show.title, url: showUrl },
     },
     {
       '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
       itemListElement: [
         { '@type': 'ListItem', position: 1, name: page.siteName, item: new URL('/', page.pageUrl).toString() },
-        { '@type': 'ListItem', position: 2, name: page.podcast.title, item: podcastUrl },
+        { '@type': 'ListItem', position: 2, name: page.show.title, item: showUrl },
         { '@type': 'ListItem', position: 3, name: page.episode.title, item: page.pageUrl },
       ],
     },

@@ -14,7 +14,7 @@ import { createUser, db } from '../helpers'
 
 beforeEach(() => resetDb(db))
 
-const item = { kind: 'mention' as const, title: 'Ann mentioned you', body: 'Hi @you', url: '/show/episodes/one#comment-1' }
+const item = { kind: 'mention' as const, title: 'Ann mentioned you', body: 'Hi @you', url: '/show/one#comment-1' }
 
 describe('inbox', () => {
   it("lists each user's own, newest first, and counts the unread", async () => {

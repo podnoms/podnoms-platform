@@ -7,9 +7,9 @@ const lastEpisodeSchema = z.object({
   title: z.string(),
   audioUrl: z.string(),
   imageUrl: z.string().nullable(),
-  podcastTitle: z.string(),
+  showTitle: z.string(),
   slug: z.string().optional(),
-  podcastSlug: z.string().optional(),
+  showSlug: z.string().optional(),
   isOwner: z.boolean().optional(),
   positionSeconds: z.number().nullable(),
 })

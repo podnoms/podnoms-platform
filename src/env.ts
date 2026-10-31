@@ -63,7 +63,7 @@ export const env = createEnv({
     GOOGLE_SITE_VERIFICATION: z.string().optional(),
     BING_SITE_VERIFICATION: z.string().optional(),
     // A Podcast Index API key with write access (free, from api.podcastindex.org),
-    // for submitting podcasts to it with one click. Without it, owners add
+    // for submitting shows to it with one click. Without it, owners add
     // their feed on podcastindex.org themselves.
     PODCASTINDEX_API_KEY: z.string().optional(),
     PODCASTINDEX_API_SECRET: z.string().optional(),

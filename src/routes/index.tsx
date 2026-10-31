@@ -3,7 +3,7 @@ import { Dashboard } from '~/components/dashboard'
 import { LandingPage } from '~/components/landing-page'
 import { ContinueListening, ListenerHome } from '~/components/listener-home'
 import { fetchDashboard } from '~/functions/dashboard'
-import { fetchLandingPodcasts, fetchListenerHome } from '~/functions/library'
+import { fetchLandingShows, fetchListenerHome } from '~/functions/library'
 import { siteHead } from '~/lib/page-meta'
 import { brandLogoUrl, brandingFrom } from '~/lib/branding'
 import { siteInfo } from '~/lib/site'
@@ -13,10 +13,10 @@ export const Route = createFileRoute('/')({
   // Signed out, the landing page has its own way to sign in and explore.
   staticData: { ownHeader: true },
   // For signed-in users: the dashboard (starting with the last 30 days), for
-  // those with podcasts, and what they're listening to, for everyone. Signed
+  // those with shows, and what they're listening to, for everyone. Signed
   // out, some of the site's shows, for the landing page.
   loader: async ({ context }) => {
-    if (!context.session) return { landing: await fetchLandingPodcasts() }
+    if (!context.session) return { landing: await fetchLandingShows() }
     const [dashboard, listening] = await Promise.all([fetchDashboard({ data: { days: 30 } }), fetchListenerHome()])
     return { home: { dashboard, listening } }
   },
@@ -45,19 +45,19 @@ export const Route = createFileRoute('/')({
 
 const rootRoute = getRouteApi('__root__')
 
-// Signed-out visitors get the landing page; signed-in users their podcasts'
+// Signed-out visitors get the landing page; signed-in users their shows'
 // dashboard, or, if they've none, a home page for listening.
 function Index() {
   const { session } = Route.useRouteContext()
   const data = Route.useLoaderData()
-  return session ? <Home /> : <LandingPage podcasts={data.landing ?? []} />
+  return session ? <Home /> : <LandingPage shows={data.landing ?? []} />
 }
 
 function Home() {
-  const { podcasts } = rootRoute.useLoaderData()
+  const { shows } = rootRoute.useLoaderData()
   const data = Route.useLoaderData().home
   if (!data) return null
-  if (podcasts.length === 0) return <ListenerHome data={data.listening} />
+  if (shows.length === 0) return <ListenerHome data={data.listening} />
   return (
     <>
       {data.listening.continueListening.length > 0 && (

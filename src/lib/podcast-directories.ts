@@ -1,6 +1,6 @@
 // Podcast directories (Apple Podcasts, Spotify and the rest), what they need
-// from a podcast before they'll list it, and the lists its feed is described
-// with: Apple's categories and the languages podcasts are offered in.
+// from a show before they'll list it, and the lists its feed is described
+// with: Apple's categories and the languages shows are offered in.
 
 // Apple's podcast categories, each with its subcategories, as Apple names them.
 // Other directories read the same itunes:category tags. See
@@ -62,9 +62,9 @@ export function isSubcategoryOf(category: string, subcategory: string) {
   return subcategories.includes(subcategory)
 }
 
-// The languages a podcast can be marked as being in (an RSS <language> code),
+// The languages a show can be marked as being in (an RSS <language> code),
 // named in the reader's own language where the browser knows it.
-export const podcastLanguages = [
+export const showLanguages = [
   'ar', 'ca', 'cs', 'cy', 'da', 'de', 'el', 'en', 'en-au', 'en-ca', 'en-gb', 'en-ie', 'en-nz', 'en-us', 'es',
   'es-mx', 'et', 'eu', 'fa', 'fi', 'fr', 'fr-ca', 'ga', 'gd', 'gl', 'he', 'hi', 'hr', 'hu', 'id', 'is', 'it',
   'ja', 'ko', 'lt', 'lv', 'ms', 'nl', 'no', 'pl', 'pt', 'pt-br', 'ro', 'ru', 'sk', 'sl', 'sr', 'sv', 'sw',
@@ -190,9 +190,9 @@ export type ReadinessItem = {
   optional?: boolean
 }
 
-// What directories check before listing a podcast. All but the optional items
+// What directories check before listing a show. All but the optional items
 // must be ok before it's worth submitting.
-export function directoryReadiness(podcast: {
+export function directoryReadiness(show: {
   title: string
   description: string | null
   artwork: string | null
@@ -204,37 +204,37 @@ export function directoryReadiness(podcast: {
   ownerEmail: string | null
 }): ReadinessItem[] {
   return [
-    { id: 'title', ok: Boolean(podcast.title.trim()), label: 'Title', fix: 'Give your podcast a title.' },
+    { id: 'title', ok: Boolean(show.title.trim()), label: 'Title', fix: 'Give your show a title.' },
     {
       id: 'description',
-      ok: Boolean(podcast.description?.replace(/<[^>]*>/g, '').trim()),
+      ok: Boolean(show.description?.replace(/<[^>]*>/g, '').trim()),
       label: 'Description',
-      fix: 'Describe your podcast: directories show it on its page.',
+      fix: 'Describe your show: directories show it on its page.',
     },
     {
       id: 'artwork',
-      ok: Boolean(podcast.artwork),
+      ok: Boolean(show.artwork),
       label: 'Artwork',
       fix: 'Add square artwork: directories won’t list a show without it.',
     },
-    { id: 'category', ok: Boolean(podcast.category), label: 'Category', fix: 'Choose a category.' },
-    { id: 'language', ok: Boolean(podcast.language), label: 'Language', fix: 'Choose the language it’s in.' },
-    { id: 'author', ok: Boolean(podcast.author?.trim()), label: 'Author', fix: 'Say who makes it.' },
+    { id: 'category', ok: Boolean(show.category), label: 'Category', fix: 'Choose a category.' },
+    { id: 'language', ok: Boolean(show.language), label: 'Language', fix: 'Choose the language it’s in.' },
+    { id: 'author', ok: Boolean(show.author?.trim()), label: 'Author', fix: 'Say who makes it.' },
     {
       id: 'episode',
-      ok: podcast.publishedEpisodes > 0,
+      ok: show.publishedEpisodes > 0,
       label: 'At least one episode',
       fix: 'Publish an episode: directories won’t list an empty show.',
     },
     {
       id: 'listed',
-      ok: !podcast.private,
+      ok: !show.private,
       label: 'Listed publicly',
-      fix: 'Your podcast is private, so directories can’t see its feed.',
+      fix: 'Your show is private, so directories can’t see its feed.',
     },
     {
       id: 'ownerEmail',
-      ok: Boolean(podcast.ownerEmail),
+      ok: Boolean(show.ownerEmail),
       label: 'Owner email',
       fix: 'Spotify, Amazon and YouTube send a code here to confirm the show is yours.',
       optional: true,

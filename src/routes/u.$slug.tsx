@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { PageSection } from '~/components/page-section'
-import { PodcastGrid } from '~/components/podcast-card'
+import { ShowGrid } from '~/components/show-card'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { ReportImageButton } from '~/components/report-image-button'
 import { Button } from '~/components/ui/button'
@@ -16,7 +16,7 @@ import { siteInfo } from '~/lib/site'
 import { brandingFrom } from '~/lib/branding'
 
 // A user's public profile, which anyone can see: who they are, and their
-// public podcasts and playlists. @mentions in comments link here.
+// public shows and playlists. @mentions in comments link here.
 export const Route = createFileRoute('/u/$slug')({
   staticData: { publicPage: true },
   loader: ({ params }) => fetchUserProfile({ data: { slug: params.slug } }),
@@ -64,9 +64,9 @@ function ProfilePage() {
         <div className="rich-text max-w-prose" dangerouslySetInnerHTML={{ __html: profile.description }} />
       )}
 
-      {profile.podcasts.length > 0 && (
-        <PageSection title="Podcasts">
-          <PodcastGrid podcasts={profile.podcasts} />
+      {profile.shows.length > 0 && (
+        <PageSection title="Shows">
+          <ShowGrid shows={profile.shows} />
         </PageSection>
       )}
 

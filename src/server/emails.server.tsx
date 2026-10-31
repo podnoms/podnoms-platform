@@ -84,10 +84,10 @@ export function passwordResetEmail(link: string, siteName: string): EmailMessage
 }
 
 export type NotificationEvent =
-  | { type: 'episodeFailed'; podcastTitle: string; episodeTitle: string; error: string | null; link: string | null }
-  | { type: 'newEpisodes'; podcastTitle: string; count: number; link: string | null }
-  // New episodes from a podcast the user follows (see follower-notifications.server.ts).
-  | { type: 'followedEpisodes'; podcastTitle: string; titles: string[]; link: string | null }
+  | { type: 'episodeFailed'; showTitle: string; episodeTitle: string; error: string | null; link: string | null }
+  | { type: 'newEpisodes'; showTitle: string; count: number; link: string | null }
+  // New episodes from a show the user follows (see follower-notifications.server.ts).
+  | { type: 'followedEpisodes'; showTitle: string; titles: string[]; link: string | null }
   // Someone mentioned the user in a comment, or replied to theirs (see
   // comment-notifications.server.ts).
   | {
@@ -95,7 +95,7 @@ export type NotificationEvent =
       kind: 'mention' | 'reply'
       authorName: string
       episodeTitle: string
-      podcastTitle: string
+      showTitle: string
       excerpt: string
       link: string | null
     }
@@ -119,23 +119,23 @@ function EventRow({ event }: { event: NotificationEvent }) {
           >
             {event.type === 'episodeFailed' ? (
               <>
-                <strong>{event.episodeTitle}</strong> in {event.podcastTitle} couldn’t be processed
+                <strong>{event.episodeTitle}</strong> in {event.showTitle} couldn’t be processed
                 {event.error ? <div style={{ fontSize: '13px', color: colors.muted }}>{event.error}</div> : null}
               </>
             ) : event.type === 'comment' ? (
               <>
                 <strong>{event.authorName}</strong> {event.kind === 'mention' ? 'mentioned you' : 'replied to you'} on{' '}
-                <strong>{event.episodeTitle}</strong> in {event.podcastTitle}
+                <strong>{event.episodeTitle}</strong> in {event.showTitle}
                 <div style={{ fontSize: '13px', color: colors.muted }}>{event.excerpt}</div>
               </>
             ) : event.type === 'newEpisodes' ? (
               <>
-                <strong>{plural(event.count, 'new episode')}</strong> from {event.podcastTitle}’s channel
+                <strong>{plural(event.count, 'new episode')}</strong> from {event.showTitle}’s channel
               </>
             ) : (
               <>
                 {event.titles.length === 1 ? <strong>{event.titles[0]}</strong> : <strong>{plural(event.titles.length, 'new episode')}</strong>}{' '}
-                from {event.podcastTitle}
+                from {event.showTitle}
                 {event.titles.length > 1 && (
                   <div style={{ fontSize: '13px', color: colors.muted }}>{event.titles.join(' · ')}</div>
                 )}
@@ -161,15 +161,15 @@ function EventRow({ event }: { event: NotificationEvent }) {
   )
 }
 
-// Everything that happened to the user's podcasts, and the ones they follow,
+// Everything that happened to the user's shows, and the ones they follow,
 // in the last few minutes, in one email.
 export function notificationDigestEmail(events: NotificationEvent[], settingsLink: string | null, siteName: string): EmailMessage {
   const failures = events.filter((event) => event.type === 'episodeFailed').length
   const added = events.reduce((sum, event) => sum + (event.type === 'newEpisodes' ? event.count : 0), 0)
   const followed = events.flatMap((event) => (event.type === 'followedEpisodes' ? [event] : []))
   const comments = events.flatMap((event) => (event.type === 'comment' ? [event] : []))
-  // About the user's own podcasts if there's anything, as that's more
-  // pressing, then about them, then the podcasts they follow.
+  // About the user's own shows if there's anything, as that's more
+  // pressing, then about them, then the shows they follow.
   const subject =
     failures && added
       ? `${plural(failures, 'episode')} failed, ${added} new`
@@ -182,13 +182,13 @@ export function notificationDigestEmail(events: NotificationEvent[], settingsLin
             : comments.length > 1
               ? `${comments.length} mentions and replies on ${siteName}`
               : followed.length === 1 && followed[0]!.titles.length === 1
-            ? `New from ${followed[0]!.podcastTitle}: ${followed[0]!.titles[0]}`
-            : `${plural(followed.reduce((sum, event) => sum + event.titles.length, 0), 'new episode')} from podcasts you follow`
+            ? `New from ${followed[0]!.showTitle}: ${followed[0]!.titles[0]}`
+            : `${plural(followed.reduce((sum, event) => sum + event.titles.length, 0), 'new episode')} from shows you follow`
   const failed = events.filter((event) => event.type === 'episodeFailed')
   const news = events.filter((event) => event.type === 'newEpisodes')
   return {
     subject,
-    preview: events.map((event) => event.podcastTitle).filter((title, i, all) => all.indexOf(title) === i).join(', '),
+    preview: events.map((event) => event.showTitle).filter((title, i, all) => all.indexOf(title) === i).join(', '),
     content: (
       <>
         <EmailHeading>{subject}</EmailHeading>
@@ -297,28 +297,28 @@ export function contentReportEmail(
 function NotificationFooter({ settingsLink }: { settingsLink: string | null }) {
   return settingsLink ? (
     <>
-      You get these emails about your podcasts and the ones you follow.{' '}
+      You get these emails about your shows and the ones you follow.{' '}
       <EmailLink href={settingsLink}>Choose which ones</EmailLink>.
     </>
   ) : (
-    'You get these emails about your podcasts and the ones you follow. Choose which ones in your settings.'
+    'You get these emails about your shows and the ones you follow. Choose which ones in your settings.'
   )
 }
 
-// To a follower, when a podcast they follow goes live: sent at once, rather
+// To a follower, when a show they follow goes live: sent at once, rather
 // than with the next digest.
 export function liveEmail(
-  podcastTitle: string,
+  showTitle: string,
   broadcastTitle: string,
   link: string | null,
   settingsLink: string | null,
 ): EmailMessage {
   return {
-    subject: `${podcastTitle} is live now`,
+    subject: `${showTitle} is live now`,
     preview: broadcastTitle,
     content: (
       <>
-        <EmailHeading>{podcastTitle} is live</EmailHeading>
+        <EmailHeading>{showTitle} is live</EmailHeading>
         <EmailText>{broadcastTitle}</EmailText>
         {link && <EmailButton href={link}>Watch and chat</EmailButton>}
       </>

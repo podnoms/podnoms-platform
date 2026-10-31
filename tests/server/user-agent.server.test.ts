@@ -68,3 +68,11 @@ describe('isBot', () => {
     expect(isBot('Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0')).toBe(false)
   })
 })
+
+describe('the mobile app', () => {
+  it('counts as a listener under its own name, unlike its bare HTTP client', () => {
+    expect(isBot('PodNoms/1.0.0')).toBe(false)
+    expect(describeUserAgent('PodNoms/1.0.0').client).toBe('PodNoms app')
+    expect(isBot('okhttp/4.12.0')).toBe(true)
+  })
+})

@@ -5,7 +5,7 @@ import { Button } from '~/components/ui/button'
 import { reportActivity } from '~/lib/activity'
 import { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger } from '~/components/ui/popover'
 
-// Where a share is reported as coming from, for the podcast's stats.
+// Where a share is reported as coming from, for the show's stats.
 type ShareSource = 'web' | 'listen'
 
 // The episode's short link, ready to copy. Copying it counts as a share. The

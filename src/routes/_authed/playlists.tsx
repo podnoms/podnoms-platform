@@ -34,7 +34,7 @@ function PlaylistsPage() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <PageHeading icon={<Icons.playlist />} title="Playlists" description="Episodes from any podcasts, to play one after another." />
+        <PageHeading icon={<Icons.playlist />} title="Playlists" description="Episodes from any shows, to play one after another." />
         {playlists.length > 0 && newButton}
       </div>
 

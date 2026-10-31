@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import sharp from 'sharp'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { episodes, podcasts } from '~/server/db/schema'
+import { episodes, shows } from '~/server/db/schema'
 import {
   commitImage,
   convertToArtwork,
@@ -21,7 +21,7 @@ import { ensureImageVariantsDir, imagePath, imageVariantPath, openGraphImagePath
 import { resetDb } from '../db'
 import {
   createEpisode,
-  createPodcast,
+  createShow,
   createUser,
   db,
   exists,
@@ -206,12 +206,12 @@ describe('downloadImage / localiseRemoteImages', () => {
 
   it('replaces remote artwork links with stored copies, leaving broken ones', async () => {
     const user = await createUser()
-    const podcast = await createPodcast(user.id, { imageUrl: `${base}/art.png` })
-    const broken = await createPodcast(user.id, { imageUrl: `${base}/missing` })
-    const episode = await createEpisode(podcast.id, { imageUrl: `${base}/art.png` })
+    const show = await createShow(user.id, { imageUrl: `${base}/art.png` })
+    const broken = await createShow(user.id, { imageUrl: `${base}/missing` })
+    const episode = await createEpisode(show.id, { imageUrl: `${base}/art.png` })
     await localiseRemoteImages()
-    const [p] = await db.select().from(podcasts).where(eq(podcasts.id, podcast.id))
-    const [b] = await db.select().from(podcasts).where(eq(podcasts.id, broken.id))
+    const [p] = await db.select().from(shows).where(eq(shows.id, show.id))
+    const [b] = await db.select().from(shows).where(eq(shows.id, broken.id))
     const [e] = await db.select().from(episodes).where(eq(episodes.id, episode.id))
     expect(p!.imageUrl).toMatch(/^\/images\//)
     expect(e!.imageUrl).toMatch(/^\/images\//)

@@ -99,7 +99,7 @@ describe('sendEmail', () => {
     )
     // In the site's layout, as HTML and plain text.
     const [[sent]] = sendMail.mock.calls as unknown as [[{ html: string; text: string; attachments: { cid: string }[] }]]
-    expect(sent.html).toContain('Robot powered podcasts')
+    expect(sent.html).toContain('Robot powered shows')
     expect(sent.text).toContain('Hello')
     expect(sent.attachments.map((attachment) => attachment.cid)).toEqual(['logo@site'])
   })

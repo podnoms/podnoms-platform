@@ -7,8 +7,8 @@ const page = {
   site,
   title: 'Show',
   description: '<p>About <b>it</b></p>',
-  fallbackDescription: 'A podcast',
-  url: 'https://pods.example/podcasts/show',
+  fallbackDescription: 'A show',
+  url: 'https://pods.example/shows/show',
   type: 'website' as const,
   feedUrl: 'https://pods.example/feed/show',
   feedTitle: 'Show',
@@ -27,7 +27,7 @@ describe('publicPageHead', () => {
     expect(tags(publicPageHead({ ...page, image }))).toMatchObject({
       'og:title': 'Show',
       'og:description': 'About it',
-      'og:url': 'https://pods.example/podcasts/show',
+      'og:url': 'https://pods.example/shows/show',
       'og:image': image.url,
       'og:image:secure_url': image.url,
       'og:image:type': 'image/jpeg',
@@ -40,8 +40,8 @@ describe('publicPageHead', () => {
 
   it.each([null, '', '<p> </p>'])('falls back to the default description for %j', (description) => {
     expect(tags(publicPageHead({ ...page, description, image: null }))).toMatchObject({
-      description: 'A podcast',
-      'og:description': 'A podcast',
+      description: 'A show',
+      'og:description': 'A show',
     })
   })
 

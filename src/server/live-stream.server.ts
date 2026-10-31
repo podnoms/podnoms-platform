@@ -1,6 +1,6 @@
-// A podcast's live events as a server-sent event stream, for its live page:
+// A show's live events as a server-sent event stream, for its live page:
 // the broadcast starting and ending, chat messages as they're written and
-// deleted, and how many are watching. The podcast's own page listens too, to
+// deleted, and how many are watching. The show's own page listens too, to
 // send its visitors to the live page when a broadcast starts; only live pages
 // (`watching`) count as watching.
 import '@tanstack/react-start/server-only'
@@ -15,7 +15,7 @@ const encoder = new TextEncoder()
 const message = (event: string, data: unknown) => encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
 
 export function liveEventStream(
-  podcast: { id: string; userId: string },
+  show: { id: string; userId: string },
   viewerId: string | null,
   watching: boolean,
   signal: AbortSignal,
@@ -53,17 +53,17 @@ export function liveEventStream(
 
       // A page that misses one gets the status again when it reconnects.
       const sendStatus = () =>
-        getOpenBroadcast(podcast.id).then(
+        getOpenBroadcast(show.id).then(
           (broadcast) => send(message('status', { broadcast })),
           () => {},
         )
       unsubscribe = subscribeToLiveEvents((event: LiveEvent) => {
-        if (event.podcastId !== podcast.id) return
+        if (event.showId !== show.id) return
         if (event.type === 'status') void sendStatus()
-        else if (event.type === 'message') send(message('message', chatMessageFor(event.message, viewerId, podcast.userId)))
+        else if (event.type === 'message') send(message('message', chatMessageFor(event.message, viewerId, show.userId)))
         else send(message('deleted', { messageId: event.messageId }))
       })
-      if (watching) stopWatching = startWatching(podcast.id)
+      if (watching) stopWatching = startWatching(show.id)
 
       // Reconnect after 3s if the connection drops; then where things stand,
       // as something may have changed while it was down.
@@ -71,7 +71,7 @@ export function liveEventStream(
       void sendStatus()
       let viewers = -1
       const sendViewers = () => {
-        const count = viewerCount(podcast.id)
+        const count = viewerCount(show.id)
         if (count === viewers) return
         viewers = count
         send(message('viewers', { count }))

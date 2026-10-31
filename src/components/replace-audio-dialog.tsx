@@ -14,7 +14,7 @@ import {
 } from '~/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
-import { replaceMyEpisodeAudio } from '~/functions/podcasts'
+import { replaceMyEpisodeAudio } from '~/functions/shows'
 import { replaceAudioLinkSchema, replaceAudioUploadSchema } from '~/lib/episode-schema'
 
 

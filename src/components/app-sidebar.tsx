@@ -1,7 +1,7 @@
 import { useMemo, useState, type MouseEvent } from 'react'
 import { Link, useLoaderData, useLocation } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
-import { NewPodcastDialog } from '~/components/new-podcast-dialog'
+import { NewShowDialog } from '~/components/new-show-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,14 +27,14 @@ import {
 } from '~/components/ui/sidebar'
 import { imageSrc } from '~/lib/images'
 import { cn } from '~/lib/utils'
-import { podcastSorts, savePodcastSort, sortPodcasts, type PodcastSort } from '~/lib/podcast-sort'
+import { showSorts, saveShowSort, sortShows, type ShowSort } from '~/lib/show-sort'
 import { brandLogoUrl, useBranding } from '~/lib/branding'
 
-// The sidebar lists this many followed podcasts, and links to the Following
+// The sidebar lists this many followed shows, and links to the Following
 // page for the rest.
 const maxFollowedShown = 8
 
-// Links to the listener's pages, for everyone, whether they make podcasts or not.
+// Links to the listener's pages, for everyone, whether they make shows or not.
 const libraryLinks = [
   { to: '/explore', label: 'Explore', icon: Icons.explore },
   { to: '/likes', label: 'Likes', icon: Icons.like },
@@ -43,18 +43,18 @@ const libraryLinks = [
 ] as const
 
 export function AppSidebar() {
-  const { podcasts: loaded, following, podcastSort } = useLoaderData({ from: '__root__' })
+  const { shows: loaded, following, showSort } = useLoaderData({ from: '__root__' })
   const branding = useBranding()
-  const [sort, setSort] = useState(podcastSort)
-  const podcasts = useMemo(() => sortPodcasts(loaded, sort), [loaded, sort])
+  const [sort, setSort] = useState(showSort)
+  const shows = useMemo(() => sortShows(loaded, sort), [loaded, sort])
   const pathname = useLocation({ select: (location) => location.pathname })
-  // A podcast's public and management pages, and its episodes', all count as its.
+  // A show's public and management pages, and its episodes', all count as its.
   const isActive = (slug: string) => pathname === `/${slug}` || pathname.startsWith(`/${slug}/`)
   // A long list gets a filter box.
-  const filterable = podcasts.length > 8
+  const filterable = shows.length > 8
   const [query, setQuery] = useState('')
   const needle = query.trim().toLowerCase()
-  const shown = filterable && needle ? podcasts.filter((p) => p.title.toLowerCase().includes(needle)) : podcasts
+  const shown = filterable && needle ? shows.filter((p) => p.title.toLowerCase().includes(needle)) : shows
   // On phones the sidebar is a sheet over the page, so following one of its
   // links closes it (even a link to the page already showing).
   const { isMobile, setOpenMobile } = useSidebar()
@@ -104,12 +104,12 @@ export function AppSidebar() {
             <SidebarGroupLabel>Following</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-1">
-                {following.slice(0, maxFollowedShown).map((podcast) => (
-                  <SidebarMenuItem key={podcast.id}>
+                {following.slice(0, maxFollowedShown).map((show) => (
+                  <SidebarMenuItem key={show.id}>
                     <SidebarMenuButton asChild className="h-10 gap-3 px-2">
-                      <Link to="/$slug" params={{ slug: podcast.slug }} {...(isActive(podcast.slug) && { 'data-active': '' })}>
-                        <PodcastThumb imageUrl={podcast.imageUrl} className="size-6" />
-                        <span className="truncate">{podcast.title}</span>
+                      <Link to="/$slug" params={{ slug: show.slug }} {...(isActive(show.slug) && { 'data-active': '' })}>
+                        <ShowThumb imageUrl={show.imageUrl} className="size-6" />
+                        <span className="truncate">{show.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -127,13 +127,13 @@ export function AppSidebar() {
         )}
         <SidebarGroup>
           <SidebarGroupLabel>Your shows</SidebarGroupLabel>
-          {podcasts.length > 1 && (
+          {shows.length > 1 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                {/* Beside the "New podcast" action, which takes the usual place. */}
-                <SidebarGroupAction title="Sort podcasts" className="right-9">
+                {/* Beside the "New show" action, which takes the usual place. */}
+                <SidebarGroupAction title="Sort shows" className="right-9">
                   <Icons.sort />
-                  <span className="sr-only">Sort podcasts: {podcastSorts[sort]}</span>
+                  <span className="sr-only">Sort shows: {showSorts[sort]}</span>
                 </SidebarGroupAction>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
@@ -141,11 +141,11 @@ export function AppSidebar() {
                 <DropdownMenuRadioGroup
                   value={sort}
                   onValueChange={(value) => {
-                    setSort(value as PodcastSort)
-                    savePodcastSort(value as PodcastSort)
+                    setSort(value as ShowSort)
+                    saveShowSort(value as ShowSort)
                   }}
                 >
-                  {Object.entries(podcastSorts).map(([value, label]) => (
+                  {Object.entries(showSorts).map(([value, label]) => (
                     <DropdownMenuRadioItem key={value} value={value}>
                       {label}
                     </DropdownMenuRadioItem>
@@ -154,52 +154,52 @@ export function AppSidebar() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <NewPodcastDialog>
-            <SidebarGroupAction title="New podcast">
+          <NewShowDialog>
+            <SidebarGroupAction title="New show">
               <Icons.add />
-              <span className="sr-only">New podcast</span>
+              <span className="sr-only">New show</span>
             </SidebarGroupAction>
-          </NewPodcastDialog>
+          </NewShowDialog>
           <SidebarGroupContent className="flex flex-col gap-2">
             {filterable && (
               <SidebarInput
                 type="search"
-                placeholder="Filter podcasts"
-                aria-label="Filter podcasts"
+                placeholder="Filter shows"
+                aria-label="Filter shows"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => event.key === 'Escape' && setQuery('')}
               />
             )}
             <SidebarMenu className="gap-1">
-              {shown.map((podcast) => (
-                <SidebarMenuItem key={podcast.id}>
+              {shown.map((show) => (
+                <SidebarMenuItem key={show.id}>
                   <SidebarMenuButton asChild className="h-12 gap-3 px-2">
                     <Link
                       to="/$slug/manage"
-                      params={{ slug: podcast.slug }}
+                      params={{ slug: show.slug }}
                       // The attribute's presence is what styles it, so leave it off otherwise.
-                      {...(isActive(podcast.slug) && { 'data-active': '' })}
+                      {...(isActive(show.slug) && { 'data-active': '' })}
                     >
-                      <PodcastThumb imageUrl={podcast.imageUrl} className="size-8" />
-                      <span className="truncate">{podcast.title}</span>
+                      <ShowThumb imageUrl={show.imageUrl} className="size-8" />
+                      <span className="truncate">{show.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-              {shown.length === 0 && podcasts.length > 0 && (
+              {shown.length === 0 && shows.length > 0 && (
                 <SidebarMenuItem>
-                  <p className="px-2 py-1.5 text-sm text-muted-foreground">No podcasts match</p>
+                  <p className="px-2 py-1.5 text-sm text-muted-foreground">No shows match</p>
                 </SidebarMenuItem>
               )}
-              {podcasts.length === 0 && (
+              {shows.length === 0 && (
                 <SidebarMenuItem>
-                  <NewPodcastDialog>
+                  <NewShowDialog>
                     <SidebarMenuButton className="text-muted-foreground">
                       <Icons.add />
-                      Create a podcast
+                      Create a show
                     </SidebarMenuButton>
-                  </NewPodcastDialog>
+                  </NewShowDialog>
                 </SidebarMenuItem>
               )}
             </SidebarMenu>
@@ -211,7 +211,7 @@ export function AppSidebar() {
   )
 }
 
-function PodcastThumb({ imageUrl, className }: { imageUrl: string | null; className: string }) {
+function ShowThumb({ imageUrl, className }: { imageUrl: string | null; className: string }) {
   return imageUrl ? (
     <img src={imageSrc(imageUrl, 32)} alt="" className={cn('shrink-0 rounded-md object-cover', className)} />
   ) : (

@@ -41,8 +41,8 @@ function TermsPage() {
 
       <LegalSection title="Your content">
         <p>
-          You keep ownership of the podcasts, episodes and files you add. You give us permission to store, process and
-          publish them as needed to run the service, for example by converting audio and serving it in your podcast's
+          You keep ownership of the shows, episodes and files you add. You give us permission to store, process and
+          publish them as needed to run the service, for example by converting audio and serving it in your show's
           feed.
         </p>
         <p>

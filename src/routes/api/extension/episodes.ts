@@ -10,7 +10,7 @@ import { extensionUserId } from '~/server/extension-api.server'
 // extension sends what the page says about it: its title, description and
 // image (og:image), the last used as the episode's artwork if the link has none.
 const extensionEpisodeSchema = linkEpisodeSchema
-  .pick({ podcastId: true, sourceUrl: true, title: true, description: true })
+  .pick({ showId: true, sourceUrl: true, title: true, description: true })
   .extend({ imageUrl: z.url({ protocol: /^https?$/ }).max(2000).optional() })
 
 export const Route = createFileRoute('/api/extension/episodes')({
@@ -25,7 +25,7 @@ export const Route = createFileRoute('/api/extension/episodes')({
         }
         const { imageUrl, ...input } = parsed.data
         const episode = await createEpisode(userId, input, { pageImages: imageUrl ? [imageUrl] : [] })
-        if (!episode) return new Response('Podcast not found', { status: 404 })
+        if (!episode) return new Response('Show not found', { status: 404 })
         return Response.json(episode, { status: 201 })
       },
     },

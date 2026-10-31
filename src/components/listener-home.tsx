@@ -1,7 +1,7 @@
 import { Link, useRouteContext } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { ListenerEpisodeList } from '~/components/listener-episode-list'
-import { NewPodcastDialog } from '~/components/new-podcast-dialog'
+import { NewShowDialog } from '~/components/new-show-dialog'
 import { PageSection } from '~/components/page-section'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent } from '~/components/ui/card'
@@ -9,8 +9,8 @@ import type { fetchListenerHome } from '~/functions/library'
 
 export type ListenerHomeData = Awaited<ReturnType<typeof fetchListenerHome>>
 
-// The signed-in home page for someone who listens rather than makes podcasts:
-// what they were part-way through, what's new from the podcasts they follow,
+// The signed-in home page for someone who listens rather than makes shows:
+// what they were part-way through, what's new from the shows they follow,
 // what's popular, and what they liked lately.
 export function ListenerHome({ data }: { data: ListenerHomeData }) {
   const { session } = useRouteContext({ from: '__root__' })
@@ -29,7 +29,7 @@ export function ListenerHome({ data }: { data: ListenerHomeData }) {
       <ContinueListening episodes={continueListening} />
 
       <PageSection
-        title="New from podcasts you follow"
+        title="New from shows you follow"
         more={newEpisodes.length > 0 ? { label: 'See all', to: '/following' } : undefined}
       >
         {newEpisodes.length > 0 ? (
@@ -41,13 +41,13 @@ export function ListenerHome({ data }: { data: ListenerHomeData }) {
                 <Icons.follow className="size-5" />
               </span>
               <div className="flex-1">
-                <p className="font-medium">Follow podcasts to fill this up</p>
+                <p className="font-medium">Follow shows to fill this up</p>
                 <p className="text-sm text-muted-foreground">Their new episodes will show up here as they come out.</p>
               </div>
               <Button asChild>
                 <Link to="/explore">
                   <Icons.explore />
-                  Explore podcasts
+                  Explore shows
                 </Link>
               </Button>
             </CardContent>
@@ -75,15 +75,15 @@ export function ListenerHome({ data }: { data: ListenerHomeData }) {
           <div className="flex-1">
             <p className="font-medium">Fancy making your own?</p>
             <p className="text-sm text-muted-foreground">
-              Turn YouTube, Mixcloud or SoundCloud links, or your own audio, into a podcast with its own feed.
+              Turn YouTube, Mixcloud or SoundCloud links, or your own audio, into a show with its own feed.
             </p>
           </div>
-          <NewPodcastDialog>
+          <NewShowDialog>
             <Button variant="outline">
               <Icons.add />
-              Create a podcast
+              Create a show
             </Button>
-          </NewPodcastDialog>
+          </NewShowDialog>
         </CardContent>
       </Card>
     </div>

@@ -4,7 +4,7 @@ import { listNotifications } from '~/server/inbox.server'
 import { emailCommentNotice } from '~/server/notifications.server'
 import { sendPush } from '~/server/push.server'
 import { resetDb } from '../db'
-import { createEpisode, createPodcast, createUser, db } from '../helpers'
+import { createEpisode, createShow, createUser, db } from '../helpers'
 
 // What goes out by each channel is tested in push.server.test.ts and
 // notifications.server.test.ts; here, who's told what.
@@ -25,8 +25,8 @@ const ready = { status: 'ready' as const, audioUrl: '/audio', durationSeconds: 6
 
 async function episodeOf(values: Parameters<typeof createEpisode>[1] = {}) {
   const owner = await createUser({ slug: 'owner' })
-  const podcast = await createPodcast(owner.id, { title: 'The Show', slug: 'the-show' })
-  const episode = await createEpisode(podcast.id, { title: 'Ep 1', slug: 'ep-1', ...ready, ...values })
+  const show = await createShow(owner.id, { title: 'The Show', slug: 'the-show' })
+  const episode = await createEpisode(show.id, { title: 'Ep 1', slug: 'ep-1', ...ready, ...values })
   return { owner, episode }
 }
 
@@ -60,10 +60,10 @@ describe('comment notifications', () => {
     )
     const [, message] = vi.mocked(sendPush).mock.calls[0]!
     expect(message.body).toBe('Agreed @cat, and @bob is me')
-    expect(message.url).toMatch(/^\/the-show\/episodes\/ep-1#comment-/)
+    expect(message.url).toMatch(/^\/the-show\/ep-1#comment-/)
     const [, event] = vi.mocked(emailCommentNotice).mock.calls[0]!
-    expect(event).toMatchObject({ episodeTitle: 'Ep 1', podcastTitle: 'The Show', authorName: 'Bob' })
-    expect(event.link).toMatch(/^https:\/\/pods\.example\/the-show\/episodes\/ep-1#comment-/)
+    expect(event).toMatchObject({ episodeTitle: 'Ep 1', showTitle: 'The Show', authorName: 'Bob' })
+    expect(event.link).toMatch(/^https:\/\/pods\.example\/the-show\/ep-1#comment-/)
   })
 
   it('only sends desktop notifications to those who want them', async () => {
@@ -97,7 +97,7 @@ describe('the notifications menu', () => {
     await settle()
     expect((await listNotifications(quiet.id)).items).toMatchObject([{ kind: 'mention', title: 'W mentioned you', body: 'Hi @quiet' }])
 
-    const hidden = await createEpisode(episode.podcastId, { slug: 'hidden', ...ready, private: true })
+    const hidden = await createEpisode(episode.showId, { slug: 'hidden', ...ready, private: true })
     await addComment(owner.id, hidden.id, 'Hey @quiet', 0)
     await settle()
     expect((await listNotifications(quiet.id)).items).toHaveLength(1)

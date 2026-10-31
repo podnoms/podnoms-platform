@@ -43,7 +43,7 @@ export const savePassword = createServerFn({ method: 'POST' })
   .validator(setPasswordSchema)
   .handler(async ({ data }) => setPassword(await requireUserId(), data.password, data.currentPassword))
 
-// The user's notification choices, the podcasts they follow (each of which
+// The user's notification choices, the shows they follow (each of which
 // they can mute), and whether the site can send email at all.
 export const fetchNotificationPrefs = createServerFn({ method: 'GET' }).handler(async () => {
   const userId = await requireUserId()
@@ -59,5 +59,5 @@ export const saveNotificationPrefs = createServerFn({ method: 'POST' })
 export const saveFollowNotify = createServerFn({ method: 'POST' })
   .validator(followNotifySchema)
   .handler(async ({ data }) => {
-    if (!(await setFollowNotify(await requireUserId(), data.podcastId, data.notify))) throw new Error("You don't follow that podcast")
+    if (!(await setFollowNotify(await requireUserId(), data.showId, data.notify))) throw new Error("You don't follow that show")
   })

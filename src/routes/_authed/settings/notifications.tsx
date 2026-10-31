@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/com
 import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '~/components/ui/field'
 import { Switch } from '~/components/ui/switch'
 import { DesktopNotifications } from '~/components/desktop-notifications'
-import { FollowedPodcastNotifications } from '~/components/followed-podcast-notifications'
+import { FollowedShowNotifications } from '~/components/followed-show-notifications'
 import { fetchNotificationPrefs, saveNotificationPrefs } from '~/functions/profile'
 import { fetchPushSettings } from '~/functions/push'
 import { pageTitle } from '~/lib/branding'
@@ -22,7 +22,7 @@ export const Route = createFileRoute('/_authed/settings/notifications')({
 type Pref = 'notifyEpisodeFailed' | 'notifyNewEpisodes' | 'emailLive' | 'emailFollowedEpisodes' | 'emailMentions'
 type Option = { pref: Pref; label: string; description: string }
 
-const yourPodcasts: Option[] = [
+const yourShows: Option[] = [
   {
     pref: 'notifyEpisodeFailed',
     label: 'Episodes that fail',
@@ -31,7 +31,7 @@ const yourPodcasts: Option[] = [
   {
     pref: 'notifyNewEpisodes',
     label: 'New episodes from channels',
-    description: 'When a podcast that follows a YouTube channel, or a Mixcloud or SoundCloud account, picks up new uploads.',
+    description: 'When a show that follows a YouTube channel, or a Mixcloud or SoundCloud account, picks up new uploads.',
   },
 ]
 
@@ -44,14 +44,14 @@ const aboutYou: Option[] = [
 ]
 
 // The same kinds as desktop notifications.
-const followedPodcasts: Option[] = [
-  { pref: 'emailLive', label: 'Going live', description: 'When a podcast you follow starts a live broadcast. Sent straight away.' },
-  { pref: 'emailFollowedEpisodes', label: 'New episodes', description: 'When a podcast you follow has a new episode.' },
+const followedShows: Option[] = [
+  { pref: 'emailLive', label: 'Going live', description: 'When a show you follow starts a live broadcast. Sent straight away.' },
+  { pref: 'emailFollowedEpisodes', label: 'New episodes', description: 'When a show you follow has a new episode.' },
 ]
 
-// Which emails the user gets about their podcasts and the ones they follow
+// Which emails the user gets about their shows and the ones they follow
 // (batched: a few minutes' events come in one email), desktop notifications,
-// and which of the podcasts they follow they hear about.
+// and which of the shows they follow they hear about.
 function NotificationsPage() {
   const prefs = Route.useLoaderData()
   const router = useRouter()
@@ -108,15 +108,15 @@ function NotificationsPage() {
         </CardHeader>
         <CardContent>
           <FieldGroup>
-            {switches('Your podcasts', yourPodcasts)}
+            {switches('Your shows', yourShows)}
             {switches('You', aboutYou)}
-            {switches('Podcasts you follow', followedPodcasts)}
+            {switches('Shows you follow', followedShows)}
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
         </CardContent>
       </Card>
       <DesktopNotifications settings={prefs.push} onChange={reload} />
-      <FollowedPodcastNotifications follows={prefs.follows} onChange={reload} />
+      <FollowedShowNotifications follows={prefs.follows} onChange={reload} />
     </div>
   )
 }

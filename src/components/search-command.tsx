@@ -1,5 +1,5 @@
 // The search box in the top nav: opens a command palette that searches the
-// user's podcasts and episodes as they type. Also opened by pressing / (as in
+// user's shows and episodes as they type. Also opened by pressing / (as in
 // Lotus 1-2-3, and GitHub and YouTube since), unless you're typing somewhere.
 import { useEffect, useState } from 'react'
 import { useLoaderData, useNavigate } from '@tanstack/react-router'
@@ -56,7 +56,7 @@ export function SearchCommand() {
         open={open}
         onOpenChange={setOpen}
         title="Search"
-        description="Search your podcasts and episodes"
+        description="Search your shows and episodes"
         className="sm:max-w-xl"
       >
         {/* Remounted on each opening, so it starts with an empty search. */}
@@ -80,7 +80,7 @@ function isTyping(target: EventTarget | null) {
 
 function SearchPalette({ close }: { close: () => void }) {
   const navigate = useNavigate()
-  const { podcasts } = useLoaderData({ from: '__root__' })
+  const { shows } = useLoaderData({ from: '__root__' })
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<{ query: string; found: SearchResults } | null>(null)
   const [failed, setFailed] = useState(false)
@@ -105,13 +105,13 @@ function SearchPalette({ close }: { close: () => void }) {
     close()
     void to()
   }
-  const openPodcast = (slug: string) => go(() => navigate({ to: '/$slug/manage', params: { slug } }))
+  const openShow = (slug: string) => go(() => navigate({ to: '/$slug/manage', params: { slug } }))
   // Its public page once it's ready (which links on to managing it); until
   // then, only its manage page shows it.
   const openEpisode = (slug: string, episodeSlug: string, ready: boolean) =>
     go(() =>
       navigate({
-        to: ready ? '/$slug/episodes/$episodeSlug' : '/$slug/episodes/$episodeSlug/manage',
+        to: ready ? '/$slug/$episodeSlug' : '/$slug/$episodeSlug/manage',
         params: { slug, episodeSlug },
       }),
     )
@@ -125,12 +125,12 @@ function SearchPalette({ close }: { close: () => void }) {
     <Command shouldFilter={false}>
       <CommandInput value={query} onValueChange={setQuery} placeholder="Search shows and episodes…" />
       <CommandList className="max-h-[min(60vh,28rem)]">
-        {!trimmed && podcasts.length > 0 && (
+        {!trimmed && shows.length > 0 && (
           <CommandGroup heading="Your shows">
-            {podcasts.map((podcast) => (
-              <CommandItem key={podcast.id} value={`podcast-${podcast.id}`} onSelect={() => openPodcast(podcast.slug)}>
-                <Artwork url={podcast.imageUrl} />
-                <span className="truncate">{podcast.title}</span>
+            {shows.map((show) => (
+              <CommandItem key={show.id} value={`show-${show.id}`} onSelect={() => openShow(show.slug)}>
+                <Artwork url={show.imageUrl} />
+                <span className="truncate">{show.title}</span>
               </CommandItem>
             ))}
           </CommandGroup>
@@ -143,17 +143,17 @@ function SearchPalette({ close }: { close: () => void }) {
         {failed && <p className="py-6 text-center text-sm text-destructive">Searching failed. Please try again.</p>}
         {found && !failed && (
           <>
-            {!searching && <CommandEmpty>No podcasts or episodes match “{trimmed}”.</CommandEmpty>}
-            {found.podcasts.length > 0 && (
-              <CommandGroup heading="Podcasts">
-                {found.podcasts.map((podcast) => (
+            {!searching && <CommandEmpty>No shows or episodes match “{trimmed}”.</CommandEmpty>}
+            {found.shows.length > 0 && (
+              <CommandGroup heading="Shows">
+                {found.shows.map((show) => (
                   <CommandItem
-                    key={podcast.id}
-                    value={`podcast-${podcast.id}`}
-                    onSelect={() => openPodcast(podcast.slug)}
+                    key={show.id}
+                    value={`show-${show.id}`}
+                    onSelect={() => openShow(show.slug)}
                   >
-                    <Artwork url={podcast.imageUrl} />
-                    <ResultText title={podcast.title} detail={podcast.excerpt} />
+                    <Artwork url={show.imageUrl} />
+                    <ResultText title={show.title} detail={show.excerpt} />
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -164,10 +164,10 @@ function SearchPalette({ close }: { close: () => void }) {
                   <CommandItem
                     key={episode.id}
                     value={`episode-${episode.id}`}
-                    onSelect={() => openEpisode(episode.podcastSlug, episode.slug, episode.ready)}
+                    onSelect={() => openEpisode(episode.showSlug, episode.slug, episode.ready)}
                   >
                     <Artwork url={episode.imageUrl} />
-                    <ResultText title={episode.title} detail={episode.excerpt ?? episode.podcastTitle} />
+                    <ResultText title={episode.title} detail={episode.excerpt ?? episode.showTitle} />
                   </CommandItem>
                 ))}
               </CommandGroup>

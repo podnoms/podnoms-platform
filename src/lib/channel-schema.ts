@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import { channelProviders, parseChannelUrl, parsePlaylistUrl, playlistPlatforms } from '~/lib/platforms'
-import { customDomainField } from '~/lib/podcast-schema'
+import { customDomainField } from '~/lib/show-schema'
 import { tagNamesSchema } from '~/lib/tag-schema'
 
 const platformNames = channelProviders.map((provider) => provider.label).join(' or ')
 
-// A podcast made from a channel or playlist: its link, e.g. a YouTube channel.
-export const newChannelPodcastSchema = z.object({
+// A show made from a channel or playlist: its link, e.g. a YouTube channel.
+export const newChannelShowSchema = z.object({
   url: z
     .string()
     .trim()
@@ -19,6 +19,6 @@ export const newChannelPodcastSchema = z.object({
   customDomain: customDomainField.optional(),
   tags: tagNamesSchema.optional(),
 })
-export type NewChannelPodcastInput = z.infer<typeof newChannelPodcastSchema>
+export type NewChannelShowInput = z.infer<typeof newChannelShowSchema>
 
-export const channelEnabledSchema = z.object({ podcastId: z.string().min(1), enabled: z.boolean() })
+export const channelEnabledSchema = z.object({ showId: z.string().min(1), enabled: z.boolean() })

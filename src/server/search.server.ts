@@ -1,14 +1,14 @@
-// Searches the user's podcasts and episodes by title and description, for
+// Searches the user's shows and episodes by title and description, for
 // the search box in the top nav.
 import '@tanstack/react-start/server-only'
 import { and, desc, eq, ilike, or, sql, type SQL } from 'drizzle-orm'
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 import { htmlToText } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
-import { episodes, podcasts } from '~/server/db/schema'
+import { episodes, shows } from '~/server/db/schema'
 import { isPublished } from '~/server/episodes.server'
 
-const maxPodcasts = 5
+const maxShows = 5
 const maxEpisodes = 10
 
 // A LIKE pattern matching `text` anywhere, its wildcards taken literally.
@@ -41,41 +41,41 @@ function excerpt(title: string, description: string | null, query: string) {
 export async function searchLibrary(userId: string, query: string) {
   const pattern = containing(query)
 
-  const [podcastRows, episodeRows] = await Promise.all([
+  const [showRows, episodeRows] = await Promise.all([
     db
       .select({
-        id: podcasts.id,
-        title: podcasts.title,
-        slug: podcasts.slug,
-        description: podcasts.description,
-        imageUrl: podcasts.imageUrl,
+        id: shows.id,
+        title: shows.title,
+        slug: shows.slug,
+        description: shows.description,
+        imageUrl: shows.imageUrl,
       })
-      .from(podcasts)
+      .from(shows)
       .where(
         and(
-          eq(podcasts.userId, userId),
-          or(ilike(podcasts.title, pattern), sql`${descriptionText(podcasts.description)} ilike ${pattern}`),
+          eq(shows.userId, userId),
+          or(ilike(shows.title, pattern), sql`${descriptionText(shows.description)} ilike ${pattern}`),
         ),
       )
-      .orderBy(titleFirst(podcasts.title, pattern), podcasts.title)
-      .limit(maxPodcasts),
+      .orderBy(titleFirst(shows.title, pattern), shows.title)
+      .limit(maxShows),
     db
       .select({
         id: episodes.id,
         title: episodes.title,
         slug: episodes.slug,
         description: episodes.description,
-        imageUrl: sql<string | null>`coalesce(${episodes.imageUrl}, ${podcasts.imageUrl})`,
-        podcastTitle: podcasts.title,
-        podcastSlug: podcasts.slug,
+        imageUrl: sql<string | null>`coalesce(${episodes.imageUrl}, ${shows.imageUrl})`,
+        showTitle: shows.title,
+        showSlug: shows.slug,
         // Whether it has a public page yet.
         ready: sql<boolean>`${isPublished}`,
       })
       .from(episodes)
-      .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+      .innerJoin(shows, eq(shows.id, episodes.showId))
       .where(
         and(
-          eq(podcasts.userId, userId),
+          eq(shows.userId, userId),
           or(ilike(episodes.title, pattern), sql`${descriptionText(episodes.description)} ilike ${pattern}`),
         ),
       )
@@ -84,9 +84,9 @@ export async function searchLibrary(userId: string, query: string) {
   ])
 
   return {
-    podcasts: podcastRows.map(({ description, ...podcast }) => ({
-      ...podcast,
-      excerpt: excerpt(podcast.title, description, query),
+    shows: showRows.map(({ description, ...show }) => ({
+      ...show,
+      excerpt: excerpt(show.title, description, query),
     })),
     episodes: episodeRows.map(({ description, ...episode }) => ({
       ...episode,

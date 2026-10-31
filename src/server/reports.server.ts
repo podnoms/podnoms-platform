@@ -1,5 +1,5 @@
 // Reports of images that shouldn't be on the site, from the Report button on
-// podcast, episode and profile pages, for whatever the automatic check
+// show, episode and profile pages, for whatever the automatic check
 // (image-moderation.server.ts) misses. Anyone can report, signed in or not;
 // admins deal with them on the admin page's Moderation tab, by removing the
 // image, taking it down but keeping a copy as evidence (for child abuse
@@ -10,12 +10,12 @@ import '@tanstack/react-start/server-only'
 import { copyFile } from 'node:fs/promises'
 import { and, count, desc, eq, isNull } from 'drizzle-orm'
 import { env } from '~/env'
-import { episodePath, podcastPath, userPath } from '~/lib/paths'
+import { episodePath, showPath, userPath } from '~/lib/paths'
 import type { ReportInput, ReportReason, ReportResolution, ReportTargetKind } from '~/lib/report-schema'
 import { alertAdminsOfReport } from '~/server/admin-alerts.server'
 import { saltFor, visitorHash } from '~/server/activity.server'
 import { db } from '~/server/db/client.server'
-import { contentReports, episodes, podcasts, users } from '~/server/db/schema'
+import { contentReports, episodes, shows, users } from '~/server/db/schema'
 import { deleteImage, localImageUrl } from '~/server/images.server'
 import { reportError } from '~/server/logger.server'
 import { siteOrigin } from '~/server/site-url.server'
@@ -28,27 +28,27 @@ type Target = { imageUrl: string | null; ownerId: string; what: string; path: st
 
 // What's reported: its image now, whose it is, what to call it and where it is.
 async function findTarget(kind: ReportTargetKind, id: string): Promise<Target | null> {
-  if (kind === 'podcast') {
+  if (kind === 'show') {
     const [row] = await db
-      .select({ imageUrl: podcasts.imageUrl, ownerId: podcasts.userId, title: podcasts.title, slug: podcasts.slug })
-      .from(podcasts)
-      .where(eq(podcasts.id, id))
-    return row ? { imageUrl: row.imageUrl, ownerId: row.ownerId, what: `the podcast “${row.title}”`, path: podcastPath(row.slug) } : null
+      .select({ imageUrl: shows.imageUrl, ownerId: shows.userId, title: shows.title, slug: shows.slug })
+      .from(shows)
+      .where(eq(shows.id, id))
+    return row ? { imageUrl: row.imageUrl, ownerId: row.ownerId, what: `the show “${row.title}”`, path: showPath(row.slug) } : null
   }
   if (kind === 'episode') {
     const [row] = await db
       .select({
         imageUrl: episodes.imageUrl,
-        ownerId: podcasts.userId,
+        ownerId: shows.userId,
         title: episodes.title,
         slug: episodes.slug,
-        podcastSlug: podcasts.slug,
+        showSlug: shows.slug,
       })
       .from(episodes)
-      .innerJoin(podcasts, eq(podcasts.id, episodes.podcastId))
+      .innerJoin(shows, eq(shows.id, episodes.showId))
       .where(eq(episodes.id, id))
     return row
-      ? { imageUrl: row.imageUrl, ownerId: row.ownerId, what: `the episode “${row.title}”`, path: episodePath(row.podcastSlug, row.slug) }
+      ? { imageUrl: row.imageUrl, ownerId: row.ownerId, what: `the episode “${row.title}”`, path: episodePath(row.showSlug, row.slug) }
       : null
   }
   const [row] = await db.select({ image: users.image, name: users.name, slug: users.slug }).from(users).where(eq(users.id, id))
@@ -57,8 +57,8 @@ async function findTarget(kind: ReportTargetKind, id: string): Promise<Target | 
 
 // Takes the image off what was reported, if it's still the one reported.
 async function clearImage(kind: ReportTargetKind, id: string, imageUrl: string) {
-  if (kind === 'podcast') {
-    await db.update(podcasts).set({ imageUrl: null }).where(and(eq(podcasts.id, id), eq(podcasts.imageUrl, imageUrl)))
+  if (kind === 'show') {
+    await db.update(shows).set({ imageUrl: null }).where(and(eq(shows.id, id), eq(shows.imageUrl, imageUrl)))
   } else if (kind === 'episode') {
     await db.update(episodes).set({ imageUrl: null }).where(and(eq(episodes.id, id), eq(episodes.imageUrl, imageUrl)))
   } else {

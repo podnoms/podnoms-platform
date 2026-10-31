@@ -15,8 +15,8 @@ export const Route = createFileRoute('/api/mobile/episodes/$id/comments')({
         if (userId instanceof Response) return userId
         const parsed = mobileCommentSchema.safeParse(await request.json().catch(() => null))
         if (!parsed.success) return new Response(parsed.error.issues[0]?.message ?? 'Invalid comment', { status: 400 })
-        const { body, atSeconds, parentId } = parsed.data
-        const comments = await addComment(userId, params.id, body, atSeconds, parentId)
+        const { body, atSeconds, parentId, gif } = parsed.data
+        const comments = await addComment(userId, params.id, body, atSeconds, parentId, gif)
         if (!comments) return new Response('Not found', { status: 404 })
         return Response.json(comments.map((comment) => mobileComment(request, comment)), { status: 201 })
       },

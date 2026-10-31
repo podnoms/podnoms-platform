@@ -32,7 +32,7 @@ import {
   retryMyEpisode,
   setMyEpisodePrivacy,
   updateMyEpisode,
-} from '~/functions/podcasts'
+} from '~/functions/shows'
 import { formatClock, formatDate, hostname, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { htmlToText } from '~/lib/rich-text'
@@ -62,12 +62,12 @@ export type EpisodeRowData = {
 
 export function EpisodeRow({
   episode,
-  podcastSlug,
-  podcastTitle,
+  showSlug,
+  showTitle,
 }: {
   episode: EpisodeRowData
-  podcastSlug: string
-  podcastTitle: string
+  showSlug: string
+  showTitle: string
 }) {
   const router = useRouter()
   const player = usePlayer()
@@ -101,9 +101,9 @@ export function EpisodeRow({
       title: episode.title,
       audioUrl: episode.audioUrl,
       imageUrl: episode.imageUrl,
-      podcastTitle,
+      showTitle,
       slug: episode.slug,
-      podcastSlug,
+      showSlug,
       isOwner: true,
       positionSeconds: episode.positionSeconds,
     })
@@ -119,7 +119,7 @@ export function EpisodeRow({
   ].filter(Boolean)
 
   return (
-    // A row of the podcast page's episode list, drawn as its own card. The
+    // A row of the show page's episode list, drawn as its own card. The
     // playing episode gets an accent bar.
     <Item
       role="listitem"
@@ -153,8 +153,8 @@ export function EpisodeRow({
               (as listeners see it, once it's ready; until then, only its manage
               page shows it); the buttons sit above it. */}
           <Link
-            to={episode.status === 'ready' ? '/$slug/episodes/$episodeSlug' : '/$slug/episodes/$episodeSlug/manage'}
-            params={{ slug: podcastSlug, episodeSlug: episode.slug }}
+            to={episode.status === 'ready' ? '/$slug/$episodeSlug' : '/$slug/$episodeSlug/manage'}
+            params={{ slug: showSlug, episodeSlug: episode.slug }}
             className="outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
           >
             {title}
@@ -207,7 +207,7 @@ export function EpisodeRow({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-auto">
             <DropdownMenuItem asChild>
-              <Link to="/$slug/episodes/$episodeSlug/manage" params={{ slug: podcastSlug, episodeSlug: episode.slug }}>
+              <Link to="/$slug/$episodeSlug/manage" params={{ slug: showSlug, episodeSlug: episode.slug }}>
                 <Icons.settings />
                 Manage episode
               </Link>
@@ -286,7 +286,7 @@ export function EpisodeRow({
         open={editing}
         onOpenChange={setEditing}
         heading="Edit episode"
-        description={`An episode of ${podcastTitle}.`}
+        description={`An episode of ${showTitle}.`}
         details={{ title: episode.title, description: episode.description, imageUrl: episode.imageUrl }}
         maxTitleLength={200}
         onSave={(change) => run(() => updateMyEpisode({ data: { id: episode.id, ...change } }))}
@@ -302,7 +302,7 @@ export function EpisodeRow({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this episode?</AlertDialogTitle>
             <AlertDialogDescription>
-              “{title}” and its audio will be removed from {podcastTitle}. This can't be undone.
+              “{title}” and its audio will be removed from {showTitle}. This can't be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -3,7 +3,7 @@ import { EpisodeListEnd } from '~/components/episode-list-end'
 import { Icons } from '~/components/icons'
 import { ListenerEpisodeList } from '~/components/listener-episode-list'
 import { PageHeading, PageSection } from '~/components/page-section'
-import { PodcastGrid } from '~/components/podcast-card'
+import { ShowGrid } from '~/components/show-card'
 import { Button } from '~/components/ui/button'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '~/components/ui/empty'
 import { fetchFollowing, fetchMoreFollowingEpisodes } from '~/functions/library'
@@ -11,7 +11,7 @@ import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { pluralise } from '~/lib/format'
 import { pageTitle } from '~/lib/branding'
 
-// The podcasts the user follows, and their episodes, newest first.
+// The shows the user follows, and their episodes, newest first.
 export const Route = createFileRoute('/_authed/following')({
   loader: () => fetchFollowing(),
   head: ({ matches }) => ({ meta: [{ title: pageTitle(matches, 'Following') }] }),
@@ -19,9 +19,9 @@ export const Route = createFileRoute('/_authed/following')({
 })
 
 function FollowingPage() {
-  const { podcasts, episodes: first } = Route.useLoaderData()
+  const { shows, episodes: first } = Route.useLoaderData()
   const { episodes, ...more } = useEpisodePages({
-    podcastSlug: 'following',
+    showSlug: 'following',
     first,
     // No count is kept; a short page means the end.
     total: Number.POSITIVE_INFINITY,
@@ -33,30 +33,30 @@ function FollowingPage() {
       <PageHeading
         icon={<Icons.following />}
         title="Following"
-        description={podcasts.length > 0 ? pluralise(podcasts.length, 'podcast') : 'Podcasts you follow, and what they put out.'}
+        description={shows.length > 0 ? pluralise(shows.length, 'show') : 'Shows you follow, and what they put out.'}
       />
-      {podcasts.length === 0 ? (
+      {shows.length === 0 ? (
         <Empty className="border border-dashed">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <Icons.follow />
             </EmptyMedia>
-            <EmptyTitle>You're not following any podcasts</EmptyTitle>
-            <EmptyDescription>Follow a podcast to get its new episodes on your home page.</EmptyDescription>
+            <EmptyTitle>You're not following any shows</EmptyTitle>
+            <EmptyDescription>Follow a show to get its new episodes on your home page.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button asChild>
               <Link to="/explore">
                 <Icons.explore />
-                Explore podcasts
+                Explore shows
               </Link>
             </Button>
           </EmptyContent>
         </Empty>
       ) : (
         <>
-          <PageSection title="Podcasts">
-            <PodcastGrid podcasts={podcasts} />
+          <PageSection title="Shows">
+            <ShowGrid shows={shows} />
           </PageSection>
           <PageSection title="Latest episodes">
             {episodes.length === 0 ? (

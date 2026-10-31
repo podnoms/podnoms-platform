@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { podcasts } from '~/server/db/schema'
+import { shows } from '~/server/db/schema'
 import { resetDb } from '../db'
-import { createEpisode, createPodcast, createUser, db } from '../helpers'
+import { createEpisode, createShow, createUser, db } from '../helpers'
 
 beforeEach(() => resetDb(db))
 afterEach(() => {
@@ -22,32 +22,32 @@ async function load(keys?: { key: string; secret: string }) {
 }
 
 // A podcast directories would list: described, with artwork, a category and an episode.
-async function readyPodcast(userId: string, values: Parameters<typeof createPodcast>[1] = {}) {
-  const podcast = await createPodcast(userId, {
+async function readyShow(userId: string, values: Parameters<typeof createShow>[1] = {}) {
+  const show = await createShow(userId, {
     slug: 'show',
     description: '<p>About</p>',
     imageUrl: '/images/a.jpg',
     category: 'Music',
     ...values,
   })
-  await createEpisode(podcast.id, { status: 'ready', audioUrl: '/api/episodes/x/audio' })
-  return podcast
+  await createEpisode(show.id, { status: 'ready', audioUrl: '/api/episodes/x/audio' })
+  return show
 }
 
 describe('getDirectoryReadiness', () => {
-  it("checks the user's podcast, counting only published episodes", async () => {
+  it("checks the user's show, counting only published episodes", async () => {
     const { getDirectoryReadiness } = await load()
     const user = await createUser({ name: 'Ada' })
-    const podcast = await createPodcast(user.id, { imageUrl: '/images/a.jpg' })
-    await createEpisode(podcast.id, { status: 'pending' })
-    const failing = (await getDirectoryReadiness(user.id, podcast.id))!.filter((item) => !item.ok).map((item) => item.id)
+    const show = await createShow(user.id, { imageUrl: '/images/a.jpg' })
+    await createEpisode(show.id, { status: 'pending' })
+    const failing = (await getDirectoryReadiness(user.id, show.id))!.filter((item) => !item.ok).map((item) => item.id)
     expect(failing).toEqual(['description', 'category', 'episode', 'ownerEmail'])
   })
 
-  it("is null for someone else's podcast", async () => {
+  it("is null for someone else's show", async () => {
     const { getDirectoryReadiness } = await load()
-    const podcast = await createPodcast((await createUser()).id)
-    expect(await getDirectoryReadiness((await createUser()).id, podcast.id)).toBeNull()
+    const show = await createShow((await createUser()).id)
+    expect(await getDirectoryReadiness((await createUser()).id, show.id)).toBeNull()
   })
 })
 
@@ -55,18 +55,18 @@ describe('submitToPodcastIndex', () => {
   it('refuses when no key is configured', async () => {
     const { submitToPodcastIndex, podcastIndexConfigured } = await load()
     const user = await createUser({ name: 'Ada' })
-    const podcast = await readyPodcast(user.id)
+    const show = await readyShow(user.id)
     expect(podcastIndexConfigured()).toBe(false)
-    expect(await submitToPodcastIndex(user.id, podcast.id, 'https://pods.example')).toMatchObject({ ok: false })
+    expect(await submitToPodcastIndex(user.id, show.id, 'https://pods.example')).toMatchObject({ ok: false })
   })
 
-  it("refuses a podcast that isn't ready", async () => {
+  it("refuses a show that isn't ready", async () => {
     const { submitToPodcastIndex } = await load({ key: 'k', secret: 's' })
     const fetch = vi.fn()
     vi.stubGlobal('fetch', fetch)
     const user = await createUser({ name: 'Ada' })
-    const podcast = await readyPodcast(user.id, { category: null })
-    expect(await submitToPodcastIndex(user.id, podcast.id, 'https://pods.example')).toMatchObject({ ok: false })
+    const show = await readyShow(user.id, { category: null })
+    expect(await submitToPodcastIndex(user.id, show.id, 'https://pods.example')).toMatchObject({ ok: false })
     expect(fetch).not.toHaveBeenCalled()
   })
 
@@ -75,9 +75,9 @@ describe('submitToPodcastIndex', () => {
     const fetch = vi.fn(async () => Response.json({ status: 'true', feedId: 920666, description: 'Feed added' }))
     vi.stubGlobal('fetch', fetch)
     const user = await createUser({ name: 'Ada' })
-    const podcast = await readyPodcast(user.id)
+    const show = await readyShow(user.id)
 
-    const result = await submitToPodcastIndex(user.id, podcast.id, 'https://pods.example')
+    const result = await submitToPodcastIndex(user.id, show.id, 'https://pods.example')
     expect(result).toEqual({ ok: true, link: 'https://podcastindex.org/podcast/920666' })
 
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
@@ -91,7 +91,7 @@ describe('submitToPodcastIndex', () => {
       createHash('sha1').update(`KEYSECRET${headers['X-Auth-Date']}`).digest('hex'),
     )
 
-    const [row] = await db.select().from(podcasts).where(eq(podcasts.id, podcast.id))
+    const [row] = await db.select().from(shows).where(eq(shows.id, show.id))
     expect(row!.directoryLinks).toEqual({ podcastIndex: 'https://podcastindex.org/podcast/920666' })
   })
 
@@ -99,9 +99,9 @@ describe('submitToPodcastIndex', () => {
     const { submitToPodcastIndex } = await load({ key: 'KEY', secret: 'SECRET' })
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ status: 'false', description: 'Nope' }, { status: 400 })))
     const user = await createUser({ name: 'Ada' })
-    const podcast = await readyPodcast(user.id)
-    expect(await submitToPodcastIndex(user.id, podcast.id, 'https://pods.example')).toMatchObject({ ok: false })
-    const [row] = await db.select().from(podcasts).where(eq(podcasts.id, podcast.id))
+    const show = await readyShow(user.id)
+    expect(await submitToPodcastIndex(user.id, show.id, 'https://pods.example')).toMatchObject({ ok: false })
+    const [row] = await db.select().from(shows).where(eq(shows.id, show.id))
     expect(row!.directoryLinks).toEqual({})
   })
 })

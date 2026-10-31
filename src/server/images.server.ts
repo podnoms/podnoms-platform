@@ -1,4 +1,4 @@
-// Podcast and episode artwork. Every image is stored as a square JPEG that
+// Show and episode artwork. Every image is stored as a square JPEG that
 // podcast apps accept, in the media folder: uploads are staged until the edit
 // form is saved, and artwork from sources such as YouTube is downloaded rather
 // than linked to. Smaller copies are made on request (see imageVariant).
@@ -9,7 +9,7 @@ import { eq, like } from 'drizzle-orm'
 import sharp from 'sharp'
 import { openGraphImageSize } from '~/lib/images'
 import { db } from '~/server/db/client.server'
-import { episodes, podcasts } from '~/server/db/schema'
+import { episodes, shows } from '~/server/db/schema'
 import { alertAdminsOfBlockedImage } from '~/server/admin-alerts.server'
 import { moderateImage, ModerationUnavailableError } from '~/server/image-moderation.server'
 import { logger, reportError } from '~/server/logger.server'
@@ -94,7 +94,7 @@ async function checkArtwork(path: string, context: { userId?: string; source?: s
 }
 
 // Converts the uploaded image and stages it for the user. Returns its ID,
-// which saving a podcast or episode with it turns into a stored image.
+// which saving a show or episode with it turns into a stored image.
 export async function stageImage(userId: string, body: ReadableStream<Uint8Array>) {
   const dir = await ensureUserStagedImagesDir(userId)
   void removeStaleFiles(dir).catch(() => {})
@@ -228,16 +228,16 @@ export async function downloadImage(remoteUrl: string) {
   }
 }
 
-// Downloads artwork that podcasts and episodes still link to remotely, from
+// Downloads artwork that shows and episodes still link to remotely, from
 // before images were stored. Runs once, in the background, after the server starts.
 let localised = false
 export async function localiseRemoteImages() {
   if (localised) return
   localised = true
-  const remotePodcasts = like(podcasts.imageUrl, 'http%')
-  for (const row of await db.select({ id: podcasts.id, imageUrl: podcasts.imageUrl }).from(podcasts).where(remotePodcasts)) {
+  const remoteShows = like(shows.imageUrl, 'http%')
+  for (const row of await db.select({ id: shows.id, imageUrl: shows.imageUrl }).from(shows).where(remoteShows)) {
     const url = await downloadImage(row.imageUrl!)
-    if (url) await db.update(podcasts).set({ imageUrl: url }).where(eq(podcasts.id, row.id))
+    if (url) await db.update(shows).set({ imageUrl: url }).where(eq(shows.id, row.id))
   }
   const remoteEpisodes = like(episodes.imageUrl, 'http%')
   for (const row of await db.select({ id: episodes.id, imageUrl: episodes.imageUrl }).from(episodes).where(remoteEpisodes)) {

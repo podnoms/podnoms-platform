@@ -1,24 +1,24 @@
-// Server functions for listeners: liking episodes, following podcasts, and the
+// Server functions for listeners: liking episodes, following shows, and the
 // pages built from them (home, Likes, Following) and Explore, which anyone
 // can see.
 import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { episodePageSize } from '~/lib/episode-pages'
-import { followPodcastSchema, likeEpisodeSchema, listPageSchema } from '~/lib/library-schema'
+import { followShowSchema, likeEpisodeSchema, listPageSchema } from '~/lib/library-schema'
 import { getSession } from '~/server/auth.server'
 import {
-  countExplorePodcasts,
+  countExploreShows,
   countLikedEpisodes,
   listContinueListening,
-  listExplorePodcasts,
-  listFollowedPodcasts,
+  listExploreShows,
+  listFollowedShows,
   listFollowingEpisodes,
   listLatestEpisodes,
   listLikedEpisodes,
   listPopularEpisodes,
   setEpisodeLike,
-  setPodcastFollow,
+  setShowFollow,
 } from '~/server/library.server'
 import { withWaveforms } from '~/server/waveforms.server'
 import { withEpisodeTags } from '~/server/tags-store.server'
@@ -48,21 +48,21 @@ export const likeEpisode = createServerFn({ method: 'POST' })
     return result
   })
 
-export const followPodcast = createServerFn({ method: 'POST' })
-  .validator(followPodcastSchema)
+export const followShow = createServerFn({ method: 'POST' })
+  .validator(followShowSchema)
   .handler(async ({ data }) => {
-    const result = await setPodcastFollow(await requireUserId(), data.podcastId, data.following)
+    const result = await setShowFollow(await requireUserId(), data.showId, data.following)
     if (!result) throw notFound()
     return result
   })
 
-// The podcasts the signed-in user follows, for the sidebar.
-export const fetchFollowedPodcasts = createServerFn({ method: 'GET' }).handler(async () =>
-  listFollowedPodcasts(await requireUserId()),
+// The shows the signed-in user follows, for the sidebar.
+export const fetchFollowedShows = createServerFn({ method: 'GET' }).handler(async () =>
+  listFollowedShows(await requireUserId()),
 )
 
 // The signed-in home page for listeners: what they were part-way through,
-// what's new from the podcasts they follow, and what they liked lately.
+// what's new from the shows they follow, and what they liked lately.
 export const fetchListenerHome = createServerFn({ method: 'GET' }).handler(async () => {
   const userId = await requireUserId()
   const [continueListening, newEpisodes, liked, popular] = await Promise.all([
@@ -89,11 +89,11 @@ export const fetchMoreLikes = createServerFn({ method: 'GET' })
 
 export const fetchFollowing = createServerFn({ method: 'GET' }).handler(async () => {
   const userId = await requireUserId()
-  const [podcasts, episodes] = await Promise.all([
-    listFollowedPodcasts(userId),
+  const [shows, episodes] = await Promise.all([
+    listFollowedShows(userId),
     listFollowingEpisodes(userId, firstPage).then(withListenerDetails),
   ])
-  return { podcasts, episodes }
+  return { shows, episodes }
 })
 
 export const fetchMoreFollowingEpisodes = createServerFn({ method: 'GET' })
@@ -101,27 +101,27 @@ export const fetchMoreFollowingEpisodes = createServerFn({ method: 'GET' })
   .handler(async ({ data }) => withListenerDetails(await listFollowingEpisodes(await requireUserId(), data)))
 
 // How many shows Explore shows at first, and loads each time after.
-export const explorePodcastPageSize = 12
+export const exploreShowPageSize = 12
 
 export const fetchExplore = createServerFn({ method: 'GET' }).handler(async () => {
   const userId = await viewerId()
-  const [popular, podcasts, podcastCount, latest] = await Promise.all([
+  const [popular, shows, showCount, latest] = await Promise.all([
     listPopularEpisodes(userId).then(withListenerDetails),
-    listExplorePodcasts(userId, { offset: 0, limit: explorePodcastPageSize }),
-    countExplorePodcasts(),
+    listExploreShows(userId, { offset: 0, limit: exploreShowPageSize }),
+    countExploreShows(),
     listLatestEpisodes(userId, firstPage).then(withListenerDetails),
   ])
-  return { popular, podcasts, podcastCount, latest }
+  return { popular, shows, showCount, latest }
 })
 
 // A few of the site's public shows, for the landing page to link to.
-export const fetchLandingPodcasts = createServerFn({ method: 'GET' }).handler(() =>
-  listExplorePodcasts(null, { offset: 0, limit: 8 }),
+export const fetchLandingShows = createServerFn({ method: 'GET' }).handler(() =>
+  listExploreShows(null, { offset: 0, limit: 8 }),
 )
 
-export const fetchMoreExplorePodcasts = createServerFn({ method: 'GET' })
+export const fetchMoreExploreShows = createServerFn({ method: 'GET' })
   .validator(listPageSchema)
-  .handler(async ({ data }) => listExplorePodcasts(await viewerId(), data))
+  .handler(async ({ data }) => listExploreShows(await viewerId(), data))
 
 export const fetchMoreLatestEpisodes = createServerFn({ method: 'GET' })
   .validator(listPageSchema)

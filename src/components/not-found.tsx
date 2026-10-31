@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { Button } from '~/components/ui/button'
 
-// What the router shows for an unknown URL, or a podcast or episode that
+// What the router shows for an unknown URL, or a show or episode that
 // doesn't exist (or is private and isn't the visitor's). It renders inside
 // whatever layout the page would have had, so it brings its own way home.
 export function NotFound() {
@@ -19,7 +19,7 @@ export function NotFound() {
       <div className="flex max-w-md flex-col gap-3">
         <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">This page is off the air</h1>
         <p className="text-pretty text-muted-foreground">
-          The link may be mistyped or out of date, or the podcast or episode it pointed to has been removed or made
+          The link may be mistyped or out of date, or the show or episode it pointed to has been removed or made
           private.
         </p>
       </div>

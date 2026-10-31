@@ -14,10 +14,10 @@ function defaultImageAt(base: string, site: Site): Image {
 }
 
 // Head tags for a public page: its title, a description and image for link
-// previews (Open Graph), the podcast's feed for apps to discover, and noindex
-// for unlisted podcasts. A page shared at another URL (shareUrl) still names
+// previews (Open Graph), the show's feed for apps to discover, and noindex
+// for unlisted shows. A page shared at another URL (shareUrl) still names
 // `url` as the one to index. `documentTitle` replaces the title in the browser
-// tab and search results, where the episode's podcast is worth naming.
+// tab and search results, where the episode's show is worth naming.
 export function publicPageHead(page: {
   site: Site
   title: string

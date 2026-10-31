@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { episodeAudioPath, episodeWaveformPath } from '~/server/storage.server'
 import { backfillWaveforms, computeWaveform, deleteWaveform, readWaveform, saveWaveform } from '~/server/waveforms.server'
 import { resetDb } from '../db'
-import { createEpisode, createPodcast, createUser, db, exists, hasFfmpeg, makeTone } from '../helpers'
+import { createEpisode, createShow, createUser, db, exists, hasFfmpeg, makeTone } from '../helpers'
 
 const dir = join(process.env.MEDIA_DIR!, 'waveform-test')
 
@@ -74,10 +74,10 @@ describe.skipIf(!hasFfmpeg)('backfillWaveforms', () => {
   beforeEach(() => resetDb(db))
 
   it('makes missing waveforms for ready episodes only, once', async () => {
-    const podcast = await createPodcast((await createUser()).id)
-    const ready = await createEpisode(podcast.id, { status: 'ready' })
-    const pending = await createEpisode(podcast.id, { status: 'pending' })
-    const broken = await createEpisode(podcast.id, { status: 'ready' })
+    const show = await createShow((await createUser()).id)
+    const ready = await createEpisode(show.id, { status: 'ready' })
+    const pending = await createEpisode(show.id, { status: 'pending' })
+    const broken = await createEpisode(show.id, { status: 'ready' })
     await makeTone(episodeAudioPath(ready.id), 1)
     await makeTone(episodeAudioPath(pending.id), 1)
     // `broken` has no audio: it's logged and skipped, not fatal.

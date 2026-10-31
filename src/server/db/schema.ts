@@ -59,22 +59,25 @@ export const users = pgTable(
     // Admins can manage the whole site (e.g. the job queues). The first user
     // to sign up becomes one (see firstUserIsAdmin in users.server.ts).
     isAdmin: boolean('isAdmin').notNull().default(false),
-    // Which emails the user gets about their podcasts (see notifications.server.ts).
+    // Which emails the user gets about their shows (see notifications.server.ts).
     notifyEpisodeFailed: boolean('notifyEpisodeFailed').notNull().default(true),
     notifyNewEpisodes: boolean('notifyNewEpisodes').notNull().default(true),
-    // What the user hears about the podcasts they follow (see
+    // What the user hears about the shows they follow (see
     // follower-notifications.server.ts): desktop notifications, on every
     // browser they've turned them on in, and emails, which are off until
     // they choose them.
     pushLive: boolean('pushLive').notNull().default(true),
     pushNewEpisodes: boolean('pushNewEpisodes').notNull().default(true),
+    // The same on the mobile app, on every device they've allowed it on (see app-push.server.ts).
+    appPushLive: boolean('appPushLive').notNull().default(true),
+    appPushNewEpisodes: boolean('appPushNewEpisodes').notNull().default(true),
     emailLive: boolean('emailLive').notNull().default(false),
     emailFollowedEpisodes: boolean('emailFollowedEpisodes').notNull().default(false),
     // Being @mentioned in a comment, or replied to (see comment-notifications.server.ts).
     pushMentions: boolean('pushMentions').notNull().default(true),
     emailMentions: boolean('emailMentions').notNull().default(true),
     // How many of a channel's newest uploads are imported when the user makes
-    // a podcast from it, and considered on each check. Set by admins.
+    // a show from it, and considered on each check. Set by admins.
     channelEpisodeLimit: integer('channelEpisodeLimit').notNull().default(10),
   },
   // Emails are unique regardless of case, across OAuth and password users.
@@ -157,7 +160,7 @@ export const recoveryCodes = authSchema.table(
   (table) => [primaryKey({ columns: [table.userId, table.codeHash] })],
 )
 
-// --- Podcasts ---------------------------------------------------------------
+// --- Shows ---------------------------------------------------------------
 
 const timestamps = {
   createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
@@ -167,9 +170,9 @@ const timestamps = {
     .$onUpdate(() => new Date()),
 }
 
-// A podcast (feed) owned by a user.
-export const podcasts = pgTable(
-  'podcast',
+// A show (feed) owned by a user.
+export const shows = pgTable(
+  'show',
   {
     id: text('id')
       .primaryKey()
@@ -178,7 +181,7 @@ export const podcasts = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
-    // Used in the podcast's public URL, so unique across all users.
+    // Used in the show's public URL, so unique across all users.
     slug: text('slug').notNull().unique(),
     description: text('description'),
     imageUrl: text('imageUrl'),
@@ -188,10 +191,10 @@ export const podcasts = pgTable(
     subcategory: text('subcategory'),
     language: text('language').notNull().default('en'),
     explicit: boolean('explicit').notNull().default(false),
-    // Private podcasts' pages are only shown to their owner, and their feed
+    // Private shows' pages are only shown to their owner, and their feed
     // and audio are only served with feedKey (see feed.server.ts), which the
     // owner gives to the listeners they choose. The key is made when the
-    // podcast is first made private, and can be reset to cut listeners off.
+    // show is first made private, and can be reset to cut listeners off.
     private: boolean('private').notNull().default(false),
     feedKey: text('feedKey'),
     // Who makes it, as shown in podcast apps; the owner's name when not set.
@@ -199,9 +202,9 @@ export const podcasts = pgTable(
     // Where directories (Spotify, say) send the code that confirms the show is
     // the owner's. Public: it's in the feed. Only set if the owner chooses to.
     ownerEmail: text('ownerEmail'),
-    // The podcast's pages on Apple Podcasts, Spotify and the rest, once listed.
+    // The show's pages on Apple Podcasts, Spotify and the rest, once listed.
     directoryLinks: jsonb('directoryLinks').$type<DirectoryLinks>().notNull().default({}),
-    // The owner's own domain for the podcast (see custom-domains.server.ts). It's
+    // The owner's own domain for the show (see custom-domains.server.ts). It's
     // only served once its DNS records check out: a CNAME to us, and a TXT record
     // holding customDomainToken, which proves the owner controls the domain.
     customDomain: text('customDomain').unique(),
@@ -217,12 +220,12 @@ export const podcasts = pgTable(
     liveTitle: text('liveTitle'),
     ...timestamps,
   },
-  (table) => [index('podcast_userId_idx').on(table.userId)],
+  (table) => [index('show_userId_idx').on(table.userId)],
 )
 
 export const episodeStatus = pgEnum('episode_status', ['pending', 'processing', 'ready', 'failed'])
 
-// An episode in a podcast, usually imported from a source such as a YouTube
+// An episode in a show, usually imported from a source such as a YouTube
 // video or a Mixcloud/SoundCloud upload.
 export const episodes = pgTable(
   'episode',
@@ -230,11 +233,11 @@ export const episodes = pgTable(
     id: text('id')
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    podcastId: text('podcastId')
+    showId: text('showId')
       .notNull()
-      .references(() => podcasts.id, { onDelete: 'cascade' }),
+      .references(() => shows.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
-    // Used in the episode's URL, so unique within the podcast. Kept when the
+    // Used in the episode's URL, so unique within the show. Kept when the
     // title is edited, so links keep working.
     slug: text('slug').notNull(),
     // For the episode's share page (/s/<shortSlug>). Unique across the site,
@@ -260,7 +263,7 @@ export const episodes = pgTable(
     // audio stays live until the new audio is ready.
     replacement: jsonb('replacement').$type<EpisodeReplacement>(),
     explicit: boolean('explicit').notNull().default(false),
-    // Private episodes are only shown to their podcast's owner: they're left
+    // Private episodes are only shown to their show's owner: they're left
     // out of the feed and public pages, and their audio isn't served to anyone else.
     private: boolean('private').notNull().default(false),
     publishedAt: timestamp('publishedAt', { mode: 'date', withTimezone: true }),
@@ -270,8 +273,8 @@ export const episodes = pgTable(
     ...timestamps,
   },
   (table) => [
-    index('episode_podcastId_publishedAt_idx').on(table.podcastId, table.publishedAt),
-    uniqueIndex('episode_podcastId_slug_idx').on(table.podcastId, table.slug),
+    index('episode_showId_publishedAt_idx').on(table.showId, table.publishedAt),
+    uniqueIndex('episode_showId_slug_idx').on(table.showId, table.slug),
     uniqueIndex('episode_shortSlug_idx').on(table.shortSlug),
   ],
 )
@@ -290,17 +293,17 @@ export const tags = pgTable(
   (table) => [uniqueIndex('tag_name_lower_idx').on(sql`lower(${table.name})`), uniqueIndex('tag_slug_idx').on(table.slug)],
 )
 
-export const podcastTags = pgTable(
-  'podcast_tag',
+export const showTags = pgTable(
+  'show_tag',
   {
-    podcastId: text('podcastId')
+    showId: text('showId')
       .notNull()
-      .references(() => podcasts.id, { onDelete: 'cascade' }),
+      .references(() => shows.id, { onDelete: 'cascade' }),
     tagId: text('tagId')
       .notNull()
       .references(() => tags.id, { onDelete: 'cascade' }),
   },
-  (table) => [primaryKey({ columns: [table.podcastId, table.tagId] }), index('podcast_tag_tagId_idx').on(table.tagId)],
+  (table) => [primaryKey({ columns: [table.showId, table.tagId] }), index('show_tag_tagId_idx').on(table.tagId)],
 )
 
 export const episodeTags = pgTable(
@@ -318,7 +321,7 @@ export const episodeTags = pgTable(
 
 // --- Channels ---------------------------------------------------------------
 
-// A YouTube channel, Mixcloud user or the like that a podcast follows: its
+// A YouTube channel, Mixcloud user or the like that a show follows: its
 // newest uploads become episodes, and it's checked for new ones (see
 // channels.server.ts).
 export const channels = pgTable(
@@ -327,13 +330,13 @@ export const channels = pgTable(
     id: text('id')
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    podcastId: text('podcastId')
+    showId: text('showId')
       .notNull()
-      .references(() => podcasts.id, { onDelete: 'cascade' }),
+      .references(() => shows.id, { onDelete: 'cascade' }),
     // Which of channelProviders (src/lib/platforms.ts) it's on.
     platform: text('platform').notNull(),
     // 'channel' (its newest uploads) or 'playlist' (every item, which only
-    // admins can import, see createPlaylistPodcast).
+    // admins can import, see createPlaylistShow).
     kind: text('kind').notNull().default('channel'),
     // Normalised to the list of uploads, as yt-dlp is given it.
     url: text('url').notNull(),
@@ -346,7 +349,7 @@ export const channels = pgTable(
     lastError: text('lastError'),
     ...timestamps,
   },
-  (table) => [index('channel_podcastId_idx').on(table.podcastId), index('channel_nextCheckAt_idx').on(table.nextCheckAt)],
+  (table) => [index('channel_showId_idx').on(table.showId), index('channel_nextCheckAt_idx').on(table.nextCheckAt)],
 )
 
 // Every upload a channel has listed, whether or not it became an episode, so
@@ -392,6 +395,9 @@ export const mobileTokens = authSchema.table(
     deviceName: text('deviceName'),
     createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
     lastUsedAt: timestamp('lastUsedAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+    // Where to send this device's notifications (an Expo push token), once
+    // it has allowed them. Goes with the row when the device signs out.
+    pushToken: text('pushToken').unique(),
   },
   (table) => [index('mobile_token_userId_idx').on(table.userId)],
 )
@@ -444,25 +450,25 @@ export const episodeLikes = pgTable(
   ],
 )
 
-// Podcasts a user follows: their new episodes come to the user's home page,
-// and the podcast shows how many follow it.
-export const podcastFollows = pgTable(
-  'podcast_follow',
+// Shows a user follows: their new episodes come to the user's home page,
+// and the show displays how many follow it.
+export const showFollows = pgTable(
+  'show_follow',
   {
     userId: text('userId')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    podcastId: text('podcastId')
+    showId: text('showId')
       .notNull()
-      .references(() => podcasts.id, { onDelete: 'cascade' }),
-    // Whether the user hears about this podcast (desktop notifications and
+      .references(() => shows.id, { onDelete: 'cascade' }),
+    // Whether the user hears about this show (desktop notifications and
     // emails), or has muted it.
     notify: boolean('notify').notNull().default(true),
     createdAt: timestamps.createdAt,
   },
   (table) => [
-    primaryKey({ columns: [table.userId, table.podcastId] }),
-    index('podcast_follow_podcastId_idx').on(table.podcastId),
+    primaryKey({ columns: [table.userId, table.showId] }),
+    index('show_follow_showId_idx').on(table.showId),
   ],
 )
 
@@ -488,7 +494,7 @@ export const pushSubscriptions = pgTable(
   (table) => [index('push_subscription_userId_idx').on(table.userId)],
 )
 
-// A user's playlist of episodes from any podcasts, in their order (see
+// A user's playlist of episodes from any shows, in their order (see
 // playlists.server.ts). Private until they choose to share it; a public one
 // is at /u/<user slug>/playlists/<slug>.
 export const playlists = pgTable(
@@ -624,7 +630,7 @@ export const notifications = pgTable(
 
 // --- Live -------------------------------------------------------------------
 
-// A live broadcast of a podcast, streamed from OBS through MediaMTX (see
+// A live broadcast of a show, streamed from OBS through MediaMTX (see
 // live.server.ts). Open while endedAt is null; once it ends, its recording
 // becomes a private episode (see live-recordings.server.ts).
 export const liveBroadcasts = pgTable(
@@ -633,9 +639,9 @@ export const liveBroadcasts = pgTable(
     id: text('id')
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    podcastId: text('podcastId')
+    showId: text('showId')
       .notNull()
-      .references(() => podcasts.id, { onDelete: 'cascade' }),
+      .references(() => shows.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
     startedAt: timestamp('startedAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
     // When MediaMTX last listed the stream, so a dropped connection that comes
@@ -649,9 +655,9 @@ export const liveBroadcasts = pgTable(
     episodeId: text('episodeId').references(() => episodes.id, { onDelete: 'set null' }),
   },
   (table) => [
-    index('live_broadcast_podcastId_startedAt_idx').on(table.podcastId, table.startedAt),
-    // A podcast has at most one broadcast open.
-    uniqueIndex('live_broadcast_open_idx').on(table.podcastId).where(sql`${table.endedAt} is null`),
+    index('live_broadcast_showId_startedAt_idx').on(table.showId, table.startedAt),
+    // A show has at most one broadcast open.
+    uniqueIndex('live_broadcast_open_idx').on(table.showId).where(sql`${table.endedAt} is null`),
   ],
 )
 
@@ -677,7 +683,7 @@ export const liveChatMessages = pgTable(
   (table) => [index('live_chat_message_broadcastId_createdAt_idx').on(table.broadcastId, table.createdAt)],
 )
 
-// What listeners do with episodes, for podcast owners' stats (see
+// What listeners do with episodes, for show owners' stats (see
 // activity.server.ts). Nothing here identifies a person: there's no IP or
 // account, only a hash that changes daily and where they roughly were.
 export const activityType = pgEnum('activity_type', ['play', 'download', 'share'])
@@ -695,9 +701,9 @@ export const episodeActivity = pgTable(
     episodeId: text('episodeId')
       .notNull()
       .references(() => episodes.id, { onDelete: 'cascade' }),
-    podcastId: text('podcastId')
+    showId: text('showId')
       .notNull()
-      .references(() => podcasts.id, { onDelete: 'cascade' }),
+      .references(() => shows.id, { onDelete: 'cascade' }),
     type: activityType('type').notNull(),
     source: activitySource('source').notNull(),
     // For a share, what was shared: 'link' or 'embed'.
@@ -721,7 +727,7 @@ export const episodeActivity = pgTable(
     occurredAt: timestamp('occurredAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index('episode_activity_podcastId_occurredAt_idx').on(table.podcastId, table.occurredAt),
+    index('episode_activity_showId_occurredAt_idx').on(table.showId, table.occurredAt),
     index('episode_activity_episodeId_occurredAt_idx').on(table.episodeId, table.occurredAt),
     // Each visitor counts once a day for each episode and kind of activity;
     // hashes change daily, so this is per day.
@@ -758,7 +764,7 @@ export const trackedLinks = pgTable(
   (table) => [uniqueIndex('tracked_link_token_idx').on(table.token), index('tracked_link_episodeId_idx').on(table.episodeId)],
 )
 
-// Reports of an image on the site (see reports.server.ts): a podcast's or
+// Reports of an image on the site (see reports.server.ts): a show's or
 // episode's artwork, or a profile picture.
 export const contentReports = pgTable(
   'content_report',
@@ -766,7 +772,7 @@ export const contentReports = pgTable(
     id: text('id')
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    // 'podcast', 'episode' or 'user' (ReportTargetKind), and its ID; not a
+    // 'show', 'episode' or 'user' (ReportTargetKind), and its ID; not a
     // foreign key, so the report outlives what it was about.
     targetKind: text('targetKind').notNull(),
     targetId: text('targetId').notNull(),
@@ -797,17 +803,17 @@ export const contentReports = pgTable(
 )
 
 export const usersRelations = relations(users, ({ many }) => ({
-  podcasts: many(podcasts),
+  shows: many(shows),
 }))
 
-export const podcastsRelations = relations(podcasts, ({ one, many }) => ({
-  owner: one(users, { fields: [podcasts.userId], references: [users.id] }),
+export const showsRelations = relations(shows, ({ one, many }) => ({
+  owner: one(users, { fields: [shows.userId], references: [users.id] }),
   episodes: many(episodes),
   channels: many(channels),
 }))
 
 export const channelsRelations = relations(channels, ({ one, many }) => ({
-  podcast: one(podcasts, { fields: [channels.podcastId], references: [podcasts.id] }),
+  show: one(shows, { fields: [channels.showId], references: [shows.id] }),
   items: many(channelItems),
 }))
 
@@ -816,11 +822,11 @@ export const channelItemsRelations = relations(channelItems, ({ one }) => ({
 }))
 
 export const episodesRelations = relations(episodes, ({ one }) => ({
-  podcast: one(podcasts, { fields: [episodes.podcastId], references: [podcasts.id] }),
+  show: one(shows, { fields: [episodes.showId], references: [shows.id] }),
 }))
 
-export type Podcast = typeof podcasts.$inferSelect
-export type NewPodcast = typeof podcasts.$inferInsert
+export type Show = typeof shows.$inferSelect
+export type NewShow = typeof shows.$inferInsert
 export type Episode = typeof episodes.$inferSelect
 export type NewEpisode = typeof episodes.$inferInsert
 export type Channel = typeof channels.$inferSelect

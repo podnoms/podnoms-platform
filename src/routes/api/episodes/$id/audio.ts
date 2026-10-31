@@ -9,9 +9,9 @@ import { reportError } from '~/server/logger.server'
 import { episodeAudioPath } from '~/server/storage.server'
 
 // Serves an episode's audio. Supports Range requests, which players need to
-// seek and which podcast apps expect. Counts as a download for the podcast's
+// seek and which podcast apps expect. Counts as a download for the show's
 // stats, except for the site's own players, which report plays instead. A
-// private podcast's audio needs its feed key (as the feed's links carry) or
+// private show's audio needs its feed key (as the feed's links carry) or
 // its owner signed in (or the app's token); a private episode's, its owner.
 export const Route = createFileRoute('/api/episodes/$id/audio')({
   server: {

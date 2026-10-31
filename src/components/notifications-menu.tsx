@@ -112,7 +112,7 @@ function Menu() {
               <Icons.notifications className="size-6 text-muted-foreground" />
               <p className="text-sm font-medium">Nothing yet</p>
               <p className="text-xs text-muted-foreground">
-                Mentions, replies, and news from your podcasts and the ones you follow will show here.
+                Mentions, replies, and news from your shows and the ones you follow will show here.
               </p>
             </div>
           ) : (
