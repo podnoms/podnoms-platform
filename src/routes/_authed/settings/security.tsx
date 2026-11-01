@@ -73,7 +73,7 @@ function SecurityPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="grid items-start gap-6 xl:grid-cols-2 xl:[&>header]:col-span-2">
       <header className="flex flex-col gap-1">
         <h2 className="text-lg font-semibold">Password</h2>
         <p className="text-sm text-muted-foreground">
@@ -317,7 +317,7 @@ function PasswordDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{change ? 'Change your password' : 'Add a password'}</DialogTitle>
           <DialogDescription>
@@ -419,7 +419,7 @@ function TotpSetupDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Set up an authenticator app</DialogTitle>
           <DialogDescription>
@@ -533,7 +533,7 @@ function SecurityKeyDialog({
       }}
     >
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add a security key</DialogTitle>
           <DialogDescription>

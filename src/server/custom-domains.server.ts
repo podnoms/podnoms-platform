@@ -1,6 +1,6 @@
 // Shows served from their owners' own domains.
 //
-// An owner sets a domain on the show's Distribution tab and adds two DNS
+// An owner sets a domain on the show's Custom domain tab and adds two DNS
 // records: a CNAME pointing it at us (customDomainTarget), and a TXT record
 // holding a token we made, which proves they control the domain (so nobody
 // can claim a domain that someone else pointed at us). Once both check out,
@@ -21,6 +21,7 @@ import { shows } from '~/server/db/schema'
 import { ExpiringStore } from '~/server/expiring-store.server'
 import { logger } from '~/server/logger.server'
 import { siteOrigin } from '~/server/site-url.server'
+import { hasPaidAccess, PaidFeatureError, requirePaidAccess } from '~/server/subscriptions.server'
 
 // How long a verified domain's records may stay broken before it's dropped.
 export const failureGraceMs = 72 * 60 * 60 * 1000
@@ -130,16 +131,18 @@ function forget(...domains: (string | null | undefined)[]) {
   for (const domain of domains) if (domain) domainSlugs.delete(domain)
 }
 
-// The slug of the show verified for this domain, or null.
+// The slug of the show verified for this domain, or null. Also null once its
+// owner has no paid features, so the domain then goes to the site's own page;
+// the domain stays verified, ready for when they subscribe again.
 export async function showForDomain(host: string) {
   const cached = domainSlugs.get(host)
   if (cached) return cached.slug
   const [show] = await db
-    .select({ slug: shows.slug })
+    .select({ slug: shows.slug, ownerId: shows.userId })
     .from(shows)
     .where(and(eq(shows.customDomain, host), isNotNull(shows.customDomainVerifiedAt)))
     .limit(1)
-  const slug = show?.slug ?? null
+  const slug = show && (await hasPaidAccess(show.ownerId)) ? show.slug : null
   domainSlugs.set(host, { slug })
   return slug
 }
@@ -172,7 +175,7 @@ export async function catchDomainError<T>(run: () => Promise<T>): Promise<{ valu
   try {
     return { value: await run() }
   } catch (error) {
-    if (error instanceof CustomDomainError) return { error: error.message }
+    if (error instanceof CustomDomainError || error instanceof PaidFeatureError) return { error: error.message }
     throw error
   }
 }
@@ -212,6 +215,7 @@ export async function setCustomDomain(userId: string, showId: string, domain: st
   if (!show) return false
   // Saving the same domain again keeps its token, so the owner's TXT record stays right.
   if (show.customDomain === domain) return true
+  if (domain) await requirePaidAccess(userId, 'customDomain')
   const values = customDomainValues(domain)
   await withDomainConflict(() => db.update(shows).set(values).where(eq(shows.id, showId)))
   forget(show.customDomain, domain)

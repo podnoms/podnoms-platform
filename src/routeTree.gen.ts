@@ -40,6 +40,7 @@ import { Route as SlugEpisodesSplatRouteImport } from './routes/$slug_.episodes.
 import { Route as AuthedSlugManageRouteImport } from './routes/_authed/$slug.manage'
 import { Route as AuthedAdminIndexRouteImport } from './routes/_authed/admin/index'
 import { Route as AuthedSettingsIndexRouteImport } from './routes/_authed/settings/index'
+import { Route as AuthedSettingsBillingRouteImport } from './routes/_authed/settings/billing'
 import { Route as AuthedSettingsNotificationsRouteImport } from './routes/_authed/settings/notifications'
 import { Route as AuthedSettingsSecurityRouteImport } from './routes/_authed/settings/security'
 import { Route as AdminQueuesSplatRouteImport } from './routes/admin/queues/$'
@@ -60,6 +61,10 @@ import { Route as EmbedSlugEpisodeSlugRouteImport } from './routes/embed/$slug.$
 import { Route as FontsFamilyFileRouteImport } from './routes/fonts.$family.$file'
 import { Route as ListenSlugEpisodeSlugRouteImport } from './routes/listen/$slug.$episodeSlug'
 import { Route as AuthedSlugEpisodeSlugManageRouteImport } from './routes/_authed/$slug_.$episodeSlug.manage'
+import { Route as ApiBillingPatreonCallbackRouteImport } from './routes/api/billing/patreon/callback'
+import { Route as ApiBillingPatreonConnectRouteImport } from './routes/api/billing/patreon/connect'
+import { Route as ApiBillingPatreonWebhookRouteImport } from './routes/api/billing/patreon/webhook'
+import { Route as ApiBillingStripeWebhookRouteImport } from './routes/api/billing/stripe/webhook'
 import { Route as ApiEpisodesIdActivityRouteImport } from './routes/api/episodes/$id/activity'
 import { Route as ApiEpisodesIdAudioRouteImport } from './routes/api/episodes/$id/audio'
 import { Route as ApiMobileAuthProvidersRouteImport } from './routes/api/mobile/auth/providers'
@@ -245,6 +250,11 @@ const AuthedSettingsIndexRoute = AuthedSettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedSettingsRoute,
 } as any)
+const AuthedSettingsBillingRoute = AuthedSettingsBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AuthedSettingsRoute,
+} as any)
 const AuthedSettingsNotificationsRoute =
   AuthedSettingsNotificationsRouteImport.update({
     id: '/notifications',
@@ -348,6 +358,29 @@ const AuthedSlugEpisodeSlugManageRoute =
     path: '/$slug/$episodeSlug/manage',
     getParentRoute: () => AuthedRoute,
   } as any)
+const ApiBillingPatreonCallbackRoute =
+  ApiBillingPatreonCallbackRouteImport.update({
+    id: '/api/billing/patreon/callback',
+    path: '/api/billing/patreon/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiBillingPatreonConnectRoute =
+  ApiBillingPatreonConnectRouteImport.update({
+    id: '/api/billing/patreon/connect',
+    path: '/api/billing/patreon/connect',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiBillingPatreonWebhookRoute =
+  ApiBillingPatreonWebhookRouteImport.update({
+    id: '/api/billing/patreon/webhook',
+    path: '/api/billing/patreon/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiBillingStripeWebhookRoute = ApiBillingStripeWebhookRouteImport.update({
+  id: '/api/billing/stripe/webhook',
+  path: '/api/billing/stripe/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiEpisodesIdActivityRoute = ApiEpisodesIdActivityRouteImport.update({
   id: '/api/episodes/$id/activity',
   path: '/api/episodes/$id/activity',
@@ -543,6 +576,7 @@ export interface FileRoutesByFullPath {
   '/u/$slug': typeof USlugRoute
   '/$slug/episodes/$': typeof SlugEpisodesSplatRoute
   '/$slug/manage': typeof AuthedSlugManageRoute
+  '/settings/billing': typeof AuthedSettingsBillingRoute
   '/settings/notifications': typeof AuthedSettingsNotificationsRoute
   '/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
@@ -565,6 +599,10 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthedAdminIndexRoute
   '/settings/': typeof AuthedSettingsIndexRoute
   '/$slug/$episodeSlug/manage': typeof AuthedSlugEpisodeSlugManageRoute
+  '/api/billing/patreon/callback': typeof ApiBillingPatreonCallbackRoute
+  '/api/billing/patreon/connect': typeof ApiBillingPatreonConnectRoute
+  '/api/billing/patreon/webhook': typeof ApiBillingPatreonWebhookRoute
+  '/api/billing/stripe/webhook': typeof ApiBillingStripeWebhookRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/mobile/auth/providers': typeof ApiMobileAuthProvidersRoute
@@ -624,6 +662,7 @@ export interface FileRoutesByTo {
   '/u/$slug': typeof USlugRoute
   '/$slug/episodes/$': typeof SlugEpisodesSplatRoute
   '/$slug/manage': typeof AuthedSlugManageRoute
+  '/settings/billing': typeof AuthedSettingsBillingRoute
   '/settings/notifications': typeof AuthedSettingsNotificationsRoute
   '/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
@@ -646,6 +685,10 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthedAdminIndexRoute
   '/settings': typeof AuthedSettingsIndexRoute
   '/$slug/$episodeSlug/manage': typeof AuthedSlugEpisodeSlugManageRoute
+  '/api/billing/patreon/callback': typeof ApiBillingPatreonCallbackRoute
+  '/api/billing/patreon/connect': typeof ApiBillingPatreonConnectRoute
+  '/api/billing/patreon/webhook': typeof ApiBillingPatreonWebhookRoute
+  '/api/billing/stripe/webhook': typeof ApiBillingStripeWebhookRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/mobile/auth/providers': typeof ApiMobileAuthProvidersRoute
@@ -708,6 +751,7 @@ export interface FileRoutesById {
   '/u/$slug': typeof USlugRoute
   '/$slug_/episodes/$': typeof SlugEpisodesSplatRoute
   '/_authed/$slug/manage': typeof AuthedSlugManageRoute
+  '/_authed/settings/billing': typeof AuthedSettingsBillingRoute
   '/_authed/settings/notifications': typeof AuthedSettingsNotificationsRoute
   '/_authed/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
@@ -730,6 +774,10 @@ export interface FileRoutesById {
   '/_authed/admin/': typeof AuthedAdminIndexRoute
   '/_authed/settings/': typeof AuthedSettingsIndexRoute
   '/_authed/$slug_/$episodeSlug/manage': typeof AuthedSlugEpisodeSlugManageRoute
+  '/api/billing/patreon/callback': typeof ApiBillingPatreonCallbackRoute
+  '/api/billing/patreon/connect': typeof ApiBillingPatreonConnectRoute
+  '/api/billing/patreon/webhook': typeof ApiBillingPatreonWebhookRoute
+  '/api/billing/stripe/webhook': typeof ApiBillingStripeWebhookRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/mobile/auth/providers': typeof ApiMobileAuthProvidersRoute
@@ -792,6 +840,7 @@ export interface FileRouteTypes {
     | '/u/$slug'
     | '/$slug/episodes/$'
     | '/$slug/manage'
+    | '/settings/billing'
     | '/settings/notifications'
     | '/settings/security'
     | '/admin/queues/$'
@@ -814,6 +863,10 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/settings/'
     | '/$slug/$episodeSlug/manage'
+    | '/api/billing/patreon/callback'
+    | '/api/billing/patreon/connect'
+    | '/api/billing/patreon/webhook'
+    | '/api/billing/stripe/webhook'
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
     | '/api/mobile/auth/providers'
@@ -873,6 +926,7 @@ export interface FileRouteTypes {
     | '/u/$slug'
     | '/$slug/episodes/$'
     | '/$slug/manage'
+    | '/settings/billing'
     | '/settings/notifications'
     | '/settings/security'
     | '/admin/queues/$'
@@ -895,6 +949,10 @@ export interface FileRouteTypes {
     | '/admin'
     | '/settings'
     | '/$slug/$episodeSlug/manage'
+    | '/api/billing/patreon/callback'
+    | '/api/billing/patreon/connect'
+    | '/api/billing/patreon/webhook'
+    | '/api/billing/stripe/webhook'
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
     | '/api/mobile/auth/providers'
@@ -956,6 +1014,7 @@ export interface FileRouteTypes {
     | '/u/$slug'
     | '/$slug_/episodes/$'
     | '/_authed/$slug/manage'
+    | '/_authed/settings/billing'
     | '/_authed/settings/notifications'
     | '/_authed/settings/security'
     | '/admin/queues/$'
@@ -978,6 +1037,10 @@ export interface FileRouteTypes {
     | '/_authed/admin/'
     | '/_authed/settings/'
     | '/_authed/$slug_/$episodeSlug/manage'
+    | '/api/billing/patreon/callback'
+    | '/api/billing/patreon/connect'
+    | '/api/billing/patreon/webhook'
+    | '/api/billing/stripe/webhook'
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
     | '/api/mobile/auth/providers'
@@ -1051,6 +1114,10 @@ export interface RootRouteChildren {
   EmbedSlugEpisodeSlugRoute: typeof EmbedSlugEpisodeSlugRoute
   FontsFamilyFileRoute: typeof FontsFamilyFileRoute
   ListenSlugEpisodeSlugRoute: typeof ListenSlugEpisodeSlugRoute
+  ApiBillingPatreonCallbackRoute: typeof ApiBillingPatreonCallbackRoute
+  ApiBillingPatreonConnectRoute: typeof ApiBillingPatreonConnectRoute
+  ApiBillingPatreonWebhookRoute: typeof ApiBillingPatreonWebhookRoute
+  ApiBillingStripeWebhookRoute: typeof ApiBillingStripeWebhookRoute
   ApiEpisodesIdActivityRoute: typeof ApiEpisodesIdActivityRoute
   ApiEpisodesIdAudioRoute: typeof ApiEpisodesIdAudioRoute
   ApiMobileAuthProvidersRoute: typeof ApiMobileAuthProvidersRoute
@@ -1302,6 +1369,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedSettingsIndexRouteImport
       parentRoute: typeof AuthedSettingsRoute
     }
+    '/_authed/settings/billing': {
+      id: '/_authed/settings/billing'
+      path: '/billing'
+      fullPath: '/settings/billing'
+      preLoaderRoute: typeof AuthedSettingsBillingRouteImport
+      parentRoute: typeof AuthedSettingsRoute
+    }
     '/_authed/settings/notifications': {
       id: '/_authed/settings/notifications'
       path: '/notifications'
@@ -1441,6 +1515,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/$slug/$episodeSlug/manage'
       preLoaderRoute: typeof AuthedSlugEpisodeSlugManageRouteImport
       parentRoute: typeof AuthedRoute
+    }
+    '/api/billing/patreon/callback': {
+      id: '/api/billing/patreon/callback'
+      path: '/api/billing/patreon/callback'
+      fullPath: '/api/billing/patreon/callback'
+      preLoaderRoute: typeof ApiBillingPatreonCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/billing/patreon/connect': {
+      id: '/api/billing/patreon/connect'
+      path: '/api/billing/patreon/connect'
+      fullPath: '/api/billing/patreon/connect'
+      preLoaderRoute: typeof ApiBillingPatreonConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/billing/patreon/webhook': {
+      id: '/api/billing/patreon/webhook'
+      path: '/api/billing/patreon/webhook'
+      fullPath: '/api/billing/patreon/webhook'
+      preLoaderRoute: typeof ApiBillingPatreonWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/billing/stripe/webhook': {
+      id: '/api/billing/stripe/webhook'
+      path: '/api/billing/stripe/webhook'
+      fullPath: '/api/billing/stripe/webhook'
+      preLoaderRoute: typeof ApiBillingStripeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/episodes/$id/activity': {
       id: '/api/episodes/$id/activity'
@@ -1656,12 +1758,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedSettingsRouteChildren {
+  AuthedSettingsBillingRoute: typeof AuthedSettingsBillingRoute
   AuthedSettingsNotificationsRoute: typeof AuthedSettingsNotificationsRoute
   AuthedSettingsSecurityRoute: typeof AuthedSettingsSecurityRoute
   AuthedSettingsIndexRoute: typeof AuthedSettingsIndexRoute
 }
 
 const AuthedSettingsRouteChildren: AuthedSettingsRouteChildren = {
+  AuthedSettingsBillingRoute: AuthedSettingsBillingRoute,
   AuthedSettingsNotificationsRoute: AuthedSettingsNotificationsRoute,
   AuthedSettingsSecurityRoute: AuthedSettingsSecurityRoute,
   AuthedSettingsIndexRoute: AuthedSettingsIndexRoute,
@@ -1737,6 +1841,10 @@ const rootRouteChildren: RootRouteChildren = {
   EmbedSlugEpisodeSlugRoute: EmbedSlugEpisodeSlugRoute,
   FontsFamilyFileRoute: FontsFamilyFileRoute,
   ListenSlugEpisodeSlugRoute: ListenSlugEpisodeSlugRoute,
+  ApiBillingPatreonCallbackRoute: ApiBillingPatreonCallbackRoute,
+  ApiBillingPatreonConnectRoute: ApiBillingPatreonConnectRoute,
+  ApiBillingPatreonWebhookRoute: ApiBillingPatreonWebhookRoute,
+  ApiBillingStripeWebhookRoute: ApiBillingStripeWebhookRoute,
   ApiEpisodesIdActivityRoute: ApiEpisodesIdActivityRoute,
   ApiEpisodesIdAudioRoute: ApiEpisodesIdAudioRoute,
   ApiMobileAuthProvidersRoute: ApiMobileAuthProvidersRoute,

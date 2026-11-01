@@ -18,7 +18,7 @@ export function ListenerHome({ data }: { data: ListenerHomeData }) {
   const { continueListening, newEpisodes, liked, popular } = data
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 p-4 md:p-8">
+    <div className="mx-auto flex w-full max-w-page flex-col gap-10 p-4 md:p-8">
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
           {firstName ? `Welcome back, ${firstName}` : 'Welcome back'}

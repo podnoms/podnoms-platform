@@ -71,7 +71,7 @@ function DetailsPage() {
               }}
             />
           </Field>
-          <FieldGroup className="min-w-0">
+          <FieldGroup className="min-w-0 lg:grid lg:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="profile-name">Name</FieldLabel>
               <Input

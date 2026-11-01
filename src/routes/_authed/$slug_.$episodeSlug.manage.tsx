@@ -146,7 +146,7 @@ function EpisodePage() {
   }
 
   return (
-    <div className="flex w-full max-w-5xl flex-col gap-8 p-4 md:p-6">
+    <div className="mx-auto flex w-full max-w-page flex-col gap-8 p-4 md:p-6">
       <Link
         to="/$slug/manage"
         params={{ slug: show.slug }}

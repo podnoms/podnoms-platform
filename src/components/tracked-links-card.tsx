@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { CopyField } from '~/components/copy-field'
 import { Icons } from '~/components/icons'
+import { PaidFeatureNotice, usePaidAccess } from '~/components/paid-feature-notice'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
@@ -32,6 +33,7 @@ export function TrackedLinksCard({
   // After a link is made or deleted, to reload them.
   onChange: () => Promise<void>
 }) {
+  const paidAccess = usePaidAccess()
   const [label, setLabel] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -66,6 +68,7 @@ export function TrackedLinksCard({
           yourself while signed in doesn't count.
         </p>
       </div>
+      {!paidAccess && <PaidFeatureNotice feature="trackedLinks" />}
       <form onSubmit={submit} className="flex max-w-xl gap-2">
         <Input
           aria-label="Who the link is for"
@@ -74,7 +77,7 @@ export function TrackedLinksCard({
           value={label}
           onChange={(event) => setLabel(event.target.value)}
         />
-        <Button type="submit" disabled={saving || !label.trim()}>
+        <Button type="submit" disabled={saving || !label.trim() || !paidAccess}>
           <Icons.link />
           Make link
         </Button>

@@ -60,6 +60,7 @@ function ShowPage() {
     navigate({ to: '/live/$slug', params: { slug: show.slug } }),
   )
   const [editing, setEditing] = useState(false)
+  const [tab, setTab] = useState('episodes')
   const [deleting, setDeleting] = useState(false)
   const { summary } = show
   const { totalSeconds, latestAt } = summary
@@ -118,7 +119,7 @@ function ShowPage() {
           />
         )}
         <div className="absolute inset-0 -z-10 bg-linear-to-b from-background/20 to-background" />
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:flex-row sm:items-end md:p-8">
+        <div className="mx-auto flex w-full max-w-page flex-col gap-6 p-4 sm:flex-row sm:items-end md:p-8">
           {artwork ? (
             <img
               src={imageSrc(artwork, 192)}
@@ -190,11 +191,11 @@ function ShowPage() {
           </div>
         </div>
       </header>
-      <div className="mx-auto grid w-full max-w-7xl items-start gap-8 p-4 md:p-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="mx-auto grid w-full max-w-page items-start gap-8 p-4 md:p-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="flex min-w-0 flex-col gap-4">
           {show.channel && <ChannelPanel showId={show.id} channel={show.channel} />}
           {/* Activity is a tab away, so the episodes stay the focus. */}
-          <Tabs defaultValue="episodes" className="min-w-0 gap-3">
+          <Tabs value={tab} onValueChange={setTab} className="min-w-0 gap-3">
             <TabsList variant="line">
               <TabsTrigger value="episodes">
                 Episodes
@@ -205,6 +206,16 @@ function ShowPage() {
                 Distribution
                 {!isReady(show.distribution.readiness) && <span className="size-1.5 rounded-full bg-destructive" />}
               </TabsTrigger>
+              {show.customDomainTarget && (
+                <TabsTrigger value="domain">
+                  {/* Shorter on phones, so the four tabs fit one row. */}
+                  <span className="max-sm:hidden">Custom domain</span>
+                  <span className="sm:hidden">Domain</span>
+                  {show.customDomain && (!show.customDomainVerifiedAt || show.customDomainFailingSince) && (
+                    <span className="size-1.5 rounded-full bg-destructive" />
+                  )}
+                </TabsTrigger>
+              )}
             </TabsList>
             <TabsContent value="episodes" className="flex flex-col gap-3">
               {episodes.length === 0 ? (
@@ -245,15 +256,17 @@ function ShowPage() {
                 onChanged={() => router.invalidate({ filter: (match) => match.routeId === Route.id })}
                 onEditDetails={() => setEditing(true)}
               />
-              {show.customDomainTarget && (
+            </TabsContent>
+            {show.customDomainTarget && (
+              <TabsContent value="domain">
                 <CustomDomainCard
                   show={show}
                   target={show.customDomainTarget}
                   txtLabel={show.customDomainTxtLabel}
                   onChanged={() => router.invalidate({ filter: (match) => match.routeId === Route.id })}
                 />
-              )}
-            </TabsContent>
+              </TabsContent>
+            )}
           </Tabs>
         </div>
         <aside className="sticky top-[calc(var(--top-nav-height,0px)+1rem)] hidden flex-col gap-6 rounded-xl border bg-card p-5 xl:flex">
@@ -297,6 +310,23 @@ function ShowPage() {
         description="Changes show in podcast apps the next time they check the feed."
         details={{ title: show.title, description: show.description, imageUrl: show.imageUrl, tags: show.tags, slug: show.slug }}
         maxTitleLength={100}
+        addressHint={
+          show.customDomainTarget && (
+            <>
+              {show.customDomain ? `Also served from ${show.customDomain}. ` : 'Want your own domain, like pod.example.com? '}
+              <button
+                type="button"
+                className="underline underline-offset-4 hover:text-foreground"
+                onClick={() => {
+                  setEditing(false)
+                  setTab('domain')
+                }}
+              >
+                {show.customDomain ? 'Manage custom domain' : 'Set up a custom domain'}
+              </button>
+            </>
+          )
+        }
         onSave={async (change) => {
           const result = await updateMyShow({ data: { id: show.id, ...change } })
           if (result.error) return result.error

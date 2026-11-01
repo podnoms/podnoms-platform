@@ -9,6 +9,7 @@ import '@tanstack/react-start/server-only'
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
 import { episodes, shows, trackedLinks } from '~/server/db/schema'
+import { hasPaidAccess, requirePaidAccess } from '~/server/subscriptions.server'
 import { isBot } from '~/server/user-agent.server'
 import type { TrackedLinkVisit } from '~/lib/tracked-link-schema'
 
@@ -50,6 +51,7 @@ export type TrackedLink = Awaited<ReturnType<typeof listTrackedLinks>>[number]
 
 export async function createTrackedLink(userId: string, episodeId: string, label: string) {
   if (!(await ownEpisode(userId, episodeId))) throw new Error('Episode not found')
+  await requirePaidAccess(userId, 'trackedLinks')
   const [link] = await db.insert(trackedLinks).values({ episodeId, label }).returning({ id: trackedLinks.id })
   return link!
 }
@@ -70,6 +72,7 @@ export async function deleteTrackedLink(userId: string, id: string) {
 
 // Counts an open or play of the link, unless it's from a crawler, the
 // episode's owner (trying their own link), or the token isn't the episode's.
+// The link keeps working once the owner has no paid features, but isn't counted.
 // Resolves to whether it was counted.
 export async function recordTrackedLinkVisit(
   token: string,
@@ -84,7 +87,7 @@ export async function recordTrackedLinkVisit(
     .innerJoin(shows, eq(shows.id, episodes.showId))
     .where(and(eq(trackedLinks.token, token), eq(trackedLinks.episodeId, visit.episodeId)))
     .limit(1)
-  if (!link || link.ownerId === viewerId) return false
+  if (!link || link.ownerId === viewerId || !(await hasPaidAccess(link.ownerId))) return false
 
   const now = sql`now()`
   await db

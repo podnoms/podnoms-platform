@@ -116,7 +116,7 @@ function PlaylistPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-4 md:p-6">
+    <div className="mx-auto flex w-full max-w-page flex-col gap-8 p-4 md:p-6">
       <section className="flex flex-col gap-6 sm:flex-row sm:items-end">
         {coverUrl ? (
           <img src={imageSrc(coverUrl, 224)} alt="" className="size-40 shrink-0 rounded-xl object-cover shadow-md sm:size-56" />

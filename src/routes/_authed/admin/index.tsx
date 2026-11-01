@@ -14,21 +14,24 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/c
 import { Input } from '~/components/ui/input'
 import { Switch } from '~/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~/components/ui/table'
+import { AdminSubscriptions } from '~/components/admin-subscriptions'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import {
   endPlatformCooldown,
   fetchAdminOverview,
   saveAdminEmailSettings,
   saveAdminSettings,
+  saveComplimentaryAccess,
   saveUserChannelLimit,
   sendAdminTestEmail,
 } from '~/functions/admin'
 import { formatDateTime } from '~/lib/format'
 import { platformNames, type Platform } from '~/lib/platforms'
 import { pageTitle, useBranding } from '~/lib/branding'
+import { paidGraceDays, paidPlanName } from '~/lib/subscriptions'
 import { emailSettingsSchema, siteSettingsSchema } from '~/lib/site-settings-schema'
 
-const adminTabs = z.enum(['downloads', 'users', 'moderation', 'email', 'branding', 'theme'])
+const adminTabs = z.enum(['downloads', 'users', 'moderation', 'email', 'branding', 'theme', 'subscriptions'])
 type AdminTab = z.infer<typeof adminTabs>
 
 export const Route = createFileRoute('/_authed/admin/')({
@@ -49,7 +52,7 @@ function AdminPage() {
   const navigate = useNavigate({ from: Route.fullPath })
 
   return (
-    <div className="flex max-w-5xl flex-col gap-6 p-4 md:p-6">
+    <div className="mx-auto flex w-full max-w-page flex-col gap-6 p-4 md:p-6">
       <div className="flex flex-wrap items-center gap-4">
         <h1 className="text-2xl font-semibold">Admin</h1>
         <Button variant="outline" size="sm" className="ml-auto" onClick={() => router.invalidate()}>
@@ -88,6 +91,7 @@ function AdminPage() {
           </TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="theme">Theme</TabsTrigger>
+          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
         </TabsList>
         <TabsContent value="downloads" className="flex flex-col gap-6 pt-4">
           {!overview.jobsRunning && (
@@ -118,6 +122,9 @@ function AdminPage() {
         </TabsContent>
         <TabsContent value="theme" className="flex flex-col gap-6 pt-4">
           <ThemeSettings />
+        </TabsContent>
+        <TabsContent value="subscriptions" className="flex flex-col gap-6 pt-4">
+          <AdminSubscriptions />
         </TabsContent>
       </Tabs>
     </div>
@@ -552,7 +559,8 @@ function Users({ users }: { users: Overview['users'] }) {
         <CardTitle>Users</CardTitle>
         <CardDescription>
           Uploads per channel is how many of a channel's newest uploads each user's shows import, and look at on each
-          check. 0 stops them following channels.
+          check. 0 stops them following channels. Free {paidPlanName} gives someone everything a subscriber gets, with
+          unlimited audio, without paying. Turning it off gives them {paidGraceDays} days before it stops.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -562,6 +570,7 @@ function Users({ users }: { users: Overview['users'] }) {
               <TableHead>User</TableHead>
               <TableHead className="text-end">Channels</TableHead>
               <TableHead>Uploads per channel</TableHead>
+              <TableHead>Free {paidPlanName}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -577,12 +586,45 @@ function Users({ users }: { users: Overview['users'] }) {
                 <TableCell>
                   <ChannelLimit userId={user.id} limit={user.channelEpisodeLimit} />
                 </TableCell>
+                <TableCell>
+                  <ComplimentaryAccess user={user} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </CardContent>
     </Card>
+  )
+}
+
+function ComplimentaryAccess({ user }: { user: Overview['users'][number] }) {
+  const router = useRouter()
+  const [state, setState] = useState<'idle' | 'saving' | 'error'>('idle')
+
+  async function save(complimentary: boolean) {
+    setState('saving')
+    try {
+      await saveComplimentaryAccess({ data: { userId: user.id, complimentary } })
+      await router.invalidate()
+      setState('idle')
+    } catch {
+      setState('error')
+    }
+  }
+
+  if (user.isAdmin) return <span className="text-sm text-muted-foreground">Admin</span>
+  return (
+    <div className="flex items-center gap-2">
+      <Switch
+        aria-label={`Free ${paidPlanName} for ${user.name ?? user.email}`}
+        checked={user.complimentaryAccess}
+        disabled={state === 'saving'}
+        onCheckedChange={(checked) => void save(checked)}
+      />
+      {user.subscribed && <Badge variant="secondary">Subscribed</Badge>}
+      {state === 'error' && <span className="text-xs text-destructive">Couldn't save</span>}
+    </div>
   )
 }
 

@@ -14,7 +14,8 @@ import { eq, inArray, isNotNull, or } from 'drizzle-orm'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
 import { platformOf, type Platform } from '~/lib/platforms'
-import { channelItems, episodes, type Episode, type EpisodeReplacement } from '~/server/db/schema'
+import { channelItems, episodes, shows, type Episode, type EpisodeReplacement } from '~/server/db/schema'
+import { AudioLimitError, requireAudioRoom } from '~/server/subscriptions.server'
 import {
   onThrottleChange,
   pausedFor,
@@ -216,6 +217,13 @@ async function convertUpload(episodeId: string, path = episodeAudioPath(episodeI
   return { path, durationSeconds: info.durationSeconds }
 }
 
+// Whether the owner has room for this much audio on the episode. Others count
+// as soon as their lengths are known, including those downloading alongside it.
+async function requireRoomFor(episode: Episode, seconds: number) {
+  const [show] = await db.select({ ownerId: shows.userId }).from(shows).where(eq(shows.id, episode.showId)).limit(1)
+  if (show) await requireAudioRoom(show.ownerId, seconds, { except: episode.id })
+}
+
 async function processEpisode(episodeId: string) {
   const [episode] = await db.select().from(episodes).where(eq(episodes.id, episodeId)).limit(1)
   if (!episode) return
@@ -227,9 +235,15 @@ async function processEpisode(episodeId: string) {
   const started = Date.now()
   logger.info(job, 'Episode processing started')
   try {
+    await requireRoomFor(episode, episode.durationSeconds ?? 0)
     const audio = episode.sourceUrl
       ? await downloadSource(episodeId, episode.sourceUrl, { onDetails: (details) => saveSourceDetails(episodeId, details) })
       : await convertUpload(episodeId)
+    // A link's length is only known by now.
+    await requireRoomFor(episode, audio.durationSeconds ?? 0).catch(async (error: unknown) => {
+      await rm(audio.path, { force: true })
+      throw error
+    })
     await markReady(episodeId, audio)
     // The upload is only kept so a failed conversion can be retried.
     if (!episode.sourceUrl) await rm(episodeSourcePath(episodeId), { force: true })
@@ -243,7 +257,8 @@ async function processEpisode(episodeId: string) {
       await db.update(episodes).set({ status: 'pending' }).where(eq(episodes.id, episodeId))
       throw error
     }
-    reportError(error, { ...job, stage: progress.get(episodeId)?.stage, durationMs: Date.now() - started, msg: 'Episode processing failed' })
+    if (error instanceof AudioLimitError) logger.info(job, 'Episode refused: over the free audio limit')
+    else reportError(error, { ...job, stage: progress.get(episodeId)?.stage, durationMs: Date.now() - started, msg: 'Episode processing failed' })
     const message = error instanceof Error ? error.message : String(error)
     await db
       .update(episodes)
@@ -335,6 +350,7 @@ async function replaceAudio(episode: Episode, { sourceUrl }: EpisodeReplacement)
     const audio = sourceUrl
       ? await downloadSource(id, sourceUrl, { name: replacementAudioName(id) })
       : await convertUpload(id, replacementAudioPath(id))
+    await requireRoomFor(episode, audio.durationSeconds ?? 0)
     const { size } = await stat(audio.path)
     await rename(audio.path, episodeAudioPath(id))
     await db
@@ -357,7 +373,8 @@ async function replaceAudio(episode: Episode, { sourceUrl }: EpisodeReplacement)
       logger.warn({ episodeId: id, sourceUrl, err: error }, 'Audio replacement was refused by the platform; will retry')
       throw error
     }
-    reportError(error, { episodeId: id, showId: episode.showId, sourceUrl, stage: progress.get(id)?.stage, msg: 'Episode audio replacement failed' })
+    if (error instanceof AudioLimitError) logger.info({ episodeId: id }, 'Replacement audio refused: over the free audio limit')
+    else reportError(error, { episodeId: id, showId: episode.showId, sourceUrl, stage: progress.get(id)?.stage, msg: 'Episode audio replacement failed' })
     const message = error instanceof Error ? error.message : String(error)
     await rm(replacementAudioPath(id), { force: true })
     await db

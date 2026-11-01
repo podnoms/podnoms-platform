@@ -55,7 +55,11 @@ export function ReplaceAudioDialog({
     setError(undefined)
     setPending(true)
     try {
-      await replaceMyEpisodeAudio({ data: parsed.data })
+      const saved = await replaceMyEpisodeAudio({ data: parsed.data })
+      if ('error' in saved) {
+        setError(saved.error)
+        return
+      }
       onOpenChange(false)
       await router.invalidate()
     } catch {
@@ -78,7 +82,7 @@ export function ReplaceAudioDialog({
         }
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Replace audio</DialogTitle>
           <DialogDescription>

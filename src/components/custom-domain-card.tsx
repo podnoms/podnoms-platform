@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { CopyField } from '~/components/copy-field'
 import { Icons } from '~/components/icons'
+import { PaidFeatureNotice, usePaidAccess } from '~/components/paid-feature-notice'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
@@ -45,6 +46,7 @@ export function CustomDomainCard({
   onChanged: () => Promise<void>
 }) {
   const branding = useBranding()
+  const paidAccess = usePaidAccess()
   const [pending, setPending] = useState<'save' | 'remove' | 'test'>()
   const [error, setError] = useState<string>()
   const [result, setResult] = useState<TestResult>()
@@ -106,6 +108,7 @@ export function CustomDomainCard({
         <CardDescription>Serve the show's page and feed from a domain of your own, such as pod.example.com.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
+        {!paidAccess && <PaidFeatureNotice feature="customDomain" />}
         <form onSubmit={onSubmit}>
           <FieldGroup>
             <Field>

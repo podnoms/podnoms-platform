@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
 import { linkEpisodeSchema } from '~/lib/episode-schema'
 import { createEpisode } from '~/server/episodes.server'
+import { catchAudioLimit } from '~/server/subscriptions.server'
 import { extensionUserId } from '~/server/extension-api.server'
 
 // Adds an episode from a link the browser extension found on a page (a video,
@@ -24,7 +25,9 @@ export const Route = createFileRoute('/api/extension/episodes')({
           return new Response(parsed.error.issues[0]?.message ?? 'Invalid episode', { status: 400 })
         }
         const { imageUrl, ...input } = parsed.data
-        const episode = await createEpisode(userId, input, { pageImages: imageUrl ? [imageUrl] : [] })
+        const result = await catchAudioLimit(() => createEpisode(userId, input, { pageImages: imageUrl ? [imageUrl] : [] }))
+        if ('error' in result) return new Response(result.error, { status: 403 })
+        const episode = result.value
         if (!episode) return new Response('Show not found', { status: 404 })
         return Response.json(episode, { status: 201 })
       },

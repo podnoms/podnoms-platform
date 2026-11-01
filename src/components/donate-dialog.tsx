@@ -44,7 +44,7 @@ export function DonateDialog() {
           <span className="sr-only sm:not-sr-only">Donate</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Support {branding.name}</DialogTitle>
           <DialogDescription>

@@ -2,6 +2,7 @@ import '@tanstack/react-start/server-only'
 import { rm } from 'node:fs/promises'
 import { and, count, desc, eq, isNotNull, isNull, max, or, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
+import { hasPaidAccess, requireAudioRoom } from '~/server/subscriptions.server'
 import { archiveDeletedShow, writeDeletedShowManifest } from '~/server/deleted-shows.server'
 import { episodeLikes, episodes, playbackPositions, shows, users, type NewEpisode } from '~/server/db/schema'
 import { publishEpisodeEvent } from '~/server/episode-events.server'
@@ -321,6 +322,7 @@ export async function createEpisode(userId: string, input: NewEpisodeInput, { pa
   const description = input.description && plainTextToHtml(input.description)
   const upload = 'uploadId' in input ? await findUpload(userId, input.uploadId) : null
   if ('uploadId' in input && !upload) throw new Error('That upload has expired. Please choose the file again.')
+  await requireAudioRoom(userId, upload?.durationSeconds ?? 0)
   // The image is kept only once nothing else can go wrong with the form.
   const imageUrl = input.imageId ? await commitImage(userId, input.imageId) : null
 
@@ -385,6 +387,7 @@ export async function createUploadedEpisodes(userId: string, input: BulkUploadEp
   if (!show) return null
   const uploads = await Promise.all(input.episodes.map((item) => findUpload(userId, item.uploadId)))
   if (uploads.some((upload) => !upload)) throw new Error('Some of the uploads have expired. Please choose the files again.')
+  await requireAudioRoom(userId, uploads.reduce((total, upload) => total + (upload?.durationSeconds ?? 0), 0))
 
   const start = Date.now()
   const created = []
@@ -418,7 +421,10 @@ export async function getEpisodeAudio(episodeId: string, access: AudioAccess) {
     .where(eq(episodes.id, episodeId))
     .limit(1)
   if (episode?.status !== 'ready') return null
-  const listed = !episode.private && (!episode.showPrivate || (!!access.key && access.key === episode.feedKey))
+  const listed =
+    !episode.private &&
+    (!episode.showPrivate ||
+      (!!access.key && access.key === episode.feedKey && (await hasPaidAccess(episode.ownerId))))
   if (!listed && (await access.viewerId()) !== episode.ownerId) return null
   return { audioMimeType: episode.audioMimeType }
 }
@@ -560,6 +566,7 @@ export async function replaceEpisodeAudio(userId: string, input: ReplaceAudioInp
   if (!episode) return false
   const upload = 'uploadId' in input ? await findUpload(userId, input.uploadId) : null
   if ('uploadId' in input && !upload) throw new Error('That upload has expired. Please choose the file again.')
+  await requireAudioRoom(userId, upload?.durationSeconds ?? 0, { except: episode.id })
   const sourceUrl = 'sourceUrl' in input ? input.sourceUrl : null
 
   const claimed =

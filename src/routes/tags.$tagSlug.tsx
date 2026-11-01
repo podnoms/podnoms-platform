@@ -50,7 +50,7 @@ function TagPage() {
   })
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-4 md:p-8">
+    <div className="mx-auto flex w-full max-w-page flex-col gap-8 p-4 md:p-8">
       <PageHeading
         icon={<Icons.explore />}
         title={`#${tag.name}`}

@@ -57,7 +57,7 @@ export function SearchCommand() {
         onOpenChange={setOpen}
         title="Search"
         description="Search your shows and episodes"
-        className="sm:max-w-xl"
+        className="sm:max-w-2xl"
       >
         {/* Remounted on each opening, so it starts with an empty search. */}
         {open && <SearchPalette close={() => setOpen(false)} />}

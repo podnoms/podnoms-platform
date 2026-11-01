@@ -11,6 +11,7 @@ import { isListed, newestPublishedFirst } from '~/server/episodes.server'
 import { showAuthor } from '~/server/shows.server'
 import { uuidV5 } from '~/server/uuid.server'
 import { getBranding } from '~/server/branding.server'
+import { hasPaidAccess } from '~/server/subscriptions.server'
 
 // A private show's feed is only served with its feed key.
 export function feedPath(slug: string, feedKey?: string | null) {
@@ -71,6 +72,7 @@ export async function buildShowFeed(
       explicit: shows.explicit,
       private: shows.private,
       feedKey: shows.feedKey,
+      ownerId: shows.userId,
       updatedAt: shows.updatedAt,
       author: showAuthor,
       ownerEmail: shows.ownerEmail,
@@ -80,7 +82,7 @@ export async function buildShowFeed(
     .where(eq(shows.slug, slug))
     .limit(1)
   if (!show) return null
-  if (show.private && (!show.feedKey || options.key !== show.feedKey)) return null
+  if (show.private && (!show.feedKey || options.key !== show.feedKey || !(await hasPaidAccess(show.ownerId)))) return null
   const key = show.private ? show.feedKey : null
 
   const items = await db

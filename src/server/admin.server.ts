@@ -2,12 +2,12 @@
 // download throttle, each user's channel import limit, and moderation (how
 // strict the image check is, and reports). Callers check isAdmin.
 import '@tanstack/react-start/server-only'
-import { asc, count, eq } from 'drizzle-orm'
+import { and, asc, count, eq, exists } from 'drizzle-orm'
 import { env } from '~/env'
 import type { Platform } from '~/lib/platforms'
 import type { EmailSettingsInput, SiteSettingsInput } from '~/lib/site-settings-schema'
 import { db } from '~/server/db/client.server'
-import { channels, shows, users } from '~/server/db/schema'
+import { channels, shows, subscriptions, users } from '~/server/db/schema'
 import { clearCooldown, pump, throttleStatus } from '~/server/download-throttle.server'
 import { fetcherHealth } from '~/server/fetcher.server'
 import { configFromSettings, getEmailConfig, getEmailStatus, sendEmail, updateEmailSettings } from '~/server/email.server'
@@ -30,6 +30,13 @@ export async function getAdminOverview() {
         email: users.email,
         isAdmin: users.isAdmin,
         channelEpisodeLimit: users.channelEpisodeLimit,
+        complimentaryAccess: users.complimentaryAccess,
+        subscribed: exists(
+          db
+            .select({ id: subscriptions.id })
+            .from(subscriptions)
+            .where(and(eq(subscriptions.userId, users.id), eq(subscriptions.active, true))),
+        ).mapWith(Boolean),
         channels: count(channels.id),
       })
       .from(users)

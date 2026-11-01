@@ -16,6 +16,7 @@ import {
 import { getSession } from '~/server/auth.server'
 import { getOpenBroadcast, liveEnabled } from '~/server/live.server'
 import { publicUrl } from '~/server/site-url.server'
+import { catchAudioLimit } from '~/server/subscriptions.server'
 import { getShowChannel } from '~/server/channels.server'
 import { listComments } from '~/server/comments.server'
 import {
@@ -275,9 +276,10 @@ export const submitMyShowToIndex = createServerFn({ method: 'POST' })
 export const createMyEpisode = createServerFn({ method: 'POST' })
   .validator(newEpisodeSchema)
   .handler(async ({ data }) => {
-    const episode = await createEpisode(await requireUserId(), data)
-    if (!episode) throw notFound()
-    return episode
+    const userId = await requireUserId()
+    const result = await catchAudioLimit(() => createEpisode(userId, data))
+    if ('value' in result && !result.value) throw notFound()
+    return result
   })
 
 // What a pasted link says about itself, to fill in the new episode form.
@@ -288,9 +290,10 @@ export const lookUpEpisodeLink = createServerFn({ method: 'POST' })
 export const createMyEpisodes = createServerFn({ method: 'POST' })
   .validator(bulkUploadEpisodesSchema)
   .handler(async ({ data }) => {
-    const created = await createUploadedEpisodes(await requireUserId(), data)
-    if (!created) throw notFound()
-    return created
+    const userId = await requireUserId()
+    const result = await catchAudioLimit(() => createUploadedEpisodes(userId, data))
+    if ('value' in result && !result.value) throw notFound()
+    return result
   })
 
 export const deleteMyEpisode = createServerFn({ method: 'POST' })
@@ -320,7 +323,10 @@ export const retryMyEpisode = createServerFn({ method: 'POST' })
 export const replaceMyEpisodeAudio = createServerFn({ method: 'POST' })
   .validator(replaceAudioSchema)
   .handler(async ({ data }) => {
-    if (!(await replaceEpisodeAudio(await requireUserId(), data))) throw notFound()
+    const userId = await requireUserId()
+    const result = await catchAudioLimit(() => replaceEpisodeAudio(userId, data))
+    if ('value' in result && !result.value) throw notFound()
+    return result
   })
 
 export const dismissMyEpisodeError = createServerFn({ method: 'POST' })

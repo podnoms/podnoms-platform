@@ -1,5 +1,5 @@
 // Secrets kept in the database (authenticator app secrets, the SMTP password,
-// shows' live stream keys)
+// shows' live stream keys, billing providers' keys)
 // are encrypted with a key derived from AUTH_SECRET, so a copy of the database
 // alone doesn't give them away. Each kind gets its own key, named by its
 // purpose. Changing AUTH_SECRET makes them all unreadable.
@@ -7,7 +7,7 @@ import '@tanstack/react-start/server-only'
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:crypto'
 import { env } from '~/env'
 
-export type SecretPurpose = 'podnoms totp secret' | 'podnoms smtp password' | 'podnoms live key' | 'podnoms push key'
+export type SecretPurpose = 'podnoms totp secret' | 'podnoms smtp password' | 'podnoms live key' | 'podnoms push key' | 'podnoms stripe secret' | 'podnoms patreon secret'
 
 const keys = new Map<SecretPurpose, Buffer>()
 

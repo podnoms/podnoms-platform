@@ -212,6 +212,7 @@ describe('migrations', () => {
       'show_follow',
       'show_tag',
       'site_settings',
+      'subscription',
       'tag',
       'tracked_link',
       'user',

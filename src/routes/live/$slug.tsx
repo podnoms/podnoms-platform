@@ -37,7 +37,7 @@ function LivePage() {
   const interrupted = Boolean(broadcast?.interruptedAt)
 
   return (
-    <div className="mx-auto grid w-full max-w-7xl gap-6 p-4 md:p-6 xl:h-[calc(100dvh-var(--top-nav-height,0px)-var(--player-height,0px))] xl:grid-cols-[minmax(0,1fr)_22rem]">
+    <div className="mx-auto grid w-full max-w-page gap-6 p-4 md:p-6 xl:h-[calc(100dvh-var(--top-nav-height,0px)-var(--player-height,0px))] xl:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="flex min-w-0 flex-col gap-4">
         <LivePlayer
           slug={show.slug}

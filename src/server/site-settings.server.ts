@@ -53,6 +53,21 @@ const settingSchemas = {
   siteTheme: siteThemeSchema.nullable(),
   // How strict the image check is (see image-moderation.server.ts).
   imageModeration: imageModerationSchema,
+  // When paid features were turned on (see subscriptions.server.ts); null while
+  // they're free for everyone.
+  paidFeaturesStartedAt: z.string().nullable(),
+  // The smallest Patreon pledge that gives paid features.
+  patreonMinimumCents: z.number().int(),
+  // The billing providers' details, when they aren't set by environment
+  // variables (see billing-config.server.ts). The secrets are encrypted.
+  stripeSecretKey: z.string().nullable(),
+  stripeWebhookSecret: z.string().nullable(),
+  stripePriceId: z.string().nullable(),
+  patreonClientId: z.string().nullable(),
+  patreonClientSecret: z.string().nullable(),
+  patreonWebhookSecret: z.string().nullable(),
+  patreonCampaignId: z.string().nullable(),
+  patreonUrl: z.string().nullable(),
 }
 
 export type SiteSettings = { [K in keyof typeof settingSchemas]: z.infer<(typeof settingSchemas)[K]> }
@@ -82,6 +97,16 @@ export const defaultSiteSettings: SiteSettings = {
   analyticsAttributes: {},
   siteTheme: null,
   imageModeration: defaultImageModerationLimits,
+  paidFeaturesStartedAt: null,
+  patreonMinimumCents: 1,
+  stripeSecretKey: null,
+  stripeWebhookSecret: null,
+  stripePriceId: null,
+  patreonClientId: null,
+  patreonClientSecret: null,
+  patreonWebhookSecret: null,
+  patreonCampaignId: null,
+  patreonUrl: null,
 }
 
 const isSettingName = (key: string): key is SettingName => Object.hasOwn(settingSchemas, key)

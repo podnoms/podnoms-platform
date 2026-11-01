@@ -26,7 +26,7 @@ export function PlaylistDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         {/* Remounted on each opening, so it starts from `initial`. */}
         {open && <PlaylistForm initial={initial} onSave={onSave} onCancel={() => onOpenChange(false)} />}
       </DialogContent>

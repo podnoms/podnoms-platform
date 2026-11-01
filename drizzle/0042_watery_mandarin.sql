@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "complimentaryAccess" boolean DEFAULT false NOT NULL;

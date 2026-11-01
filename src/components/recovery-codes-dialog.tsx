@@ -41,7 +41,7 @@ export function RecoveryCodesDialog({ codes, onClose }: { codes: string[] | null
         onClose()
       }}
     >
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Save your recovery codes</DialogTitle>
           <DialogDescription>

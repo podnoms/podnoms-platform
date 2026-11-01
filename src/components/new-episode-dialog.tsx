@@ -84,7 +84,11 @@ export function NewEpisodeDialog({
     setError(undefined)
     setPending(true)
     try {
-      await createMyEpisode({ data: parsed.data })
+      const saved = await createMyEpisode({ data: parsed.data })
+      if ('error' in saved) {
+        setError(saved.error)
+        return
+      }
       setOpen(false)
       // Reload the show page so the new episode is listed.
       await router.invalidate()
@@ -115,7 +119,7 @@ export function NewEpisodeDialog({
       }}
     >
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>New episode</DialogTitle>
           <DialogDescription>

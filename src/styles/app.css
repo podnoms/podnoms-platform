@@ -6,6 +6,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* The widest a page gets, as max-w-page: it fills most screens, and stays
+   centred on very wide ones so nothing stretches too far. */
+@theme {
+  --container-page: 100rem;
+}
+
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: var(--font-sans);

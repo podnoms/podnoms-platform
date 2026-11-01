@@ -53,7 +53,7 @@ export function ReportImageButton({ targetKind, targetId }: { targetKind: Report
           <span className="sr-only">Report image</span>
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         {state === 'sent' ? (
           <>
             <DialogHeader>

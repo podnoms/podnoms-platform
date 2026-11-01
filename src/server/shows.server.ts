@@ -6,6 +6,7 @@ import { reservedShowSlugs } from '~/lib/paths'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { firstFreeSlug, slugify } from '~/lib/slug'
 import { customDomainValues, withDomainConflict } from '~/server/custom-domains.server'
+import { requirePaidAccess } from '~/server/subscriptions.server'
 import { commitImage, deleteImage } from '~/server/images.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import { syncShowTags } from '~/server/tags-store.server'
@@ -118,6 +119,7 @@ export function randomFeedKey() {
 // listeners were given keep working if it's made private again), or public.
 // Returns false unless the show belongs to the user.
 export async function setShowPrivacy(userId: string, showId: string, isPrivate: boolean) {
+  if (isPrivate) await requirePaidAccess(userId, 'privateShows')
   const updated = await db
     .update(shows)
     .set({ private: isPrivate, ...(isPrivate && { feedKey: sql`coalesce(${shows.feedKey}, ${randomFeedKey()})` }) })
@@ -152,7 +154,8 @@ async function availableSlug(title: string) {
 export async function createShow(userId: string, input: NewShowInput) {
   const slug = await availableSlug(input.title)
   const description = input.description ? plainTextToHtml(input.description) : undefined
-  // Its own domain, if one was given, is checked later from the Distribution tab.
+  if (input.customDomain) await requirePaidAccess(userId, 'customDomain')
+  // Its own domain, if one was given, is checked later from the Custom domain tab.
   const domain = input.customDomain ? customDomainValues(input.customDomain) : {}
   const values = { userId, title: input.title, description, slug, ...domain }
   return withDomainConflict(() => db.transaction(async (tx) => {

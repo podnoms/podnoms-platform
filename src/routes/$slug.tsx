@@ -96,7 +96,7 @@ function ShowPage() {
           />
         )}
         <div className="absolute inset-0 -z-10 bg-linear-to-b from-background/20 to-background" />
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:flex-row sm:items-end md:p-8">
+        <div className="mx-auto flex w-full max-w-page flex-col gap-6 p-4 sm:flex-row sm:items-end md:p-8">
           {show.imageUrl ? (
             <img
               src={imageSrc(show.imageUrl, 192)}
@@ -166,7 +166,7 @@ function ShowPage() {
           </div>
         </div>
       </header>
-      <div className="mx-auto grid w-full max-w-7xl items-start gap-8 p-4 md:p-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="mx-auto grid w-full max-w-page items-start gap-8 p-4 md:p-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <section aria-labelledby="episodes-heading" className="flex min-w-0 flex-col gap-3">
           <div className="flex items-baseline gap-2">
             <h2 id="episodes-heading" className="text-lg font-semibold">

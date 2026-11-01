@@ -1,3 +1,4 @@
+import { hasPaidAccess } from '~/server/subscriptions.server'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getRequest } from '@tanstack/react-start/server'
@@ -28,6 +29,7 @@ export const fetchAuthState = createServerFn({ method: 'GET' }).handler(async ()
             email: profile.email,
             image: profile.imageUrl,
             isAdmin: profile.isAdmin,
+            paidAccess: await hasPaidAccess(session!.user!.id!),
           },
         }
       : null,

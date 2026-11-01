@@ -18,6 +18,7 @@ import { ButtonGroup } from '~/components/ui/button-group'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '~/components/ui/dialog'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
+import { PaidFeatureNotice, usePaidAccess } from '~/components/paid-feature-notice'
 import { createMyLiveKey, fetchMyLive, revokeMyLiveKey, saveMyLiveTitle } from '~/functions/live'
 import { formatDateTime, formatLength } from '~/lib/format'
 import { liveTitleMaxLength } from '~/lib/live-schema'
@@ -60,7 +61,7 @@ export function GoLiveButton({ show, live }: { show: Show; live: boolean }) {
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-4xl">
         <GoLiveSettings show={show} />
       </DialogContent>
     </Dialog>
@@ -72,6 +73,7 @@ export function GoLiveButton({ show, live }: { show: Show; live: boolean }) {
 // episodes made from their recordings. Only mounted while the dialog is open,
 // so it only loads (and refreshes) then.
 function GoLiveSettings({ show }: { show: Show }) {
+  const paidAccess = usePaidAccess()
   const [settings, setSettings] = useState<Settings | null>(null)
   const [title, setTitle] = useState('')
   const [pending, setPending] = useState(false)
@@ -118,6 +120,17 @@ function GoLiveSettings({ show }: { show: Show }) {
   function saveTitle(event: FormEvent) {
     event.preventDefault()
     void run(() => saveMyLiveTitle({ data: { showId: show.id, title } }))
+  }
+
+  if (!paidAccess) {
+    return (
+      <>
+        <DialogHeader>
+          <DialogTitle>Go live</DialogTitle>
+        </DialogHeader>
+        <PaidFeatureNotice feature="live" />
+      </>
+    )
   }
 
   if (!settings) {

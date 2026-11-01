@@ -14,6 +14,7 @@ import type { NewChannelShowInput } from '~/lib/channel-schema'
 import { parseChannelUrl, parsePlaylistUrl, type Platform } from '~/lib/platforms'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
+import { hasPaidAccess, requirePaidAccess } from '~/server/subscriptions.server'
 import { channelItems, channels, shows, users, type Channel } from '~/server/db/schema'
 import { RateLimitedError, withDownloadSlot } from '~/server/download-throttle.server'
 import { publishEpisodeEvent } from '~/server/episode-events.server'
@@ -76,6 +77,7 @@ export async function followChannel(
   kind: ChannelKind = 'channel',
   tags?: string[],
 ) {
+  await requirePaidAccess(userId, 'channels')
   const show = await createShow(userId, { title: nameFromChannelUrl(source.url), customDomain, tags })
   const [channel] = await db
     .insert(channels)
@@ -234,20 +236,26 @@ async function addNewEntries(channel: Channel, showId: string, entries: ChannelE
 }
 
 // Checks each channel that's due, one after another; for the channel-check job.
+// Those whose owners have no paid features are passed over, staying due, so
+// they're checked as soon as the owner subscribes again.
 export async function checkDueChannels() {
   const due = await db
-    .select({ id: channels.id })
+    .select({ id: channels.id, ownerId: shows.userId })
     .from(channels)
+    .innerJoin(shows, eq(shows.id, channels.showId))
     .where(and(eq(channels.enabled, true), lte(channels.nextCheckAt, new Date())))
     .orderBy(asc(channels.nextCheckAt))
   let added = 0
   let failed = 0
-  for (const { id } of due) {
+  let checked = 0
+  for (const { id, ownerId } of due) {
+    if (!(await hasPaidAccess(ownerId))) continue
+    checked++
     const result = await checkChannel(id)
     if ('added' in result) added += result.added
     else failed++
   }
-  return { checked: due.length, added, failed }
+  return { checked, added, failed }
 }
 
 // The show's channel, if it follows one and belongs to the user.
@@ -286,6 +294,7 @@ export async function getShowChannel(showId: string) {
 export async function checkChannelNow(userId: string, showId: string) {
   const channel = await findOwnedChannel(userId, showId)
   if (!channel) return null
+  await requirePaidAccess(userId, 'channels')
   if (isCheckingChannel(channel.id)) return 'started'
   if (channel.lastCheckedAt && Date.now() - channel.lastCheckedAt.getTime() < manualCheckIntervalMs) return 'too-soon'
   void checkChannel(channel.id, { priority: 1 })

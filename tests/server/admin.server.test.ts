@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { getAdminOverview, saveSiteSettings, setUserChannelLimit } from '~/server/admin.server'
-import { channels, users } from '~/server/db/schema'
+import { channels, subscriptions, users } from '~/server/db/schema'
 import { updateSiteSettings } from '~/server/site-settings.server'
 import { resetDb } from '../db'
 import { createShow, createUser, db } from '../helpers'
@@ -43,6 +43,17 @@ describe('the admin page', () => {
   it('saves the settings', async () => {
     await saveSiteSettings({ downloadConcurrency: 4, perPlatformConcurrency: 1, downloadDelaySeconds: 30, channelCheckHours: 12, downloadRateLimit: '1M' })
     expect((await getAdminOverview()).settings).toMatchObject({ downloadConcurrency: 4, downloadDelaySeconds: 30, downloadRateLimit: '1M' })
+  })
+
+  it('shows who has complimentary access and who is subscribed', async () => {
+    const paying = await createUser({ email: 'a@example.com' })
+    await createUser({ email: 'b@example.com', complimentaryAccess: true })
+    await db.insert(subscriptions).values({ userId: paying.id, provider: 'stripe', externalId: 'sub_1', status: 'active', active: true })
+    const overview = await getAdminOverview()
+    expect(overview.users.map(({ subscribed, complimentaryAccess }) => ({ subscribed, complimentaryAccess }))).toEqual([
+      { subscribed: true, complimentaryAccess: false },
+      { subscribed: false, complimentaryAccess: true },
+    ])
   })
 
   it("sets a user's channel limit", async () => {

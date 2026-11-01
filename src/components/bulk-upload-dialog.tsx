@@ -65,7 +65,11 @@ export function BulkUploadDialog({ showId, children }: { showId: string; childre
     setError(undefined)
     setPending(true)
     try {
-      await createMyEpisodes({ data: parsed.data })
+      const saved = await createMyEpisodes({ data: parsed.data })
+      if ('error' in saved) {
+        setError(saved.error)
+        return
+      }
       setOpen(false)
       clear()
       // Reload the show page so the new episodes are listed.
@@ -92,7 +96,7 @@ export function BulkUploadDialog({ showId, children }: { showId: string; childre
       }}
     >
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Upload a folder</DialogTitle>
           <DialogDescription>

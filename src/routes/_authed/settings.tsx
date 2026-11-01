@@ -10,22 +10,25 @@ const tabs = {
   details: '/settings',
   security: '/settings/security',
   notifications: '/settings/notifications',
+  billing: '/settings/billing',
 } as const
 
 function SettingsLayout() {
   const navigate = useNavigate()
   const onSecurity = useMatch({ from: '/_authed/settings/security', shouldThrow: false })
   const onNotifications = useMatch({ from: '/_authed/settings/notifications', shouldThrow: false })
-  const tab = onSecurity ? 'security' : onNotifications ? 'notifications' : 'details'
+  const onBilling = useMatch({ from: '/_authed/settings/billing', shouldThrow: false })
+  const tab = onSecurity ? 'security' : onNotifications ? 'notifications' : onBilling ? 'billing' : 'details'
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6 p-4">
+    <div className="mx-auto flex w-full max-w-page flex-col gap-6 p-4 md:p-6">
       <h1 className="text-2xl font-semibold">Settings</h1>
       <Tabs value={tab} onValueChange={(value) => navigate({ to: tabs[value as keyof typeof tabs] })}>
         <TabsList variant="line">
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="billing">Subscription</TabsTrigger>
         </TabsList>
         <TabsContent value={tab} className="pt-4">
           <Outlet />

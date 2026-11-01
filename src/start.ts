@@ -12,7 +12,7 @@ const quietPaths = [/^\/images\//, /^\/api\/episodes\/[^/]+\/audio/, /^\/api\/sh
 const expected = (error: unknown) =>
   isRedirect(error) ||
   isNotFound(error) ||
-  (error instanceof Error && (error.name === 'ZodError' || error.name === 'ChatTooFastError'))
+  (error instanceof Error && (error.name === 'ZodError' || error.name === 'ChatTooFastError' || error.name === 'PaidFeatureError' || error.name === 'AudioLimitError'))
 
 const loggingMiddleware = createMiddleware().server(async ({ request, pathname, next, handlerType, serverFnMeta }) => {
   const { logger, reportError } = await import('~/server/logger.server')

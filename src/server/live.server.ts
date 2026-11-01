@@ -15,6 +15,7 @@ import { and, desc, eq, inArray, isNotNull, isNull, or } from 'drizzle-orm'
 import { env } from '~/env'
 import type { ChatGif, GifConfig } from '~/lib/gifs'
 import { db } from '~/server/db/client.server'
+import { hasPaidAccess, requirePaidAccess } from '~/server/subscriptions.server'
 import { episodes, liveBroadcasts, liveChatMessages, shows, users, type LiveBroadcast } from '~/server/db/schema'
 import { ExpiringStore } from '~/server/expiring-store.server'
 import { notifyFollowersLive } from '~/server/follower-notifications.server'
@@ -91,6 +92,7 @@ export function liveTokenFrom(url: string) {
 // working), and returns what goes in OBS. Null unless the show belongs to
 // the user.
 export async function createLiveKey(userId: string, showId: string) {
+  await requirePaidAccess(userId, 'live')
   const key = randomBytes(24).toString('base64url')
   const updated = await db
     .update(shows)
@@ -161,12 +163,12 @@ export async function authorizeLive(request: LiveAuthRequest) {
       let allowed = false
       if (showId && key) {
         const [show] = await db
-          .select({ liveKey: shows.liveKey })
+          .select({ liveKey: shows.liveKey, ownerId: shows.userId })
           .from(shows)
           .where(eq(shows.id, showId))
           .limit(1)
         const expected = readKey(show?.liveKey ?? null)
-        allowed = expected !== null && sameText(key, expected)
+        allowed = expected !== null && sameText(key, expected) && (await hasPaidAccess(show!.ownerId))
       }
       if (allowed) {
         logger.info({ path: request.path, protocol: request.protocol }, 'Live stream starting')

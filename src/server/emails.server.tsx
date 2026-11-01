@@ -215,6 +215,29 @@ export function notificationDigestEmail(events: NotificationEvent[], settingsLin
 
 // To admins, when a platform starts asking us to prove we're not a bot (see
 // admin-alerts.server.ts).
+export function subscriptionLapsedEmail(plan: string, graceDays: number, freeHours: number, billingLink: string | null, siteName: string): EmailMessage {
+  return {
+    subject: `Your ${siteName} ${plan} subscription has ended`,
+    preview: `Your paid features and unlimited audio will stop in ${graceDays} days unless you subscribe again.`,
+    content: (
+      <>
+        <EmailHeading>Your {plan} subscription has ended</EmailHeading>
+        <EmailText>
+          Your live broadcasts, custom domains, followed channels, private feeds and tracked links keep working for{' '}
+          {graceDays} more days, then stop. You also won’t be able to add episodes past {freeHours} hours of audio.
+          Nothing is deleted, your episodes keep playing, and private shows stay private: subscribing again brings it
+          all back.
+        </EmailText>
+        {billingLink && (
+          <EmailText>
+            <EmailLink href={billingLink}>Manage your subscription</EmailLink>
+          </EmailText>
+        )}
+      </>
+    ),
+  }
+}
+
 export function botCheckEmail(platform: Platform, error: string, adminLink: string | null, siteName: string): EmailMessage {
   const name = platformNames[platform]
   return {

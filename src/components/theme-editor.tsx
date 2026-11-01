@@ -379,7 +379,7 @@ function ImportDialog({ styles, onImport }: { styles: ThemeModes; onImport: (sty
           Import CSS
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Import a theme</DialogTitle>
           <DialogDescription>

@@ -122,6 +122,27 @@ export const env = createEnv({
     // served from Cloudflare's cache at once (see reports.server.ts).
     CLOUDFLARE_ZONE_ID: z.string().optional(),
     CLOUDFLARE_API_TOKEN: z.string().optional(),
+    // Stripe subscriptions (see stripe.server.ts). Admins can enter these on the
+    // admin page instead; when STRIPE_SECRET_KEY is set these are used, and all
+    // three are needed.
+    // The webhook, at <site>/api/billing/stripe/webhook, needs the events
+    // checkout.session.completed and customer.subscription.created, .updated
+    // and .deleted. STRIPE_PRICE_ID is the recurring price people subscribe to.
+    STRIPE_SECRET_KEY: z.string().optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    STRIPE_PRICE_ID: z.string().optional(),
+    // Patreon pledges (see patreon.server.ts). Admins can enter these on the admin
+    // page instead; when PATREON_CLIENT_ID is set these are used, and the first
+    // four are needed.
+    // The client is from patreon.com/portal/registration/register-clients, with
+    // <site>/api/billing/patreon/callback as its redirect URI. The webhook, at
+    // <site>/api/billing/patreon/webhook, needs the members:pledge:* triggers.
+    // PATREON_URL is the page people pledge on.
+    PATREON_CLIENT_ID: z.string().optional(),
+    PATREON_CLIENT_SECRET: z.string().optional(),
+    PATREON_WEBHOOK_SECRET: z.string().optional(),
+    PATREON_CAMPAIGN_ID: z.string().optional(),
+    PATREON_URL: z.url().optional(),
     LIVE_RTMP_URL: z.string().regex(/^rtmps?:\/\//, 'Must be an rtmp:// or rtmps:// URL').optional(),
   },
   clientPrefix: 'VITE_',

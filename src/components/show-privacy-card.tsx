@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CopyField } from '~/components/copy-field'
 import { Icons } from '~/components/icons'
+import { PaidFeatureNotice, usePaidAccess } from '~/components/paid-feature-notice'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +28,7 @@ export function ShowPrivacyCard({
   show: { id: string; private: boolean; feedUrl: string }
   onChanged: () => Promise<void>
 }) {
+  const paidAccess = usePaidAccess()
   const [pending, setPending] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
   const [error, setError] = useState<string>()
@@ -54,6 +56,7 @@ export function ShowPrivacyCard({
       </CardHeader>
       <CardContent>
         <FieldGroup>
+          {!paidAccess && <PaidFeatureNotice feature="privateShows" />}
           <Field orientation="horizontal">
             <FieldContent>
               <FieldLabel htmlFor="show-private">Private show</FieldLabel>
@@ -65,7 +68,7 @@ export function ShowPrivacyCard({
             <Switch
               id="show-private"
               checked={show.private}
-              disabled={pending}
+              disabled={pending || (!paidAccess && !show.private)}
               onCheckedChange={(value) => void run(() => setMyShowPrivacy({ data: { id: show.id, private: value } }))}
             />
           </Field>

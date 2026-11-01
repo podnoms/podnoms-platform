@@ -79,6 +79,14 @@ export const users = pgTable(
     // How many of a channel's newest uploads are imported when the user makes
     // a show from it, and considered on each check. Set by admins.
     channelEpisodeLimit: integer('channelEpisodeLimit').notNull().default(10),
+    // Their customer in Stripe, once they've started a checkout.
+    stripeCustomerId: text('stripeCustomerId').unique(),
+    // Until when they keep paid features without a subscription: 14 days from
+    // paid features being turned on, or from their subscription ending (see
+    // subscriptions.server.ts).
+    paidGraceUntil: timestamp('paidGraceUntil', { mode: 'date', withTimezone: true }),
+    // Given paid features for free by an admin, for as long as this is on.
+    complimentaryAccess: boolean('complimentaryAccess').notNull().default(false),
   },
   // Emails are unique regardless of case, across OAuth and password users.
   (table) => [uniqueIndex('user_email_lower_idx').on(sql`lower(${table.email})`)],
@@ -122,6 +130,39 @@ export const verificationTokens = authSchema.table(
     expires: timestamp('expires', { mode: 'date' }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.identifier, table.token] })],
+)
+
+// --- Subscriptions ------------------------------------------------------------
+
+export const subscriptionProvider = pgEnum('subscription_provider', ['stripe', 'patreon'])
+
+// What pays for a user's paid features (see subscriptions.server.ts): a Stripe
+// subscription, or a Patreon pledge once they've connected their account.
+// `externalId` is the subscription's id at Stripe, the user's id at Patreon.
+// Finished ones are kept, marked inactive.
+export const subscriptions = pgTable(
+  'subscription',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    provider: subscriptionProvider('provider').notNull(),
+    externalId: text('externalId').notNull(),
+    // The provider's own word for it, for showing to admins and debugging.
+    status: text('status').notNull(),
+    active: boolean('active').notNull(),
+    currentPeriodEnd: timestamp('currentPeriodEnd', { mode: 'date', withTimezone: true }),
+    cancelAtPeriodEnd: boolean('cancelAtPeriodEnd').notNull().default(false),
+    createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('subscription_provider_external_idx').on(table.provider, table.externalId),
+    index('subscription_user_idx').on(table.userId),
+  ],
 )
 
 // --- Two-factor authentication ----------------------------------------------

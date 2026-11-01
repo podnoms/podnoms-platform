@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { ImageField, imageIdToSave, type ImageValue } from '~/components/image-field'
 import { RichTextEditor } from '~/components/rich-text-editor'
 import { TagInput } from '~/components/tag-input'
@@ -44,6 +44,7 @@ export function EditDetailsDialog({
   details,
   maxTitleLength,
   imageContext,
+  addressHint,
   onSave,
 }: {
   open: boolean
@@ -54,13 +55,15 @@ export function EditDetailsDialog({
   maxTitleLength: number
   // More for a random image to go on, e.g. an episode's show title.
   imageContext?: string
+  // Shown under a show's address, e.g. how to use a domain of their own instead.
+  addressHint?: ReactNode
   // Resolves once saved, or with a message for the form to show; the form
   // shows a general error if it throws.
   onSave: (change: DetailsChange) => Promise<string | void>
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{heading}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -70,6 +73,7 @@ export function EditDetailsDialog({
           details={details}
           maxTitleLength={maxTitleLength}
           imageContext={imageContext}
+          addressHint={addressHint}
           onSave={onSave}
           onSaved={() => onOpenChange(false)}
         />
@@ -82,12 +86,14 @@ function DetailsForm({
   details,
   maxTitleLength,
   imageContext,
+  addressHint,
   onSave,
   onSaved,
 }: {
   details: Details
   maxTitleLength: number
   imageContext?: string
+  addressHint?: ReactNode
   onSave: (change: DetailsChange) => Promise<string | void>
   onSaved: () => void
 }) {
@@ -178,6 +184,7 @@ function DetailsForm({
                     and directories using the old feed won't get new episodes until it's updated there.
                   </FieldDescription>
                 )}
+                {addressHint && <FieldDescription>{addressHint}</FieldDescription>}
               </Field>
             )}
             <Field>

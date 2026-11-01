@@ -17,6 +17,7 @@ import { TagInput } from '~/components/tag-input'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
 import { Textarea } from '~/components/ui/textarea'
+import { PaidFeatureNotice, usePaidAccess } from '~/components/paid-feature-notice'
 import { createMyChannelShow, fetchMyChannelLimit } from '~/functions/channels'
 import { createMyShow } from '~/functions/shows'
 import { newChannelShowSchema } from '~/lib/channel-schema'
@@ -31,6 +32,7 @@ export function NewShowDialog({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   // Admins' shows import everything, not just the newest uploads.
   const isAdmin = useRouteContext({ from: '__root__' }).session?.user.isAdmin ?? false
+  const paidAccess = usePaidAccess()
   const [open, setOpen] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string>()
@@ -92,7 +94,7 @@ export function NewShowDialog({ children }: { children: ReactNode }) {
       }}
     >
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>New show</DialogTitle>
           <DialogDescription className="sr-only">Start a blank show, or one that follows a channel.</DialogDescription>
@@ -129,6 +131,7 @@ export function NewShowDialog({ children }: { children: ReactNode }) {
               </>
             ) : (
               <Field>
+                {!paidAccess && <PaidFeatureNotice feature="channels" />}
                 <FieldLabel htmlFor="show-channel">Channel or playlist link</FieldLabel>
                 <Input
                   id="show-channel"
@@ -149,23 +152,25 @@ export function NewShowDialog({ children }: { children: ReactNode }) {
               </Field>
             )}
             <TagInput id="show-tags" value={tags} onChange={setTags} disabled={pending} />
-            <Field>
-              <FieldLabel htmlFor="show-domain">
-                Custom domain <span className="font-normal text-muted-foreground">(optional)</span>
-              </FieldLabel>
-              <Input
-                id="show-domain"
-                name="customDomain"
-                placeholder="pod.example.com"
-                autoComplete="off"
-                autoCapitalize="none"
-                spellCheck={false}
-                maxLength={300}
-              />
-              <FieldDescription>
-                Serve the show from your own domain. You'll get the DNS records to add on its Distribution tab.
-              </FieldDescription>
-            </Field>
+            {paidAccess && (
+              <Field>
+                <FieldLabel htmlFor="show-domain">
+                  Custom domain <span className="font-normal text-muted-foreground">(optional)</span>
+                </FieldLabel>
+                <Input
+                  id="show-domain"
+                  name="customDomain"
+                  placeholder="pod.example.com"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  maxLength={300}
+                />
+                <FieldDescription>
+                  Serve the show from your own domain. You'll get the DNS records to add on its Custom domain tab.
+                </FieldDescription>
+              </Field>
+            )}
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
         </form>

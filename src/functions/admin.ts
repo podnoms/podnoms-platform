@@ -4,7 +4,7 @@ import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { imageModerationSchema } from '~/lib/image-moderation'
 import { resolveReportSchema } from '~/lib/report-schema'
-import { emailSettingsSchema, siteSettingsSchema, testEmailSchema, userChannelLimitSchema } from '~/lib/site-settings-schema'
+import { complimentaryAccessSchema, emailSettingsSchema, siteSettingsSchema, testEmailSchema, userChannelLimitSchema } from '~/lib/site-settings-schema'
 import {
   endCooldown,
   getAdminOverview,
@@ -16,6 +16,7 @@ import {
 } from '~/server/admin.server'
 import { getSession } from '~/server/auth.server'
 import { resolveReport } from '~/server/reports.server'
+import { setComplimentaryAccess } from '~/server/subscriptions.server'
 import { isAdmin } from '~/server/users.server'
 
 async function requireAdmin() {
@@ -56,6 +57,13 @@ export const saveUserChannelLimit = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     await requireAdmin()
     if (!(await setUserChannelLimit(data.userId, data.limit))) throw notFound()
+  })
+
+export const saveComplimentaryAccess = createServerFn({ method: 'POST' })
+  .validator(complimentaryAccessSchema)
+  .handler(async ({ data }) => {
+    await requireAdmin()
+    if (!(await setComplimentaryAccess(data.userId, data.complimentary))) throw notFound()
   })
 
 export const endPlatformCooldown = createServerFn({ method: 'POST' })

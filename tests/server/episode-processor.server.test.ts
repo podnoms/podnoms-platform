@@ -4,13 +4,14 @@ import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { channelItems, channels, episodes, type Episode } from '~/server/db/schema'
+import { channelItems, channels, episodes, users, type Episode } from '~/server/db/schema'
 import { resetThrottle, throttleStatus } from '~/server/download-throttle.server'
 import { subscribeToEpisodeEvents, type EpisodeEvent } from '~/server/episode-events.server'
 import { enqueueEpisode, getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
 import { fetcherConfig } from '~/server/fetcher.server'
 import { notifyFollowersNewEpisode } from '~/server/follower-notifications.server'
 import { reportError } from '~/server/logger.server'
+import { setPaidFeaturesEnforced } from '~/server/subscriptions.server'
 import { ytDlpConfig } from '~/server/ytdlp.server'
 import { episodeAudioPath, episodeSourcePath, episodeWaveformPath, replacementAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
@@ -549,5 +550,30 @@ describe.skipIf(!hasFfmpeg)('resumeUnfinishedEpisodes', () => {
     await resumeUnfinishedEpisodes()
     await new Promise((resolve) => setTimeout(resolve, 200))
     expect((await getRow(later.id)).status).toBe('pending')
+  })
+})
+
+describe('free audio limit', () => {
+  beforeEach(() => setPaidFeaturesEnforced(false))
+  afterEach(() => setPaidFeaturesEnforced(false))
+
+  it('fails a queued link once the owner is at the limit, without downloading it or reporting it', async () => {
+    const user = await createUser()
+    const show = await createShow(user.id)
+    await createEpisode(show.id, { title: 'Full', slug: 'full', status: 'ready', durationSeconds: 10 * 60 * 60 })
+    const episode = await createEpisode(show.id, { title: 'Link', slug: 'link', sourceUrl: 'https://youtube.test/watch?v=over' })
+    await setPaidFeaturesEnforced(true)
+    await db.update(users).set({ paidGraceUntil: null })
+    vi.mocked(reportError).mockClear()
+
+    enqueueEpisode(episode.id)
+    const row = await vi.waitFor(async () => {
+      const [saved] = await db.select().from(episodes).where(eq(episodes.id, episode.id))
+      expect(saved!.status).toBe('failed')
+      return saved!
+    })
+    expect(row.error).toContain('10 free hours')
+    expect(await exists(episodeAudioPath(episode.id))).toBe(false)
+    expect(reportError).not.toHaveBeenCalled()
   })
 })

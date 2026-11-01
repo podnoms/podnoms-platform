@@ -26,6 +26,7 @@ const kindIcons: Record<NotificationKind, ComponentType<{ className?: string }>>
   mention: Icons.mention,
   reply: Icons.comment,
   botCheck: Icons.warning,
+  subscriptionLapsed: Icons.warning,
   blockedImage: Icons.moderation,
   contentReport: Icons.report,
 }

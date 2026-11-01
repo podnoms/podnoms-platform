@@ -29,7 +29,7 @@ function FollowingPage() {
   })
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 p-4 md:p-8">
+    <div className="mx-auto flex w-full max-w-page flex-col gap-10 p-4 md:p-8">
       <PageHeading
         icon={<Icons.following />}
         title="Following"

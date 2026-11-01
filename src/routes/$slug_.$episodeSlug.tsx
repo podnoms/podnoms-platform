@@ -26,7 +26,7 @@ export const Route = createFileRoute('/$slug_/$episodeSlug')({
 
 function EpisodePage() {
   return (
-    <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+    <div className="mx-auto w-full max-w-page p-4 md:p-6">
       <PublicEpisode page={Route.useLoaderData()} />
     </div>
   )

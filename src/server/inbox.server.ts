@@ -20,6 +20,7 @@ export type NotificationKind =
   | 'botCheck'
   | 'blockedImage'
   | 'contentReport'
+  | 'subscriptionLapsed'
 
 export type InboxItem = {
   kind: NotificationKind

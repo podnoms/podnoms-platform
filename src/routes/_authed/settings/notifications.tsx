@@ -107,7 +107,7 @@ function NotificationsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <FieldGroup>
+          <FieldGroup className="xl:grid xl:grid-cols-2">
             {switches('Your shows', yourShows)}
             {switches('You', aboutYou)}
             {switches('Shows you follow', followedShows)}
