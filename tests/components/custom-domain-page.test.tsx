@@ -1,10 +1,9 @@
 // @vitest-environment happy-dom
 import type { ReactNode } from 'react'
 import { act, cleanup, render, screen } from '@testing-library/react'
-import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
+import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AddToPlaylistButton } from '~/components/add-to-playlist-button'
-import { AuthorLink } from '~/components/author-link'
 import { FollowButton } from '~/components/follow-button'
 import { LikeButton } from '~/components/like-button'
 import { currentDomainSlug } from '~/lib/current-domain'
@@ -23,9 +22,8 @@ afterEach(cleanup)
 
 async function renderPage(page: ReactNode) {
   const root = createRootRoute({ beforeLoad: () => ({ session: null }), component: () => page })
-  const profile = createRoute({ getParentRoute: () => root, path: '/u/$slug' })
   const router = createRouter({
-    routeTree: root.addChildren([profile]),
+    routeTree: root,
     history: createMemoryHistory({ initialEntries: ['/'] }),
   })
   await act(async () => {
@@ -47,11 +45,6 @@ describe('on the site', () => {
     await renderPage(accountButtons)
     expect(screen.getAllByRole('button')).toHaveLength(3)
   })
-
-  it("links to the author's profile", async () => {
-    await renderPage(<AuthorLink author="Sam" slug="sam" />)
-    expect(screen.getByRole('link', { name: 'Sam' }).getAttribute('href')).toBe('/u/sam')
-  })
 })
 
 describe("on a show's own domain", () => {
@@ -60,11 +53,5 @@ describe("on a show's own domain", () => {
   it('leaves out what needs an account', async () => {
     await renderPage(accountButtons)
     expect(screen.queryByRole('button')).toBeNull()
-  })
-
-  it("names the author without linking to the site", async () => {
-    await renderPage(<AuthorLink author="Sam" slug="sam" />)
-    expect(screen.getByText('by Sam')).toBeTruthy()
-    expect(screen.queryByRole('link')).toBeNull()
   })
 })

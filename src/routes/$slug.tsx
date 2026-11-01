@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { EpisodeListEnd } from '~/components/episode-list-end'
-import { AuthorLink, AuthorName, Separated } from '~/components/author-link'
+import { AuthorLink, Separated } from '~/components/author-link'
 import { FeedUrlButton } from '~/components/feed-url-button'
 import { FollowButton } from '~/components/follow-button'
 import { ReportImageButton } from '~/components/report-image-button'
@@ -35,10 +35,10 @@ export const Route = createFileRoute('/$slug')({
       site: branding,
       title: show.title,
       description: show.description,
-      fallbackDescription: show.author
-        ? `A show by ${show.author}`
-        : currentDomainSlug()
-          ? show.title
+      fallbackDescription: currentDomainSlug()
+        ? show.title
+        : show.author
+          ? `A show by ${show.author}`
           : `${show.title}, a show on ${branding.name}`,
       url: show.pageUrl,
       image: show.previewImage,
@@ -63,7 +63,7 @@ function ShowPage() {
   const show = Route.useLoaderData()
   const navigate = useNavigate()
   // A show's own domain stands alone: it has no accounts, so no followers or
-  // owner's controls.
+  // owner's controls, and doesn't name the author.
   const onDomain = Boolean(currentDomainSlug())
   // When a broadcast starts, visitors are taken to it. One that's already on
   // when the page opens only gets the Watch live button, so the episodes can
@@ -85,7 +85,7 @@ function ShowPage() {
     return link ? [{ directory, link }] : []
   })
   const stats = [
-    show.author ? <AuthorLink key="by" author={show.author} slug={show.ownerSlug} /> : null,
+    show.author && !onDomain ? <AuthorLink key="by" author={show.author} slug={show.ownerSlug} /> : null,
     `${summary.count} ${summary.count === 1 ? 'episode' : 'episodes'}`,
     totalSeconds ? formatLength(totalSeconds) : null,
     show.followerCount > 0 && !onDomain ? pluralise(show.followerCount, 'follower') : null,
@@ -220,11 +220,13 @@ function ShowPage() {
             </div>
           )}
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-            {show.author && (
+            {show.author && !onDomain && (
               <>
                 <dt className="text-muted-foreground">By</dt>
                 <dd className="text-end">
-                  <AuthorName author={show.author} slug={show.ownerSlug} className="hover:text-primary hover:underline" />
+                  <Link to="/u/$slug" params={{ slug: show.ownerSlug }} className="hover:text-primary hover:underline">
+                    {show.author}
+                  </Link>
                 </dd>
               </>
             )}

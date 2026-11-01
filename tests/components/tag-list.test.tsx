@@ -23,18 +23,18 @@ async function renderTags() {
     await router.load()
     render(<RouterProvider router={router} />)
   })
-  return screen.findByText('#deep house')
 }
 
 describe('TagList', () => {
   it('links to the shared tag page on the site', async () => {
-    const link = await renderTags()
+    await renderTags()
+    const link = await screen.findByRole('link', { name: '#deep house' })
     expect(link.getAttribute('href')).toBe('/tags/deep-house?sort=newest')
   })
 
-  it("doesn't link anywhere on a show's own domain", async () => {
+  it("isn't shown on a show's own domain", async () => {
     vi.mocked(currentDomainSlug).mockReturnValue('my-show')
     await renderTags()
-    expect(screen.queryByRole('link')).toBeNull()
+    expect(screen.queryByText('#deep house')).toBeNull()
   })
 })

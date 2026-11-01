@@ -76,7 +76,7 @@ function LivePage() {
             <h1 className="text-2xl font-bold tracking-tight text-balance">{broadcast?.title ?? show.title}</h1>
             <p className="text-sm text-muted-foreground">
               {show.title}
-              {show.author && ` · by ${show.author}`}
+              {show.author && !currentDomainSlug() && ` · by ${show.author}`}
             </p>
           </div>
           <div className="flex gap-2">

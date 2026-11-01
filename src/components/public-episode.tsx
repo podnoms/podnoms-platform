@@ -26,7 +26,7 @@ export type EpisodePageData = Awaited<ReturnType<typeof fetchEpisodePage>>
 // page (see /s/$shortSlug): it names its show itself, and is just the player,
 // without the show notes, comments, the owner's controls or the share and
 // embed buttons. On a show's own domain, which has no accounts, it leaves out
-// what needs one: likes, comments and the owner's controls.
+// what needs one (likes, comments and the owner's controls) and the author.
 export function PublicEpisode({ page, standalone = false }: { page: EpisodePageData; standalone?: boolean }) {
   const { show, episode, waveform, isOwner, shareUrl, embedUrl } = page
   const player = usePlayer()
@@ -47,7 +47,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
   const artwork = episode.imageUrl ?? show.imageUrl
   // The share page leaves out the date and length; the waveform shows the length.
   const meta = [
-    show.author ? <AuthorLink key="by" author={show.author} slug={show.ownerSlug} /> : null,
+    show.author && !onDomain ? <AuthorLink key="by" author={show.author} slug={show.ownerSlug} /> : null,
     standalone ? null : formatDate(episode.publishedAt ?? episode.createdAt),
     !standalone && episode.durationSeconds != null ? formatClock(episode.durationSeconds) : null,
     likeCount > 0 && !onDomain ? pluralise(likeCount, 'like') : null,
