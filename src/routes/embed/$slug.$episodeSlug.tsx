@@ -8,6 +8,7 @@ import { reportActivity } from '~/lib/activity'
 import { formatClock } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { brandIconUrl, pageTitle, useBranding } from '~/lib/branding'
+import { currentDomainSlug } from '~/lib/current-domain'
 
 // A compact player for an episode, made to be put in an <iframe> on other
 // sites (see embedSnippet). It renders without the app's shell, and plays with
@@ -96,15 +97,18 @@ function EmbedPlayer() {
               </a>
               <p className="truncate text-sm text-muted-foreground">{show.title}</p>
             </div>
-            <a
-              href={pageUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <img src={brandIconUrl(branding, 32)} alt="" className="size-4 rounded" />
-              {branding.name}
-            </a>
+            {/* A show's own domain stands alone, without the site's name. */}
+            {!currentDomainSlug() && (
+              <a
+                href={pageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <img src={brandIconUrl(branding, 32)} alt="" className="size-4 rounded" />
+                {branding.name}
+              </a>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <Button size="icon-lg" className="shrink-0 rounded-full" onClick={toggle}>

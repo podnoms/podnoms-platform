@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { currentDomainSlug } from '~/lib/current-domain'
 import { publicPageHead, siteHead, truncate } from '~/lib/page-meta'
+
+vi.mock('~/lib/current-domain', () => ({ currentDomainSlug: vi.fn(() => null) }))
+
+afterEach(() => vi.mocked(currentDomainSlug).mockReturnValue(null))
 
 const site = { name: 'Pods', logoVersion: 'v2' }
 
@@ -67,6 +72,13 @@ describe('publicPageHead', () => {
     const head = publicPageHead({ ...page, image: null, documentTitle: 'Episode – Show' })
     expect(head.meta[0]).toEqual({ title: 'Episode – Show · Pods' })
     expect(tags(head)['og:title']).toBe('Show')
+  })
+
+  it("names the show rather than the site on the show's own domain", () => {
+    vi.mocked(currentDomainSlug).mockReturnValue('show')
+    const head = publicPageHead({ ...page, image: null, feedTitle: 'The Show', documentTitle: 'Episode – The Show' })
+    expect(head.meta[0]).toEqual({ title: 'Episode – The Show' })
+    expect(tags(head)['og:site_name']).toBe('The Show')
   })
 
   it('keeps search descriptions shorter than preview ones', () => {

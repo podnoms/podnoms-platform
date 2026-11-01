@@ -12,7 +12,6 @@ afterEach(cleanup)
 
 async function renderTags() {
   const root = createRootRoute({
-    loader: () => ({ siteLinks: { origin: 'https://podnoms.example' } }),
     component: () => <TagList tags={[{ id: 'tag-1', name: 'deep house', slug: 'deep-house' }]} />,
   })
   const tag = createRoute({ getParentRoute: () => root, path: '/tags/$tagSlug' })
@@ -24,7 +23,7 @@ async function renderTags() {
     await router.load()
     render(<RouterProvider router={router} />)
   })
-  return screen.findByRole('link', { name: '#deep house' })
+  return screen.findByText('#deep house')
 }
 
 describe('TagList', () => {
@@ -33,9 +32,9 @@ describe('TagList', () => {
     expect(link.getAttribute('href')).toBe('/tags/deep-house?sort=newest')
   })
 
-  it('leaves a custom show domain to browse tags on the main site', async () => {
+  it("doesn't link anywhere on a show's own domain", async () => {
     vi.mocked(currentDomainSlug).mockReturnValue('my-show')
-    const link = await renderTags()
-    expect(link.getAttribute('href')).toBe('https://podnoms.example/tags/deep-house')
+    await renderTags()
+    expect(screen.queryByRole('link')).toBeNull()
   })
 })

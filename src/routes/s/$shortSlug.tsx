@@ -7,6 +7,7 @@ import { episodeHeadOptions, PublicEpisode } from '~/components/public-episode'
 import { TwoFactorDialog } from '~/components/two-factor-dialog'
 import { fetchSharePage } from '~/functions/public'
 import { reportTrackedLinkVisit } from '~/lib/activity'
+import { currentDomainSlug } from '~/lib/current-domain'
 import { publicPageHead } from '~/lib/page-meta'
 import { brandingFrom, useBranding } from '~/lib/branding'
 
@@ -34,21 +35,29 @@ function SharePage() {
   const page = Route.useLoaderData()
   const trackedLink = useTrackedLink(page.episode.id)
   const branding = useBranding()
+  // A show's own domain stands alone: no credit to the site, and no signing in.
+  const onDomain = Boolean(currentDomainSlug())
   return (
     <PlayerProvider signedIn={Boolean(session)} source="listen" trackedLink={trackedLink}>
       <div className="flex min-h-dvh flex-col">
         <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center p-4 md:p-8">
           <PublicEpisode page={page} standalone />
         </main>
-        <footer className="flex justify-center p-4">
-          <a href="/" className="text-sm text-muted-foreground hover:text-foreground">
-            with ❤️ from {branding.name}
-          </a>
-        </footer>
+        {!onDomain && (
+          <footer className="flex justify-center p-4">
+            <a href="/" className="text-sm text-muted-foreground hover:text-foreground">
+              with ❤️ from {branding.name}
+            </a>
+          </footer>
+        )}
       </div>
       {/* For the Like button: signing in happens here, without leaving the episode. */}
-      <LoginDialog />
-      <TwoFactorDialog />
+      {!onDomain && (
+        <>
+          <LoginDialog />
+          <TwoFactorDialog />
+        </>
+      )}
     </PlayerProvider>
   )
 }

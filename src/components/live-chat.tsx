@@ -8,6 +8,7 @@ import { EmojiPicker, EmojiPickerContent, EmojiPickerFooter, EmojiPickerSearch }
 import { Input } from '~/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
 import { postLiveChat, removeLiveChat } from '~/functions/live'
+import { currentDomainSlug } from '~/lib/current-domain'
 import type { ChatGif, GifConfig } from '~/lib/gifs'
 import { chatMessageMaxLength } from '~/lib/live-schema'
 import { initials } from '~/lib/format'
@@ -180,56 +181,59 @@ export function LiveChat({
           </li>
         ))}
       </ol>
-      <div className="border-t p-3">
-        {!session ? (
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => navigate({ to: '.', search: (prev) => ({ ...prev, login: true as const }) })}
-          >
-            <Icons.comment />
-            Sign in to chat
-          </Button>
-        ) : (
-          <form onSubmit={submit} className="flex flex-col gap-1.5">
-            <div className="flex gap-2">
-              <Input
-                ref={input}
-                aria-label="Message"
-                placeholder={broadcastId ? 'Say something…' : 'Not live right now'}
-                value={body}
-                maxLength={chatMessageMaxLength}
-                disabled={!broadcastId}
-                onChange={(event) => {
-                  setBody(event.target.value)
-                  setError(null)
-                }}
-              />
-              <Popover open={picking} onOpenChange={setPicking}>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon" disabled={!broadcastId} title="Add an emoji">
-                    <Icons.emoji />
-                    <span className="sr-only">Add an emoji</span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent side="top" align="end" className="w-fit p-0">
-                  <EmojiPicker className="h-80" onEmojiSelect={({ emoji }) => insertEmoji(emoji)}>
-                    <EmojiPickerSearch placeholder="Search emoji…" />
-                    <EmojiPickerContent />
-                    <EmojiPickerFooter />
-                  </EmojiPicker>
-                </PopoverContent>
-              </Popover>
-              {gifs && <GifPicker config={gifs} disabled={!broadcastId || sending} onPick={(gif) => void send({ gif })} />}
-              <Button type="submit" size="icon" disabled={!broadcastId || sending || !body.trim()} title="Send">
-                <Icons.send />
-                <span className="sr-only">Send</span>
-              </Button>
-            </div>
-            {error && <p className="text-xs text-destructive">{error}</p>}
-          </form>
-        )}
-      </div>
+      {/* A show's own domain has no accounts, so its chat is only to read. */}
+      {!currentDomainSlug() && (
+        <div className="border-t p-3">
+          {!session ? (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => navigate({ to: '.', search: (prev) => ({ ...prev, login: true as const }) })}
+            >
+              <Icons.comment />
+              Sign in to chat
+            </Button>
+          ) : (
+            <form onSubmit={submit} className="flex flex-col gap-1.5">
+              <div className="flex gap-2">
+                <Input
+                  ref={input}
+                  aria-label="Message"
+                  placeholder={broadcastId ? 'Say something…' : 'Not live right now'}
+                  value={body}
+                  maxLength={chatMessageMaxLength}
+                  disabled={!broadcastId}
+                  onChange={(event) => {
+                    setBody(event.target.value)
+                    setError(null)
+                  }}
+                />
+                <Popover open={picking} onOpenChange={setPicking}>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon" disabled={!broadcastId} title="Add an emoji">
+                      <Icons.emoji />
+                      <span className="sr-only">Add an emoji</span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent side="top" align="end" className="w-fit p-0">
+                    <EmojiPicker className="h-80" onEmojiSelect={({ emoji }) => insertEmoji(emoji)}>
+                      <EmojiPickerSearch placeholder="Search emoji…" />
+                      <EmojiPickerContent />
+                      <EmojiPickerFooter />
+                    </EmojiPicker>
+                  </PopoverContent>
+                </Popover>
+                {gifs && <GifPicker config={gifs} disabled={!broadcastId || sending} onPick={(gif) => void send({ gif })} />}
+                <Button type="submit" size="icon" disabled={!broadcastId || sending || !body.trim()} title="Send">
+                  <Icons.send />
+                  <span className="sr-only">Send</span>
+                </Button>
+              </div>
+              {error && <p className="text-xs text-destructive">{error}</p>}
+            </form>
+          )}
+        </div>
+      )}
     </section>
   )
 }

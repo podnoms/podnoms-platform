@@ -1,6 +1,7 @@
 // A button that puts an episode in the user's playlists: its menu lists them,
 // ticking those it's in, and picking one adds or removes it; "New playlist…"
 // makes one with the episode in it. Signed-out visitors are asked to sign in.
+// A show's own domain has no accounts, so it's left out there.
 import { useState } from 'react'
 import { useNavigate, useRouteContext } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
@@ -17,6 +18,7 @@ import {
 } from '~/components/ui/dropdown-menu'
 import { Spinner } from '~/components/ui/spinner'
 import { addPlaylistEpisode, fetchMyPlaylists, removePlaylistEpisode, savePlaylist } from '~/functions/playlists'
+import { currentDomainSlug } from '~/lib/current-domain'
 
 type MyPlaylist = Awaited<ReturnType<typeof fetchMyPlaylists>>[number]
 
@@ -26,6 +28,7 @@ export function AddToPlaylistButton({ episodeId, size = 'sm' }: { episodeId: str
   const [playlists, setPlaylists] = useState<MyPlaylist[] | null>(null)
   const [failed, setFailed] = useState(false)
   const [creating, setCreating] = useState(false)
+  if (currentDomainSlug()) return null
 
   const button = (onClick?: () => void) => (
     <Button variant="outline" size={size} title="Save to a playlist" onClick={onClick}>

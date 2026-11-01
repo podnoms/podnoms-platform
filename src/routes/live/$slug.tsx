@@ -7,6 +7,7 @@ import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { fetchLivePage } from '~/functions/live'
 import { useLiveEvents } from '~/hooks/use-live-events'
+import { currentDomainSlug } from '~/lib/current-domain'
 import { formatCount } from '~/lib/format'
 import { pageTitle } from '~/lib/branding'
 
@@ -79,7 +80,7 @@ function LivePage() {
             </p>
           </div>
           <div className="flex gap-2">
-            {page.isOwner && (
+            {page.isOwner && !currentDomainSlug() && (
               <Button variant="outline" asChild>
                 <Link to="/$slug/manage" params={{ slug: show.slug }}>
                   <Icons.settings />

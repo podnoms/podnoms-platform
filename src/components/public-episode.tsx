@@ -14,6 +14,7 @@ import { Button } from '~/components/ui/button'
 import { Popover, PopoverAnchor, PopoverContent } from '~/components/ui/popover'
 import { Slider } from '~/components/ui/slider'
 import type { fetchEpisodePage } from '~/functions/public'
+import { currentDomainSlug } from '~/lib/current-domain'
 import { formatClock, formatDate, initials, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { mentionsAsText } from '~/lib/user-slug'
@@ -24,10 +25,13 @@ export type EpisodePageData = Awaited<ReturnType<typeof fetchEpisodePage>>
 // episode page it sits in the site's shell; `standalone`, it's the whole share
 // page (see /s/$shortSlug): it names its show itself, and is just the player,
 // without the show notes, comments, the owner's controls or the share and
-// embed buttons.
+// embed buttons. On a show's own domain, which has no accounts, it leaves out
+// what needs one: likes, comments and the owner's controls.
 export function PublicEpisode({ page, standalone = false }: { page: EpisodePageData; standalone?: boolean }) {
   const { show, episode, waveform, isOwner, shareUrl, embedUrl } = page
   const player = usePlayer()
+  const onDomain = Boolean(currentDomainSlug())
+  const commentable = !standalone && !onDomain
   // Shown with the details rather than on the button; the button keeps it current.
   const [likeCount, setLikeCount] = useState(episode.likeCount)
   const [comments, setComments] = useState(page.comments)
@@ -46,7 +50,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
     show.author ? <AuthorLink key="by" author={show.author} slug={show.ownerSlug} /> : null,
     standalone ? null : formatDate(episode.publishedAt ?? episode.createdAt),
     !standalone && episode.durationSeconds != null ? formatClock(episode.durationSeconds) : null,
-    likeCount > 0 ? pluralise(likeCount, 'like') : null,
+    likeCount > 0 && !onDomain ? pluralise(likeCount, 'like') : null,
   ].filter(Boolean)
 
   function play(startAt?: number) {
@@ -122,7 +126,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
                 onChange={(state) => setLikeCount(state.likeCount)}
               />
               {!standalone && <AddToPlaylistButton episodeId={episode.id} size="default" />}
-              {isOwner && !standalone && (
+              {isOwner && !standalone && !onDomain && (
                 <Button variant="outline" asChild>
                   <Link
                     to="/$slug/$episodeSlug/manage"
@@ -168,17 +172,17 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
                 duration={duration}
                 position={position}
                 onSeek={seek}
-                onComment={standalone ? undefined : setCommentAt}
+                onComment={commentable ? setCommentAt : undefined}
                 markers={
-                  standalone
-                    ? []
-                    : comments.map((comment) => ({
+                  commentable
+                    ? comments.map((comment) => ({
                         id: comment.id,
                         seconds: comment.atSeconds,
                         image: comment.author.image,
                         fallback: initials(comment.author.name, null),
                         title: `${comment.author.name ?? `@${comment.author.slug}`}: ${mentionsAsText(comment.body, comment.mentions) || 'GIF'}`,
                       }))
+                    : []
                 }
               />
               {commentAt !== null && duration > 0 && (
@@ -250,7 +254,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
         </section>
       )}
 
-      {!standalone && (
+      {commentable && (
         <EpisodeComments
           episodeId={episode.id}
           comments={comments}

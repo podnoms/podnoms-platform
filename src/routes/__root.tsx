@@ -174,7 +174,8 @@ function RootDocument({
               <PlayerBar />
             </PlayerProvider>
           )}
-          {!bare && (
+          {/* A show's own domain has no accounts. */}
+          {!bare && !currentDomainSlug() && (
             <>
               <LoginDialog />
               <TwoFactorDialog />

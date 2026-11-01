@@ -3,12 +3,14 @@ import { useNavigate, useRouteContext, useRouter } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { Button } from '~/components/ui/button'
 import { likeEpisode } from '~/functions/library'
+import { currentDomainSlug } from '~/lib/current-domain'
 import { formatCount } from '~/lib/format'
 import { cn } from '~/lib/utils'
 
 // A heart with the episode's like count: beside it, as a badge on its corner,
 // or not at all (where it's shown elsewhere). It changes as soon as it's
-// pressed, and goes back if saving fails. Signed-out visitors are asked to sign in.
+// pressed, and goes back if saving fails. Signed-out visitors are asked to sign
+// in. A show's own domain has no accounts, so it's left out there.
 export function LikeButton({
   episodeId,
   liked: initialLiked,
@@ -37,6 +39,7 @@ export function LikeButton({
   const latestOnChange = useRef(onChange)
   latestOnChange.current = onChange
   useEffect(() => latestOnChange.current?.(state), [state])
+  if (currentDomainSlug()) return null
 
   async function toggle() {
     if (!session) {

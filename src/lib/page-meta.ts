@@ -1,4 +1,5 @@
 import { brandOgImageUrl, type Branding } from '~/lib/branding'
+import { currentDomainSlug } from '~/lib/current-domain'
 import { htmlToText } from '~/lib/rich-text'
 
 type Image = { url: string; width?: number; height?: number; type?: string }
@@ -17,7 +18,8 @@ function defaultImageAt(base: string, site: Site): Image {
 // previews (Open Graph), the show's feed for apps to discover, and noindex
 // for unlisted shows. A page shared at another URL (shareUrl) still names
 // `url` as the one to index. `documentTitle` replaces the title in the browser
-// tab and search results, where the episode's show is worth naming.
+// tab and search results, where the episode's show is worth naming. On a show's
+// own domain, the show stands in for the site's name.
 export function publicPageHead(page: {
   site: Site
   title: string
@@ -35,15 +37,18 @@ export function publicPageHead(page: {
   noindex: boolean
 }) {
   const text = (page.description && htmlToText(page.description).replace(/\s+/g, ' ').trim()) || page.fallbackDescription
+  const onDomain = Boolean(currentDomainSlug())
+  const documentTitle = page.documentTitle ?? page.title
   const meta = [
-    { title: `${page.documentTitle ?? page.title} · ${page.site.name}` },
+    { title: onDomain ? documentTitle : `${documentTitle} · ${page.site.name}` },
     ...socialTags({
       ...page,
+      site: onDomain ? { ...page.site, name: page.feedTitle } : page.site,
       description: text,
       url: page.shareUrl ?? page.url,
       // Without artwork, the site's own card.
       image: page.image ?? defaultImageAt(page.url, page.site),
-      imageAlt: page.image ? `Artwork for ${page.title}` : page.site.name,
+      imageAlt: page.image ? `Artwork for ${page.title}` : onDomain ? page.feedTitle : page.site.name,
     }),
     page.audioUrl && { property: 'og:audio', content: page.audioUrl },
     page.audioUrl && { property: 'og:audio:type', content: 'audio/mpeg' },
