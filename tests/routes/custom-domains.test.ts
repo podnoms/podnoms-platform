@@ -47,6 +47,14 @@ describe('GET /api/domains/allowed', () => {
     expect((await ask('unknown.example.com')).status).toBe(404)
     expect((await ask('')).status).toBe(404)
   })
+
+  it('allows the root or www that redirects to a verified domain', async () => {
+    await withDomain('www.example.com', true)
+    await withDomain('other.org', false)
+    expect((await ask('example.com')).status).toBe(200)
+    expect((await ask('www.other.org')).status).toBe(404)
+    expect((await ask('www.pod.example.com')).status).toBe(404)
+  })
 })
 
 const config = (headers: Record<string, string> = { authorization: 'Bearer secret' }) =>
@@ -56,6 +64,14 @@ describe('GET /api/traefik/config', () => {
   it('needs the token', async () => {
     expect((await config({})).status).toBe(401)
     expect((await config({ authorization: 'Bearer wrong!' })).status).toBe(401)
+  })
+
+  it('routes the root or www that redirects to a domain too', async () => {
+    const show = await withDomain('www.example.com', true)
+    const body = await (await config()).json()
+    const name = `podnoms-domain-${show.id}`
+    expect(body.tcp.routers[name].rule).toBe('HostSNI(`www.example.com`) || HostSNI(`example.com`)')
+    expect(body.http.routers[name].rule).toBe('Host(`www.example.com`) || Host(`example.com`)')
   })
 
   it('passes verified domains through to the edge, each with its own routers', async () => {

@@ -319,6 +319,34 @@ describe('handleCustomDomain', () => {
     }
   })
 
+  it("redirects a verified domain's root to its www, keeping the path", async () => {
+    const { user, show } = await showWithDomain('www.example.com', { slug: 'show', title: 'The Show' })
+    await verifyCustomDomain(user.id, show.id)
+    for (const path of ['/', '/episodes/ep-1?t=1', '/s/abc']) {
+      const response = (await visit(`https://example.com${path}`)) as Response
+      expect(response.status).toBe(301)
+      expect(response.headers.get('location')).toBe(`https://www.example.com${path}`)
+    }
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it("redirects a verified root's www to it", async () => {
+    const { user, show } = await showWithDomain('example.co.uk', { slug: 'show', title: 'The Show' })
+    await verifyCustomDomain(user.id, show.id)
+    const response = (await visit('https://www.example.co.uk/')) as Response
+    expect(response.status).toBe(301)
+    expect(response.headers.get('location')).toBe('https://example.co.uk/')
+  })
+
+  it("doesn't redirect to a domain that isn't verified, or from other subdomains", async () => {
+    await showWithDomain('www.unverified.com')
+    const unverified = (await visit('https://unverified.com/')) as Response
+    expect(unverified.headers.get('location')).toBe('https://podnoms.test/')
+    await verifiedShow()
+    const subdomain = (await visit('https://www.pod.example.com/')) as Response
+    expect(subdomain.headers.get('location')).toBe('https://podnoms.test/')
+  })
+
   it('sends anything else to the site', async () => {
     await verifiedShow()
     const response = (await visit('https://pod.example.com/settings?tab=1')) as Response

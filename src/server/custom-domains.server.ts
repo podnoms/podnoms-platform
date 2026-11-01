@@ -61,6 +61,13 @@ const isRootDomain = (domain: string) => getDomain(domain) === domain
 
 export const customDomainRootAllowed = () => Boolean(env.CUSTOM_DOMAIN_IP)
 
+// The other half of a domain's root and its www, or null for anything else.
+function wwwCounterpart(domain: string) {
+  if (isRootDomain(domain)) return `www.${domain}`
+  const root = domain.replace(/^www\./, '')
+  return root !== domain && isRootDomain(root) ? root : null
+}
+
 // The host the visitor asked for, as passed on by the proxies in front of us.
 export function requestHost(request: Request) {
   const header = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? new URL(request.url).host
@@ -195,6 +202,13 @@ export async function showForDomain(host: string) {
   const slug = show && (await hasPaidAccess(show.ownerId)) ? show.slug : null
   domainSlugs.set(host, { slug })
   return slug
+}
+
+// The verified domain this host should redirect to: people expect example.com
+// and www.example.com to be the same, but a show has only one domain.
+export async function redirectingTo(host: string) {
+  const other = wwwCounterpart(host)
+  return other && (await showForDomain(other)) ? other : null
 }
 
 // Every verified domain, for the edge's configuration.
@@ -346,15 +360,22 @@ export function currentRequestDomainSlug() {
 // The site itself is left alone. On a show's verified domain, its pages
 // (and what they load) are served with the show recorded for the router;
 // its feed is served here; anything else is sent to the site, where sign-in
-// works. Domains we don't know of are sent to the site too.
+// works. The root or www of a verified domain redirects to it. Domains we
+// don't know of are sent to the site too.
 export async function handleCustomDomain<T>(request: Request, next: () => T | Promise<T>): Promise<T | Response> {
   const host = requestHost(request)
   if (!isCustomHost(host)) return next()
   const url = new URL(request.url)
   const { pathname } = url
   const slug = await showForDomain(host)
-  // The edge's own endpoints are reached by internal names (http://app:3000).
-  if (!slug) return isSharedPath(pathname) ? next() : toSite(url)
+  if (!slug) {
+    const domain = await redirectingTo(host)
+    if (domain) {
+      return new Response(null, { status: 301, headers: { Location: `https://${domain}${pathname}${url.search}` } })
+    }
+    // The edge's own endpoints are reached by internal names (http://app:3000).
+    return isSharedPath(pathname) ? next() : toSite(url)
+  }
   if (pathname === domainFeedPath) {
     // Imported here, as the feed needs shows.server.ts, which needs this.
     const { buildShowFeed } = await import('~/server/feed.server')
@@ -386,13 +407,19 @@ export async function traefikConfig() {
   const tlsService = 'podnoms-edge-tls'
   const httpService = 'podnoms-edge-http'
   const name = (showId: string) => `podnoms-domain-${showId}`
+  // The domain, and the root or www that redirects to it.
+  const rule = (matcher: string, domain: string) =>
+    [domain, wwwCounterpart(domain)]
+      .filter((host) => host !== null)
+      .map((host) => `${matcher}(\`${host}\`)`)
+      .join(' || ')
   return {
     tcp: {
       routers: Object.fromEntries(
         domains.map(({ showId, domain }) => [
           name(showId),
           {
-            rule: `HostSNI(\`${domain}\`)`,
+            rule: rule('HostSNI', domain),
             entryPoints: [env.TRAEFIK_TLS_ENTRYPOINT],
             service: tlsService,
             tls: { passthrough: true },
@@ -408,7 +435,7 @@ export async function traefikConfig() {
       routers: Object.fromEntries(
         domains.map(({ showId, domain }) => [
           name(showId),
-          { rule: `Host(\`${domain}\`)`, entryPoints: [env.TRAEFIK_HTTP_ENTRYPOINT], service: httpService },
+          { rule: rule('Host', domain), entryPoints: [env.TRAEFIK_HTTP_ENTRYPOINT], service: httpService },
         ]),
       ),
       services: {
