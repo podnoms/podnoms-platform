@@ -117,15 +117,14 @@ function ShowPage() {
             </div>
           )}
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Show</p>
-              {live && (
+            {live && (
+              <div className="flex items-center gap-2">
                 <Badge className="bg-destructive text-destructive-foreground">
                   <span className="size-1.5 animate-pulse rounded-full bg-destructive-foreground" />
                   Live now
                 </Badge>
-              )}
-            </div>
+              </div>
+            )}
             <h1 className="text-3xl font-bold tracking-tight text-balance md:text-5xl">{show.title}</h1>
             <TagList tags={show.tags} />
             {/* On wide screens the full description is in the About column instead. */}

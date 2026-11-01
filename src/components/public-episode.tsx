@@ -102,9 +102,9 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
           </div>
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <p className="truncate text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            {standalone ? show.title : 'Episode'}
-          </p>
+          {standalone && (
+            <p className="truncate text-xs font-medium tracking-wide text-muted-foreground uppercase">{show.title}</p>
+          )}
           <h1 className="text-3xl font-semibold tracking-tight text-balance">{episode.title}</h1>
           <p className="text-sm text-muted-foreground">
             <Separated items={meta} />
