@@ -26,9 +26,11 @@ services:
       # Optional Pexels API key for the "Random image" button on artwork;
       # without it, photos come from Openverse, which needs no key.
       PEXELS_API_KEY: ${PEXELS_API_KEY:-}
-      # Custom domains (see README.md): where owners point their CNAME, the
-      # edge container's name, and a token Traefik sends for /api/traefik/config.
+      # Custom domains (see README.md): where owners point their CNAME or (for
+      # a domain's root) A record, the edge container's name, and a token
+      # Traefik sends for /api/traefik/config.
       CUSTOM_DOMAIN_TARGET: ${CUSTOM_DOMAIN_TARGET:-}
+      CUSTOM_DOMAIN_IP: ${CUSTOM_DOMAIN_IP:-}
       CUSTOM_DOMAIN_EDGE_HOST: ${CUSTOM_DOMAIN_EDGE_HOST:-}
       TRAEFIK_CONFIG_TOKEN: ${TRAEFIK_CONFIG_TOKEN:-}
       # Live broadcasts (see README.md), with the mediamtx service below. Off

@@ -25,7 +25,7 @@ type Show = {
 }
 
 type RecordCheck = { ok: true } | { ok: false; reason: string }
-type TestResult = { cname: RecordCheck; txt: RecordCheck }
+type TestResult = { pointer: RecordCheck; txt: RecordCheck }
 
 // How long a verified domain's records may stay broken (see custom-domains.server.ts).
 const graceDays = 3
@@ -34,13 +34,16 @@ const graceDays = 3
 // records to add for it, and a button that checks them.
 export function CustomDomainCard({
   show,
-  target,
+  record,
+  rootAllowed,
   txtLabel,
   onChanged,
 }: {
   show: Show
-  // Where the CNAME points.
-  target: string
+  // The record that points the domain at us: a CNAME, or an A record on a root.
+  record: { type: string; value: string }
+  // Whether a domain's root (example.com) can be used.
+  rootAllowed: boolean
   // What the TXT record is named after (see txtRecordName).
   txtLabel: string
   onChanged: () => Promise<void>
@@ -136,7 +139,9 @@ export function CustomDomainCard({
                 )}
               </div>
               <FieldDescription>
-                Use a subdomain (pod.example.com rather than example.com): a CNAME can't be set on a domain's root.
+                {rootAllowed
+                  ? "A subdomain (pod.example.com) or the domain itself (example.com) will do; you'll be given the right records once it's saved."
+                  : "Use a subdomain (pod.example.com rather than example.com): a CNAME can't be set on a domain's root."}
               </FieldDescription>
             </Field>
             {error && <FieldError>{error}</FieldError>}
@@ -152,7 +157,12 @@ export function CustomDomainCard({
                 provider proxies traffic (Cloudflare's orange cloud), turn that off for this record.
               </p>
             </div>
-            <DnsRecord type="CNAME" name={domain} value={target} check={result?.cname} />
+            <DnsRecord type={record.type} name={domain} value={record.value} check={result?.pointer} />
+            {record.type === 'A' && (
+              <p className="text-sm text-muted-foreground">
+                Remove any other A or AAAA records for {domain}, such as your registrar's parking page.
+              </p>
+            )}
             <DnsRecord
               type="TXT"
               name={txtRecordName(domain, txtLabel)}

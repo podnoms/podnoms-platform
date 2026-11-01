@@ -21,6 +21,8 @@ import { getShowChannel } from '~/server/channels.server'
 import { listComments } from '~/server/comments.server'
 import {
   catchDomainError,
+  customDomainRecord,
+  customDomainRootAllowed,
   customDomainTarget,
   customDomainTxtLabel,
   setCustomDomain,
@@ -119,6 +121,10 @@ export const fetchMyShow = createServerFn({ method: 'GET' })
       },
       // Where owners point their domain's CNAME; null when custom domains are off.
       customDomainTarget: customDomainTarget(),
+      // The record that points this show's domain at us, and whether a domain's
+      // root can have one.
+      customDomainRecord: customDomainRecord(show.customDomain),
+      customDomainRootAllowed: customDomainRootAllowed(),
       // What the domain's TXT record is named after.
       customDomainTxtLabel: customDomainTxtLabel(),
       // Whether the Go live button is offered (MediaMTX is set up), and whether it's

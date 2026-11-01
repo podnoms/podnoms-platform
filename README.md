@@ -244,9 +244,10 @@ Owners can serve a show from their own domain, set on the show's **Distribution*
 | Type | Name | Value |
 | --- | --- | --- |
 | `CNAME` | `pod.example.com` | `CUSTOM_DOMAIN_TARGET` (default: the host in `SITE_URL`) |
+| `A` | `example.com`, a domain's root, which can't have a CNAME | `CUSTOM_DOMAIN_IP`. Only offered when that's set, and every A record must match it, with no AAAA records |
 | `TXT` | `_podnoms.pod.example.com` | `podnoms-verify=<token>`, a token made for that show and domain (`podnoms` is `CUSTOM_DOMAIN_TXT_LABEL`) |
 
-The CNAME sends the traffic here. The TXT record proves the owner controls the domain, so nobody can claim a domain that someone else pointed at us. A domain is only served once both check out. The daily `custom-domain-check` job checks them again and drops a domain whose records have been wrong for 3 days.
+The CNAME or A record sends the traffic here. The TXT record proves the owner controls the domain, so nobody can claim a domain that someone else pointed at us. A domain is only served once both check out. The daily `custom-domain-check` job checks them again and drops a domain whose records have been wrong for 3 days.
 
 **Certificates come from podnoms' own edge container, not the main reverse proxy.** [`docker/edge/Caddyfile`](docker/edge/Caddyfile) runs Caddy as `podnoms-edge` (the `custom-domains` profile in `compose.yml`). Before Caddy gets a certificate, it asks the app (`/api/domains/allowed`), which says yes only for verified domains. Certificates are issued on a domain's first visit with the TLS-ALPN-01 challenge and are kept in the `edge-data` volume. Set `ACME_EMAIL` for Let's Encrypt's expiry notices.
 
@@ -271,6 +272,7 @@ providers:
 | --- | --- |
 | `SITE_URL` | Required for custom domains: it's how the site's own address is told apart from owners' domains. |
 | `CUSTOM_DOMAIN_TARGET` | Where owners point their CNAME, e.g. `domains.podnoms.com`. It must resolve to the server running Traefik. Defaults to the host in `SITE_URL`. |
+| `CUSTOM_DOMAIN_IP` | The public IPv4 address of the server running Traefik, for owners using a domain's root (`example.com`). Without it, only subdomains can be used. |
 | `CUSTOM_DOMAIN_TXT_LABEL` | What the TXT record is named after (default `podnoms`). Changing it unverifies every domain at its next check. |
 | `CUSTOM_DOMAIN_EDGE_HOST` | The edge container's name on the shared network (`podnoms-edge`). Without it, `/api/traefik/config` is empty. |
 | `TRAEFIK_TLS_ENTRYPOINT`, `TRAEFIK_HTTP_ENTRYPOINT` | Traefik's entry points for HTTPS and HTTP (default `websecure` and `web`). |

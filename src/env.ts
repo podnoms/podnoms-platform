@@ -82,6 +82,9 @@ export const env = createEnv({
     // Custom domains (see custom-domains.server.ts). Owners point a CNAME at
     // this host; without it, SITE_URL's host is used.
     CUSTOM_DOMAIN_TARGET: z.string().optional(),
+    // The server's public IPv4 address, for domains' roots, which can't have a
+    // CNAME: owners then point an A record here. Without it, only subdomains work.
+    CUSTOM_DOMAIN_IP: z.ipv4().optional(),
     // What owners' TXT records are named after: _<label>.<domain>, holding
     // <label>-verify=<token>. Changing it unverifies every domain at its next check.
     CUSTOM_DOMAIN_TXT_LABEL: z

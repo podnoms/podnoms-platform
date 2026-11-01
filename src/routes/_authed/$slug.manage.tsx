@@ -257,11 +257,12 @@ function ShowPage() {
                 onEditDetails={() => setEditing(true)}
               />
             </TabsContent>
-            {show.customDomainTarget && (
+            {show.customDomainRecord && (
               <TabsContent value="domain">
                 <CustomDomainCard
                   show={show}
-                  target={show.customDomainTarget}
+                  record={show.customDomainRecord}
+                  rootAllowed={show.customDomainRootAllowed}
                   txtLabel={show.customDomainTxtLabel}
                   onChanged={() => router.invalidate({ filter: (match) => match.routeId === Route.id })}
                 />

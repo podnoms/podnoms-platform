@@ -5,6 +5,7 @@ import {
   catchDomainError,
   checkDomain,
   currentRequestDomainSlug,
+  customDomainRecord,
   customDomainTarget,
   failureGraceMs,
   handleCustomDomain,
@@ -27,13 +28,21 @@ import { createEpisode, createShow, createUser, db } from '../helpers'
 vi.hoisted(() => {
   process.env.SITE_URL = 'https://podnoms.test'
   process.env.CUSTOM_DOMAIN_TARGET = 'domains.podnoms.test'
+  process.env.CUSTOM_DOMAIN_IP = '203.0.113.7'
 })
 
-// DNS as the tests set it: CNAME and TXT records by name.
-const dns = { cname: new Map<string, string[]>(), txt: new Map<string, string[][]>() }
+// DNS as the tests set it: records by name.
+const dns = {
+  cname: new Map<string, string[]>(),
+  a: new Map<string, string[]>(),
+  aaaa: new Map<string, string[]>(),
+  txt: new Map<string, string[][]>(),
+}
 const notFound = () => Object.assign(new Error('not found'), { code: 'ENOTFOUND' })
 const resolver: Resolver = {
   resolveCname: async (host) => dns.cname.get(host) ?? Promise.reject(notFound()),
+  resolve4: async (host) => dns.a.get(host) ?? Promise.reject(notFound()),
+  resolve6: async (host) => dns.aaaa.get(host) ?? Promise.reject(notFound()),
   resolveTxt: async (host) => dns.txt.get(host) ?? Promise.reject(notFound()),
 }
 
@@ -45,6 +54,8 @@ function pointAtUs(domain: string, token: string) {
 beforeEach(async () => {
   await resetDb(db)
   dns.cname.clear()
+  dns.a.clear()
+  dns.aaaa.clear()
   dns.txt.clear()
   setResolver(resolver)
 })
@@ -85,29 +96,75 @@ describe('hosts', () => {
 describe('checkDomain', () => {
   it('passes when the CNAME and TXT records are right', async () => {
     pointAtUs('pod.example.com', 'tok')
-    expect(await checkDomain('pod.example.com', 'tok')).toEqual({ cname: { ok: true }, txt: { ok: true } })
+    expect(await checkDomain('pod.example.com', 'tok')).toEqual({ pointer: { ok: true }, txt: { ok: true } })
   })
 
   it('says what is wrong with each record', async () => {
     dns.cname.set('pod.example.com', ['elsewhere.example.net'])
     dns.txt.set('_podnoms.pod.example.com', [['podnoms-verify=old']])
     expect(await checkDomain('pod.example.com', 'tok')).toEqual({
-      cname: { ok: false, reason: 'pod.example.com points to elsewhere.example.net, not domains.podnoms.test' },
+      pointer: { ok: false, reason: 'pod.example.com points to elsewhere.example.net, not domains.podnoms.test' },
       txt: { ok: false, reason: "The TXT record for _podnoms.pod.example.com isn't podnoms-verify=tok" },
     })
   })
 
   it('says when the records are missing', async () => {
     const check = await checkDomain('pod.example.com', 'tok')
-    expect(check.cname).toEqual({ ok: false, reason: "There's no CNAME record for pod.example.com yet" })
+    expect(check.pointer).toEqual({ ok: false, reason: "There's no CNAME record for pod.example.com yet" })
     expect(check.txt).toEqual({ ok: false, reason: "There's no TXT record for _podnoms.pod.example.com yet" })
   })
 
   it('checks each record on its own', async () => {
     dns.txt.set('_podnoms.pod.example.com', [['podnoms-verify=tok']])
     const check = await checkDomain('pod.example.com', 'tok')
-    expect(check.cname.ok).toBe(false)
+    expect(check.pointer.ok).toBe(false)
     expect(check.txt.ok).toBe(true)
+  })
+
+  it("passes a domain's root with an A record at our address", async () => {
+    dns.a.set('example.com', ['203.0.113.7'])
+    expect((await checkDomain('example.com', 'tok')).pointer).toEqual({ ok: true })
+  })
+
+  it('asks for an A record on a root, and a CNAME on a subdomain', async () => {
+    expect((await checkDomain('example.com', 'tok')).pointer).toEqual({
+      ok: false,
+      reason: "There's no A record for example.com yet",
+    })
+    expect((await checkDomain('pod.example.com', 'tok')).pointer).toEqual({
+      ok: false,
+      reason: "There's no CNAME record for pod.example.com yet",
+    })
+  })
+
+  it('refuses a root with any other address', async () => {
+    dns.a.set('example.com', ['203.0.113.7', '198.51.100.1'])
+    expect((await checkDomain('example.com', 'tok')).pointer).toEqual({
+      ok: false,
+      reason: 'example.com points to 198.51.100.1, not 203.0.113.7',
+    })
+    dns.a.set('example.com', ['203.0.113.7'])
+    dns.aaaa.set('example.com', ['2001:db8::1'])
+    expect((await checkDomain('example.com', 'tok')).pointer).toEqual({
+      ok: false,
+      reason: 'example.com also has an AAAA record (2001:db8::1); remove it',
+    })
+  })
+})
+
+describe('customDomainRecord', () => {
+  it("is an A record on a domain's root, wherever the suffix", () => {
+    const a = { type: 'A', value: '203.0.113.7' }
+    expect(customDomainRecord('example.com')).toEqual(a)
+    expect(customDomainRecord('ferg.al')).toEqual(a)
+    expect(customDomainRecord('example.co.uk')).toEqual(a)
+  })
+
+  it('is a CNAME on a subdomain, or before a domain is chosen', () => {
+    const cname = { type: 'CNAME', value: 'domains.podnoms.test' }
+    expect(customDomainRecord('pod.example.com')).toEqual(cname)
+    expect(customDomainRecord('pod.example.co.uk')).toEqual(cname)
+    expect(customDomainRecord(null)).toEqual(cname)
   })
 })
 
@@ -194,7 +251,7 @@ describe('verifyCustomDomain', () => {
     const { user, show } = await showWithDomain()
     dns.txt.clear()
     const result = await verifyCustomDomain(user.id, show.id)
-    expect(result?.cname.ok).toBe(true)
+    expect(result?.pointer.ok).toBe(true)
     expect(result?.txt.ok).toBe(false)
     expect(result?.verifiedAt).toBeNull()
     expect((await showRow(show.id)).customDomainVerifiedAt).toBeNull()

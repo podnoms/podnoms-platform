@@ -25,6 +25,8 @@ async function withDomain(domain: string, verified: boolean) {
   const [row] = await db.select().from(shows).where(eq(shows.id, show.id))
   setResolver({
     resolveCname: async () => (verified ? ['podnoms.test'] : []),
+    resolve4: async () => [],
+    resolve6: async () => [],
     resolveTxt: async () => [[`podnoms-verify=${row!.customDomainToken}`]],
   })
   await verifyCustomDomain(user.id, show.id)

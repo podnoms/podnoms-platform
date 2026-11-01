@@ -1,8 +1,9 @@
 // Shows served from their owners' own domains.
 //
 // An owner sets a domain on the show's Custom domain tab and adds two DNS
-// records: a CNAME pointing it at us (customDomainTarget), and a TXT record
-// holding a token we made, which proves they control the domain (so nobody
+// records: a CNAME pointing it at us (customDomainTarget), or an A record for a
+// domain's root (customDomainRecord), and a TXT record holding a token we made,
+// which proves they control the domain (so nobody
 // can claim a domain that someone else pointed at us). Once both check out,
 // the domain is verified: it's served (see src/start.ts and src/router.tsx),
 // and the edge container may get a certificate for it (/api/domains/allowed),
@@ -14,6 +15,7 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import { promises as dns } from 'node:dns'
 import { isIP } from 'node:net'
 import { and, eq, isNotNull } from 'drizzle-orm'
+import { getDomain } from 'tldts'
 import { env } from '~/env'
 import { domainFeedPath, isSharedPath, normalizeDomain, toSitePath, txtRecordName, txtRecordValue } from '~/lib/custom-domain'
 import { db } from '~/server/db/client.server'
@@ -45,6 +47,20 @@ export function customDomainTarget() {
   return (env.CUSTOM_DOMAIN_TARGET && normalizeDomain(env.CUSTOM_DOMAIN_TARGET)) || site
 }
 
+// The record that points a domain at us, for the owner to add: a CNAME, except
+// on a domain's root (example.com, example.co.uk), where DNS doesn't allow one,
+// if we know our address.
+export function customDomainRecord(domain: string | null) {
+  const target = customDomainTarget()
+  if (!target) return null
+  const ip = env.CUSTOM_DOMAIN_IP
+  return ip && domain && isRootDomain(domain) ? { type: 'A', value: ip } : { type: 'CNAME', value: target }
+}
+
+const isRootDomain = (domain: string) => getDomain(domain) === domain
+
+export const customDomainRootAllowed = () => Boolean(env.CUSTOM_DOMAIN_IP)
+
 // The host the visitor asked for, as passed on by the proxies in front of us.
 export function requestHost(request: Request) {
   const header = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? new URL(request.url).host
@@ -69,10 +85,12 @@ function isSiteDomain(domain: string) {
 }
 
 export type RecordCheck = { ok: true } | { ok: false; reason: string }
-export type DomainCheck = { cname: RecordCheck; txt: RecordCheck }
+export type DomainCheck = { pointer: RecordCheck; txt: RecordCheck }
 
 export type Resolver = {
   resolveCname: (host: string) => Promise<string[]>
+  resolve4: (host: string) => Promise<string[]>
+  resolve6: (host: string) => Promise<string[]>
   resolveTxt: (host: string) => Promise<string[][]>
 }
 
@@ -94,21 +112,53 @@ function lookupFailure(error: unknown, record: string, name: string) {
   return `Couldn't look up the ${record} record for ${name}`
 }
 
+async function checkCname(domain: string): Promise<RecordCheck> {
+  const target = customDomainTarget()
+  return resolver.resolveCname(domain).then(
+    (names): RecordCheck => {
+      if (!target) return { ok: false, reason: 'Custom domains are not set up on this site' }
+      if (names.some((name) => bare(name) === target)) return { ok: true }
+      if (!names.length) return { ok: false, reason: `There's no CNAME record for ${domain} yet` }
+      return { ok: false, reason: `${domain} points to ${bare(names[0]!)}, not ${target}` }
+    },
+    (error): RecordCheck => ({ ok: false, reason: lookupFailure(error, 'CNAME', domain) }),
+  )
+}
+
+// Every address must be ours: visitors and certificate checks can land on any
+// of them, and on IPv6 first, which we don't serve.
+async function checkAddress(domain: string, ip: string): Promise<RecordCheck> {
+  const [v4, v6] = await Promise.all([
+    resolver.resolve4(domain).then(
+      (addresses) => ({ addresses }),
+      (error) => ({ failure: lookupFailure(error, 'A', domain) }),
+    ),
+    resolver.resolve6(domain).catch(() => []),
+  ])
+  if ('failure' in v4) return { ok: false, reason: v4.failure }
+  if (!v4.addresses.length) return { ok: false, reason: `There's no A record for ${domain} yet` }
+  const other = v4.addresses.find((address) => address !== ip)
+  if (other) return { ok: false, reason: `${domain} points to ${other}, not ${ip}` }
+  if (v6.length) return { ok: false, reason: `${domain} also has an AAAA record (${v6[0]}); remove it` }
+  return { ok: true }
+}
+
+// Either record will do, whichever the owner was asked for; a failure is
+// described in terms of the one they were asked for.
+async function checkPointer(domain: string): Promise<RecordCheck> {
+  const cname = await checkCname(domain)
+  const ip = env.CUSTOM_DOMAIN_IP
+  if (cname.ok || !ip) return cname
+  const address = await checkAddress(domain, ip)
+  return address.ok || isRootDomain(domain) ? address : cname
+}
+
 // Whether the domain's DNS records are as the owner was asked to set them.
 export async function checkDomain(domain: string, token: string): Promise<DomainCheck> {
-  const target = customDomainTarget()
   const txtName = txtRecordName(domain, customDomainTxtLabel())
   const expected = txtRecordValue(token, customDomainTxtLabel())
-  const [cname, txt] = await Promise.all([
-    resolver.resolveCname(domain).then(
-      (names): RecordCheck => {
-        if (!target) return { ok: false, reason: 'Custom domains are not set up on this site' }
-        if (names.some((name) => bare(name) === target)) return { ok: true }
-        if (!names.length) return { ok: false, reason: `There's no CNAME record for ${domain} yet` }
-        return { ok: false, reason: `${domain} points to ${bare(names[0]!)}, not ${target}` }
-      },
-      (error): RecordCheck => ({ ok: false, reason: lookupFailure(error, 'CNAME', domain) }),
-    ),
+  const [pointer, txt] = await Promise.all([
+    checkPointer(domain),
     resolver.resolveTxt(txtName).then(
       (records): RecordCheck => {
         // Long TXT records come in chunks.
@@ -119,10 +169,10 @@ export async function checkDomain(domain: string, token: string): Promise<Domain
       (error): RecordCheck => ({ ok: false, reason: lookupFailure(error, 'TXT', txtName) }),
     ),
   ])
-  return { cname, txt }
+  return { pointer, txt }
 }
 
-const passes = (check: DomainCheck) => check.cname.ok && check.txt.ok
+const passes = (check: DomainCheck) => check.pointer.ok && check.txt.ok
 
 // Which show each custom domain shows, looked up on every request to one.
 const domainSlugs = new ExpiringStore<{ slug: string | null }>(60_000)
