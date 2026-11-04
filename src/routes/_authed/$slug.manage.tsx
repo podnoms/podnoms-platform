@@ -14,6 +14,7 @@ import { Icons } from '~/components/icons'
 import { GoLiveButton } from '~/components/go-live-dialog'
 import { NewEpisodeDialog } from '~/components/new-episode-dialog'
 import { ShowPrivacyCard } from '~/components/show-privacy-card'
+import { ShowThemeCard } from '~/components/show-theme-card'
 import { TagList } from '~/components/tag-list'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -196,27 +197,33 @@ function ShowPage() {
           {show.channel && <ChannelPanel showId={show.id} channel={show.channel} />}
           {/* Activity is a tab away, so the episodes stay the focus. */}
           <Tabs value={tab} onValueChange={setTab} className="min-w-0 gap-3">
-            <TabsList variant="line">
-              <TabsTrigger value="episodes">
-                Episodes
-                {summary.count > 0 && <span className="text-muted-foreground tabular-nums">{summary.count}</span>}
-              </TabsTrigger>
-              <TabsTrigger value="activity">Activity</TabsTrigger>
-              <TabsTrigger value="distribution">
-                Distribution
-                {!isReady(show.distribution.readiness) && <span className="size-1.5 rounded-full bg-destructive" />}
-              </TabsTrigger>
-              {show.customDomainTarget && (
-                <TabsTrigger value="domain">
-                  {/* Shorter on phones, so the four tabs fit one row. */}
-                  <span className="max-sm:hidden">Custom domain</span>
-                  <span className="sm:hidden">Domain</span>
-                  {show.customDomain && (!show.customDomainVerifiedAt || show.customDomainFailingSince) && (
-                    <span className="size-1.5 rounded-full bg-destructive" />
-                  )}
+            {/* Scrolls sideways on phones, where the tabs don't all fit. The
+                padding keeps the active tab's underline, which hangs below the
+                list, inside the scrolling box, and the scrollbar is hidden. */}
+            <div className="-mb-1.5 overflow-x-auto pb-1.5 [scrollbar-width:none]">
+              <TabsList variant="line">
+                <TabsTrigger value="episodes">
+                  Episodes
+                  {summary.count > 0 && <span className="text-muted-foreground tabular-nums">{summary.count}</span>}
                 </TabsTrigger>
-              )}
-            </TabsList>
+                <TabsTrigger value="activity">Activity</TabsTrigger>
+                <TabsTrigger value="distribution">
+                  Distribution
+                  {!isReady(show.distribution.readiness) && <span className="size-1.5 rounded-full bg-destructive" />}
+                </TabsTrigger>
+                <TabsTrigger value="theme">Theme</TabsTrigger>
+                {show.customDomainTarget && (
+                  <TabsTrigger value="domain">
+                    {/* Shorter on phones, so the tabs fit one row. */}
+                    <span className="max-sm:hidden">Custom domain</span>
+                    <span className="sm:hidden">Domain</span>
+                    {show.customDomain && (!show.customDomainVerifiedAt || show.customDomainFailingSince) && (
+                      <span className="size-1.5 rounded-full bg-destructive" />
+                    )}
+                  </TabsTrigger>
+                )}
+              </TabsList>
+            </div>
             <TabsContent value="episodes" className="flex flex-col gap-3">
               {episodes.length === 0 ? (
                 <Empty className="border border-dashed">
@@ -255,6 +262,12 @@ function ShowPage() {
                 distribution={show.distribution}
                 onChanged={() => router.invalidate({ filter: (match) => match.routeId === Route.id })}
                 onEditDetails={() => setEditing(true)}
+              />
+            </TabsContent>
+            <TabsContent value="theme">
+              <ShowThemeCard
+                show={show}
+                onChanged={() => router.invalidate({ filter: (match) => match.routeId === Route.id })}
               />
             </TabsContent>
             {show.customDomainRecord && (

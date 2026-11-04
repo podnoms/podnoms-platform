@@ -37,6 +37,10 @@ declare module '@tanstack/react-router' {
     // Draws its own header, so visitors don't get the public header, as for
     // the landing page.
     ownHeader?: boolean
+    // One of a show's own pages (the show, its episodes, its live page): a
+    // public page that's the same for everyone, signed in or not, as on the
+    // show's own domain, so signed-in users don't get the app's shell.
+    standalone?: boolean
   }
 }
 
@@ -106,12 +110,14 @@ function RootComponent() {
   const bare = useMatches({ select: (matches) => matches.some((match) => match.staticData.bare) })
   const publicPage = useMatches({ select: (matches) => matches.some((match) => match.staticData.publicPage) })
   const ownHeader = useMatches({ select: (matches) => matches.some((match) => match.staticData.ownHeader) })
+  const standalone = useMatches({ select: (matches) => matches.some((match) => match.staticData.standalone) })
   return (
     <RootDocument
       signedIn={Boolean(session)}
       bare={bare}
-      publicPage={publicPage}
+      publicPage={publicPage || standalone}
       ownHeader={ownHeader}
+      standalone={standalone}
       themeCss={branding.theme?.css ?? ''}
     >
       <Outlet />
@@ -124,6 +130,7 @@ function RootDocument({
   bare,
   publicPage,
   ownHeader,
+  standalone,
   themeCss,
   children,
 }: {
@@ -131,6 +138,7 @@ function RootDocument({
   bare: boolean
   publicPage: boolean
   ownHeader: boolean
+  standalone: boolean
   // The theme admins chose (see branding.server.ts), over app.css's own.
   themeCss: string
   children: ReactNode
@@ -147,15 +155,15 @@ function RootDocument({
       <body suppressHydrationWarning>
         <ThemeProvider>
           {/* The app shell (sidebar and top nav) is only for signed-in users,
-              and not on public pages. Everyone gets the player, so public
-              pages can play episodes. */}
+              and not on a show's own pages, or any public page on its domain.
+              Everyone gets the player, so public pages can play episodes. */}
           {bare ? (
             children
           ) : (
             // One player around both layouts, so what's playing carries on
             // between the app and public pages.
             <PlayerProvider signedIn={signedIn}>
-              {signedIn && !(publicPage && currentDomainSlug()) ? (
+              {signedIn && !standalone && !(publicPage && currentDomainSlug()) ? (
                 <SidebarProvider style={{ '--sidebar-width': '18rem' } as CSSProperties}>
                   <AppSidebar />
                   {/* --top-nav-height lets sticky content sit below the sticky top nav. */}

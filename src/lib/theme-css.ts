@@ -1,8 +1,9 @@
-// The site's theme (see theme-schema.ts) as CSS: the theme variables app.css
-// sets on :root and .dark, overridden for both modes. Used on the server, for
-// the site's theme in every page's <head>, and on the admin page, to preview a
-// theme before it's saved.
-import { colourKeys, type ModeStyles, type ThemeModes } from '~/lib/theme-schema'
+// A theme (see theme-schema.ts) as CSS: the theme variables app.css sets on
+// :root and .dark, overridden for both modes. Used on the server, for the
+// site's theme in every page's <head> and a show's on its public pages, and in
+// the editors, to preview a theme before it's saved.
+import { fontCssUrl, googleFontsIn } from '~/lib/theme-fonts'
+import { colourKeys, type ModeStyles, type SiteTheme, type ThemeModes } from '~/lib/theme-schema'
 
 // What a theme that doesn't describe its shadows gets: a soft drop shadow,
 // as tweakcn (where the presets come from) gives them.
@@ -60,8 +61,29 @@ const block = (selector: string, vars: Record<string, string>) =>
     .join(';')}}`
 
 // The theme's CSS. Its selectors outrank app.css's :root and .dark, wherever
-// it's put on the page. Its Google Fonts are loaded separately (see
-// googleFontsIn).
-export function themeCss({ light, dark }: ThemeModes) {
-  return block('html:root', variables(light, dark)) + block('html.dark', variables(dark, light))
+// it's put on the page; a show's (`over: 'site'`) outranks the site's too, as
+// it's in the page's head before the site's, and the preview of a show's
+// theme on its Theme tab (`over: 'show'`) outranks the show's saved one. Its
+// Google Fonts are loaded separately (see googleFontsIn).
+export function themeCss({ light, dark }: ThemeModes, { over }: { over?: 'site' | 'show' } = {}) {
+  const repeat = over === 'show' ? 3 : over === 'site' ? 2 : 1
+  return (
+    block(`html${':root'.repeat(repeat)}`, variables(light, dark)) + block(`html${'.dark'.repeat(repeat)}`, variables(dark, light))
+  )
+}
+
+// What a page needs to show a saved theme: its CSS and the Google Fonts it
+// uses (each a name for fontCssUrl).
+export function themeAssets({ styles }: SiteTheme, options?: { over?: 'site' }) {
+  return { css: themeCss(styles, options), fonts: googleFontsIn({ ...styles.dark, ...styles.light }) }
+}
+
+// A show's theme (from themeAssets) as a public page's head adds it: its
+// fonts' stylesheets and its CSS. Nothing without one.
+export function themeHead(theme: { css: string; fonts: string[] } | null) {
+  if (!theme) return { links: [], styles: [] }
+  return {
+    links: theme.fonts.map((font) => ({ rel: 'stylesheet', href: fontCssUrl(font) })),
+    styles: [{ children: theme.css }],
+  }
 }

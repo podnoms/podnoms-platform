@@ -21,6 +21,7 @@ import {
 import type { AdapterAccountType } from '@auth/core/adapters'
 import type { ChatGif } from '../../lib/gifs'
 import type { DirectoryLinks } from '../../lib/podcast-directories'
+import type { SiteTheme } from '../../lib/theme-schema'
 import { randomShortSlug } from '../../lib/slug'
 
 // Signing in: OAuth accounts, second factors, recovery codes and password
@@ -259,6 +260,9 @@ export const shows = pgTable(
     liveKey: text('liveKey'),
     // The title of the next broadcast, and of the episode made from it.
     liveTitle: text('liveTitle'),
+    // The theme of the show's public pages, set on its Theme tab, over
+    // the site's (see theme-schema.ts); null for the site's own.
+    theme: jsonb('theme').$type<SiteTheme>(),
     ...timestamps,
   },
   (table) => [index('show_userId_idx').on(table.userId)],

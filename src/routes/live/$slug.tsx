@@ -10,12 +10,13 @@ import { useLiveEvents } from '~/hooks/use-live-events'
 import { currentDomainSlug } from '~/lib/current-domain'
 import { formatCount } from '~/lib/format'
 import { pageTitle } from '~/lib/branding'
+import { themeHead } from '~/lib/theme-css'
 
 // A show's live page, at /live/:slug: its broadcast from OBS
 // while there is one, and the chat beside it. It follows the broadcast
 // starting and ending without a reload.
 export const Route = createFileRoute('/live/$slug')({
-  staticData: { publicPage: true },
+  staticData: { standalone: true },
   loader: ({ params }) => fetchLivePage({ data: { slug: params.slug } }),
   head: ({ loaderData: page, matches }) =>
     page
@@ -24,6 +25,7 @@ export const Route = createFileRoute('/live/$slug')({
             { title: pageTitle(matches, `${page.show.title} live`) },
             ...(page.show.private ? [{ name: 'robots', content: 'noindex' }] : []),
           ],
+          ...themeHead(page.theme),
         }
       : {},
   component: LivePage,

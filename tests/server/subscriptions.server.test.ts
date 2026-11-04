@@ -9,7 +9,7 @@ import { createEpisode as createEpisodeFor, getEpisodeAudio } from '~/server/epi
 import { buildShowFeed } from '~/server/feed.server'
 import { authorizeLive, createLiveKey } from '~/server/live.server'
 import { connectPatreon, disconnectPatreon, handlePatreonWebhook, patreonAuthorizeUrl, validPatreonSignature } from '~/server/patreon.server'
-import { setShowPrivacy } from '~/server/shows.server'
+import { servedShowTheme, setShowPrivacy, updateShowTheme } from '~/server/shows.server'
 import { createCheckoutUrl, handleStripeWebhook, InvalidWebhookError, setStripeClient } from '~/server/stripe.server'
 import {
   AudioLimitError,
@@ -26,6 +26,11 @@ import {
 import { createTrackedLink, recordTrackedLinkVisit } from '~/server/tracked-links.server'
 import { resetDb } from '../db'
 import { createEpisode, createShow, createUser, db } from '../helpers'
+import { themePresets } from '~/lib/theme-presets'
+import { pickStyles } from '~/lib/theme-schema'
+
+// Saving a show's theme downloads its fonts from Google; fonts.server.test.ts tests that.
+vi.mock('~/server/fonts.server', () => ({ prepareFonts: vi.fn(async () => {}) }))
 
 const day = 24 * 60 * 60_000
 
@@ -263,6 +268,29 @@ describe('gated features, once a user has no access', () => {
     await enforceWithGraceOver()
     await expect(createTrackedLink(user.id, episode.id, 'Sam')).rejects.toBeInstanceOf(PaidFeatureError)
     expect(await recordTrackedLinkVisit(link!.token, visit, who)).toBe(false)
+  })
+
+  it("refuses a show theme, stops its pages using one saved before (keeping it), and lets it be taken away", async () => {
+    const { light, dark } = themePresets['modern-minimal']!.styles
+    const theme = { basedOn: 'modern-minimal', styles: { light: pickStyles(light), dark: pickStyles(dark) } }
+    const user = await createUser()
+    const show = await createShow(user.id)
+    await updateShowTheme(user.id, { id: show.id, theme })
+    expect(await servedShowTheme(user.id, theme)).toMatchObject({ css: expect.stringContaining('html:root:root{') })
+    await enforceWithGraceOver()
+    await expect(updateShowTheme(user.id, { id: show.id, theme })).rejects.toBeInstanceOf(PaidFeatureError)
+    expect(await servedShowTheme(user.id, theme)).toBeNull()
+    const [row] = await db.select().from(shows).where(eq(shows.id, show.id))
+    expect(row!.theme).toEqual(theme)
+    await subscribe(user.id)
+    expect(await servedShowTheme(user.id, theme)).not.toBeNull()
+  })
+
+  it('lets a show theme be taken away without access', async () => {
+    const user = await createUser()
+    const show = await createShow(user.id)
+    await enforceWithGraceOver()
+    await expect(updateShowTheme(user.id, { id: show.id, theme: null })).resolves.toBe(true)
   })
 })
 

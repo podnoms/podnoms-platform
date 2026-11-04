@@ -20,7 +20,7 @@ import {
   revokeLiveKey,
   setLiveTitle,
 } from '~/server/live.server'
-import { getPublicShow } from '~/server/shows.server'
+import { getPublicShow, servedShowTheme } from '~/server/shows.server'
 
 async function viewerId() {
   const session = await getSession(getRequest())
@@ -51,6 +51,8 @@ export const fetchLivePage = createServerFn({ method: 'GET' })
         author: show.author,
         private: show.private,
       },
+      // The owner's theme for the show's pages, if they've given it one.
+      theme: await servedShowTheme(show.userId, show.theme),
       broadcast,
       chat: broadcast ? await listChat(show, broadcast.id, userId) : [],
       isOwner: userId === show.userId,

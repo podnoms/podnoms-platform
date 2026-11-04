@@ -9,6 +9,7 @@ import { formatClock } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { brandIconUrl, pageTitle, useBranding } from '~/lib/branding'
 import { currentDomainSlug } from '~/lib/current-domain'
+import { themeHead } from '~/lib/theme-css'
 
 // A compact player for an episode, made to be put in an <iframe> on other
 // sites (see embedSnippet). It renders without the app's shell, and plays with
@@ -24,6 +25,7 @@ export const Route = createFileRoute('/embed/$slug/$episodeSlug')({
       // The episode's own page is the one to index.
       { name: 'robots', content: 'noindex' },
     ],
+    ...themeHead(page?.theme ?? null),
   }),
   component: EmbedPlayer,
 })

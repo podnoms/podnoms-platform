@@ -6,12 +6,15 @@ import { reservedShowSlugs } from '~/lib/paths'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { firstFreeSlug, slugify } from '~/lib/slug'
 import { customDomainValues, withDomainConflict } from '~/server/custom-domains.server'
-import { requirePaidAccess } from '~/server/subscriptions.server'
+import { hasPaidAccess, requirePaidAccess } from '~/server/subscriptions.server'
+import { themeAssets } from '~/lib/theme-css'
+import type { SiteTheme } from '~/lib/theme-schema'
 import { commitImage, deleteImage } from '~/server/images.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import { syncShowTags } from '~/server/tags-store.server'
 import type { DirectoryLinks } from '~/lib/podcast-directories'
-import type { DirectoryDetailsInput, DirectoryLinkInput, EditShowInput, NewShowInput } from '~/lib/show-schema'
+import type { DirectoryDetailsInput, DirectoryLinkInput, EditShowInput, NewShowInput, ShowThemeInput } from '~/lib/show-schema'
+import { prepareTheme } from '~/server/themes.server'
 
 const summaryColumns = {
   id: shows.id,
@@ -96,6 +99,7 @@ export async function getPublicShow(slug: string, viewerId: string | null) {
       // The owner's profile, which the author's name links to.
       ownerSlug: users.slug,
       directoryLinks: shows.directoryLinks,
+      theme: shows.theme,
       ...showFollowColumns(viewerId),
     })
     .from(shows)
@@ -240,6 +244,27 @@ export async function updateDirectoryDetails(userId: string, input: DirectoryDet
     .where(and(eq(shows.id, id), eq(shows.userId, userId)))
     .returning({ id: shows.id })
   return updated.length > 0
+}
+
+// Gives the show's public pages a theme (a paid feature), or (null) the
+// site's again. Returns false unless the show belongs to the user.
+export async function updateShowTheme(userId: string, input: ShowThemeInput) {
+  if (input.theme) await requirePaidAccess(userId, 'showThemes')
+  const theme = await prepareTheme(input.theme)
+  const updated = await db
+    .update(shows)
+    .set({ theme })
+    .where(and(eq(shows.id, input.id), eq(shows.userId, userId)))
+    .returning({ id: shows.id })
+  return updated.length > 0
+}
+
+// The show's theme as its public pages use it (themeAssets), or null: without
+// one, or once its owner no longer has paid access, when it's kept but the
+// site's is used instead.
+export async function servedShowTheme(ownerId: string, theme: SiteTheme | null) {
+  if (!theme || !(await hasPaidAccess(ownerId))) return null
+  return themeAssets(theme, { over: 'site' })
 }
 
 // Remembers (or, given an empty link, forgets) the show's listing on a

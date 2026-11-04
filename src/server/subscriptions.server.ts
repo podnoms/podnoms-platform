@@ -1,5 +1,6 @@
 // Who gets paid features: live broadcasts, custom domains, channels and
-// playlists, private shows and tracked links (src/lib/subscriptions.ts).
+// playlists, private shows, tracked links and show themes
+// (src/lib/subscriptions.ts).
 //
 // Everything is free until an admin turns paid features on, which needs Stripe
 // or Patreon set up, so a site with neither is unaffected. From then on a user

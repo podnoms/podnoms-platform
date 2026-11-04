@@ -9,6 +9,7 @@ import { fetchSharePage } from '~/functions/public'
 import { reportTrackedLinkVisit } from '~/lib/activity'
 import { currentDomainSlug } from '~/lib/current-domain'
 import { publicPageHead } from '~/lib/page-meta'
+import { themeHead } from '~/lib/theme-css'
 import { brandingFrom, useBranding } from '~/lib/branding'
 
 // An episode on its own, for sharing, at its short link: the episode page
@@ -25,8 +26,12 @@ export const Route = createFileRoute('/s/$shortSlug')({
     if (shortSlug !== params.shortSlug) throw redirect({ to: '/s/$shortSlug', params: { shortSlug }, statusCode: 301 })
   },
   loader: ({ params }) => fetchSharePage({ data: { shortSlug: params.shortSlug } }),
-  head: ({ loaderData: page, matches }) =>
-    page ? publicPageHead({ ...episodeHeadOptions(page), site: brandingFrom(matches), shareUrl: page.shareUrl }) : {},
+  head: ({ loaderData: page, matches }) => {
+    if (!page) return {}
+    const head = publicPageHead({ ...episodeHeadOptions(page), site: brandingFrom(matches), shareUrl: page.shareUrl })
+    const theme = themeHead(page.theme)
+    return { ...head, links: [...head.links, ...theme.links], styles: theme.styles }
+  },
   component: SharePage,
 })
 

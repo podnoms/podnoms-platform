@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { normalizeDomain } from '~/lib/custom-domain'
 import { reservedShowSlugs } from '~/lib/paths'
 import { tagNamesSchema } from '~/lib/tag-schema'
+import { siteThemeSchema } from '~/lib/theme-schema'
 import {
   categoryNames,
   directoryIds,
@@ -92,6 +93,10 @@ export const directoryDetailsSchema = z
     path: ['subcategory'],
   })
 export type DirectoryDetailsInput = z.infer<typeof directoryDetailsSchema>
+
+// The theme of the show's public pages, or null for the site's.
+export const showThemeSchema = z.object({ id: z.string().min(1), theme: siteThemeSchema.nullable() })
+export type ShowThemeInput = z.infer<typeof showThemeSchema>
 
 // The show's listing on each directory: a page on that directory's site, or
 // empty to forget it.

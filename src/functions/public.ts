@@ -25,7 +25,7 @@ import { feedPath } from '~/server/feed.server'
 import { getOpenBroadcast, gifConfig, liveEnabled } from '~/server/live.server'
 import { listUserShows } from '~/server/library.server'
 import { listPublicPlaylists } from '~/server/playlists.server'
-import { getPublicShow } from '~/server/shows.server'
+import { getPublicShow, servedShowTheme } from '~/server/shows.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import { getEpisodeTags, getShowTags, withEpisodeTags } from '~/server/tags-store.server'
 import { getPublicProfile } from '~/server/users.server'
@@ -83,9 +83,11 @@ export const fetchShowPage = createServerFn({ method: 'GET' })
       liveEnabled() ? getOpenBroadcast(show.id) : null,
       getShowTags(show.id),
     ])
-    const { userId: ownerId, feedKey, ...rest } = show
+    const { userId: ownerId, feedKey, theme, ...rest } = show
     return {
       ...rest,
+      // The owner's theme for the show's pages, if they've given it one.
+      theme: await servedShowTheme(ownerId, theme),
       tags,
       // Sanitised when saved; again here, as it's rendered as HTML.
       description: sanitizeDescription(show.description),
@@ -142,7 +144,7 @@ async function episodePage(slug: string, episodeSlug: string) {
   const { userId, absolute } = await visitor()
   const found = await getPublicEpisode(slug, episodeSlug, userId)
   if (!found) return null
-  const { userId: ownerId, feedKey, ...show } = found.show
+  const { userId: ownerId, feedKey, theme, ...show } = found.show
   const { episode } = found
   const artwork = episode.imageUrl ?? show.imageUrl
   const [waveform, comments, episodeTags, showTags, moreEpisodes] = await Promise.all([
@@ -161,6 +163,8 @@ async function episodePage(slug: string, episodeSlug: string) {
       description: sanitizeDescription(episode.description),
     },
     isOwner: userId === ownerId,
+    // The owner's theme for the show's pages, if they've given it one.
+    theme: await servedShowTheme(ownerId, theme),
     comments,
     // For GIFs in comments: the provider and its public key, or null without one.
     gifs: gifConfig(),

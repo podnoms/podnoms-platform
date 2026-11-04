@@ -35,10 +35,21 @@ const labelOf = (key: string) => (key.charAt(0).toUpperCase() + key.slice(1)).re
 // Each setting of the theme, as tweakcn's editor has them: the colours of the
 // mode being edited, the fonts and letter spacing, then the radius and shadow.
 // The mode being edited is the one the admin is looking at, so changes show as
-// made.
-export function ThemeEditor({ styles, onChange }: { styles: ThemeModes; onChange: (styles: ThemeModes) => void }) {
-  const { resolvedTheme, setTheme } = useTheme()
-  const mode: Mode = resolvedTheme
+// made: the site's own, unless `mode` is given, for a preview that has its
+// own (as a show's Theme tab's frame does), when switching it leaves the
+// site's alone.
+export function ThemeEditor({
+  styles,
+  onChange,
+  mode: ownMode,
+}: {
+  styles: ThemeModes
+  onChange: (styles: ThemeModes) => void
+  mode?: { value: Mode; onChange: (mode: Mode) => void }
+}) {
+  const site = useTheme()
+  const mode: Mode = ownMode?.value ?? site.resolvedTheme
+  const setMode = ownMode?.onChange ?? site.setTheme
   const current = styles[mode]
 
   // A colour (and the shadow's colour) belongs to one mode.
@@ -55,7 +66,7 @@ export function ThemeEditor({ styles, onChange }: { styles: ThemeModes; onChange
           type="single"
           variant="outline"
           value={mode}
-          onValueChange={(value) => value && setTheme(value as Mode)}
+          onValueChange={(value) => value && setMode(value as Mode)}
           aria-label="Mode to edit"
         >
           <ToggleGroupItem value="light">

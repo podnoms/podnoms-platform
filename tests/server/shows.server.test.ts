@@ -1,5 +1,7 @@
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { themePresets } from '~/lib/theme-presets'
+import { pickStyles } from '~/lib/theme-schema'
 import { shows } from '~/server/db/schema'
 import {
   createShow,
@@ -10,9 +12,11 @@ import {
   setShowPrivacy,
   updateDirectoryDetails,
   updateDirectoryLink,
+  updateShowTheme,
   ShowSlugError,
   updateShow,
 } from '~/server/shows.server'
+import { prepareFonts } from '~/server/fonts.server'
 import { imagePath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import {
@@ -24,6 +28,9 @@ import {
   stageTestImage,
   storeTestImage,
 } from '../helpers'
+
+// Saving a theme downloads its fonts from Google; fonts.server.test.ts tests that.
+vi.mock('~/server/fonts.server', () => ({ prepareFonts: vi.fn(async () => {}) }))
 
 beforeEach(() => resetDb(db))
 
@@ -213,6 +220,7 @@ describe('getPublicShow', () => {
       author: 'Ada',
       ownerSlug: user.slug,
       directoryLinks: {},
+      theme: null,
       followerCount: 0,
       following: false,
     })
@@ -333,5 +341,29 @@ describe('updateDirectoryLink', () => {
     const other = await createUser()
     expect(await updateDirectoryLink(other.id, { id: show.id, directory: 'apple', link: apple })).toBe(false)
     expect((await getRow(show.id)).directoryLinks).toEqual({})
+  })
+})
+
+describe('updateShowTheme', () => {
+  const { light, dark } = themePresets['modern-minimal']!.styles
+  const theme = { basedOn: 'modern-minimal', styles: { light: pickStyles(light), dark: pickStyles(dark) } }
+
+  it("gives the user's own show a theme, for its public pages, and takes it away", async () => {
+    const user = await createUser()
+    const show = await insertShow(user.id, { slug: 'show' })
+    const withSpacing = { ...theme, styles: { ...theme.styles, light: { ...theme.styles.light, spacing: '0.3rem' } } }
+    expect(await updateShowTheme(user.id, { id: show.id, theme: withSpacing })).toBe(true)
+    // Only the values the site uses are kept, and its fonts are downloaded first.
+    expect((await getRow(show.id)).theme).toEqual(theme)
+    expect(prepareFonts).toHaveBeenCalledWith(['Inter', 'Source Serif 4', 'JetBrains Mono'])
+    expect(await getPublicShow('show', null)).toMatchObject({ theme })
+    expect(await updateShowTheme(user.id, { id: show.id, theme: null })).toBe(true)
+    expect((await getRow(show.id)).theme).toBeNull()
+  })
+
+  it("leaves someone else's show alone", async () => {
+    const show = await insertShow((await createUser()).id)
+    expect(await updateShowTheme((await createUser()).id, { id: show.id, theme })).toBe(false)
+    expect((await getRow(show.id)).theme).toBeNull()
   })
 })

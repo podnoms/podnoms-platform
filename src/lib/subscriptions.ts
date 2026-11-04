@@ -15,6 +15,7 @@ export const paidFeatures = {
   channels: { title: 'Channels and playlists', description: 'Follow a channel or playlist, and new uploads become episodes by themselves.' },
   privateShows: { title: 'Private shows', description: 'Keep a show to yourself and the people you give its private feed to.' },
   trackedLinks: { title: 'Tracked links', description: 'See whether the people you send an episode to open it and press play.' },
+  showThemes: { title: 'Show themes', description: "Give your show's pages their own colours, fonts, corners and shadows." },
 } as const
 
 // What everyone gets without subscribing.

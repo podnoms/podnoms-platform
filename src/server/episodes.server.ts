@@ -176,6 +176,7 @@ export async function getPublicEpisode(showSlug: string, episodeSlug: string, li
         author: showAuthor,
         // The owner's profile, which the author's name links to.
         ownerSlug: users.slug,
+        theme: shows.theme,
       },
     })
     .from(episodes)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { themeCss } from '~/lib/theme-css'
+import { themeCss, themeHead } from '~/lib/theme-css'
 import { themePresets, type ThemePreset } from '~/lib/theme-presets'
 
 // The variables set for each mode, by selector.
@@ -67,5 +67,26 @@ describe('themeCss', () => {
     for (const each of Object.values(themePresets)) {
       expect(Object.keys(parse(themeCss(each.styles)))).toEqual(['html:root', 'html.dark'])
     }
+  })
+
+  it("outranks the site's theme with a show's, wherever each is on the page", () => {
+    const css = parse(themeCss(preset.styles, { over: 'site' }))
+    // (0,2,1) against the site's (0,1,1).
+    expect(Object.keys(css)).toEqual(['html:root:root', 'html.dark.dark'])
+    expect(css['html.dark.dark']!['--primary']).toBe(preset.styles.dark.primary)
+  })
+
+  it("outranks a show's saved theme with the preview of its Theme tab", () => {
+    expect(Object.keys(parse(themeCss(preset.styles, { over: 'show' })))).toEqual(['html:root:root:root', 'html.dark.dark.dark'])
+  })
+})
+
+describe('themeHead', () => {
+  it("adds a show's theme and its fonts to a page's head", () => {
+    expect(themeHead({ css: 'html:root:root{--radius:0}', fonts: ['Inter'] })).toEqual({
+      links: [{ rel: 'stylesheet', href: '/fonts/inter/font.css' }],
+      styles: [{ children: 'html:root:root{--radius:0}' }],
+    })
+    expect(themeHead(null)).toEqual({ links: [], styles: [] })
   })
 })

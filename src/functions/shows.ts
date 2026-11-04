@@ -9,6 +9,7 @@ import { mentionsAsText } from '~/lib/user-slug'
 import {
   customDomainSchema,
   directoryDetailsSchema,
+  showThemeSchema,
   directoryLinkSchema,
   editShowSchema,
   newShowSchema,
@@ -57,6 +58,7 @@ import {
   resetFeedKey,
   setShowPrivacy,
   updateDirectoryDetails,
+  updateShowTheme,
   updateDirectoryLink,
   ShowSlugError,
   updateShow,
@@ -247,6 +249,12 @@ export const saveDirectoryDetails = createServerFn({ method: 'POST' })
   .validator(directoryDetailsSchema)
   .handler(async ({ data }) => {
     if (!(await updateDirectoryDetails(await requireUserId(), data))) throw notFound()
+  })
+
+export const saveShowTheme = createServerFn({ method: 'POST' })
+  .validator(showThemeSchema)
+  .handler(async ({ data }) => {
+    if (!(await updateShowTheme(await requireUserId(), data))) throw notFound()
   })
 
 export const saveDirectoryLink = createServerFn({ method: 'POST' })

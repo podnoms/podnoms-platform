@@ -8,10 +8,9 @@ import { join } from 'node:path'
 import sharp from 'sharp'
 import { defaultBranding, defaultLandingCopy, type Branding, type BrandIconSize, type LandingCopy } from '~/lib/branding'
 import type { BrandingInput } from '~/lib/branding-schema'
-import { themeCss } from '~/lib/theme-css'
-import { googleFontsIn } from '~/lib/theme-fonts'
-import { pickStyles, type SiteTheme } from '~/lib/theme-schema'
-import { prepareFonts } from '~/server/fonts.server'
+import { themeAssets } from '~/lib/theme-css'
+import type { SiteTheme } from '~/lib/theme-schema'
+import { prepareTheme } from '~/server/themes.server'
 import { sanitizePage } from '~/server/rich-text.server'
 import { maxImageBytes } from '~/server/images.server'
 import { getSiteSettings, updateSiteSettings } from '~/server/site-settings.server'
@@ -32,11 +31,7 @@ export async function getBranding(): Promise<Branding> {
     privacyHtml: sanitizePage(settings.privacyHtml),
     termsHtml: sanitizePage(settings.termsHtml),
     analytics: settings.analyticsScriptUrl ? { src: settings.analyticsScriptUrl, attributes: settings.analyticsAttributes } : null,
-    theme: settings.siteTheme && {
-      ...settings.siteTheme,
-      css: themeCss(settings.siteTheme.styles),
-      fonts: googleFontsIn({ ...settings.siteTheme.styles.dark, ...settings.siteTheme.styles.light }),
-    },
+    theme: settings.siteTheme && { ...settings.siteTheme, ...themeAssets(settings.siteTheme) },
   }
 }
 
@@ -44,13 +39,7 @@ export async function getBranding(): Promise<Branding> {
 // the site uses are kept. Its Google Fonts are downloaded first, so they're
 // ready for the first visitor (a font that can't be is tried again then).
 export async function saveTheme(theme: SiteTheme | null) {
-  if (theme) await prepareFonts(googleFontsIn({ ...theme.styles.dark, ...theme.styles.light }))
-  await updateSiteSettings({
-    siteTheme: theme && {
-      basedOn: theme.basedOn,
-      styles: { light: pickStyles(theme.styles.light), dark: pickStyles(theme.styles.dark) },
-    },
-  })
+  await updateSiteSettings({ siteTheme: await prepareTheme(theme) })
 }
 
 // A value the same as its default is saved as null, so it follows the default.

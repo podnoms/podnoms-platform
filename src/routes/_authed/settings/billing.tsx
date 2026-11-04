@@ -25,6 +25,7 @@ const featureIcons: Record<PaidFeature, keyof typeof Icons> = {
   channels: 'retry',
   privateShows: 'private',
   trackedLinks: 'link',
+  showThemes: 'palette',
 }
 
 export const Route = createFileRoute('/_authed/settings/billing')({
