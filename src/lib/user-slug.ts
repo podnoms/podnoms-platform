@@ -1,9 +1,12 @@
 import { z } from 'zod'
+import { reservedUserSlugs } from '~/lib/paths'
 import { slugify } from '~/lib/slug'
 
-// Users' slugs (handles): in their profile's address (/u/<slug>) and for
-// @mentioning them in comments. Lowercase letters and digits, with single
-// hyphens between, 2 to 30 long.
+// Users' slugs (handles): their profile's address (/<slug>), which their
+// shows' addresses start with, and for @mentioning them in comments.
+// Lowercase letters and digits, with single hyphens between, 2 to 30 long.
+// Not any of reservedUserSlugs (src/lib/paths.ts), which the site's own
+// top-level pages take.
 export const userSlugMaxLength = 30
 
 export const userSlugSchema = z
@@ -15,22 +18,7 @@ export const userSlugSchema = z
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, numbers and single hyphens between them')
   .refine((slug) => !reservedUserSlugs.has(slug), "That one's reserved")
 
-// Ones that would look official, or like a way to mention everyone.
-export const reservedUserSlugs = new Set([
-  'admin',
-  'administrator',
-  'everyone',
-  'help',
-  'here',
-  'me',
-  'moderator',
-  'official',
-  'podnoms',
-  'root',
-  'staff',
-  'support',
-  'system',
-])
+export { reservedUserSlugs }
 
 // The slug to try for a new user, from their name or email's local part,
 // leaving room for a -2, -3... if it's taken.

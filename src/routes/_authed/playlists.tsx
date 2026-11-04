@@ -55,7 +55,7 @@ function PlaylistsPage() {
         <ItemGroup className="gap-2">
           {playlists.map((playlist) => (
             <Item key={playlist.id} variant="outline" asChild>
-              <Link to="/u/$slug/playlists/$playlistSlug" params={{ slug: userSlug, playlistSlug: playlist.slug }}>
+              <Link to="/$user/playlists/$playlistSlug" params={{ user: userSlug, playlistSlug: playlist.slug }}>
                 <ItemMedia variant="icon">
                   <Icons.playlist />
                 </ItemMedia>
@@ -77,7 +77,7 @@ function PlaylistsPage() {
         onSave={async (details) => {
           const created = await savePlaylist({ data: { ...details, description: details.description ?? '' } })
           setCreating(false)
-          await navigate({ to: '/u/$slug/playlists/$playlistSlug', params: { slug: userSlug, playlistSlug: created.slug } })
+          await navigate({ to: '/$user/playlists/$playlistSlug', params: { user: userSlug, playlistSlug: created.slug } })
         }}
       />
     </div>

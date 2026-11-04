@@ -5,9 +5,10 @@ import { promisify } from 'node:util'
 import { asc, eq, ilike, inArray, like, or, sql } from 'drizzle-orm'
 import type { EditProfileInput } from '~/lib/profile-schema'
 import { firstFreeSlug } from '~/lib/slug'
-import { reservedUserSlugs, userSlugBase } from '~/lib/user-slug'
+import { reservedUserSlugs } from '~/lib/paths'
+import { userSlugBase } from '~/lib/user-slug'
 import { db } from '~/server/db/client.server'
-import { users } from '~/server/db/schema'
+import { userSlugAliases, users } from '~/server/db/schema'
 import { commitImage, deleteImage } from '~/server/images.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 
@@ -65,10 +66,17 @@ function isUserSlugConflict(error: unknown): boolean {
 // placeholder, which they can change.
 export async function assignUserSlug(userId: string, source: string) {
   const base = userSlugBase(source)
+  // Others' old slugs, which redirect to them, are taken too.
   const taken = await db
     .select({ slug: users.slug })
     .from(users)
     .where(or(eq(users.slug, base), like(users.slug, `${base}-%`)))
+    .unionAll(
+      db
+        .select({ slug: userSlugAliases.slug })
+        .from(userSlugAliases)
+        .where(or(eq(userSlugAliases.slug, base), like(userSlugAliases.slug, `${base}-%`))),
+    )
   const slug = firstFreeSlug(base, new Set([...taken.map((row) => row.slug), ...reservedUserSlugs]))
   try {
     await db.update(users).set({ slug }).where(eq(users.id, userId))
@@ -171,13 +179,22 @@ export async function getProfile(userId: string) {
 }
 
 // Returns false if the user doesn't exist, and 'slug-taken' (changing
-// nothing) if someone else has the slug.
+// nothing) if someone else has the slug, or had it. A new slug moves their
+// profile and all their shows; the old addresses redirect.
 export async function updateProfile(userId: string, input: EditProfileInput): Promise<boolean | 'slug-taken'> {
   const profile = await getProfile(userId)
   if (!profile) return false
   if (input.slug && input.slug !== profile.slug) {
+    const slug = input.slug
+    const [alias] = await db.select({ userId: userSlugAliases.userId }).from(userSlugAliases).where(eq(userSlugAliases.slug, slug))
+    if (alias && alias.userId !== userId) return 'slug-taken'
     try {
-      await db.update(users).set({ slug: input.slug }).where(eq(users.id, userId))
+      await db.transaction(async (tx) => {
+        await tx.update(users).set({ slug }).where(eq(users.id, userId))
+        // Going back to a slug they had before just takes that one back.
+        await tx.delete(userSlugAliases).where(eq(userSlugAliases.slug, slug))
+        await tx.insert(userSlugAliases).values({ slug: profile.slug, userId }).onConflictDoNothing()
+      })
     } catch (error) {
       if (isUserSlugConflict(error)) return 'slug-taken'
       throw error
@@ -207,7 +224,7 @@ export async function searchUsers(query: string, limit = 8) {
     .limit(limit)
 }
 
-// What anyone may see of a user, for their profile page (/u/<slug>).
+// What anyone may see of a user, for their profile page (/<slug>).
 export async function getPublicProfile(slug: string) {
   const [user] = await db
     .select({ id: users.id, slug: users.slug, name: users.name, image: users.image, description: users.description })
@@ -240,4 +257,16 @@ export async function getChannelEpisodeLimit(userId: string) {
     .where(eq(users.id, userId))
     .limit(1)
   return user?.limit ?? 0
+}
+
+// The slug of the user who used to have `slug`, so their old addresses can
+// redirect; null if no one did.
+export async function movedUser(slug: string) {
+  const [row] = await db
+    .select({ slug: users.slug })
+    .from(userSlugAliases)
+    .innerJoin(users, eq(users.id, userSlugAliases.userId))
+    .where(eq(userSlugAliases.slug, slug.toLowerCase()))
+    .limit(1)
+  return row?.slug ?? null
 }

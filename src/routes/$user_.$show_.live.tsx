@@ -7,17 +7,18 @@ import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { fetchLivePage } from '~/functions/live'
 import { useLiveEvents } from '~/hooks/use-live-events'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { isCustomDomain } from '~/lib/current-domain'
 import { formatCount } from '~/lib/format'
 import { pageTitle } from '~/lib/branding'
+import { showParams } from '~/lib/paths'
 import { themeHead } from '~/lib/theme-css'
 
-// A show's live page, at /live/:slug: its broadcast from OBS
+// A show's live page, at /<owner>/<show>/live: its broadcast from OBS
 // while there is one, and the chat beside it. It follows the broadcast
 // starting and ending without a reload.
-export const Route = createFileRoute('/live/$slug')({
+export const Route = createFileRoute('/$user_/$show_/live')({
   staticData: { standalone: true },
-  loader: ({ params }) => fetchLivePage({ data: { slug: params.slug } }),
+  loader: ({ params }) => fetchLivePage({ data: params }),
   head: ({ loaderData: page, matches }) =>
     page
       ? {
@@ -36,14 +37,14 @@ const startedFormat = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minu
 function LivePage() {
   const page = Route.useLoaderData()
   const { show } = page
-  const { broadcast, chat, setChat, viewers, ended } = useLiveEvents(show.slug, page)
+  const { broadcast, chat, setChat, viewers, ended } = useLiveEvents(show.id, page)
   const interrupted = Boolean(broadcast?.interruptedAt)
 
   return (
     <div className="mx-auto grid w-full max-w-page gap-6 p-4 md:p-6 xl:h-[calc(100dvh-var(--top-nav-height,0px)-var(--player-height,0px))] xl:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="flex min-w-0 flex-col gap-4">
         <LivePlayer
-          slug={show.slug}
+          showId={show.id}
           broadcastId={broadcast?.id ?? null}
           artwork={show.imageUrl}
           interrupted={interrupted}
@@ -78,20 +79,20 @@ function LivePage() {
             <h1 className="text-2xl font-bold tracking-tight text-balance">{broadcast?.title ?? show.title}</h1>
             <p className="text-sm text-muted-foreground">
               {show.title}
-              {show.author && !currentDomainSlug() && ` · by ${show.author}`}
+              {show.author && !isCustomDomain() && ` · by ${show.author}`}
             </p>
           </div>
           <div className="flex gap-2">
-            {page.isOwner && !currentDomainSlug() && (
+            {page.isOwner && !isCustomDomain() && (
               <Button variant="outline" asChild>
-                <Link to="/$slug/manage" params={{ slug: show.slug }}>
+                <Link to="/$user/$show/manage" params={showParams(show)}>
                   <Icons.settings />
                   Manage
                 </Link>
               </Button>
             )}
             <Button variant="outline" asChild>
-              <Link to="/$slug" params={{ slug: show.slug }}>
+              <Link to="/$user/$show" params={showParams(show)}>
                 <Icons.logo />
                 Episodes
               </Link>

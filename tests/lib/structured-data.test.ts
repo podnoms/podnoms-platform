@@ -75,7 +75,7 @@ describe('showSeriesJsonLd', () => {
 describe('showEpisodeJsonLd', () => {
   const page = {
     siteName: 'Pods',
-    show: { title: 'Show', slug: 'show' },
+    show: { title: 'Show', slug: 'show', ownerSlug: 'ada' },
     episode: {
       title: 'Ep 1',
       description: '<p>Notes</p>',
@@ -83,7 +83,7 @@ describe('showEpisodeJsonLd', () => {
       createdAt: new Date('2026-01-01T00:00:00Z'),
       durationSeconds: 3725,
     },
-    pageUrl: 'https://pods.example/show/ep-1',
+    pageUrl: 'https://pods.example/ada/show/ep-1',
     audioUrl: 'https://pods.example/api/episodes/1/audio',
     image: null,
   }
@@ -98,7 +98,7 @@ describe('showEpisodeJsonLd', () => {
       datePublished: '2026-01-02T03:04:05.000Z',
       duration: 'PT1H2M5S',
       associatedMedia: { '@type': 'AudioObject', contentUrl: page.audioUrl, encodingFormat: 'audio/mpeg' },
-      partOfSeries: { '@type': 'PodcastSeries', name: 'Show', url: 'https://pods.example/show' },
+      partOfSeries: { '@type': 'PodcastSeries', name: 'Show', url: 'https://pods.example/ada/show' },
     })
   })
 
@@ -111,7 +111,7 @@ describe('showEpisodeJsonLd', () => {
     const [, breadcrumbs] = showEpisodeJsonLd(page)
     expect(breadcrumbs!.itemListElement).toEqual([
       { '@type': 'ListItem', position: 1, name: 'Pods', item: 'https://pods.example/' },
-      { '@type': 'ListItem', position: 2, name: 'Show', item: 'https://pods.example/show' },
+      { '@type': 'ListItem', position: 2, name: 'Show', item: 'https://pods.example/ada/show' },
       { '@type': 'ListItem', position: 3, name: 'Ep 1', item: page.pageUrl },
     ])
   })

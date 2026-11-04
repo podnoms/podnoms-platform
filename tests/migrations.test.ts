@@ -21,6 +21,54 @@ async function runMigration(pg: PGlite, tag: string) {
 const tagOf = (prefix: string) => migrationStatements().find((m) => m.tag.startsWith(prefix))!.tag
 
 describe('migrations', () => {
+  it("0044 puts shows under their owners: a guid each, clashing slugs moved, and the inbox's links moved", async () => {
+    const pg = new PGlite()
+    try {
+      await migrateUntil(pg, tagOf('0044'))
+      await pg.exec(`insert into "user" (id, email, slug) values ('u1', 'ada@example.com', 'ada'), ('u2', 'x@example.com', 'explore');
+        insert into show (id, "userId", title, slug) values ('p1', 'u1', 'Mixes', 'mixes'), ('p2', 'u2', 'Playlists', 'playlists');
+        insert into episode (id, "showId", title, slug, "shortSlug") values
+          ('e1', 'p1', 'Feed', 'feed', 'aaaaaaaa'),
+          ('e2', 'p1', 'Live', 'live', 'bbbbbbbb'),
+          ('e3', 'p1', 'November', 'november', 'cccccccc');
+        insert into notification (id, "userId", kind, title, url) values
+          ('n1', 'u1', 'mention', 'Hi', '/mixes/november#comment-1'),
+          ('n2', 'u1', 'episodeFailed', 'Oops', '/mixes/november/manage'),
+          ('n3', 'u1', 'live', 'Live', '/live/mixes'),
+          ('n4', 'u1', 'channelEpisodes', 'New', '/mixes'),
+          ('n5', 'u1', 'mention', 'Elsewhere', '/settings/notifications'),
+          ('n6', 'u1', 'mention', 'Lookalike', '/mixes-2/one');`)
+      await runMigration(pg, tagOf('0044'))
+
+      const { rows: shows } = await pg.query<{ id: string; slug: string; podcastGuid: string }>(
+        `select id, slug, "podcastGuid" from show order by id`,
+      )
+      expect(shows[0]!.slug).toBe('mixes')
+      expect(shows[1]!.slug).toMatch(/^playlists-[0-9a-f]{6}$/)
+      expect(new Set(shows.map((show) => show.podcastGuid)).size).toBe(2)
+      for (const show of shows) expect(show.podcastGuid).toMatch(/^[0-9a-f-]{36}$/)
+      const { rows: users } = await pg.query<{ slug: string }>(`select slug from "user" order by id`)
+      expect(users[0]!.slug).toBe('ada')
+      expect(users[1]!.slug).toMatch(/^explore-[0-9a-f]{6}$/)
+      const { rows: episodes } = await pg.query<{ slug: string }>(`select slug from episode order by id`)
+      expect(episodes[0]!.slug).toMatch(/^feed-[0-9a-f]{6}$/)
+      expect(episodes[1]!.slug).toMatch(/^live-[0-9a-f]{6}$/)
+      expect(episodes[2]!.slug).toBe('november')
+      expect((await pg.query(`select id, url from notification order by id`)).rows).toEqual([
+        { id: 'n1', url: '/ada/mixes/november#comment-1' },
+        { id: 'n2', url: '/ada/mixes/november/manage' },
+        { id: 'n3', url: '/ada/mixes/live' },
+        { id: 'n4', url: '/ada/mixes' },
+        { id: 'n5', url: '/settings/notifications' },
+        { id: 'n6', url: '/mixes-2/one' },
+      ])
+      // Two owners can now have a show with the same slug.
+      await pg.exec(`insert into show (id, "userId", title, slug, "podcastGuid") values ('p3', 'u2', 'Mixes', 'mixes', 'g')`)
+    } finally {
+      await pg.close()
+    }
+  })
+
   it("0039 renames episodes whose slugs clash with paths under their show, and moves the inbox's links", async () => {
     const pg = new PGlite()
     try {
@@ -210,12 +258,14 @@ describe('migrations', () => {
       'push_subscription',
       'show',
       'show_follow',
+      'show_slug_alias',
       'show_tag',
       'site_settings',
       'subscription',
       'tag',
       'tracked_link',
       'user',
+      'user_slug_alias',
     ])
     const { rows: auth } = await pg.query<{ tablename: string }>(`select tablename from pg_tables where schemaname = 'auth' order by 1`)
     expect(auth.map((r) => r.tablename)).toEqual([

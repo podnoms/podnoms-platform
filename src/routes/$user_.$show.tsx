@@ -13,9 +13,10 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '~/
 import { fetchShowEpisodes, fetchShowPage } from '~/functions/public'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { useLiveStart } from '~/hooks/use-live-events'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { isCustomDomain } from '~/lib/current-domain'
 import { formatDate, formatLength, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
+import { showParams } from '~/lib/paths'
 import { directories } from '~/lib/podcast-directories'
 import { publicPageHead } from '~/lib/page-meta'
 import { htmlToText } from '~/lib/rich-text'
@@ -23,12 +24,12 @@ import { themeHead } from '~/lib/theme-css'
 import { jsonLdMeta, showSeriesJsonLd } from '~/lib/structured-data'
 import { brandingFrom } from '~/lib/branding'
 
-// A show's public page, at /:slug, which anyone can visit. Its owner
-// manages it at /:slug/manage. Static routes win over this one, which is why
+// A show's public page, at /<owner>/<show>, which anyone can visit. Its owner
+// manages it at .../manage. Static routes win over this one, which is why
 // slugs can't be any of reservedShowSlugs (src/lib/paths.ts).
-export const Route = createFileRoute('/$slug')({
+export const Route = createFileRoute('/$user_/$show')({
   staticData: { standalone: true },
-  loader: ({ params }) => fetchShowPage({ data: { slug: params.slug } }),
+  loader: ({ params }) => fetchShowPage({ data: params }),
   head: ({ loaderData: show, matches }) => {
     if (!show) return {}
     const branding = brandingFrom(matches)
@@ -36,7 +37,7 @@ export const Route = createFileRoute('/$slug')({
       site: branding,
       title: show.title,
       description: show.description,
-      fallbackDescription: currentDomainSlug()
+      fallbackDescription: isCustomDomain()
         ? show.title
         : show.author
           ? `A show by ${show.author}`
@@ -67,20 +68,20 @@ function ShowPage() {
   const navigate = useNavigate()
   // A show's own domain stands alone: it has no accounts, so no followers or
   // owner's controls, and doesn't name the author.
-  const onDomain = Boolean(currentDomainSlug())
+  const onDomain = isCustomDomain()
   // When a broadcast starts, visitors are taken to it. One that's already on
   // when the page opens only gets the Watch live button, so the episodes can
   // still be reached.
-  const live = useLiveStart(show.slug, show.liveEnabled, show.live, () =>
-    navigate({ to: '/live/$slug', params: { slug: show.slug } }),
+  const live = useLiveStart(show.id, show.liveEnabled, show.live, () =>
+    navigate({ to: '/$user/$show/live', params: showParams(show) }),
   )
   const { summary } = show
   const { totalSeconds, latestAt } = summary
   const { episodes, ...more } = useEpisodePages({
-    showSlug: show.slug,
+    showKey: show.id,
     first: show.episodes,
     total: summary.count,
-    fetchMore: (offset, limit) => fetchShowEpisodes({ data: { slug: show.slug, offset, limit } }),
+    fetchMore: (offset, limit) => fetchShowEpisodes({ data: { showId: show.id, offset, limit } }),
   })
   // The directories it's listed on, in the order they're offered to owners.
   const listings = directories.flatMap((directory) => {
@@ -141,7 +142,7 @@ function ShowPage() {
               <div className="flex flex-wrap gap-2 sm:ml-auto">
                 {live && (
                   <Button className="bg-destructive text-destructive-foreground hover:bg-destructive/90" asChild>
-                    <Link to="/live/$slug" params={{ slug: show.slug }}>
+                    <Link to="/$user/$show/live" params={showParams(show)}>
                       <Icons.broadcast />
                       Watch live
                     </Link>
@@ -149,7 +150,7 @@ function ShowPage() {
                 )}
                 {show.isOwner && !onDomain && (
                   <Button variant="outline" asChild>
-                    <Link to="/$slug/manage" params={{ slug: show.slug }}>
+                    <Link to="/$user/$show/manage" params={showParams(show)}>
                       <Icons.settings />
                       Manage
                     </Link>
@@ -200,7 +201,7 @@ function ShowPage() {
                 <PublicEpisodeRow
                   key={episode.id}
                   episode={episode}
-                  showSlug={show.slug}
+                  show={show}
                   showTitle={show.title}
                   showImageUrl={show.imageUrl}
                   isOwner={show.isOwner}
@@ -226,7 +227,7 @@ function ShowPage() {
               <>
                 <dt className="text-muted-foreground">By</dt>
                 <dd className="text-end">
-                  <Link to="/u/$slug" params={{ slug: show.ownerSlug }} className="hover:text-primary hover:underline">
+                  <Link to="/$user" params={{ user: show.ownerSlug }} className="hover:text-primary hover:underline">
                     {show.author}
                   </Link>
                 </dd>

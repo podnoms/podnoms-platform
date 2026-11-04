@@ -6,9 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AddToPlaylistButton } from '~/components/add-to-playlist-button'
 import { FollowButton } from '~/components/follow-button'
 import { LikeButton } from '~/components/like-button'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { isCustomDomain } from '~/lib/current-domain'
 
-vi.mock('~/lib/current-domain', () => ({ currentDomainSlug: vi.fn(() => null) }))
+vi.mock('~/lib/current-domain', () => ({ isCustomDomain: vi.fn(() => false) }))
 vi.mock('~/functions/library', () => ({ followShow: vi.fn(), likeEpisode: vi.fn() }))
 vi.mock('~/functions/playlists', () => ({
   addPlaylistEpisode: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock('~/functions/playlists', () => ({
   savePlaylist: vi.fn(),
 }))
 
-beforeEach(() => vi.mocked(currentDomainSlug).mockReturnValue(null))
+beforeEach(() => vi.mocked(isCustomDomain).mockReturnValue(false))
 afterEach(cleanup)
 
 async function renderPage(page: ReactNode) {
@@ -48,7 +48,7 @@ describe('on the site', () => {
 })
 
 describe("on a show's own domain", () => {
-  beforeEach(() => vi.mocked(currentDomainSlug).mockReturnValue('my-show'))
+  beforeEach(() => vi.mocked(isCustomDomain).mockReturnValue(true))
 
   it('leaves out what needs an account', async () => {
     await renderPage(accountButtons)

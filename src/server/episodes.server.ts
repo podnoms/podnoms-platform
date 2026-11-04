@@ -20,7 +20,7 @@ import { plainTextToHtml } from '~/lib/rich-text'
 import { commitImage, deleteImage } from '~/server/images.server'
 import { sanitizeDescription } from '~/server/rich-text.server'
 import { syncEpisodeTags } from '~/server/tags-store.server'
-import { showAuthor } from '~/server/shows.server'
+import { showAuthor, showWhere, type ShowKey } from '~/server/shows.server'
 import { deleteWaveform, readWaveform } from '~/server/waveforms.server'
 import { resample } from '~/lib/waveform'
 import type { BulkUploadEpisodesInput, EditEpisodeInput, NewEpisodeInput, ReplaceAudioInput } from '~/lib/episode-schema'
@@ -158,10 +158,10 @@ export async function listNeighbouringEpisodes(
   return [...newer.reverse(), ...older]
 }
 
-// A published episode, by show and episode slug, with its show; null if
-// there's no such episode, it isn't ready, or it (or its show) is private
-// and the listener isn't its owner.
-export async function getPublicEpisode(showSlug: string, episodeSlug: string, listenerId: string | null) {
+// A published episode, by its show (id or address) and slug, with its show;
+// null if there's no such episode, it isn't ready, or it (or its show) is
+// private and the listener isn't its owner.
+export async function getPublicEpisode(show: ShowKey, episodeSlug: string, listenerId: string | null) {
   const [row] = await db
     .select({
       episode: listenerEpisodeColumns(listenerId),
@@ -183,16 +183,16 @@ export async function getPublicEpisode(showSlug: string, episodeSlug: string, li
     .innerJoin(shows, eq(shows.id, episodes.showId))
     .innerJoin(users, eq(users.id, shows.userId))
     .leftJoin(playbackPositions, listenerPosition(listenerId))
-    .where(and(eq(shows.slug, showSlug), eq(episodes.slug, episodeSlug), visibleTo(listenerId)))
+    .where(and(showWhere(show), eq(episodes.slug, episodeSlug), visibleTo(listenerId)))
     .limit(1)
   return row ?? null
 }
 
-// The episode a share page (/s/<shortSlug>) shows: the slugs of a published episode
-// and its show, or null.
+// The episode a share page (/s/<shortSlug>) shows: a published episode's
+// slug and its show's id, or null.
 export async function findShortLink(shortSlug: string) {
   const [row] = await db
-    .select({ slug: shows.slug, episodeSlug: episodes.slug })
+    .select({ showId: shows.id, episodeSlug: episodes.slug })
     .from(episodes)
     .innerJoin(shows, eq(shows.id, episodes.showId))
     .where(and(eq(episodes.shortSlug, shortSlug), isPublished))
@@ -276,12 +276,14 @@ export async function getEpisode(userId: string, showSlug: string, episodeSlug: 
         id: shows.id,
         title: shows.title,
         slug: shows.slug,
+        ownerSlug: users.slug,
         imageUrl: shows.imageUrl,
         private: shows.private,
       },
     })
     .from(episodes)
     .innerJoin(shows, eq(shows.id, episodes.showId))
+    .innerJoin(users, eq(users.id, shows.userId))
     .leftJoin(
       playbackPositions,
       and(eq(playbackPositions.episodeId, episodes.id), eq(playbackPositions.userId, userId)),

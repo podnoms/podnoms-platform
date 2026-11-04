@@ -9,6 +9,7 @@ import {
   getPublicProfile,
   hasPassword,
   isAdmin,
+  movedUser,
   searchUsers,
   setPassword,
   updateProfile,
@@ -193,6 +194,17 @@ describe('user slugs', () => {
     const third = await insertUser()
     await assignUserSlug(third.id, '✨')
     expect(await slugOf(third.id)).toBe('user')
+    // The site's own top-level pages are reserved, as profiles share the top level.
+    const fourth = await insertUser()
+    await assignUserSlug(fourth.id, 'Explore')
+    expect(await slugOf(fourth.id)).toBe('explore-2')
+  })
+
+  it("doesn't give a new user someone's old slug, which redirects to them", async () => {
+    const ann = await insertUser({ slug: 'ann' })
+    await updateProfile(ann.id, { name: null, slug: 'ann-b' })
+    const user = await createUser('ann@example.com', 'correct horse battery')
+    expect(await slugOf(user!.id)).toBe('ann-2')
   })
 
   it("lets a user change theirs, unless someone has it", async () => {
@@ -202,6 +214,26 @@ describe('user slugs', () => {
     expect(await slugOf(user.id)).toBe('mine')
     expect(await updateProfile(user.id, { name: null, slug: 'new-one' })).toBe(true)
     expect(await slugOf(user.id)).toBe('new-one')
+  })
+
+  it("redirects from a user's old slugs, which no one else can take, but they can take back", async () => {
+    const user = await insertUser({ slug: 'ada' })
+    const other = await insertUser({ slug: 'bob' })
+    expect(await movedUser('ada')).toBeNull()
+    await updateProfile(user.id, { name: null, slug: 'ada-l' })
+    await updateProfile(user.id, { name: null, slug: 'ada-lovelace' })
+    expect(await movedUser('ada')).toBe('ada-lovelace')
+    expect(await movedUser('ADA-L')).toBe('ada-lovelace')
+    expect(await movedUser('ada-lovelace')).toBeNull()
+    expect(await getPublicProfile('ada')).toBeNull()
+
+    expect(await updateProfile(other.id, { name: null, slug: 'ada' })).toBe('slug-taken')
+    expect(await slugOf(other.id)).toBe('bob')
+
+    expect(await updateProfile(user.id, { name: null, slug: 'ada' })).toBe(true)
+    expect(await slugOf(user.id)).toBe('ada')
+    expect(await movedUser('ada')).toBeNull()
+    expect(await movedUser('ada-lovelace')).toBe('ada')
   })
 
   it('finds users to mention by the start of their slug, then by name', async () => {

@@ -45,7 +45,7 @@ function ExplorePage() {
   const [loadingShows, setLoadingShows] = useState(false)
   const shows = [...firstShows, ...moreShows.filter((show) => !firstShows.some((first) => first.id === show.id))]
   const episodes = useEpisodePages({
-    showSlug: 'explore',
+    showKey: 'explore',
     first: latest,
     // No count is kept; a short page means the end.
     total: Number.POSITIVE_INFINITY,

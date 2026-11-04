@@ -3,11 +3,11 @@ import { act, cleanup, render, screen } from '@testing-library/react'
 import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TagList } from '~/components/tag-list'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { isCustomDomain } from '~/lib/current-domain'
 
-vi.mock('~/lib/current-domain', () => ({ currentDomainSlug: vi.fn(() => null) }))
+vi.mock('~/lib/current-domain', () => ({ isCustomDomain: vi.fn(() => false) }))
 
-beforeEach(() => vi.mocked(currentDomainSlug).mockReturnValue(null))
+beforeEach(() => vi.mocked(isCustomDomain).mockReturnValue(false))
 afterEach(cleanup)
 
 async function renderTags() {
@@ -33,7 +33,7 @@ describe('TagList', () => {
   })
 
   it("isn't shown on a show's own domain", async () => {
-    vi.mocked(currentDomainSlug).mockReturnValue('my-show')
+    vi.mocked(isCustomDomain).mockReturnValue(true)
     await renderTags()
     expect(screen.queryByText('#deep house')).toBeNull()
   })

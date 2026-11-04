@@ -310,9 +310,9 @@ export function mobileChatMessage(request: Request, message: ChatMessage) {
 // has no event stream: what's on, if anything, where to watch it, its chat so
 // far and how many are watching, this viewer among them. Null if live
 // broadcasts aren't set up or they can't see the show.
-export async function mobileLivePage(request: Request, userId: string, slug: string) {
+export async function mobileLivePage(request: Request, userId: string, showId: string) {
   if (!liveEnabled()) return null
-  const show = await getPublicShow(slug, userId)
+  const show = await getPublicShow({ id: showId }, userId)
   if (!show) return null
   noteAppViewer(show.id, userId)
   const broadcast = await getOpenBroadcast(show.id)
@@ -326,7 +326,7 @@ export async function mobileLivePage(request: Request, userId: string, slug: str
       // The stream has dropped out, and may come back.
       interrupted: broadcast.interruptedAt !== null,
     },
-    hlsUrl: siteUrl(request, `/api/mobile/live/${encodeURIComponent(show.slug)}/hls/index.m3u8`),
+    hlsUrl: siteUrl(request, `/api/mobile/live/${encodeURIComponent(show.id)}/hls/index.m3u8`),
     chat: chat.map((message) => mobileChatMessage(request, message)),
     viewers: viewerCount(show.id),
     gifs: gifConfig(),

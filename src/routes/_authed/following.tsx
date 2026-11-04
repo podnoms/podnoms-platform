@@ -21,7 +21,7 @@ export const Route = createFileRoute('/_authed/following')({
 function FollowingPage() {
   const { shows, episodes: first } = Route.useLoaderData()
   const { episodes, ...more } = useEpisodePages({
-    showSlug: 'following',
+    showKey: 'following',
     first,
     // No count is kept; a short page means the end.
     total: Number.POSITIVE_INFINITY,

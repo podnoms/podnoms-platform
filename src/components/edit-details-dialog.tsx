@@ -23,6 +23,8 @@ export type Details = {
   tags?: { id: string; name: string }[]
   // A show's, which the form then lets the owner change.
   slug?: string
+  // What comes before it in the address, after the host: the owner's slug.
+  slugPrefix?: string
 }
 
 export type DetailsChange = {
@@ -166,7 +168,9 @@ function DetailsForm({
               <Field>
                 <FieldLabel htmlFor="details-slug">Address</FieldLabel>
                 <div className="flex items-center gap-1">
-                  <span className="shrink-0 text-sm text-muted-foreground">{location.host}/</span>
+                  <span className="shrink-0 text-sm text-muted-foreground">
+                    {location.host}/{details.slugPrefix}
+                  </span>
                   <Input
                     id="details-slug"
                     value={slug}
@@ -180,8 +184,8 @@ function DetailsForm({
                 </div>
                 {slugChanged && (
                   <FieldDescription>
-                    The show's page and feed move to the new address, and the old ones stop working. Podcast apps
-                    and directories using the old feed won't get new episodes until it's updated there.
+                    The show's page and feed move to the new address. The old ones redirect there, so podcast
+                    apps and directories follow it, unless you give another of your shows the old one.
                   </FieldDescription>
                 )}
                 {addressHint && <FieldDescription>{addressHint}</FieldDescription>}

@@ -12,6 +12,7 @@ import { activityPeriods } from '~/lib/activity-schema'
 import { formatDate, formatLength } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import type { Dashboard as DashboardData } from '~/server/dashboard.server'
+import { episodeParams } from '~/lib/paths'
 
 type Period = (typeof activityPeriods)[number]
 
@@ -253,14 +254,14 @@ function Change({ current, previous }: { current: number; previous: number }) {
   )
 }
 
-type EpisodeSummary = { title: string; slug: string; showSlug: string }
+type EpisodeSummary = { title: string; slug: string; showSlug: string; ownerSlug: string }
 
 // To the episode's public page, as listeners see it; it links on to managing it.
 function EpisodeLink({ episode, children }: { episode: EpisodeSummary; children: ReactNode }) {
   return (
     <Link
-      to="/$slug/$episodeSlug"
-      params={{ slug: episode.showSlug, episodeSlug: episode.slug }}
+      to="/$user/$show/$episode"
+      params={episodeParams({ ownerSlug: episode.ownerSlug, slug: episode.showSlug }, episode.slug)}
       className="-mx-2 flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-muted/60"
     >
       {children}

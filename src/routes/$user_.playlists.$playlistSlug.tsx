@@ -22,14 +22,15 @@ import { editPlaylist, fetchPlaylistPage, removePlaylist, removePlaylistEpisode,
 import { formatLength, initials, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { siteHead } from '~/lib/page-meta'
+import { playlistPath } from '~/lib/paths'
 import { siteInfo } from '~/lib/site'
 import { brandingFrom } from '~/lib/branding'
 
 // A playlist's page: public ones for anyone, private ones for their owner,
 // who can also rename, reorder and delete it here. Play all plays it through.
-export const Route = createFileRoute('/u/$slug_/playlists/$playlistSlug')({
+export const Route = createFileRoute('/$user_/playlists/$playlistSlug')({
   staticData: { publicPage: true },
-  loader: ({ params }) => fetchPlaylistPage({ data: { userSlug: params.slug, playlistSlug: params.playlistSlug } }),
+  loader: ({ params }) => fetchPlaylistPage({ data: { userSlug: params.user, playlistSlug: params.playlistSlug } }),
   head: ({ loaderData: playlist, matches }) => {
     if (!playlist) return {}
     const branding = brandingFrom(matches)
@@ -46,8 +47,6 @@ export const Route = createFileRoute('/u/$slug_/playlists/$playlistSlug')({
   },
   component: PlaylistPage,
 })
-
-const playlistPath = (userSlug: string, playlistSlug: string) => `/u/${userSlug}/playlists/${playlistSlug}`
 
 function PlaylistPage() {
   const playlist = Route.useLoaderData()
@@ -75,6 +74,7 @@ function PlaylistPage() {
               showTitle: episode.show.title,
               slug: episode.slug,
               showSlug: episode.show.slug,
+              ownerSlug: episode.show.ownerSlug,
               isOwner: episode.show.isOwner,
               positionSeconds: episode.positionSeconds,
             },
@@ -137,7 +137,7 @@ function PlaylistPage() {
           </div>
           <h1 className="text-3xl font-semibold tracking-tight text-balance">{playlist.title}</h1>
           <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
-            <Link to="/u/$slug" params={{ slug: playlist.owner.slug }} className="flex items-center gap-1.5 hover:text-foreground">
+            <Link to="/$user" params={{ user: playlist.owner.slug }} className="flex items-center gap-1.5 hover:text-foreground">
               <Avatar className="size-5">
                 {playlist.owner.image && <AvatarImage src={imageSrc(playlist.owner.image, 32)} alt="" />}
                 <AvatarFallback className="text-[9px]">{initials(playlist.owner.name, null)}</AvatarFallback>
@@ -193,7 +193,7 @@ function PlaylistPage() {
             <PublicEpisodeRow
               key={episode.id}
               episode={episode}
-              showSlug={episode.show.slug}
+              show={episode.show}
               showTitle={episode.show.title}
               showImageUrl={episode.show.imageUrl}
               isOwner={episode.show.isOwner}

@@ -22,12 +22,13 @@ import { PaidFeatureNotice, usePaidAccess } from '~/components/paid-feature-noti
 import { createMyLiveKey, fetchMyLive, revokeMyLiveKey, saveMyLiveTitle } from '~/functions/live'
 import { formatDateTime, formatLength } from '~/lib/format'
 import { liveTitleMaxLength } from '~/lib/live-schema'
+import { showParams, episodeParams } from '~/lib/paths'
 
 // How often the open dialog checks whether the show has gone live or stopped.
 const refreshMs = 10_000
 
 type Settings = Awaited<ReturnType<typeof fetchMyLive>>
-type Show = { id: string; slug: string; title: string }
+type Show = { id: string; slug: string; ownerSlug: string; title: string }
 
 const liveButtonClass =
   'bg-destructive font-semibold text-destructive-foreground shadow-md shadow-destructive/30 hover:bg-destructive/90'
@@ -41,7 +42,7 @@ export function GoLiveButton({ show, live }: { show: Show; live: boolean }) {
       {live ? (
         <ButtonGroup>
           <Button className={liveButtonClass} asChild>
-            <Link to="/live/$slug" params={{ slug: show.slug }}>
+            <Link to="/$user/$show/live" params={showParams(show)}>
               <span className="size-2 animate-pulse rounded-full bg-destructive-foreground" />
               Live now
             </Link>
@@ -170,7 +171,7 @@ function GoLiveSettings({ show }: { show: Show }) {
           </p>
         )}
         <Button variant="outline" className="w-fit" asChild>
-          <Link to="/live/$slug" params={{ slug: show.slug }} target="_blank">
+          <Link to="/$user/$show/live" params={showParams(show)} target="_blank">
             <Icons.externalLink />
             Live page
           </Link>
@@ -254,8 +255,8 @@ function GoLiveSettings({ show }: { show: Show }) {
                     <Button variant="outline" size="sm" asChild>
                       {/* Until it's ready, only its manage page shows it. */}
                       <Link
-                        to={broadcast.episode.status === 'ready' ? '/$slug/$episodeSlug' : '/$slug/$episodeSlug/manage'}
-                        params={{ slug: show.slug, episodeSlug: broadcast.episode.slug }}
+                        to={broadcast.episode.status === 'ready' ? '/$user/$show/$episode' : '/$user/$show/$episode/manage'}
+                        params={episodeParams(show, broadcast.episode.slug)}
                       >
                         {broadcast.episode.status === 'ready' ? 'Episode' : 'Episode (processing)'}
                       </Link>

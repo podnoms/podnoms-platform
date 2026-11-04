@@ -6,7 +6,7 @@ describe('showSlugField', () => {
     expect(showSlugField.parse(' My-Show-2 ')).toBe('my-show-2')
   })
 
-  it.each(['', 'two  words', 'under_score', '-leading', 'trailing-', 'double--hyphen', 'a'.repeat(61), 'admin', 'api'])(
+  it.each(['', 'two  words', 'under_score', '-leading', 'trailing-', 'double--hyphen', 'a'.repeat(61), 'playlists', 'shows'])(
     'refuses %j',
     (slug) => {
       expect(showSlugField.safeParse(slug).success).toBe(false)

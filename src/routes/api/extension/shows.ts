@@ -18,7 +18,7 @@ export const Route = createFileRoute('/api/extension/shows')({
             slug: show.slug,
             title: show.title,
             imageUrl: show.imageUrl && siteUrl(request, show.imageUrl),
-            url: siteUrl(request, showPath(show.slug)),
+            url: siteUrl(request, showPath(show)),
           })),
         )
       },

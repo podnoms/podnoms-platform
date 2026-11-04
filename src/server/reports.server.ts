@@ -30,10 +30,11 @@ type Target = { imageUrl: string | null; ownerId: string; what: string; path: st
 async function findTarget(kind: ReportTargetKind, id: string): Promise<Target | null> {
   if (kind === 'show') {
     const [row] = await db
-      .select({ imageUrl: shows.imageUrl, ownerId: shows.userId, title: shows.title, slug: shows.slug })
+      .select({ imageUrl: shows.imageUrl, ownerId: shows.userId, title: shows.title, slug: shows.slug, ownerSlug: users.slug })
       .from(shows)
+      .innerJoin(users, eq(users.id, shows.userId))
       .where(eq(shows.id, id))
-    return row ? { imageUrl: row.imageUrl, ownerId: row.ownerId, what: `the show “${row.title}”`, path: showPath(row.slug) } : null
+    return row ? { imageUrl: row.imageUrl, ownerId: row.ownerId, what: `the show “${row.title}”`, path: showPath(row) } : null
   }
   if (kind === 'episode') {
     const [row] = await db
@@ -42,13 +43,14 @@ async function findTarget(kind: ReportTargetKind, id: string): Promise<Target | 
         ownerId: shows.userId,
         title: episodes.title,
         slug: episodes.slug,
-        showSlug: shows.slug,
+        show: { slug: shows.slug, ownerSlug: users.slug },
       })
       .from(episodes)
       .innerJoin(shows, eq(shows.id, episodes.showId))
+      .innerJoin(users, eq(users.id, shows.userId))
       .where(eq(episodes.id, id))
     return row
-      ? { imageUrl: row.imageUrl, ownerId: row.ownerId, what: `the episode “${row.title}”`, path: episodePath(row.showSlug, row.slug) }
+      ? { imageUrl: row.imageUrl, ownerId: row.ownerId, what: `the episode “${row.title}”`, path: episodePath(row.show, row.slug) }
       : null
   }
   const [row] = await db.select({ image: users.image, name: users.name, slug: users.slug }).from(users).where(eq(users.id, id))

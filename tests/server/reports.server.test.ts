@@ -108,7 +108,7 @@ describe('listOpenReports', () => {
       targetKind: 'show',
       imageUrl: image.url,
       what: 'the show “Pods”',
-      path: `/${show.slug}`,
+      path: `/${owner.slug}/${show.slug}`,
       owner: 'Owner (owner@example.com)',
       current: true,
       childSafety: true,

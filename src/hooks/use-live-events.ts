@@ -1,4 +1,4 @@
-// Follows a show's live event stream (/api/shows/$slug/live/events):
+// Follows a show's live event stream (/api/shows/$showId/live/events):
 // the broadcast starting and ending, its chat as it's written and deleted,
 // and how many are watching. Starts from what the page loaded.
 import { useEffect, useRef, useState } from 'react'
@@ -16,7 +16,7 @@ const broadcastFrom = (broadcast: Wire<OpenBroadcast> | null): OpenBroadcast | n
 
 const messageFrom = (message: Wire<ChatMessage>): ChatMessage => ({ ...message, createdAt: new Date(message.createdAt) })
 
-export function useLiveEvents(slug: string, initial: { broadcast: OpenBroadcast | null; chat: ChatMessage[] }) {
+export function useLiveEvents(showId: string, initial: { broadcast: OpenBroadcast | null; chat: ChatMessage[] }) {
   const [broadcast, setBroadcast] = useState(initial.broadcast)
   const [chat, setChat] = useState(initial.chat)
   const [viewers, setViewers] = useState<number | null>(null)
@@ -25,14 +25,14 @@ export function useLiveEvents(slug: string, initial: { broadcast: OpenBroadcast 
   const broadcastId = useRef(initial.broadcast?.id ?? null)
 
   useEffect(() => {
-    const source = new EventSource(`/api/shows/${encodeURIComponent(slug)}/live/events?watching=1`)
+    const source = new EventSource(`/api/shows/${encodeURIComponent(showId)}/live/events?watching=1`)
     let opened = false
     const data = <T,>(event: Event) => JSON.parse((event as MessageEvent<string>).data) as T
 
     source.addEventListener('open', () => {
       // Messages may have been missed while disconnected.
       if (opened && broadcastId.current) {
-        void fetchLiveChat({ data: { slug, broadcastId: broadcastId.current } }).then(setChat, () => {})
+        void fetchLiveChat({ data: { showId, broadcastId: broadcastId.current } }).then(setChat, () => {})
       }
       opened = true
     })
@@ -56,7 +56,7 @@ export function useLiveEvents(slug: string, initial: { broadcast: OpenBroadcast 
     source.addEventListener('viewers', (event) => setViewers(data<{ count: number }>(event).count))
     // The browser reconnects by itself after an error.
     return () => source.close()
-  }, [slug])
+  }, [showId])
 
   return { broadcast, chat, setChat, viewers, ended }
 }
@@ -65,7 +65,7 @@ export function useLiveEvents(slug: string, initial: { broadcast: OpenBroadcast 
 // its pages, to take visitors to the live page. Only a start counts, from not
 // live to live, so a page opened during a broadcast stays where it is.
 // Returns whether it's live now, as the page loaded it and then as it changes.
-export function useLiveStart(slug: string, active: boolean, initiallyLive: boolean, onStart: () => void) {
+export function useLiveStart(showId: string, active: boolean, initiallyLive: boolean, onStart: () => void) {
   const latest = useRef(onStart)
   latest.current = onStart
   const [live, setLive] = useState(initiallyLive)
@@ -74,7 +74,7 @@ export function useLiveStart(slug: string, active: boolean, initiallyLive: boole
   useEffect(() => {
     if (!active) return
     let wasLive = initiallyLive
-    const source = new EventSource(`/api/shows/${encodeURIComponent(slug)}/live/events`)
+    const source = new EventSource(`/api/shows/${encodeURIComponent(showId)}/live/events`)
     source.addEventListener('status', (event) => {
       const { broadcast } = JSON.parse((event as MessageEvent<string>).data) as { broadcast: unknown }
       const isLive = broadcast !== null
@@ -83,7 +83,7 @@ export function useLiveStart(slug: string, active: boolean, initiallyLive: boole
       setLive(isLive)
     })
     return () => source.close()
-  }, [slug, active, initiallyLive])
+  }, [showId, active, initiallyLive])
 
   return live
 }

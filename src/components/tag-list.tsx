@@ -1,12 +1,12 @@
 import { Link } from '@tanstack/react-router'
 import { Badge } from '~/components/ui/badge'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { isCustomDomain } from '~/lib/current-domain'
 import type { Tag } from '~/lib/tag-schema'
 
 // Tags link to the site's tag pages. A show's own domain stands alone, so it
 // doesn't have them.
 export function TagList({ tags, label }: { tags?: Tag[]; label?: string }) {
-  if (!tags?.length || currentDomainSlug()) return null
+  if (!tags?.length || isCustomDomain()) return null
 
   return (
     <nav aria-label={label ?? 'Tags'} className="flex flex-wrap items-center gap-2">

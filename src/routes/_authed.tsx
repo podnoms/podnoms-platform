@@ -1,7 +1,8 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 
 // Layout route for pages that need a signed-in user. It adds nothing to the
-// URL: src/routes/_authed/$slug.manage.tsx is served at /:slug/manage.
+// URL: src/routes/_authed/$user_.$show.manage.tsx is served at
+// /<owner>/<show>/manage.
 // Signed-out visitors are sent to the landing page with the login dialog open.
 // None of these pages belong in search results.
 export const Route = createFileRoute('/_authed')({

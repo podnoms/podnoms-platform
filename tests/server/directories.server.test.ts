@@ -74,7 +74,7 @@ describe('submitToPodcastIndex', () => {
     const { submitToPodcastIndex } = await load({ key: 'KEY', secret: 'SECRET' })
     const fetch = vi.fn(async () => Response.json({ status: 'true', feedId: 920666, description: 'Feed added' }))
     vi.stubGlobal('fetch', fetch)
-    const user = await createUser({ name: 'Ada' })
+    const user = await createUser({ name: 'Ada', slug: 'ada' })
     const show = await readyShow(user.id)
 
     const result = await submitToPodcastIndex(user.id, show.id, 'https://pods.example')
@@ -82,7 +82,7 @@ describe('submitToPodcastIndex', () => {
 
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe(
-      `https://api.podcastindex.org/api/1.0/add/byfeedurl?url=${encodeURIComponent('https://pods.example/feed/show')}`,
+      `https://api.podcastindex.org/api/1.0/add/byfeedurl?url=${encodeURIComponent('https://pods.example/ada/show/feed')}`,
     )
     const headers = init.headers as Record<string, string>
     expect(init.method).toBe('POST')

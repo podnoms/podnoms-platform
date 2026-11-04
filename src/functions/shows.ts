@@ -13,6 +13,7 @@ import {
   directoryLinkSchema,
   editShowSchema,
   newShowSchema,
+  showAddressSchema,
 } from '~/lib/show-schema'
 import { getSession } from '~/server/auth.server'
 import { getOpenBroadcast, liveEnabled } from '~/server/live.server'
@@ -54,6 +55,7 @@ import {
 import {
   createShow,
   getShowBySlug,
+  ownsShow,
   listShows,
   resetFeedKey,
   setShowPrivacy,
@@ -75,16 +77,25 @@ async function requireUserId() {
   return session.user.id
 }
 
+// Manage pages are under the owner's own address (/<their slug>/<show>/manage):
+// under anyone else's, there's nothing to manage. Returns their slug.
+async function requireOwnAddress(userId: string, userSlug: string) {
+  const profile = await getProfile(userId)
+  if (!profile || profile.slug !== userSlug.toLowerCase()) throw notFound()
+  return profile.slug
+}
+
 // The signed-in user's shows, for the sidebar and home page.
 export const fetchMyShows = createServerFn({ method: 'GET' }).handler(async () =>
   listShows(await requireUserId()),
 )
 
 export const fetchMyShow = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug: z.string() }))
+  .validator(showAddressSchema)
   .handler(async ({ data }) => {
     const userId = await requireUserId()
-    const show = await getShowBySlug(userId, data.slug)
+    const ownerSlug = await requireOwnAddress(userId, data.user)
+    const show = await getShowBySlug(userId, data.show.toLowerCase())
     if (!show) throw notFound()
     void resumeUnfinishedEpisodes()
     void localiseRemoteImages()
@@ -103,11 +114,12 @@ export const fetchMyShow = createServerFn({ method: 'GET' })
     const { liveKey: _liveKey, ...details } = show
     return {
       ...details,
+      ownerSlug,
       tags,
       // Sanitised when saved; again here, as it's rendered as HTML.
       description: sanitizeDescription(show.description),
       // A private show's carries its feed key, for its owner to hand out.
-      feedUrl: new URL(feedPath(show.slug, show.private ? show.feedKey : null), publicUrl(getRequest())).toString(),
+      feedUrl: new URL(feedPath({ ownerSlug, slug: show.slug }, show.private ? show.feedKey : null), publicUrl(getRequest())).toString(),
       episodes: episodes.map((episode) => ({ ...episode, progress: getEpisodeProgress(episode.id) })),
       summary,
       followerCount,
@@ -141,18 +153,18 @@ export const fetchMyShowEpisodes = createServerFn({ method: 'GET' })
   .validator(episodePageSchema)
   .handler(async ({ data }) => {
     const userId = await requireUserId()
-    const show = await getShowBySlug(userId, data.slug)
-    if (!show) throw notFound()
-    const episodes = await listEpisodes(userId, show.id, data)
+    if (!(await ownsShow(userId, data.showId))) throw notFound()
+    const episodes = await listEpisodes(userId, data.showId, data)
     return episodes.map((episode) => ({ ...episode, progress: getEpisodeProgress(episode.id) }))
   })
 
 // An episode's page: the episode, its show and its waveform (null until made).
 export const fetchMyEpisode = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug: z.string(), episodeSlug: z.string() }))
+  .validator(showAddressSchema.extend({ episode: z.string() }))
   .handler(async ({ data }) => {
     const userId = await requireUserId()
-    const found = await getEpisode(userId, data.slug, data.episodeSlug)
+    await requireOwnAddress(userId, data.user)
+    const found = await getEpisode(userId, data.show.toLowerCase(), data.episode)
     if (!found) throw notFound()
     const { episode, show } = found
     const [waveform, trackedLinks, episodeTags, showTags, comments] = await Promise.all([

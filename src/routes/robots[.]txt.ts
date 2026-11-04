@@ -8,7 +8,7 @@ import { publicUrl } from '~/server/site-url.server'
 // pages (/s/) are fetchable for link previews; they name the episode page as
 // the one to index.
 const allowed = ['/', '/api/episodes/*/audio']
-const disallowed = ['/api/', '/_serverFn/', '/admin', '/settings', '/security', '/embed/', '/listen/', '/reset-password']
+const disallowed = ['/api/', '/_serverFn/', '/admin', '/settings', '/security', '/embed/', '/reset-password']
 
 export const Route = createFileRoute('/robots.txt')({
   server: {

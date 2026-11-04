@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
+import { episodeParams } from '~/lib/paths'
 import { Link, useRouter } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { usePlayer, type PlayerEpisode } from '~/components/player/player-provider'
@@ -174,10 +175,10 @@ export function PlayerBar() {
 // from there). In the same tab, so playback carries on.
 function EpisodeTitle({ episode }: { episode: PlayerEpisode }) {
   const className = 'block truncate text-sm font-medium'
-  if (!episode.slug || !episode.showSlug) return <p className={className}>{episode.title}</p>
-  const params = { slug: episode.showSlug, episodeSlug: episode.slug }
+  if (!episode.slug || !episode.showSlug || !episode.ownerSlug) return <p className={className}>{episode.title}</p>
+  const params = episodeParams({ ownerSlug: episode.ownerSlug, slug: episode.showSlug }, episode.slug)
   return (
-    <Link to="/$slug/$episodeSlug" params={params} className={`${className} hover:underline`}>
+    <Link to="/$user/$show/$episode" params={params} className={`${className} hover:underline`}>
       {episode.title}
     </Link>
   )

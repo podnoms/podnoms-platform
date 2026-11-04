@@ -1,6 +1,6 @@
 // Users' playlists: episodes from any shows, in an order they choose, to
 // play through one after another. A playlist is private until its owner makes
-// it public, which gives it a page at /u/<user slug>/playlists/<slug> and a
+// it public, which gives it a page at /<user slug>/playlists/<slug> and a
 // place on their profile. Only episodes the user can see can go in, and a
 // playlist only ever shows each viewer the episodes they may see (see
 // visibleTo), so one made private later drops out for everyone else.

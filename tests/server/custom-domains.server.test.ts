@@ -1,10 +1,10 @@
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { currentDomainShow } from '~/lib/current-domain'
 import {
   catchDomainError,
   checkDomain,
-  currentRequestDomainSlug,
+  currentRequestDomainShow,
   customDomainRecord,
   customDomainTarget,
   failureGraceMs,
@@ -20,7 +20,6 @@ import {
   type Resolver,
 } from '~/server/custom-domains.server'
 import { shows } from '~/server/db/schema'
-import { feedPath, podcastGuid } from '~/server/feed.server'
 import { createShow as createShowFor } from '~/server/shows.server'
 import { resetDb } from '../db'
 import { createEpisode, createShow, createUser, db } from '../helpers'
@@ -244,7 +243,7 @@ describe('verifyCustomDomain', () => {
     expect(await showForDomain('pod.example.com')).toBeNull()
     const result = await verifyCustomDomain(user.id, show.id)
     expect(result?.verifiedAt).toBeInstanceOf(Date)
-    expect(await showForDomain('pod.example.com')).toBe('show')
+    expect(await showForDomain('pod.example.com')).toEqual({ ownerSlug: user.slug, slug: 'show' })
   })
 
   it("doesn't verify it with only the CNAME", async () => {
@@ -275,7 +274,7 @@ describe('recheckCustomDomains', () => {
 
     const almost = new Date(start.getTime() + failureGraceMs - 60 * 60 * 1000)
     expect(await recheckCustomDomains(almost)).toEqual({ checked: 1, failing: 1, dropped: 0 })
-    expect(await showForDomain('pod.example.com')).toBe('show')
+    expect(await showForDomain('pod.example.com')).toEqual({ ownerSlug: user.slug, slug: 'show' })
 
     expect(await recheckCustomDomains(new Date(start.getTime() + failureGraceMs))).toEqual({ checked: 1, failing: 0, dropped: 1 })
     expect((await showRow(show.id)).customDomainVerifiedAt).toBeNull()
@@ -297,7 +296,7 @@ describe('recheckCustomDomains', () => {
 })
 
 describe('handleCustomDomain', () => {
-  const next = vi.fn(async () => ({ slug: currentRequestDomainSlug(), routerSlug: currentDomainSlug() }))
+  const next = vi.fn(async () => ({ show: currentRequestDomainShow(), routerShow: currentDomainShow() }))
   const visit = (url: string) => handleCustomDomain(new Request(url), next)
 
   beforeEach(() => next.mockClear())
@@ -305,17 +304,18 @@ describe('handleCustomDomain', () => {
   async function verifiedShow() {
     const { user, show } = await showWithDomain('pod.example.com', { slug: 'show', title: 'The Show' })
     await verifyCustomDomain(user.id, show.id)
-    return show
+    return { ...show, user }
   }
 
   it("leaves the site's own requests alone", async () => {
-    expect(await visit('https://podnoms.test/settings')).toEqual({ slug: null, routerSlug: null })
+    expect(await visit('https://podnoms.test/settings')).toEqual({ show: null, routerShow: null })
   })
 
   it("serves the show's pages, telling the router which show", async () => {
-    await verifiedShow()
-    for (const path of ['/', '/episodes/ep-1', '/_serverFn/x', '/api/episodes/1/audio']) {
-      expect(await visit(`https://pod.example.com${path}`)).toEqual({ slug: 'show', routerSlug: 'show' })
+    const { user } = await verifiedShow()
+    const show = { ownerSlug: user.slug, slug: 'show' }
+    for (const path of ['/', '/episodes/ep-1', '/live', '/_serverFn/x', '/api/episodes/1/audio']) {
+      expect(await visit(`https://pod.example.com${path}`)).toEqual({ show, routerShow: show })
     }
   })
 
@@ -362,7 +362,7 @@ describe('handleCustomDomain', () => {
   })
 
   it("lets the edge's own requests through by internal name", async () => {
-    expect(await visit('http://app:3000/api/domains/allowed?domain=x')).toEqual({ slug: null, routerSlug: null })
+    expect(await visit('http://app:3000/api/domains/allowed?domain=x')).toEqual({ show: null, routerShow: null })
   })
 
   it('serves the feed with links on the domain, keeping its guid', async () => {
@@ -380,7 +380,7 @@ describe('handleCustomDomain', () => {
     expect(xml).toContain('<atom:link href="https://pod.example.com/feed"')
     expect(xml).toContain('<link>https://pod.example.com/episodes/ep-1</link>')
     expect(xml).toContain('url="https://pod.example.com/api/episodes/x/audio"')
-    expect(xml).toContain(`<podcast:guid>${podcastGuid(`https://podnoms.test${feedPath('show')}`)}</podcast:guid>`)
+    expect(xml).toContain(`<podcast:guid>${show.podcastGuid}</podcast:guid>`)
   })
 })
 

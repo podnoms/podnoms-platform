@@ -7,7 +7,7 @@ export function AuthorLink({ author, slug }: { author: string; slug: string }) {
   return (
     <>
       by{' '}
-      <Link to="/u/$slug" params={{ slug }} className="text-foreground/80 hover:text-foreground hover:underline">
+      <Link to="/$user" params={{ user: slug }} className="text-foreground/80 hover:text-foreground hover:underline">
         {author}
       </Link>
     </>

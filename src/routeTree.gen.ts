@@ -10,7 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SlugRouteImport } from './routes/$slug'
+import { Route as UserRouteImport } from './routes/$user'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as FaviconDoticoRouteImport } from './routes/favicon[.]ico'
@@ -21,7 +21,7 @@ import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SiteDotwebmanifestRouteImport } from './routes/site[.]webmanifest'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TosRouteImport } from './routes/tos'
-import { Route as SlugEpisodeSlugRouteImport } from './routes/$slug_.$episodeSlug'
+import { Route as UserShowRouteImport } from './routes/$user_.$show'
 import { Route as AuthedFollowingRouteImport } from './routes/_authed/following'
 import { Route as AuthedLikesRouteImport } from './routes/_authed/likes'
 import { Route as AuthedPlaylistsRouteImport } from './routes/_authed/playlists'
@@ -30,14 +30,14 @@ import { Route as AuthedSettingsRouteImport } from './routes/_authed/settings'
 import { Route as ApiImagesRouteImport } from './routes/api/images'
 import { Route as ApiUploadsRouteImport } from './routes/api/uploads'
 import { Route as BrandFileRouteImport } from './routes/brand.$file'
-import { Route as FeedSlugRouteImport } from './routes/feed/$slug'
 import { Route as ImagesFileRouteImport } from './routes/images/$file'
-import { Route as LiveSlugRouteImport } from './routes/live/$slug'
 import { Route as SShortSlugRouteImport } from './routes/s/$shortSlug'
 import { Route as TagsTagSlugRouteImport } from './routes/tags.$tagSlug'
-import { Route as USlugRouteImport } from './routes/u.$slug'
-import { Route as SlugEpisodesSplatRouteImport } from './routes/$slug_.episodes.$'
-import { Route as AuthedSlugManageRouteImport } from './routes/_authed/$slug.manage'
+import { Route as USplatRouteImport } from './routes/u.$'
+import { Route as UserShowEpisodeRouteImport } from './routes/$user_.$show_.$episode'
+import { Route as UserShowFeedRouteImport } from './routes/$user_.$show_.feed'
+import { Route as UserShowLiveRouteImport } from './routes/$user_.$show_.live'
+import { Route as UserPlaylistsPlaylistSlugRouteImport } from './routes/$user_.playlists.$playlistSlug'
 import { Route as AuthedAdminIndexRouteImport } from './routes/_authed/admin/index'
 import { Route as AuthedSettingsIndexRouteImport } from './routes/_authed/settings/index'
 import { Route as AuthedSettingsBillingRouteImport } from './routes/_authed/settings/billing'
@@ -57,10 +57,8 @@ import { Route as ApiMobileMeRouteImport } from './routes/api/mobile/me'
 import { Route as ApiMobileThemeRouteImport } from './routes/api/mobile/theme'
 import { Route as ApiTrackedLinksTokenRouteImport } from './routes/api/tracked-links/$token'
 import { Route as ApiTraefikConfigRouteImport } from './routes/api/traefik/config'
-import { Route as EmbedSlugEpisodeSlugRouteImport } from './routes/embed/$slug.$episodeSlug'
 import { Route as FontsFamilyFileRouteImport } from './routes/fonts.$family.$file'
-import { Route as ListenSlugEpisodeSlugRouteImport } from './routes/listen/$slug.$episodeSlug'
-import { Route as AuthedSlugEpisodeSlugManageRouteImport } from './routes/_authed/$slug_.$episodeSlug.manage'
+import { Route as AuthedUserShowManageRouteImport } from './routes/_authed/$user_.$show.manage'
 import { Route as ApiBillingPatreonCallbackRouteImport } from './routes/api/billing/patreon/callback'
 import { Route as ApiBillingPatreonConnectRouteImport } from './routes/api/billing/patreon/connect'
 import { Route as ApiBillingPatreonWebhookRouteImport } from './routes/api/billing/patreon/webhook'
@@ -78,9 +76,10 @@ import { Route as ApiMobileNotificationsIndexRouteImport } from './routes/api/mo
 import { Route as ApiMobileNotificationsDeviceRouteImport } from './routes/api/mobile/notifications/device'
 import { Route as ApiMobileNotificationsShowsRouteImport } from './routes/api/mobile/notifications/shows'
 import { Route as ApiMobileShowsIndexRouteImport } from './routes/api/mobile/shows/index'
-import { Route as ApiMobileShowsSlugRouteImport } from './routes/api/mobile/shows/$slug'
-import { Route as ApiShowsSlugEventsRouteImport } from './routes/api/shows/$slug/events'
-import { Route as USlugPlaylistsPlaylistSlugRouteImport } from './routes/u.$slug_.playlists.$playlistSlug'
+import { Route as ApiMobileShowsShowIdRouteImport } from './routes/api/mobile/shows/$showId'
+import { Route as ApiShowsShowIdEventsRouteImport } from './routes/api/shows/$showId/events'
+import { Route as EmbedUserShowEpisodeRouteImport } from './routes/embed/$user.$show.$episode'
+import { Route as AuthedUserShowEpisodeManageRouteImport } from './routes/_authed/$user_.$show_.$episode.manage'
 import { Route as ApiMobileAuthOauthProviderRouteImport } from './routes/api/mobile/auth/oauth/$provider'
 import { Route as ApiMobileAuthOauthExchangeRouteImport } from './routes/api/mobile/auth/oauth/exchange'
 import { Route as ApiMobileAuthOauthFinishRouteImport } from './routes/api/mobile/auth/oauth/finish'
@@ -91,19 +90,19 @@ import { Route as ApiMobileEpisodesIdIndexRouteImport } from './routes/api/mobil
 import { Route as ApiMobileEpisodesIdCommentsRouteImport } from './routes/api/mobile/episodes/$id/comments'
 import { Route as ApiMobileEpisodesIdPositionRouteImport } from './routes/api/mobile/episodes/$id/position'
 import { Route as ApiMobileEpisodesIdRetryRouteImport } from './routes/api/mobile/episodes/$id/retry'
-import { Route as ApiMobileLiveSlugIndexRouteImport } from './routes/api/mobile/live/$slug/index'
-import { Route as ApiShowsSlugLiveEventsRouteImport } from './routes/api/shows/$slug/live/events'
-import { Route as ApiMobileLiveSlugHlsSplatRouteImport } from './routes/api/mobile/live/$slug/hls/$'
-import { Route as ApiShowsSlugLiveHlsSplatRouteImport } from './routes/api/shows/$slug/live/hls/$'
+import { Route as ApiMobileLiveShowIdIndexRouteImport } from './routes/api/mobile/live/$showId/index'
+import { Route as ApiShowsShowIdLiveEventsRouteImport } from './routes/api/shows/$showId/live/events'
+import { Route as ApiMobileLiveShowIdHlsSplatRouteImport } from './routes/api/mobile/live/$showId/hls/$'
+import { Route as ApiShowsShowIdLiveHlsSplatRouteImport } from './routes/api/shows/$showId/live/hls/$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SlugRoute = SlugRouteImport.update({
-  id: '/$slug',
-  path: '/$slug',
+const UserRoute = UserRouteImport.update({
+  id: '/$user',
+  path: '/$user',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedRoute = AuthedRouteImport.update({
@@ -155,9 +154,9 @@ const TosRoute = TosRouteImport.update({
   path: '/tos',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SlugEpisodeSlugRoute = SlugEpisodeSlugRouteImport.update({
-  id: '/$slug_/$episodeSlug',
-  path: '/$slug/$episodeSlug',
+const UserShowRoute = UserShowRouteImport.update({
+  id: '/$user_/$show',
+  path: '/$user/$show',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedFollowingRoute = AuthedFollowingRouteImport.update({
@@ -200,19 +199,9 @@ const BrandFileRoute = BrandFileRouteImport.update({
   path: '/brand/$file',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FeedSlugRoute = FeedSlugRouteImport.update({
-  id: '/feed/$slug',
-  path: '/feed/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ImagesFileRoute = ImagesFileRouteImport.update({
   id: '/images/$file',
   path: '/images/$file',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LiveSlugRoute = LiveSlugRouteImport.update({
-  id: '/live/$slug',
-  path: '/live/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SShortSlugRoute = SShortSlugRouteImport.update({
@@ -225,21 +214,32 @@ const TagsTagSlugRoute = TagsTagSlugRouteImport.update({
   path: '/tags/$tagSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
-const USlugRoute = USlugRouteImport.update({
-  id: '/u/$slug',
-  path: '/u/$slug',
+const USplatRoute = USplatRouteImport.update({
+  id: '/u/$',
+  path: '/u/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SlugEpisodesSplatRoute = SlugEpisodesSplatRouteImport.update({
-  id: '/$slug_/episodes/$',
-  path: '/$slug/episodes/$',
+const UserShowEpisodeRoute = UserShowEpisodeRouteImport.update({
+  id: '/$user_/$show_/$episode',
+  path: '/$user/$show/$episode',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthedSlugManageRoute = AuthedSlugManageRouteImport.update({
-  id: '/$slug/manage',
-  path: '/$slug/manage',
-  getParentRoute: () => AuthedRoute,
+const UserShowFeedRoute = UserShowFeedRouteImport.update({
+  id: '/$user_/$show_/feed',
+  path: '/$user/$show/feed',
+  getParentRoute: () => rootRouteImport,
 } as any)
+const UserShowLiveRoute = UserShowLiveRouteImport.update({
+  id: '/$user_/$show_/live',
+  path: '/$user/$show/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UserPlaylistsPlaylistSlugRoute =
+  UserPlaylistsPlaylistSlugRouteImport.update({
+    id: '/$user_/playlists/$playlistSlug',
+    path: '/$user/playlists/$playlistSlug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthedAdminIndexRoute = AuthedAdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
@@ -337,27 +337,16 @@ const ApiTraefikConfigRoute = ApiTraefikConfigRouteImport.update({
   path: '/api/traefik/config',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EmbedSlugEpisodeSlugRoute = EmbedSlugEpisodeSlugRouteImport.update({
-  id: '/embed/$slug/$episodeSlug',
-  path: '/embed/$slug/$episodeSlug',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const FontsFamilyFileRoute = FontsFamilyFileRouteImport.update({
   id: '/fonts/$family/$file',
   path: '/fonts/$family/$file',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ListenSlugEpisodeSlugRoute = ListenSlugEpisodeSlugRouteImport.update({
-  id: '/listen/$slug/$episodeSlug',
-  path: '/listen/$slug/$episodeSlug',
-  getParentRoute: () => rootRouteImport,
+const AuthedUserShowManageRoute = AuthedUserShowManageRouteImport.update({
+  id: '/$user_/$show/manage',
+  path: '/$user/$show/manage',
+  getParentRoute: () => AuthedRoute,
 } as any)
-const AuthedSlugEpisodeSlugManageRoute =
-  AuthedSlugEpisodeSlugManageRouteImport.update({
-    id: '/$slug_/$episodeSlug/manage',
-    path: '/$slug/$episodeSlug/manage',
-    getParentRoute: () => AuthedRoute,
-  } as any)
 const ApiBillingPatreonCallbackRoute =
   ApiBillingPatreonCallbackRouteImport.update({
     id: '/api/billing/patreon/callback',
@@ -449,21 +438,26 @@ const ApiMobileShowsIndexRoute = ApiMobileShowsIndexRouteImport.update({
   path: '/api/mobile/shows/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiMobileShowsSlugRoute = ApiMobileShowsSlugRouteImport.update({
-  id: '/api/mobile/shows/$slug',
-  path: '/api/mobile/shows/$slug',
+const ApiMobileShowsShowIdRoute = ApiMobileShowsShowIdRouteImport.update({
+  id: '/api/mobile/shows/$showId',
+  path: '/api/mobile/shows/$showId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiShowsSlugEventsRoute = ApiShowsSlugEventsRouteImport.update({
-  id: '/api/shows/$slug/events',
-  path: '/api/shows/$slug/events',
+const ApiShowsShowIdEventsRoute = ApiShowsShowIdEventsRouteImport.update({
+  id: '/api/shows/$showId/events',
+  path: '/api/shows/$showId/events',
   getParentRoute: () => rootRouteImport,
 } as any)
-const USlugPlaylistsPlaylistSlugRoute =
-  USlugPlaylistsPlaylistSlugRouteImport.update({
-    id: '/u/$slug_/playlists/$playlistSlug',
-    path: '/u/$slug/playlists/$playlistSlug',
-    getParentRoute: () => rootRouteImport,
+const EmbedUserShowEpisodeRoute = EmbedUserShowEpisodeRouteImport.update({
+  id: '/embed/$user/$show/$episode',
+  path: '/embed/$user/$show/$episode',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedUserShowEpisodeManageRoute =
+  AuthedUserShowEpisodeManageRouteImport.update({
+    id: '/$user_/$show_/$episode/manage',
+    path: '/$user/$show/$episode/manage',
+    getParentRoute: () => AuthedRoute,
   } as any)
 const ApiMobileAuthOauthProviderRoute =
   ApiMobileAuthOauthProviderRouteImport.update({
@@ -524,32 +518,34 @@ const ApiMobileEpisodesIdRetryRoute =
     path: '/api/mobile/episodes/$id/retry',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiMobileLiveSlugIndexRoute = ApiMobileLiveSlugIndexRouteImport.update({
-  id: '/api/mobile/live/$slug/',
-  path: '/api/mobile/live/$slug/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiShowsSlugLiveEventsRoute = ApiShowsSlugLiveEventsRouteImport.update({
-  id: '/api/shows/$slug/live/events',
-  path: '/api/shows/$slug/live/events',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiMobileLiveSlugHlsSplatRoute =
-  ApiMobileLiveSlugHlsSplatRouteImport.update({
-    id: '/api/mobile/live/$slug/hls/$',
-    path: '/api/mobile/live/$slug/hls/$',
+const ApiMobileLiveShowIdIndexRoute =
+  ApiMobileLiveShowIdIndexRouteImport.update({
+    id: '/api/mobile/live/$showId/',
+    path: '/api/mobile/live/$showId/',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiShowsSlugLiveHlsSplatRoute =
-  ApiShowsSlugLiveHlsSplatRouteImport.update({
-    id: '/api/shows/$slug/live/hls/$',
-    path: '/api/shows/$slug/live/hls/$',
+const ApiShowsShowIdLiveEventsRoute =
+  ApiShowsShowIdLiveEventsRouteImport.update({
+    id: '/api/shows/$showId/live/events',
+    path: '/api/shows/$showId/live/events',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiMobileLiveShowIdHlsSplatRoute =
+  ApiMobileLiveShowIdHlsSplatRouteImport.update({
+    id: '/api/mobile/live/$showId/hls/$',
+    path: '/api/mobile/live/$showId/hls/$',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiShowsShowIdLiveHlsSplatRoute =
+  ApiShowsShowIdLiveHlsSplatRouteImport.update({
+    id: '/api/shows/$showId/live/hls/$',
+    path: '/api/shows/$showId/live/hls/$',
     getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/$slug': typeof SlugRoute
+  '/$user': typeof UserRoute
   '/explore': typeof ExploreRoute
   '/favicon.ico': typeof FaviconDoticoRoute
   '/login': typeof LoginRoute
@@ -559,7 +555,7 @@ export interface FileRoutesByFullPath {
   '/site.webmanifest': typeof SiteDotwebmanifestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tos': typeof TosRoute
-  '/$slug/$episodeSlug': typeof SlugEpisodeSlugRoute
+  '/$user/$show': typeof UserShowRoute
   '/following': typeof AuthedFollowingRoute
   '/likes': typeof AuthedLikesRoute
   '/playlists': typeof AuthedPlaylistsRoute
@@ -568,14 +564,14 @@ export interface FileRoutesByFullPath {
   '/api/images': typeof ApiImagesRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/brand/$file': typeof BrandFileRoute
-  '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
-  '/live/$slug': typeof LiveSlugRoute
   '/s/$shortSlug': typeof SShortSlugRoute
   '/tags/$tagSlug': typeof TagsTagSlugRoute
-  '/u/$slug': typeof USlugRoute
-  '/$slug/episodes/$': typeof SlugEpisodesSplatRoute
-  '/$slug/manage': typeof AuthedSlugManageRoute
+  '/u/$': typeof USplatRoute
+  '/$user/$show/$episode': typeof UserShowEpisodeRoute
+  '/$user/$show/feed': typeof UserShowFeedRoute
+  '/$user/$show/live': typeof UserShowLiveRoute
+  '/$user/playlists/$playlistSlug': typeof UserPlaylistsPlaylistSlugRoute
   '/settings/billing': typeof AuthedSettingsBillingRoute
   '/settings/notifications': typeof AuthedSettingsNotificationsRoute
   '/settings/security': typeof AuthedSettingsSecurityRoute
@@ -593,12 +589,10 @@ export interface FileRoutesByFullPath {
   '/api/mobile/theme': typeof ApiMobileThemeRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
-  '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/fonts/$family/$file': typeof FontsFamilyFileRoute
-  '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/admin/': typeof AuthedAdminIndexRoute
   '/settings/': typeof AuthedSettingsIndexRoute
-  '/$slug/$episodeSlug/manage': typeof AuthedSlugEpisodeSlugManageRoute
+  '/$user/$show/manage': typeof AuthedUserShowManageRoute
   '/api/billing/patreon/callback': typeof ApiBillingPatreonCallbackRoute
   '/api/billing/patreon/connect': typeof ApiBillingPatreonConnectRoute
   '/api/billing/patreon/webhook': typeof ApiBillingPatreonWebhookRoute
@@ -612,13 +606,14 @@ export interface FileRoutesByFullPath {
   '/api/mobile/chat/$id': typeof ApiMobileChatIdRoute
   '/api/mobile/notifications/device': typeof ApiMobileNotificationsDeviceRoute
   '/api/mobile/notifications/shows': typeof ApiMobileNotificationsShowsRoute
-  '/api/mobile/shows/$slug': typeof ApiMobileShowsSlugRoute
-  '/api/shows/$slug/events': typeof ApiShowsSlugEventsRoute
-  '/u/$slug/playlists/$playlistSlug': typeof USlugPlaylistsPlaylistSlugRoute
+  '/api/mobile/shows/$showId': typeof ApiMobileShowsShowIdRoute
+  '/api/shows/$showId/events': typeof ApiShowsShowIdEventsRoute
+  '/embed/$user/$show/$episode': typeof EmbedUserShowEpisodeRoute
   '/api/mobile/episodes/': typeof ApiMobileEpisodesIndexRoute
   '/api/mobile/live/': typeof ApiMobileLiveIndexRoute
   '/api/mobile/notifications/': typeof ApiMobileNotificationsIndexRoute
   '/api/mobile/shows/': typeof ApiMobileShowsIndexRoute
+  '/$user/$show/$episode/manage': typeof AuthedUserShowEpisodeManageRoute
   '/api/mobile/auth/oauth/$provider': typeof ApiMobileAuthOauthProviderRoute
   '/api/mobile/auth/oauth/exchange': typeof ApiMobileAuthOauthExchangeRoute
   '/api/mobile/auth/oauth/finish': typeof ApiMobileAuthOauthFinishRoute
@@ -627,16 +622,16 @@ export interface FileRoutesByFullPath {
   '/api/mobile/episodes/$id/comments': typeof ApiMobileEpisodesIdCommentsRoute
   '/api/mobile/episodes/$id/position': typeof ApiMobileEpisodesIdPositionRoute
   '/api/mobile/episodes/$id/retry': typeof ApiMobileEpisodesIdRetryRoute
-  '/api/shows/$slug/live/events': typeof ApiShowsSlugLiveEventsRoute
+  '/api/shows/$showId/live/events': typeof ApiShowsShowIdLiveEventsRoute
   '/api/mobile/comments/$id/': typeof ApiMobileCommentsIdIndexRoute
   '/api/mobile/episodes/$id/': typeof ApiMobileEpisodesIdIndexRoute
-  '/api/mobile/live/$slug/': typeof ApiMobileLiveSlugIndexRoute
-  '/api/mobile/live/$slug/hls/$': typeof ApiMobileLiveSlugHlsSplatRoute
-  '/api/shows/$slug/live/hls/$': typeof ApiShowsSlugLiveHlsSplatRoute
+  '/api/mobile/live/$showId/': typeof ApiMobileLiveShowIdIndexRoute
+  '/api/mobile/live/$showId/hls/$': typeof ApiMobileLiveShowIdHlsSplatRoute
+  '/api/shows/$showId/live/hls/$': typeof ApiShowsShowIdLiveHlsSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/$slug': typeof SlugRoute
+  '/$user': typeof UserRoute
   '/explore': typeof ExploreRoute
   '/favicon.ico': typeof FaviconDoticoRoute
   '/login': typeof LoginRoute
@@ -646,7 +641,7 @@ export interface FileRoutesByTo {
   '/site.webmanifest': typeof SiteDotwebmanifestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tos': typeof TosRoute
-  '/$slug/$episodeSlug': typeof SlugEpisodeSlugRoute
+  '/$user/$show': typeof UserShowRoute
   '/following': typeof AuthedFollowingRoute
   '/likes': typeof AuthedLikesRoute
   '/playlists': typeof AuthedPlaylistsRoute
@@ -654,14 +649,14 @@ export interface FileRoutesByTo {
   '/api/images': typeof ApiImagesRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/brand/$file': typeof BrandFileRoute
-  '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
-  '/live/$slug': typeof LiveSlugRoute
   '/s/$shortSlug': typeof SShortSlugRoute
   '/tags/$tagSlug': typeof TagsTagSlugRoute
-  '/u/$slug': typeof USlugRoute
-  '/$slug/episodes/$': typeof SlugEpisodesSplatRoute
-  '/$slug/manage': typeof AuthedSlugManageRoute
+  '/u/$': typeof USplatRoute
+  '/$user/$show/$episode': typeof UserShowEpisodeRoute
+  '/$user/$show/feed': typeof UserShowFeedRoute
+  '/$user/$show/live': typeof UserShowLiveRoute
+  '/$user/playlists/$playlistSlug': typeof UserPlaylistsPlaylistSlugRoute
   '/settings/billing': typeof AuthedSettingsBillingRoute
   '/settings/notifications': typeof AuthedSettingsNotificationsRoute
   '/settings/security': typeof AuthedSettingsSecurityRoute
@@ -679,12 +674,10 @@ export interface FileRoutesByTo {
   '/api/mobile/theme': typeof ApiMobileThemeRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
-  '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/fonts/$family/$file': typeof FontsFamilyFileRoute
-  '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/admin': typeof AuthedAdminIndexRoute
   '/settings': typeof AuthedSettingsIndexRoute
-  '/$slug/$episodeSlug/manage': typeof AuthedSlugEpisodeSlugManageRoute
+  '/$user/$show/manage': typeof AuthedUserShowManageRoute
   '/api/billing/patreon/callback': typeof ApiBillingPatreonCallbackRoute
   '/api/billing/patreon/connect': typeof ApiBillingPatreonConnectRoute
   '/api/billing/patreon/webhook': typeof ApiBillingPatreonWebhookRoute
@@ -698,13 +691,14 @@ export interface FileRoutesByTo {
   '/api/mobile/chat/$id': typeof ApiMobileChatIdRoute
   '/api/mobile/notifications/device': typeof ApiMobileNotificationsDeviceRoute
   '/api/mobile/notifications/shows': typeof ApiMobileNotificationsShowsRoute
-  '/api/mobile/shows/$slug': typeof ApiMobileShowsSlugRoute
-  '/api/shows/$slug/events': typeof ApiShowsSlugEventsRoute
-  '/u/$slug/playlists/$playlistSlug': typeof USlugPlaylistsPlaylistSlugRoute
+  '/api/mobile/shows/$showId': typeof ApiMobileShowsShowIdRoute
+  '/api/shows/$showId/events': typeof ApiShowsShowIdEventsRoute
+  '/embed/$user/$show/$episode': typeof EmbedUserShowEpisodeRoute
   '/api/mobile/episodes': typeof ApiMobileEpisodesIndexRoute
   '/api/mobile/live': typeof ApiMobileLiveIndexRoute
   '/api/mobile/notifications': typeof ApiMobileNotificationsIndexRoute
   '/api/mobile/shows': typeof ApiMobileShowsIndexRoute
+  '/$user/$show/$episode/manage': typeof AuthedUserShowEpisodeManageRoute
   '/api/mobile/auth/oauth/$provider': typeof ApiMobileAuthOauthProviderRoute
   '/api/mobile/auth/oauth/exchange': typeof ApiMobileAuthOauthExchangeRoute
   '/api/mobile/auth/oauth/finish': typeof ApiMobileAuthOauthFinishRoute
@@ -713,17 +707,17 @@ export interface FileRoutesByTo {
   '/api/mobile/episodes/$id/comments': typeof ApiMobileEpisodesIdCommentsRoute
   '/api/mobile/episodes/$id/position': typeof ApiMobileEpisodesIdPositionRoute
   '/api/mobile/episodes/$id/retry': typeof ApiMobileEpisodesIdRetryRoute
-  '/api/shows/$slug/live/events': typeof ApiShowsSlugLiveEventsRoute
+  '/api/shows/$showId/live/events': typeof ApiShowsShowIdLiveEventsRoute
   '/api/mobile/comments/$id': typeof ApiMobileCommentsIdIndexRoute
   '/api/mobile/episodes/$id': typeof ApiMobileEpisodesIdIndexRoute
-  '/api/mobile/live/$slug': typeof ApiMobileLiveSlugIndexRoute
-  '/api/mobile/live/$slug/hls/$': typeof ApiMobileLiveSlugHlsSplatRoute
-  '/api/shows/$slug/live/hls/$': typeof ApiShowsSlugLiveHlsSplatRoute
+  '/api/mobile/live/$showId': typeof ApiMobileLiveShowIdIndexRoute
+  '/api/mobile/live/$showId/hls/$': typeof ApiMobileLiveShowIdHlsSplatRoute
+  '/api/shows/$showId/live/hls/$': typeof ApiShowsShowIdLiveHlsSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/$slug': typeof SlugRoute
+  '/$user': typeof UserRoute
   '/_authed': typeof AuthedRouteWithChildren
   '/explore': typeof ExploreRoute
   '/favicon.ico': typeof FaviconDoticoRoute
@@ -734,7 +728,7 @@ export interface FileRoutesById {
   '/site.webmanifest': typeof SiteDotwebmanifestRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tos': typeof TosRoute
-  '/$slug_/$episodeSlug': typeof SlugEpisodeSlugRoute
+  '/$user_/$show': typeof UserShowRoute
   '/_authed/following': typeof AuthedFollowingRoute
   '/_authed/likes': typeof AuthedLikesRoute
   '/_authed/playlists': typeof AuthedPlaylistsRoute
@@ -743,14 +737,14 @@ export interface FileRoutesById {
   '/api/images': typeof ApiImagesRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/brand/$file': typeof BrandFileRoute
-  '/feed/$slug': typeof FeedSlugRoute
   '/images/$file': typeof ImagesFileRoute
-  '/live/$slug': typeof LiveSlugRoute
   '/s/$shortSlug': typeof SShortSlugRoute
   '/tags/$tagSlug': typeof TagsTagSlugRoute
-  '/u/$slug': typeof USlugRoute
-  '/$slug_/episodes/$': typeof SlugEpisodesSplatRoute
-  '/_authed/$slug/manage': typeof AuthedSlugManageRoute
+  '/u/$': typeof USplatRoute
+  '/$user_/$show_/$episode': typeof UserShowEpisodeRoute
+  '/$user_/$show_/feed': typeof UserShowFeedRoute
+  '/$user_/$show_/live': typeof UserShowLiveRoute
+  '/$user_/playlists/$playlistSlug': typeof UserPlaylistsPlaylistSlugRoute
   '/_authed/settings/billing': typeof AuthedSettingsBillingRoute
   '/_authed/settings/notifications': typeof AuthedSettingsNotificationsRoute
   '/_authed/settings/security': typeof AuthedSettingsSecurityRoute
@@ -768,12 +762,10 @@ export interface FileRoutesById {
   '/api/mobile/theme': typeof ApiMobileThemeRoute
   '/api/tracked-links/$token': typeof ApiTrackedLinksTokenRoute
   '/api/traefik/config': typeof ApiTraefikConfigRoute
-  '/embed/$slug/$episodeSlug': typeof EmbedSlugEpisodeSlugRoute
   '/fonts/$family/$file': typeof FontsFamilyFileRoute
-  '/listen/$slug/$episodeSlug': typeof ListenSlugEpisodeSlugRoute
   '/_authed/admin/': typeof AuthedAdminIndexRoute
   '/_authed/settings/': typeof AuthedSettingsIndexRoute
-  '/_authed/$slug_/$episodeSlug/manage': typeof AuthedSlugEpisodeSlugManageRoute
+  '/_authed/$user_/$show/manage': typeof AuthedUserShowManageRoute
   '/api/billing/patreon/callback': typeof ApiBillingPatreonCallbackRoute
   '/api/billing/patreon/connect': typeof ApiBillingPatreonConnectRoute
   '/api/billing/patreon/webhook': typeof ApiBillingPatreonWebhookRoute
@@ -787,13 +779,14 @@ export interface FileRoutesById {
   '/api/mobile/chat/$id': typeof ApiMobileChatIdRoute
   '/api/mobile/notifications/device': typeof ApiMobileNotificationsDeviceRoute
   '/api/mobile/notifications/shows': typeof ApiMobileNotificationsShowsRoute
-  '/api/mobile/shows/$slug': typeof ApiMobileShowsSlugRoute
-  '/api/shows/$slug/events': typeof ApiShowsSlugEventsRoute
-  '/u/$slug_/playlists/$playlistSlug': typeof USlugPlaylistsPlaylistSlugRoute
+  '/api/mobile/shows/$showId': typeof ApiMobileShowsShowIdRoute
+  '/api/shows/$showId/events': typeof ApiShowsShowIdEventsRoute
+  '/embed/$user/$show/$episode': typeof EmbedUserShowEpisodeRoute
   '/api/mobile/episodes/': typeof ApiMobileEpisodesIndexRoute
   '/api/mobile/live/': typeof ApiMobileLiveIndexRoute
   '/api/mobile/notifications/': typeof ApiMobileNotificationsIndexRoute
   '/api/mobile/shows/': typeof ApiMobileShowsIndexRoute
+  '/_authed/$user_/$show_/$episode/manage': typeof AuthedUserShowEpisodeManageRoute
   '/api/mobile/auth/oauth/$provider': typeof ApiMobileAuthOauthProviderRoute
   '/api/mobile/auth/oauth/exchange': typeof ApiMobileAuthOauthExchangeRoute
   '/api/mobile/auth/oauth/finish': typeof ApiMobileAuthOauthFinishRoute
@@ -802,18 +795,18 @@ export interface FileRoutesById {
   '/api/mobile/episodes/$id/comments': typeof ApiMobileEpisodesIdCommentsRoute
   '/api/mobile/episodes/$id/position': typeof ApiMobileEpisodesIdPositionRoute
   '/api/mobile/episodes/$id/retry': typeof ApiMobileEpisodesIdRetryRoute
-  '/api/shows/$slug/live/events': typeof ApiShowsSlugLiveEventsRoute
+  '/api/shows/$showId/live/events': typeof ApiShowsShowIdLiveEventsRoute
   '/api/mobile/comments/$id/': typeof ApiMobileCommentsIdIndexRoute
   '/api/mobile/episodes/$id/': typeof ApiMobileEpisodesIdIndexRoute
-  '/api/mobile/live/$slug/': typeof ApiMobileLiveSlugIndexRoute
-  '/api/mobile/live/$slug/hls/$': typeof ApiMobileLiveSlugHlsSplatRoute
-  '/api/shows/$slug/live/hls/$': typeof ApiShowsSlugLiveHlsSplatRoute
+  '/api/mobile/live/$showId/': typeof ApiMobileLiveShowIdIndexRoute
+  '/api/mobile/live/$showId/hls/$': typeof ApiMobileLiveShowIdHlsSplatRoute
+  '/api/shows/$showId/live/hls/$': typeof ApiShowsShowIdLiveHlsSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/$slug'
+    | '/$user'
     | '/explore'
     | '/favicon.ico'
     | '/login'
@@ -823,7 +816,7 @@ export interface FileRouteTypes {
     | '/site.webmanifest'
     | '/sitemap.xml'
     | '/tos'
-    | '/$slug/$episodeSlug'
+    | '/$user/$show'
     | '/following'
     | '/likes'
     | '/playlists'
@@ -832,14 +825,14 @@ export interface FileRouteTypes {
     | '/api/images'
     | '/api/uploads'
     | '/brand/$file'
-    | '/feed/$slug'
     | '/images/$file'
-    | '/live/$slug'
     | '/s/$shortSlug'
     | '/tags/$tagSlug'
-    | '/u/$slug'
-    | '/$slug/episodes/$'
-    | '/$slug/manage'
+    | '/u/$'
+    | '/$user/$show/$episode'
+    | '/$user/$show/feed'
+    | '/$user/$show/live'
+    | '/$user/playlists/$playlistSlug'
     | '/settings/billing'
     | '/settings/notifications'
     | '/settings/security'
@@ -857,12 +850,10 @@ export interface FileRouteTypes {
     | '/api/mobile/theme'
     | '/api/tracked-links/$token'
     | '/api/traefik/config'
-    | '/embed/$slug/$episodeSlug'
     | '/fonts/$family/$file'
-    | '/listen/$slug/$episodeSlug'
     | '/admin/'
     | '/settings/'
-    | '/$slug/$episodeSlug/manage'
+    | '/$user/$show/manage'
     | '/api/billing/patreon/callback'
     | '/api/billing/patreon/connect'
     | '/api/billing/patreon/webhook'
@@ -876,13 +867,14 @@ export interface FileRouteTypes {
     | '/api/mobile/chat/$id'
     | '/api/mobile/notifications/device'
     | '/api/mobile/notifications/shows'
-    | '/api/mobile/shows/$slug'
-    | '/api/shows/$slug/events'
-    | '/u/$slug/playlists/$playlistSlug'
+    | '/api/mobile/shows/$showId'
+    | '/api/shows/$showId/events'
+    | '/embed/$user/$show/$episode'
     | '/api/mobile/episodes/'
     | '/api/mobile/live/'
     | '/api/mobile/notifications/'
     | '/api/mobile/shows/'
+    | '/$user/$show/$episode/manage'
     | '/api/mobile/auth/oauth/$provider'
     | '/api/mobile/auth/oauth/exchange'
     | '/api/mobile/auth/oauth/finish'
@@ -891,16 +883,16 @@ export interface FileRouteTypes {
     | '/api/mobile/episodes/$id/comments'
     | '/api/mobile/episodes/$id/position'
     | '/api/mobile/episodes/$id/retry'
-    | '/api/shows/$slug/live/events'
+    | '/api/shows/$showId/live/events'
     | '/api/mobile/comments/$id/'
     | '/api/mobile/episodes/$id/'
-    | '/api/mobile/live/$slug/'
-    | '/api/mobile/live/$slug/hls/$'
-    | '/api/shows/$slug/live/hls/$'
+    | '/api/mobile/live/$showId/'
+    | '/api/mobile/live/$showId/hls/$'
+    | '/api/shows/$showId/live/hls/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/$slug'
+    | '/$user'
     | '/explore'
     | '/favicon.ico'
     | '/login'
@@ -910,7 +902,7 @@ export interface FileRouteTypes {
     | '/site.webmanifest'
     | '/sitemap.xml'
     | '/tos'
-    | '/$slug/$episodeSlug'
+    | '/$user/$show'
     | '/following'
     | '/likes'
     | '/playlists'
@@ -918,14 +910,14 @@ export interface FileRouteTypes {
     | '/api/images'
     | '/api/uploads'
     | '/brand/$file'
-    | '/feed/$slug'
     | '/images/$file'
-    | '/live/$slug'
     | '/s/$shortSlug'
     | '/tags/$tagSlug'
-    | '/u/$slug'
-    | '/$slug/episodes/$'
-    | '/$slug/manage'
+    | '/u/$'
+    | '/$user/$show/$episode'
+    | '/$user/$show/feed'
+    | '/$user/$show/live'
+    | '/$user/playlists/$playlistSlug'
     | '/settings/billing'
     | '/settings/notifications'
     | '/settings/security'
@@ -943,12 +935,10 @@ export interface FileRouteTypes {
     | '/api/mobile/theme'
     | '/api/tracked-links/$token'
     | '/api/traefik/config'
-    | '/embed/$slug/$episodeSlug'
     | '/fonts/$family/$file'
-    | '/listen/$slug/$episodeSlug'
     | '/admin'
     | '/settings'
-    | '/$slug/$episodeSlug/manage'
+    | '/$user/$show/manage'
     | '/api/billing/patreon/callback'
     | '/api/billing/patreon/connect'
     | '/api/billing/patreon/webhook'
@@ -962,13 +952,14 @@ export interface FileRouteTypes {
     | '/api/mobile/chat/$id'
     | '/api/mobile/notifications/device'
     | '/api/mobile/notifications/shows'
-    | '/api/mobile/shows/$slug'
-    | '/api/shows/$slug/events'
-    | '/u/$slug/playlists/$playlistSlug'
+    | '/api/mobile/shows/$showId'
+    | '/api/shows/$showId/events'
+    | '/embed/$user/$show/$episode'
     | '/api/mobile/episodes'
     | '/api/mobile/live'
     | '/api/mobile/notifications'
     | '/api/mobile/shows'
+    | '/$user/$show/$episode/manage'
     | '/api/mobile/auth/oauth/$provider'
     | '/api/mobile/auth/oauth/exchange'
     | '/api/mobile/auth/oauth/finish'
@@ -977,16 +968,16 @@ export interface FileRouteTypes {
     | '/api/mobile/episodes/$id/comments'
     | '/api/mobile/episodes/$id/position'
     | '/api/mobile/episodes/$id/retry'
-    | '/api/shows/$slug/live/events'
+    | '/api/shows/$showId/live/events'
     | '/api/mobile/comments/$id'
     | '/api/mobile/episodes/$id'
-    | '/api/mobile/live/$slug'
-    | '/api/mobile/live/$slug/hls/$'
-    | '/api/shows/$slug/live/hls/$'
+    | '/api/mobile/live/$showId'
+    | '/api/mobile/live/$showId/hls/$'
+    | '/api/shows/$showId/live/hls/$'
   id:
     | '__root__'
     | '/'
-    | '/$slug'
+    | '/$user'
     | '/_authed'
     | '/explore'
     | '/favicon.ico'
@@ -997,7 +988,7 @@ export interface FileRouteTypes {
     | '/site.webmanifest'
     | '/sitemap.xml'
     | '/tos'
-    | '/$slug_/$episodeSlug'
+    | '/$user_/$show'
     | '/_authed/following'
     | '/_authed/likes'
     | '/_authed/playlists'
@@ -1006,14 +997,14 @@ export interface FileRouteTypes {
     | '/api/images'
     | '/api/uploads'
     | '/brand/$file'
-    | '/feed/$slug'
     | '/images/$file'
-    | '/live/$slug'
     | '/s/$shortSlug'
     | '/tags/$tagSlug'
-    | '/u/$slug'
-    | '/$slug_/episodes/$'
-    | '/_authed/$slug/manage'
+    | '/u/$'
+    | '/$user_/$show_/$episode'
+    | '/$user_/$show_/feed'
+    | '/$user_/$show_/live'
+    | '/$user_/playlists/$playlistSlug'
     | '/_authed/settings/billing'
     | '/_authed/settings/notifications'
     | '/_authed/settings/security'
@@ -1031,12 +1022,10 @@ export interface FileRouteTypes {
     | '/api/mobile/theme'
     | '/api/tracked-links/$token'
     | '/api/traefik/config'
-    | '/embed/$slug/$episodeSlug'
     | '/fonts/$family/$file'
-    | '/listen/$slug/$episodeSlug'
     | '/_authed/admin/'
     | '/_authed/settings/'
-    | '/_authed/$slug_/$episodeSlug/manage'
+    | '/_authed/$user_/$show/manage'
     | '/api/billing/patreon/callback'
     | '/api/billing/patreon/connect'
     | '/api/billing/patreon/webhook'
@@ -1050,13 +1039,14 @@ export interface FileRouteTypes {
     | '/api/mobile/chat/$id'
     | '/api/mobile/notifications/device'
     | '/api/mobile/notifications/shows'
-    | '/api/mobile/shows/$slug'
-    | '/api/shows/$slug/events'
-    | '/u/$slug_/playlists/$playlistSlug'
+    | '/api/mobile/shows/$showId'
+    | '/api/shows/$showId/events'
+    | '/embed/$user/$show/$episode'
     | '/api/mobile/episodes/'
     | '/api/mobile/live/'
     | '/api/mobile/notifications/'
     | '/api/mobile/shows/'
+    | '/_authed/$user_/$show_/$episode/manage'
     | '/api/mobile/auth/oauth/$provider'
     | '/api/mobile/auth/oauth/exchange'
     | '/api/mobile/auth/oauth/finish'
@@ -1065,17 +1055,17 @@ export interface FileRouteTypes {
     | '/api/mobile/episodes/$id/comments'
     | '/api/mobile/episodes/$id/position'
     | '/api/mobile/episodes/$id/retry'
-    | '/api/shows/$slug/live/events'
+    | '/api/shows/$showId/live/events'
     | '/api/mobile/comments/$id/'
     | '/api/mobile/episodes/$id/'
-    | '/api/mobile/live/$slug/'
-    | '/api/mobile/live/$slug/hls/$'
-    | '/api/shows/$slug/live/hls/$'
+    | '/api/mobile/live/$showId/'
+    | '/api/mobile/live/$showId/hls/$'
+    | '/api/shows/$showId/live/hls/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  SlugRoute: typeof SlugRoute
+  UserRoute: typeof UserRoute
   AuthedRoute: typeof AuthedRouteWithChildren
   ExploreRoute: typeof ExploreRoute
   FaviconDoticoRoute: typeof FaviconDoticoRoute
@@ -1086,17 +1076,18 @@ export interface RootRouteChildren {
   SiteDotwebmanifestRoute: typeof SiteDotwebmanifestRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TosRoute: typeof TosRoute
-  SlugEpisodeSlugRoute: typeof SlugEpisodeSlugRoute
+  UserShowRoute: typeof UserShowRoute
   ApiImagesRoute: typeof ApiImagesRoute
   ApiUploadsRoute: typeof ApiUploadsRoute
   BrandFileRoute: typeof BrandFileRoute
-  FeedSlugRoute: typeof FeedSlugRoute
   ImagesFileRoute: typeof ImagesFileRoute
-  LiveSlugRoute: typeof LiveSlugRoute
   SShortSlugRoute: typeof SShortSlugRoute
   TagsTagSlugRoute: typeof TagsTagSlugRoute
-  USlugRoute: typeof USlugRoute
-  SlugEpisodesSplatRoute: typeof SlugEpisodesSplatRoute
+  USplatRoute: typeof USplatRoute
+  UserShowEpisodeRoute: typeof UserShowEpisodeRoute
+  UserShowFeedRoute: typeof UserShowFeedRoute
+  UserShowLiveRoute: typeof UserShowLiveRoute
+  UserPlaylistsPlaylistSlugRoute: typeof UserPlaylistsPlaylistSlugRoute
   AdminQueuesSplatRoute: typeof AdminQueuesSplatRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiBrandingLogoRoute: typeof ApiBrandingLogoRoute
@@ -1111,9 +1102,7 @@ export interface RootRouteChildren {
   ApiMobileThemeRoute: typeof ApiMobileThemeRoute
   ApiTrackedLinksTokenRoute: typeof ApiTrackedLinksTokenRoute
   ApiTraefikConfigRoute: typeof ApiTraefikConfigRoute
-  EmbedSlugEpisodeSlugRoute: typeof EmbedSlugEpisodeSlugRoute
   FontsFamilyFileRoute: typeof FontsFamilyFileRoute
-  ListenSlugEpisodeSlugRoute: typeof ListenSlugEpisodeSlugRoute
   ApiBillingPatreonCallbackRoute: typeof ApiBillingPatreonCallbackRoute
   ApiBillingPatreonConnectRoute: typeof ApiBillingPatreonConnectRoute
   ApiBillingPatreonWebhookRoute: typeof ApiBillingPatreonWebhookRoute
@@ -1127,9 +1116,9 @@ export interface RootRouteChildren {
   ApiMobileChatIdRoute: typeof ApiMobileChatIdRoute
   ApiMobileNotificationsDeviceRoute: typeof ApiMobileNotificationsDeviceRoute
   ApiMobileNotificationsShowsRoute: typeof ApiMobileNotificationsShowsRoute
-  ApiMobileShowsSlugRoute: typeof ApiMobileShowsSlugRoute
-  ApiShowsSlugEventsRoute: typeof ApiShowsSlugEventsRoute
-  USlugPlaylistsPlaylistSlugRoute: typeof USlugPlaylistsPlaylistSlugRoute
+  ApiMobileShowsShowIdRoute: typeof ApiMobileShowsShowIdRoute
+  ApiShowsShowIdEventsRoute: typeof ApiShowsShowIdEventsRoute
+  EmbedUserShowEpisodeRoute: typeof EmbedUserShowEpisodeRoute
   ApiMobileEpisodesIndexRoute: typeof ApiMobileEpisodesIndexRoute
   ApiMobileLiveIndexRoute: typeof ApiMobileLiveIndexRoute
   ApiMobileNotificationsIndexRoute: typeof ApiMobileNotificationsIndexRoute
@@ -1142,12 +1131,12 @@ export interface RootRouteChildren {
   ApiMobileEpisodesIdCommentsRoute: typeof ApiMobileEpisodesIdCommentsRoute
   ApiMobileEpisodesIdPositionRoute: typeof ApiMobileEpisodesIdPositionRoute
   ApiMobileEpisodesIdRetryRoute: typeof ApiMobileEpisodesIdRetryRoute
-  ApiShowsSlugLiveEventsRoute: typeof ApiShowsSlugLiveEventsRoute
+  ApiShowsShowIdLiveEventsRoute: typeof ApiShowsShowIdLiveEventsRoute
   ApiMobileCommentsIdIndexRoute: typeof ApiMobileCommentsIdIndexRoute
   ApiMobileEpisodesIdIndexRoute: typeof ApiMobileEpisodesIdIndexRoute
-  ApiMobileLiveSlugIndexRoute: typeof ApiMobileLiveSlugIndexRoute
-  ApiMobileLiveSlugHlsSplatRoute: typeof ApiMobileLiveSlugHlsSplatRoute
-  ApiShowsSlugLiveHlsSplatRoute: typeof ApiShowsSlugLiveHlsSplatRoute
+  ApiMobileLiveShowIdIndexRoute: typeof ApiMobileLiveShowIdIndexRoute
+  ApiMobileLiveShowIdHlsSplatRoute: typeof ApiMobileLiveShowIdHlsSplatRoute
+  ApiShowsShowIdLiveHlsSplatRoute: typeof ApiShowsShowIdLiveHlsSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1159,11 +1148,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$slug': {
-      id: '/$slug'
-      path: '/$slug'
-      fullPath: '/$slug'
-      preLoaderRoute: typeof SlugRouteImport
+    '/$user': {
+      id: '/$user'
+      path: '/$user'
+      fullPath: '/$user'
+      preLoaderRoute: typeof UserRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed': {
@@ -1236,11 +1225,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TosRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$slug_/$episodeSlug': {
-      id: '/$slug_/$episodeSlug'
-      path: '/$slug/$episodeSlug'
-      fullPath: '/$slug/$episodeSlug'
-      preLoaderRoute: typeof SlugEpisodeSlugRouteImport
+    '/$user_/$show': {
+      id: '/$user_/$show'
+      path: '/$user/$show'
+      fullPath: '/$user/$show'
+      preLoaderRoute: typeof UserShowRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/following': {
@@ -1299,25 +1288,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BrandFileRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/feed/$slug': {
-      id: '/feed/$slug'
-      path: '/feed/$slug'
-      fullPath: '/feed/$slug'
-      preLoaderRoute: typeof FeedSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/images/$file': {
       id: '/images/$file'
       path: '/images/$file'
       fullPath: '/images/$file'
       preLoaderRoute: typeof ImagesFileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/live/$slug': {
-      id: '/live/$slug'
-      path: '/live/$slug'
-      fullPath: '/live/$slug'
-      preLoaderRoute: typeof LiveSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/s/$shortSlug': {
@@ -1334,26 +1309,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TagsTagSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/u/$slug': {
-      id: '/u/$slug'
-      path: '/u/$slug'
-      fullPath: '/u/$slug'
-      preLoaderRoute: typeof USlugRouteImport
+    '/u/$': {
+      id: '/u/$'
+      path: '/u/$'
+      fullPath: '/u/$'
+      preLoaderRoute: typeof USplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/$slug_/episodes/$': {
-      id: '/$slug_/episodes/$'
-      path: '/$slug/episodes/$'
-      fullPath: '/$slug/episodes/$'
-      preLoaderRoute: typeof SlugEpisodesSplatRouteImport
+    '/$user_/$show_/$episode': {
+      id: '/$user_/$show_/$episode'
+      path: '/$user/$show/$episode'
+      fullPath: '/$user/$show/$episode'
+      preLoaderRoute: typeof UserShowEpisodeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authed/$slug/manage': {
-      id: '/_authed/$slug/manage'
-      path: '/$slug/manage'
-      fullPath: '/$slug/manage'
-      preLoaderRoute: typeof AuthedSlugManageRouteImport
-      parentRoute: typeof AuthedRoute
+    '/$user_/$show_/feed': {
+      id: '/$user_/$show_/feed'
+      path: '/$user/$show/feed'
+      fullPath: '/$user/$show/feed'
+      preLoaderRoute: typeof UserShowFeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$user_/$show_/live': {
+      id: '/$user_/$show_/live'
+      path: '/$user/$show/live'
+      fullPath: '/$user/$show/live'
+      preLoaderRoute: typeof UserShowLiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$user_/playlists/$playlistSlug': {
+      id: '/$user_/playlists/$playlistSlug'
+      path: '/$user/playlists/$playlistSlug'
+      fullPath: '/$user/playlists/$playlistSlug'
+      preLoaderRoute: typeof UserPlaylistsPlaylistSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authed/admin/': {
       id: '/_authed/admin/'
@@ -1488,13 +1477,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTraefikConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/embed/$slug/$episodeSlug': {
-      id: '/embed/$slug/$episodeSlug'
-      path: '/embed/$slug/$episodeSlug'
-      fullPath: '/embed/$slug/$episodeSlug'
-      preLoaderRoute: typeof EmbedSlugEpisodeSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/fonts/$family/$file': {
       id: '/fonts/$family/$file'
       path: '/fonts/$family/$file'
@@ -1502,18 +1484,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FontsFamilyFileRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/listen/$slug/$episodeSlug': {
-      id: '/listen/$slug/$episodeSlug'
-      path: '/listen/$slug/$episodeSlug'
-      fullPath: '/listen/$slug/$episodeSlug'
-      preLoaderRoute: typeof ListenSlugEpisodeSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authed/$slug_/$episodeSlug/manage': {
-      id: '/_authed/$slug_/$episodeSlug/manage'
-      path: '/$slug/$episodeSlug/manage'
-      fullPath: '/$slug/$episodeSlug/manage'
-      preLoaderRoute: typeof AuthedSlugEpisodeSlugManageRouteImport
+    '/_authed/$user_/$show/manage': {
+      id: '/_authed/$user_/$show/manage'
+      path: '/$user/$show/manage'
+      fullPath: '/$user/$show/manage'
+      preLoaderRoute: typeof AuthedUserShowManageRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/api/billing/patreon/callback': {
@@ -1635,26 +1610,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileShowsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/mobile/shows/$slug': {
-      id: '/api/mobile/shows/$slug'
-      path: '/api/mobile/shows/$slug'
-      fullPath: '/api/mobile/shows/$slug'
-      preLoaderRoute: typeof ApiMobileShowsSlugRouteImport
+    '/api/mobile/shows/$showId': {
+      id: '/api/mobile/shows/$showId'
+      path: '/api/mobile/shows/$showId'
+      fullPath: '/api/mobile/shows/$showId'
+      preLoaderRoute: typeof ApiMobileShowsShowIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/shows/$slug/events': {
-      id: '/api/shows/$slug/events'
-      path: '/api/shows/$slug/events'
-      fullPath: '/api/shows/$slug/events'
-      preLoaderRoute: typeof ApiShowsSlugEventsRouteImport
+    '/api/shows/$showId/events': {
+      id: '/api/shows/$showId/events'
+      path: '/api/shows/$showId/events'
+      fullPath: '/api/shows/$showId/events'
+      preLoaderRoute: typeof ApiShowsShowIdEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/u/$slug_/playlists/$playlistSlug': {
-      id: '/u/$slug_/playlists/$playlistSlug'
-      path: '/u/$slug/playlists/$playlistSlug'
-      fullPath: '/u/$slug/playlists/$playlistSlug'
-      preLoaderRoute: typeof USlugPlaylistsPlaylistSlugRouteImport
+    '/embed/$user/$show/$episode': {
+      id: '/embed/$user/$show/$episode'
+      path: '/embed/$user/$show/$episode'
+      fullPath: '/embed/$user/$show/$episode'
+      preLoaderRoute: typeof EmbedUserShowEpisodeRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authed/$user_/$show_/$episode/manage': {
+      id: '/_authed/$user_/$show_/$episode/manage'
+      path: '/$user/$show/$episode/manage'
+      fullPath: '/$user/$show/$episode/manage'
+      preLoaderRoute: typeof AuthedUserShowEpisodeManageRouteImport
+      parentRoute: typeof AuthedRoute
     }
     '/api/mobile/auth/oauth/$provider': {
       id: '/api/mobile/auth/oauth/$provider'
@@ -1726,32 +1708,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileEpisodesIdRetryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/mobile/live/$slug/': {
-      id: '/api/mobile/live/$slug/'
-      path: '/api/mobile/live/$slug'
-      fullPath: '/api/mobile/live/$slug/'
-      preLoaderRoute: typeof ApiMobileLiveSlugIndexRouteImport
+    '/api/mobile/live/$showId/': {
+      id: '/api/mobile/live/$showId/'
+      path: '/api/mobile/live/$showId'
+      fullPath: '/api/mobile/live/$showId/'
+      preLoaderRoute: typeof ApiMobileLiveShowIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/shows/$slug/live/events': {
-      id: '/api/shows/$slug/live/events'
-      path: '/api/shows/$slug/live/events'
-      fullPath: '/api/shows/$slug/live/events'
-      preLoaderRoute: typeof ApiShowsSlugLiveEventsRouteImport
+    '/api/shows/$showId/live/events': {
+      id: '/api/shows/$showId/live/events'
+      path: '/api/shows/$showId/live/events'
+      fullPath: '/api/shows/$showId/live/events'
+      preLoaderRoute: typeof ApiShowsShowIdLiveEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/mobile/live/$slug/hls/$': {
-      id: '/api/mobile/live/$slug/hls/$'
-      path: '/api/mobile/live/$slug/hls/$'
-      fullPath: '/api/mobile/live/$slug/hls/$'
-      preLoaderRoute: typeof ApiMobileLiveSlugHlsSplatRouteImport
+    '/api/mobile/live/$showId/hls/$': {
+      id: '/api/mobile/live/$showId/hls/$'
+      path: '/api/mobile/live/$showId/hls/$'
+      fullPath: '/api/mobile/live/$showId/hls/$'
+      preLoaderRoute: typeof ApiMobileLiveShowIdHlsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/shows/$slug/live/hls/$': {
-      id: '/api/shows/$slug/live/hls/$'
-      path: '/api/shows/$slug/live/hls/$'
-      fullPath: '/api/shows/$slug/live/hls/$'
-      preLoaderRoute: typeof ApiShowsSlugLiveHlsSplatRouteImport
+    '/api/shows/$showId/live/hls/$': {
+      id: '/api/shows/$showId/live/hls/$'
+      path: '/api/shows/$showId/live/hls/$'
+      fullPath: '/api/shows/$showId/live/hls/$'
+      preLoaderRoute: typeof ApiShowsShowIdLiveHlsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -1781,9 +1763,9 @@ interface AuthedRouteChildren {
   AuthedPlaylistsRoute: typeof AuthedPlaylistsRoute
   AuthedSecurityRoute: typeof AuthedSecurityRoute
   AuthedSettingsRoute: typeof AuthedSettingsRouteWithChildren
-  AuthedSlugManageRoute: typeof AuthedSlugManageRoute
   AuthedAdminIndexRoute: typeof AuthedAdminIndexRoute
-  AuthedSlugEpisodeSlugManageRoute: typeof AuthedSlugEpisodeSlugManageRoute
+  AuthedUserShowManageRoute: typeof AuthedUserShowManageRoute
+  AuthedUserShowEpisodeManageRoute: typeof AuthedUserShowEpisodeManageRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
@@ -1792,9 +1774,9 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedPlaylistsRoute: AuthedPlaylistsRoute,
   AuthedSecurityRoute: AuthedSecurityRoute,
   AuthedSettingsRoute: AuthedSettingsRouteWithChildren,
-  AuthedSlugManageRoute: AuthedSlugManageRoute,
   AuthedAdminIndexRoute: AuthedAdminIndexRoute,
-  AuthedSlugEpisodeSlugManageRoute: AuthedSlugEpisodeSlugManageRoute,
+  AuthedUserShowManageRoute: AuthedUserShowManageRoute,
+  AuthedUserShowEpisodeManageRoute: AuthedUserShowEpisodeManageRoute,
 }
 
 const AuthedRouteWithChildren =
@@ -1802,7 +1784,7 @@ const AuthedRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  SlugRoute: SlugRoute,
+  UserRoute: UserRoute,
   AuthedRoute: AuthedRouteWithChildren,
   ExploreRoute: ExploreRoute,
   FaviconDoticoRoute: FaviconDoticoRoute,
@@ -1813,17 +1795,18 @@ const rootRouteChildren: RootRouteChildren = {
   SiteDotwebmanifestRoute: SiteDotwebmanifestRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TosRoute: TosRoute,
-  SlugEpisodeSlugRoute: SlugEpisodeSlugRoute,
+  UserShowRoute: UserShowRoute,
   ApiImagesRoute: ApiImagesRoute,
   ApiUploadsRoute: ApiUploadsRoute,
   BrandFileRoute: BrandFileRoute,
-  FeedSlugRoute: FeedSlugRoute,
   ImagesFileRoute: ImagesFileRoute,
-  LiveSlugRoute: LiveSlugRoute,
   SShortSlugRoute: SShortSlugRoute,
   TagsTagSlugRoute: TagsTagSlugRoute,
-  USlugRoute: USlugRoute,
-  SlugEpisodesSplatRoute: SlugEpisodesSplatRoute,
+  USplatRoute: USplatRoute,
+  UserShowEpisodeRoute: UserShowEpisodeRoute,
+  UserShowFeedRoute: UserShowFeedRoute,
+  UserShowLiveRoute: UserShowLiveRoute,
+  UserPlaylistsPlaylistSlugRoute: UserPlaylistsPlaylistSlugRoute,
   AdminQueuesSplatRoute: AdminQueuesSplatRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiBrandingLogoRoute: ApiBrandingLogoRoute,
@@ -1838,9 +1821,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobileThemeRoute: ApiMobileThemeRoute,
   ApiTrackedLinksTokenRoute: ApiTrackedLinksTokenRoute,
   ApiTraefikConfigRoute: ApiTraefikConfigRoute,
-  EmbedSlugEpisodeSlugRoute: EmbedSlugEpisodeSlugRoute,
   FontsFamilyFileRoute: FontsFamilyFileRoute,
-  ListenSlugEpisodeSlugRoute: ListenSlugEpisodeSlugRoute,
   ApiBillingPatreonCallbackRoute: ApiBillingPatreonCallbackRoute,
   ApiBillingPatreonConnectRoute: ApiBillingPatreonConnectRoute,
   ApiBillingPatreonWebhookRoute: ApiBillingPatreonWebhookRoute,
@@ -1854,9 +1835,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobileChatIdRoute: ApiMobileChatIdRoute,
   ApiMobileNotificationsDeviceRoute: ApiMobileNotificationsDeviceRoute,
   ApiMobileNotificationsShowsRoute: ApiMobileNotificationsShowsRoute,
-  ApiMobileShowsSlugRoute: ApiMobileShowsSlugRoute,
-  ApiShowsSlugEventsRoute: ApiShowsSlugEventsRoute,
-  USlugPlaylistsPlaylistSlugRoute: USlugPlaylistsPlaylistSlugRoute,
+  ApiMobileShowsShowIdRoute: ApiMobileShowsShowIdRoute,
+  ApiShowsShowIdEventsRoute: ApiShowsShowIdEventsRoute,
+  EmbedUserShowEpisodeRoute: EmbedUserShowEpisodeRoute,
   ApiMobileEpisodesIndexRoute: ApiMobileEpisodesIndexRoute,
   ApiMobileLiveIndexRoute: ApiMobileLiveIndexRoute,
   ApiMobileNotificationsIndexRoute: ApiMobileNotificationsIndexRoute,
@@ -1869,12 +1850,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobileEpisodesIdCommentsRoute: ApiMobileEpisodesIdCommentsRoute,
   ApiMobileEpisodesIdPositionRoute: ApiMobileEpisodesIdPositionRoute,
   ApiMobileEpisodesIdRetryRoute: ApiMobileEpisodesIdRetryRoute,
-  ApiShowsSlugLiveEventsRoute: ApiShowsSlugLiveEventsRoute,
+  ApiShowsShowIdLiveEventsRoute: ApiShowsShowIdLiveEventsRoute,
   ApiMobileCommentsIdIndexRoute: ApiMobileCommentsIdIndexRoute,
   ApiMobileEpisodesIdIndexRoute: ApiMobileEpisodesIdIndexRoute,
-  ApiMobileLiveSlugIndexRoute: ApiMobileLiveSlugIndexRoute,
-  ApiMobileLiveSlugHlsSplatRoute: ApiMobileLiveSlugHlsSplatRoute,
-  ApiShowsSlugLiveHlsSplatRoute: ApiShowsSlugLiveHlsSplatRoute,
+  ApiMobileLiveShowIdIndexRoute: ApiMobileLiveShowIdIndexRoute,
+  ApiMobileLiveShowIdHlsSplatRoute: ApiMobileLiveShowIdHlsSplatRoute,
+  ApiShowsShowIdLiveHlsSplatRoute: ApiShowsShowIdLiveHlsSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

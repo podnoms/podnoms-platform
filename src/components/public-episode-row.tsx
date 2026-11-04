@@ -10,7 +10,7 @@ import { TagList } from '~/components/tag-list'
 import { Button } from '~/components/ui/button'
 import { formatClock, formatDate, formatRelative } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
-import { shortPath } from '~/lib/paths'
+import { episodeParams, shortPath, showParams, type ShowRef } from '~/lib/paths'
 import type { Tag } from '~/lib/tag-schema'
 import { cn } from '~/lib/utils'
 
@@ -40,7 +40,7 @@ export type PublicEpisodeRowData = {
 // `actions` are the owner's buttons for it.
 export function PublicEpisodeRow({
   episode,
-  showSlug,
+  show,
   showTitle,
   showImageUrl,
   isOwner,
@@ -49,7 +49,7 @@ export function PublicEpisodeRow({
   actions,
 }: {
   episode: PublicEpisodeRowData
-  showSlug: string
+  show: ShowRef
   showTitle: string
   showImageUrl: string | null
   isOwner: boolean
@@ -64,7 +64,7 @@ export function PublicEpisodeRow({
   const position = isCurrent ? player.currentTime : player.positionOf(episode.id, episode.positionSeconds)
   const duration = (isCurrent && player.duration) || episode.durationSeconds || 0
   const published = episode.publishedAt ?? episode.createdAt
-  const episodeLink = { to: '/$slug/$episodeSlug', params: { slug: showSlug, episodeSlug: episode.slug } } as const
+  const episodeLink = { to: '/$user/$show/$episode', params: episodeParams(show, episode.slug) } as const
 
   function play(startAt?: number) {
     if (!episode.audioUrl) return
@@ -77,7 +77,8 @@ export function PublicEpisodeRow({
         imageUrl: artwork,
         showTitle,
         slug: episode.slug,
-        showSlug,
+        showSlug: show.slug,
+        ownerSlug: show.ownerSlug,
         isOwner,
         positionSeconds: episode.positionSeconds,
       },
@@ -124,7 +125,7 @@ export function PublicEpisodeRow({
             <p className="truncate text-sm text-muted-foreground">
               {withShow && (
                 <Separated>
-                  <Link to="/$slug" params={{ slug: showSlug }} className="hover:text-foreground hover:underline">
+                  <Link to="/$user/$show" params={showParams(show)} className="hover:text-foreground hover:underline">
                     {showTitle}
                   </Link>
                 </Separated>

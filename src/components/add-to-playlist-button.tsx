@@ -18,7 +18,7 @@ import {
 } from '~/components/ui/dropdown-menu'
 import { Spinner } from '~/components/ui/spinner'
 import { addPlaylistEpisode, fetchMyPlaylists, removePlaylistEpisode, savePlaylist } from '~/functions/playlists'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { isCustomDomain } from '~/lib/current-domain'
 
 type MyPlaylist = Awaited<ReturnType<typeof fetchMyPlaylists>>[number]
 
@@ -28,7 +28,7 @@ export function AddToPlaylistButton({ episodeId, size = 'sm' }: { episodeId: str
   const [playlists, setPlaylists] = useState<MyPlaylist[] | null>(null)
   const [failed, setFailed] = useState(false)
   const [creating, setCreating] = useState(false)
-  if (currentDomainSlug()) return null
+  if (isCustomDomain()) return null
 
   const button = (onClick?: () => void) => (
     <Button variant="outline" size={size} title="Save to a playlist" onClick={onClick}>

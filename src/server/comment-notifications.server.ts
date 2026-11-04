@@ -9,12 +9,16 @@ import { episodePath } from '~/lib/paths'
 import { mentionsAsText, type CommentMentions } from '~/lib/user-slug'
 import { db } from '~/server/db/client.server'
 import { commentMentions, episodeComments, episodes, shows, users } from '~/server/db/schema'
+import { alias } from 'drizzle-orm/pg-core'
 import { emailOrigin } from '~/server/email.server'
 import { visibleTo } from '~/server/episodes.server'
 import { recordNotification } from '~/server/inbox.server'
 import { reportError } from '~/server/logger.server'
 import { emailCommentNotice } from '~/server/notifications.server'
 import { sendPush } from '~/server/push.server'
+
+// The show's owner, beside the comment's author.
+const showOwners = alias(users, 'show_owner')
 
 const excerptLength = 140
 
@@ -44,12 +48,13 @@ async function tell(commentId: string) {
       episodeTitle: episodes.title,
       episodeSlug: episodes.slug,
       showTitle: shows.title,
-      showSlug: shows.slug,
+      show: { slug: shows.slug, ownerSlug: showOwners.slug },
     })
     .from(episodeComments)
     .innerJoin(users, eq(users.id, episodeComments.userId))
     .innerJoin(episodes, eq(episodes.id, episodeComments.episodeId))
     .innerJoin(shows, eq(shows.id, episodes.showId))
+    .innerJoin(showOwners, eq(showOwners.id, shows.userId))
     .where(eq(episodeComments.id, commentId))
     .limit(1)
   if (!comment) return
@@ -76,7 +81,7 @@ async function tell(commentId: string) {
   const authorName = comment.authorName ?? `@${comment.authorSlug}`
   // A comment can be just a GIF.
   const text = excerpt(mentionsAsText(comment.body, mentions)) || 'Sent a GIF'
-  const path = `${episodePath(comment.showSlug, comment.episodeSlug)}#comment-${commentId}`
+  const path = `${episodePath(comment.show, comment.episodeSlug)}#comment-${commentId}`
   const origin = emailOrigin()
   for (const [userId, kind] of recipients) {
     if (!(await canSee(userId, comment.episodeId))) continue

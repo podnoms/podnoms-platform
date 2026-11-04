@@ -52,7 +52,7 @@ export async function createShow(userId: string, values: Partial<NewShow> = {}) 
   const slug = values.slug ?? `show-${crypto.randomUUID().slice(0, 8)}`
   const [show] = await db
     .insert(shows)
-    .values({ userId, title: 'Test Show', slug, ...values })
+    .values({ userId, title: 'Test Show', slug, podcastGuid: crypto.randomUUID(), ...values })
     .returning()
   return show!
 }

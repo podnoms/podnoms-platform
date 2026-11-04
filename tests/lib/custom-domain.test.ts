@@ -1,37 +1,51 @@
 import { describe, expect, it } from 'vitest'
 import { isSharedPath, normalizeDomain, toDomainPath, toSitePath, txtRecordName, txtRecordValue } from '~/lib/custom-domain'
 
+const show = { ownerSlug: 'ada', slug: 'show' }
+
 describe('custom domain paths', () => {
   it("map the domain's pages to the show's routes", () => {
-    expect(toSitePath('/', 'show')).toBe('/show')
-    expect(toSitePath('/episodes/ep-1', 'show')).toBe('/show/ep-1')
-    expect(toSitePath('/episodes/ep-1/', 'show')).toBe('/show/ep-1')
-    expect(toSitePath('/live', 'show')).toBe('/live/show')
+    expect(toSitePath('/', show)).toBe('/ada/show')
+    expect(toSitePath('/episodes/ep-1', show)).toBe('/ada/show/ep-1')
+    expect(toSitePath('/episodes/ep-1/', show)).toBe('/ada/show/ep-1')
+    expect(toSitePath('/live', show)).toBe('/ada/show/live')
+    expect(toSitePath('/feed', show)).toBe('/ada/show/feed')
   })
 
   it("leave paths the domain has no page for alone", () => {
-    for (const path of ['/settings', '/show', '/episodes', '/episodes/a/b', '/feed']) {
-      expect(toSitePath(path, 'show')).toBeNull()
+    for (const path of ['/settings', '/show', '/ada/show', '/episodes', '/episodes/a/b']) {
+      expect(toSitePath(path, show)).toBeNull()
     }
   })
 
   it("map the show's routes back to the domain's short paths", () => {
-    expect(toDomainPath('/show', 'show')).toBe('/')
-    expect(toDomainPath('/show/', 'show')).toBe('/')
-    expect(toDomainPath('/show/ep-1', 'show')).toBe('/episodes/ep-1')
-    expect(toDomainPath('/feed/show', 'show')).toBe('/feed')
-    expect(toDomainPath('/live/show', 'show')).toBe('/live')
+    expect(toDomainPath('/ada/show', show)).toBe('/')
+    expect(toDomainPath('/ada/show/', show)).toBe('/')
+    expect(toDomainPath('/ada/show/ep-1', show)).toBe('/episodes/ep-1')
+    expect(toDomainPath('/ada/show/feed', show)).toBe('/feed')
+    expect(toDomainPath('/ada/show/live', show)).toBe('/live')
   })
 
   it("leave other shows' and the app's paths alone", () => {
-    for (const path of ['/other', '/show/manage', '/live/other', '/live/showy', '/showy/x', '/show/episodes', '/show/ep-1/manage', '/feed/other', '/']) {
-      expect(toDomainPath(path, 'show')).toBeNull()
+    for (const path of [
+      '/ada',
+      '/ada/other',
+      '/bob/show',
+      '/ada/showy/x',
+      '/ada/show/manage',
+      '/ada/show/ep-1/manage',
+      '/ada/other/live',
+      '/ada/other/feed',
+      '/show/ep-1',
+      '/',
+    ]) {
+      expect(toDomainPath(path, show)).toBeNull()
     }
   })
 
   it('are reversible', () => {
-    for (const path of ['/', '/episodes/ep-1', '/live']) {
-      expect(toDomainPath(toSitePath(path, 'show')!, 'show')).toBe(path)
+    for (const path of ['/', '/episodes/ep-1', '/live', '/feed']) {
+      expect(toDomainPath(toSitePath(path, show)!, show)).toBe(path)
     }
   })
 

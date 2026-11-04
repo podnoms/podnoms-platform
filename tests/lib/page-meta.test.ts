@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { isCustomDomain } from '~/lib/current-domain'
 import { publicPageHead, siteHead, truncate } from '~/lib/page-meta'
 
-vi.mock('~/lib/current-domain', () => ({ currentDomainSlug: vi.fn(() => null) }))
+vi.mock('~/lib/current-domain', () => ({ isCustomDomain: vi.fn(() => false) }))
 
-afterEach(() => vi.mocked(currentDomainSlug).mockReturnValue(null))
+afterEach(() => vi.mocked(isCustomDomain).mockReturnValue(false))
 
 const site = { name: 'Pods', logoVersion: 'v2' }
 
@@ -75,7 +75,7 @@ describe('publicPageHead', () => {
   })
 
   it("names the show rather than the site on the show's own domain", () => {
-    vi.mocked(currentDomainSlug).mockReturnValue('show')
+    vi.mocked(isCustomDomain).mockReturnValue(true)
     const head = publicPageHead({ ...page, image: null, feedTitle: 'The Show', documentTitle: 'Episode – The Show' })
     expect(head.meta[0]).toEqual({ title: 'Episode – The Show' })
     expect(tags(head)['og:site_name']).toBe('The Show')

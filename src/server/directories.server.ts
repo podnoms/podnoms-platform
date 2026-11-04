@@ -58,8 +58,13 @@ export async function submitToPodcastIndex(userId: string, showId: string, origi
   const readiness = await getDirectoryReadiness(userId, showId)
   if (!readiness) return { ok: false, error: 'There’s no such show' }
   if (!isReady(readiness)) return { ok: false, error: 'Your show isn’t ready for directories yet' }
-  const [show] = await db.select({ slug: shows.slug }).from(shows).where(eq(shows.id, showId)).limit(1)
-  const feedUrl = new URL(feedPath(show!.slug), origin).toString()
+  const [show] = await db
+    .select({ slug: shows.slug, ownerSlug: users.slug })
+    .from(shows)
+    .innerJoin(users, eq(users.id, shows.userId))
+    .where(eq(shows.id, showId))
+    .limit(1)
+  const feedUrl = new URL(feedPath(show!), origin).toString()
 
   try {
     const response = await fetch(

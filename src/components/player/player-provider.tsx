@@ -15,6 +15,8 @@ export type PlayerEpisode = {
   // before they were kept.
   slug?: string
   showSlug?: string
+  // The show's owner's slug, which its address starts with.
+  ownerSlug?: string
   isOwner?: boolean
   // Where the listener left off, as last loaded from the server.
   positionSeconds: number | null

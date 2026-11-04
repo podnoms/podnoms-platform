@@ -18,8 +18,9 @@ import { and, eq, isNotNull } from 'drizzle-orm'
 import { getDomain } from 'tldts'
 import { env } from '~/env'
 import { domainFeedPath, isSharedPath, normalizeDomain, toSitePath, txtRecordName, txtRecordValue } from '~/lib/custom-domain'
+import type { ShowRef } from '~/lib/paths'
 import { db } from '~/server/db/client.server'
-import { shows } from '~/server/db/schema'
+import { shows, users } from '~/server/db/schema'
 import { ExpiringStore } from '~/server/expiring-store.server'
 import { logger } from '~/server/logger.server'
 import { siteOrigin } from '~/server/site-url.server'
@@ -182,26 +183,27 @@ export async function checkDomain(domain: string, token: string): Promise<Domain
 const passes = (check: DomainCheck) => check.pointer.ok && check.txt.ok
 
 // Which show each custom domain shows, looked up on every request to one.
-const domainSlugs = new ExpiringStore<{ slug: string | null }>(60_000)
+const domainShows = new ExpiringStore<{ show: ShowRef | null }>(60_000)
 
 function forget(...domains: (string | null | undefined)[]) {
-  for (const domain of domains) if (domain) domainSlugs.delete(domain)
+  for (const domain of domains) if (domain) domainShows.delete(domain)
 }
 
-// The slug of the show verified for this domain, or null. Also null once its
-// owner has no paid features, so the domain then goes to the site's own page;
-// the domain stays verified, ready for when they subscribe again.
-export async function showForDomain(host: string) {
-  const cached = domainSlugs.get(host)
-  if (cached) return cached.slug
-  const [show] = await db
-    .select({ slug: shows.slug, ownerId: shows.userId })
+// The show verified for this domain, or null. Also null once its owner has
+// no paid features, so the domain then goes to the site's own page; the
+// domain stays verified, ready for when they subscribe again.
+export async function showForDomain(host: string): Promise<ShowRef | null> {
+  const cached = domainShows.get(host)
+  if (cached) return cached.show
+  const [row] = await db
+    .select({ slug: shows.slug, ownerSlug: users.slug, ownerId: shows.userId })
     .from(shows)
+    .innerJoin(users, eq(users.id, shows.userId))
     .where(and(eq(shows.customDomain, host), isNotNull(shows.customDomainVerifiedAt)))
     .limit(1)
-  const slug = show && (await hasPaidAccess(show.ownerId)) ? show.slug : null
-  domainSlugs.set(host, { slug })
-  return slug
+  const show = row && (await hasPaidAccess(row.ownerId)) ? { ownerSlug: row.ownerSlug, slug: row.slug } : null
+  domainShows.set(host, { show })
+  return show
 }
 
 // The verified domain this host should redirect to: people expect example.com
@@ -349,10 +351,10 @@ export async function recheckCustomDomains(now = new Date()) {
 
 // Which show's domain the current request is on, for the router (see
 // src/lib/current-domain.ts) and the public server functions.
-const state = globalThis as { podnomsCustomDomain?: AsyncLocalStorage<string> }
-const requestDomain = (state.podnomsCustomDomain ??= new AsyncLocalStorage<string>())
+const state = globalThis as { podnomsCustomDomain?: AsyncLocalStorage<ShowRef> }
+const requestDomain = (state.podnomsCustomDomain ??= new AsyncLocalStorage<ShowRef>())
 
-export function currentRequestDomainSlug() {
+export function currentRequestDomainShow() {
   return requestDomain.getStore() ?? null
 }
 
@@ -367,8 +369,8 @@ export async function handleCustomDomain<T>(request: Request, next: () => T | Pr
   if (!isCustomHost(host)) return next()
   const url = new URL(request.url)
   const { pathname } = url
-  const slug = await showForDomain(host)
-  if (!slug) {
+  const show = await showForDomain(host)
+  if (!show) {
     const domain = await redirectingTo(host)
     if (domain) {
       return new Response(null, { status: 301, headers: { Location: `https://${domain}${pathname}${url.search}` } })
@@ -379,13 +381,13 @@ export async function handleCustomDomain<T>(request: Request, next: () => T | Pr
   if (pathname === domainFeedPath) {
     // Imported here, as the feed needs shows.server.ts, which needs this.
     const { buildShowFeed } = await import('~/server/feed.server')
-    const xml = await buildShowFeed(slug, siteOrigin()!, { domain: host, key: url.searchParams.get('key') })
+    const xml = await buildShowFeed(show, siteOrigin()!, { domain: host, key: url.searchParams.get('key') })
     if (!xml) return new Response('Not found', { status: 404 })
     return new Response(xml, {
       headers: { 'Content-Type': 'application/rss+xml; charset=utf-8', 'Cache-Control': 'public, max-age=300' },
     })
   }
-  if (isSharedPath(pathname) || toSitePath(pathname, slug)) return requestDomain.run(slug, next)
+  if (isSharedPath(pathname) || toSitePath(pathname, show)) return requestDomain.run(show, next)
   return toSite(url)
 }
 

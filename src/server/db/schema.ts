@@ -36,8 +36,8 @@ export const users = pgTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     name: text('name'),
-    // Their handle: in their profile's address (/u/<slug>) and for @mentions
-    // in comments. Made from their name or email when they sign up (see
+    // Their handle: their profile's address (/<slug>), which their shows'
+    // addresses start with, and for @mentions in comments. Made from their name or email when they sign up (see
     // assignUserSlug in users.server.ts), after starting as a placeholder;
     // they can change it.
     slug: text('slug')
@@ -223,8 +223,12 @@ export const shows = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
-    // Used in the show's public URL, so unique across all users.
-    slug: text('slug').notNull().unique(),
+    // Used in the show's public URL (/<owner's slug>/<slug>), so unique per owner.
+    slug: text('slug').notNull(),
+    // The feed's permanent id (Podcasting 2.0's podcast:guid), made from its
+    // URL when the show is created and kept when that changes (see
+    // podcastGuid in feed.server.ts).
+    podcastGuid: text('podcastGuid').notNull(),
     description: text('description'),
     imageUrl: text('imageUrl'),
     // One of Apple's categories and, optionally, one of its subcategories (see
@@ -265,7 +269,34 @@ export const shows = pgTable(
     theme: jsonb('theme').$type<SiteTheme>(),
     ...timestamps,
   },
-  (table) => [index('show_userId_idx').on(table.userId)],
+  (table) => [uniqueIndex('show_userId_slug_idx').on(table.userId, table.slug)],
+)
+
+// A user's old slugs, so their old addresses (and their shows' feeds, which
+// podcast apps keep for ever) redirect to the new ones. Taken: no one else
+// can have them.
+export const userSlugAliases = pgTable('user_slug_alias', {
+  slug: text('slug').primaryKey(),
+  userId: text('userId')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+})
+
+// A show's old slugs, likewise, which the owner's other shows can't take.
+export const showSlugAliases = pgTable(
+  'show_slug_alias',
+  {
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    slug: text('slug').notNull(),
+    showId: text('showId')
+      .notNull()
+      .references(() => shows.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.slug] }), index('show_slug_alias_showId_idx').on(table.showId)],
 )
 
 export const episodeStatus = pgEnum('episode_status', ['pending', 'processing', 'ready', 'failed'])
@@ -541,7 +572,7 @@ export const pushSubscriptions = pgTable(
 
 // A user's playlist of episodes from any shows, in their order (see
 // playlists.server.ts). Private until they choose to share it; a public one
-// is at /u/<user slug>/playlists/<slug>.
+// is at /<user slug>/playlists/<slug>.
 export const playlists = pgTable(
   'playlist',
   {

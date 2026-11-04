@@ -3,7 +3,7 @@ import { useNavigate, useRouteContext, useRouter } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { Button } from '~/components/ui/button'
 import { likeEpisode } from '~/functions/library'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { isCustomDomain } from '~/lib/current-domain'
 import { formatCount } from '~/lib/format'
 import { cn } from '~/lib/utils'
 
@@ -39,7 +39,7 @@ export function LikeButton({
   const latestOnChange = useRef(onChange)
   latestOnChange.current = onChange
   useEffect(() => latestOnChange.current?.(state), [state])
-  if (currentDomainSlug()) return null
+  if (isCustomDomain()) return null
 
   async function toggle() {
     if (!session) {

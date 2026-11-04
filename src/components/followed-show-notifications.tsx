@@ -10,8 +10,9 @@ import { Item, ItemActions, ItemContent, ItemGroup, ItemMedia, ItemTitle } from 
 import { Switch } from '~/components/ui/switch'
 import { saveFollowNotify } from '~/functions/profile'
 import { imageSrc } from '~/lib/images'
+import { showParams } from '~/lib/paths'
 
-type FollowedShow = { showId: string; title: string; slug: string; imageUrl: string | null; notify: boolean }
+type FollowedShow = { showId: string; title: string; slug: string; ownerSlug: string; imageUrl: string | null; notify: boolean }
 
 export function FollowedShowNotifications({
   follows,
@@ -66,7 +67,7 @@ export function FollowedShowNotifications({
                 </ItemMedia>
                 <ItemContent>
                   <ItemTitle>
-                    <Link to="/$slug" params={{ slug: show.slug }} className="hover:underline">
+                    <Link to="/$user/$show" params={showParams(show)} className="hover:underline">
                       {show.title}
                     </Link>
                   </ItemTitle>

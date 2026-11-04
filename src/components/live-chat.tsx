@@ -8,7 +8,7 @@ import { EmojiPicker, EmojiPickerContent, EmojiPickerFooter, EmojiPickerSearch }
 import { Input } from '~/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover'
 import { postLiveChat, removeLiveChat } from '~/functions/live'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { isCustomDomain } from '~/lib/current-domain'
 import type { ChatGif, GifConfig } from '~/lib/gifs'
 import { chatMessageMaxLength } from '~/lib/live-schema'
 import { initials } from '~/lib/format'
@@ -182,7 +182,7 @@ export function LiveChat({
         ))}
       </ol>
       {/* A show's own domain has no accounts, so its chat is only to read. */}
-      {!currentDomainSlug() && (
+      {!isCustomDomain() && (
         <div className="border-t p-3">
           {!session ? (
             <Button

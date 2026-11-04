@@ -8,9 +8,12 @@
 // waiting to be sent are kept in memory and lost if the app restarts.
 import '@tanstack/react-start/server-only'
 import { eq } from 'drizzle-orm'
-import { episodePath, livePath, showPath } from '~/lib/paths'
+import { episodeManagePath, episodePath, livePath, showManagePath, showPath, type ShowRef } from '~/lib/paths'
 import { db } from '~/server/db/client.server'
 import { episodes, shows, users } from '~/server/db/schema'
+
+// What a show's address needs (see ShowRef). Needs the user table joined.
+const showRefColumns = { slug: shows.slug, ownerSlug: users.slug }
 import { emailEnabled, emailOrigin, sendEmail } from '~/server/email.server'
 import { liveEmail, notificationDigestEmail, type NotificationEvent } from '~/server/emails.server'
 import { recordNotification } from '~/server/inbox.server'
@@ -77,12 +80,13 @@ export function notifyEpisodeFailed(episodeId: string, error: string | null) {
         .select({
           userId: shows.userId,
           showTitle: shows.title,
-          showSlug: shows.slug,
+          show: showRefColumns,
           episodeTitle: episodes.title,
           episodeSlug: episodes.slug,
         })
         .from(episodes)
         .innerJoin(shows, eq(shows.id, episodes.showId))
+        .innerJoin(users, eq(users.id, shows.userId))
         .where(eq(episodes.id, episodeId))
         .limit(1)
       if (!row) return
@@ -90,14 +94,14 @@ export function notifyEpisodeFailed(episodeId: string, error: string | null) {
         kind: 'episodeFailed',
         title: `${row.episodeTitle} couldn’t be processed`,
         body: error ?? row.showTitle,
-        url: `${episodePath(row.showSlug, row.episodeSlug)}/manage`,
+        url: episodeManagePath(row.show, row.episodeSlug),
       })
       await queue(row.userId, 'notifyEpisodeFailed', {
         type: 'episodeFailed',
         showTitle: row.showTitle,
         episodeTitle: row.episodeTitle,
         error,
-        link: link(`${episodePath(row.showSlug, row.episodeSlug)}/manage`),
+        link: link(episodeManagePath(row.show, row.episodeSlug)),
       })
     })(),
   )
@@ -108,21 +112,22 @@ export function notifyNewEpisodes(showId: string, count: number) {
   safely(
     (async () => {
       const [show] = await db
-        .select({ userId: shows.userId, title: shows.title, slug: shows.slug })
+        .select({ userId: shows.userId, title: shows.title, ...showRefColumns })
         .from(shows)
+        .innerJoin(users, eq(users.id, shows.userId))
         .where(eq(shows.id, showId))
         .limit(1)
       if (!show) return
       await recordNotification([show.userId], {
         kind: 'channelEpisodes',
         title: `${count === 1 ? 'A new episode' : `${count} new episodes`} from ${show.title}’s channel`,
-        url: `${showPath(show.slug)}/manage`,
+        url: showManagePath(show),
       })
       await queue(show.userId, 'notifyNewEpisodes', {
         type: 'newEpisodes',
         showTitle: show.title,
         count,
-        link: link(`${showPath(show.slug)}/manage`),
+        link: link(showManagePath(show)),
       })
     })(),
   )
@@ -131,7 +136,7 @@ export function notifyNewEpisodes(showId: string, count: number) {
 // New episodes from a show the user follows, for their next email.
 export function emailFollowedEpisodes(
   userId: string,
-  show: { title: string; slug: string },
+  show: ShowRef & { title: string },
   episodes: { title: string; slug: string }[],
 ) {
   if (!episodes.length) return
@@ -140,20 +145,20 @@ export function emailFollowedEpisodes(
       type: 'followedEpisodes',
       showTitle: show.title,
       titles: episodes.map((episode) => episode.title),
-      link: link(episodes.length === 1 ? episodePath(show.slug, episodes[0]!.slug) : showPath(show.slug)),
+      link: link(episodes.length === 1 ? episodePath(show, episodes[0]!.slug) : showPath(show)),
     }),
   )
 }
 
 // A show the user follows has gone live: sent at once, as it won't wait.
-export function emailFollowerLive(userId: string, show: { title: string; slug: string }, broadcastTitle: string) {
+export function emailFollowerLive(userId: string, show: ShowRef & { title: string }, broadcastTitle: string) {
   safely(
     (async () => {
       const to = await addressFor(userId, 'emailLive')
       if (!to) return
       await sendEmail({
         to,
-        ...liveEmail(show.title, broadcastTitle, link(livePath(show.slug)), link('/settings/notifications')),
+        ...liveEmail(show.title, broadcastTitle, link(livePath(show)), link('/settings/notifications')),
       })
     })(),
   )

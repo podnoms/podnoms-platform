@@ -46,7 +46,7 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link to="/u/$slug" params={{ slug: session.user.slug }}>
+          <Link to="/$user" params={{ user: session.user.slug }}>
             <Icons.following />
             Your profile
           </Link>

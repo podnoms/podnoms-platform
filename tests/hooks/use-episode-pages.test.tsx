@@ -36,12 +36,12 @@ afterEach(() => {
 function setup(total: number, prepare?: (fetchMore: ReturnType<typeof fakeFetch>) => void, first = range(0, 10)) {
   const fetchMore = fakeFetch(total)
   prepare?.(fetchMore)
-  const view = renderHook((props: { first: { id: string }[]; showSlug: string }) => {
+  const view = renderHook((props: { first: { id: string }[]; showKey: string }) => {
     const pages = useEpisodePages({ ...props, total, fetchMore })
     // Stand in for the element the page puts after the list.
     pages.sentinel.current ??= document.createElement('div')
     return pages
-  }, { initialProps: { first, showSlug: 'show' } })
+  }, { initialProps: { first, showKey: 'show' } })
   return { ...view, fetchMore }
 }
 
@@ -86,7 +86,7 @@ describe('useEpisodePages', () => {
     const { result, rerender, fetchMore } = setup(15)
     await waitFor(() => expect(result.current.episodes).toHaveLength(15))
     inView = false
-    rerender({ first: range(0, 10), showSlug: 'show' })
+    rerender({ first: range(0, 10), showKey: 'show' })
     await waitFor(() => expect(fetchMore).toHaveBeenLastCalledWith(10, 5))
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.episodes).toHaveLength(15)
@@ -98,7 +98,7 @@ describe('useEpisodePages', () => {
     await waitFor(() => expect(result.current.episodes).toHaveLength(15))
     inView = false
     fetchMore.mockClear()
-    rerender({ first: range(100, 10), showSlug: 'other' })
+    rerender({ first: range(100, 10), showKey: 'other' })
     await waitFor(() => expect(result.current.episodes.map((e) => e.id)).toEqual(range(100, 10).map((e) => e.id)))
     expect(fetchMore).not.toHaveBeenCalled()
   })

@@ -281,7 +281,7 @@ describe('listEpisodes / getEpisode / getEpisodeSlug', () => {
     const episode = await insertEpisode(show.id, { slug: 'ep' })
     const found = await getEpisode(user.id, 'show', 'ep')
     expect(found?.episode.id).toBe(episode.id)
-    expect(found?.show).toEqual({ id: show.id, title: show.title, slug: 'show', imageUrl: null, private: false })
+    expect(found?.show).toEqual({ id: show.id, title: show.title, slug: 'show', ownerSlug: user.slug, imageUrl: null, private: false })
     expect(await getEpisode((await createUser()).id, 'show', 'ep')).toBeNull()
     expect(await getEpisode(user.id, 'other', 'ep')).toBeNull()
   })
@@ -785,41 +785,43 @@ describe('public episode reads', () => {
   describe('getPublicEpisode', () => {
     it('finds a ready episode, with its show', async () => {
       const { owner, older } = await showWithEpisodes()
-      const found = await getPublicEpisode('show', 'older', null)
+      // By its show's address, or its id.
+      const found = await getPublicEpisode({ ownerSlug: owner.slug, slug: 'show' }, 'older', null)
       expect(found!.episode.id).toBe(older.id)
       expect(found!.episode).not.toHaveProperty('sourceUrl')
       expect(found!.show).toMatchObject({ slug: 'show', private: false, userId: owner.id, author: 'Ada' })
     })
 
     it('shows private episodes only to their owner', async () => {
-      const { owner } = await showWithEpisodes()
-      expect(await getPublicEpisode('show', 'hidden', null)).toBeNull()
-      expect(await getPublicEpisode('show', 'hidden', (await createUser()).id)).toBeNull()
-      expect(await getPublicEpisode('show', 'hidden', owner.id)).not.toBeNull()
+      const { owner, show } = await showWithEpisodes()
+      expect(await getPublicEpisode(show, 'hidden', null)).toBeNull()
+      expect(await getPublicEpisode(show, 'hidden', (await createUser()).id)).toBeNull()
+      expect(await getPublicEpisode(show, 'hidden', owner.id)).not.toBeNull()
     })
 
     it("shows a private show's episodes only to its owner", async () => {
       const { owner, show } = await showWithEpisodes()
       await db.update(shows).set({ private: true }).where(eq(shows.id, show.id))
-      expect(await getPublicEpisode('show', 'older', null)).toBeNull()
-      expect(await getPublicEpisode('show', 'older', (await createUser()).id)).toBeNull()
-      expect(await getPublicEpisode('show', 'older', owner.id)).not.toBeNull()
+      expect(await getPublicEpisode(show, 'older', null)).toBeNull()
+      expect(await getPublicEpisode(show, 'older', (await createUser()).id)).toBeNull()
+      expect(await getPublicEpisode(show, 'older', owner.id)).not.toBeNull()
     })
 
     it("returns null for episodes that aren't ready, and unknown slugs", async () => {
-      await showWithEpisodes()
+      const { owner, show } = await showWithEpisodes()
       for (const slug of ['pending', 'processing', 'failed', 'no-audio', 'nope']) {
-        expect(await getPublicEpisode('show', slug, null)).toBeNull()
+        expect(await getPublicEpisode(show, slug, null)).toBeNull()
       }
-      expect(await getPublicEpisode('nope', 'older', null)).toBeNull()
+      expect(await getPublicEpisode({ ownerSlug: owner.slug, slug: 'nope' }, 'older', null)).toBeNull()
+      expect(await getPublicEpisode({ ownerSlug: (await createUser()).slug, slug: 'show' }, 'older', null)).toBeNull()
     })
 
     it("includes where the listener left off", async () => {
-      const { older } = await showWithEpisodes()
+      const { older, show } = await showWithEpisodes()
       const listener = await createUser()
       await savePlaybackPosition(listener.id, older.id, 42)
-      expect((await getPublicEpisode('show', 'older', listener.id))!.episode.positionSeconds).toBe(42)
-      expect((await getPublicEpisode('show', 'older', null))!.episode.positionSeconds).toBeNull()
+      expect((await getPublicEpisode(show, 'older', listener.id))!.episode.positionSeconds).toBe(42)
+      expect((await getPublicEpisode(show, 'older', null))!.episode.positionSeconds).toBeNull()
     })
   })
 })

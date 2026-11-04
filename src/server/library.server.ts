@@ -21,6 +21,7 @@ import { showArtwork, showAuthor, showFollowColumns } from '~/server/shows.serve
 const episodeShowColumns = {
   show: {
     slug: shows.slug,
+    ownerSlug: users.slug,
     title: shows.title,
     imageUrl: shows.imageUrl,
     userId: shows.userId,
@@ -34,6 +35,7 @@ export function listenerEpisodes(listenerId: string | null) {
     .select({ ...listenerEpisodeColumns(listenerId), ...episodeShowColumns })
     .from(episodes)
     .innerJoin(shows, eq(shows.id, episodes.showId))
+    .innerJoin(users, eq(users.id, shows.userId))
     .leftJoin(playbackPositions, listenerPosition(listenerId))
     .$dynamic()
 }
@@ -129,6 +131,7 @@ function showCards(viewerId: string | null, { includeEmpty = false } = {}) {
       id: shows.id,
       title: shows.title,
       slug: shows.slug,
+      ownerSlug: users.slug,
       imageUrl: showArtwork,
       author: showAuthor,
       episodeCount: count(episodes.id),

@@ -1,8 +1,9 @@
 import { ErrorComponent, createRouter } from '@tanstack/react-router'
 import { NotFound } from '~/components/not-found'
 import { reportClientError } from '~/lib/client-errors'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { currentDomainShow } from '~/lib/current-domain'
 import { toDomainPath, toSitePath } from '~/lib/custom-domain'
+import type { ShowRef } from '~/lib/paths'
 import { routeTree } from './routeTree.gen'
 
 export function getRouter() {
@@ -23,9 +24,9 @@ export function getRouter() {
   })
 }
 
-function rewritePath(url: URL, map: (pathname: string, slug: string) => string | null) {
-  const slug = currentDomainSlug()
-  const pathname = slug && map(url.pathname, slug)
+function rewritePath(url: URL, map: (pathname: string, show: ShowRef) => string | null) {
+  const show = currentDomainShow()
+  const pathname = show && map(url.pathname, show)
   if (!pathname) return undefined
   url.pathname = pathname
   return url

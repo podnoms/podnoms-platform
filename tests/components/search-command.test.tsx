@@ -8,7 +8,7 @@ import { searchMyLibrary } from '~/functions/search'
 const navigate = vi.fn(() => Promise.resolve())
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigate,
-  useLoaderData: () => ({ shows: [{ id: 'p1', title: 'Deep House Sessions', slug: 'deep-house', imageUrl: null }] }),
+  useLoaderData: () => ({ shows: [{ id: 'p1', title: 'Deep House Sessions', slug: 'deep-house', ownerSlug: 'ada', imageUrl: null }] }),
 }))
 vi.mock('~/functions/search', () => ({ searchMyLibrary: vi.fn() }))
 
@@ -23,7 +23,7 @@ beforeEach(() => {
 afterEach(cleanup)
 
 const results = {
-  shows: [{ id: 'p1', title: 'Deep House Sessions', slug: 'deep-house', imageUrl: null, excerpt: null }],
+  shows: [{ id: 'p1', title: 'Deep House Sessions', slug: 'deep-house', ownerSlug: 'ada', imageUrl: null, excerpt: null }],
   episodes: [
     {
       id: 'e1',
@@ -32,6 +32,7 @@ const results = {
       imageUrl: '/images/a.jpg',
       showTitle: 'Deep House Sessions',
       showSlug: 'deep-house',
+      ownerSlug: 'ada',
       excerpt: '…recorded at a house party…',
     },
   ],
@@ -92,8 +93,8 @@ describe('SearchCommand', () => {
     await userEvent.click(await screen.findByText('Late Night Mix'))
 
     expect(navigate).toHaveBeenCalledWith({
-      to: '/$slug/$episodeSlug/manage',
-      params: { slug: 'deep-house', episodeSlug: 'late-night' },
+      to: '/$user/$show/$episode/manage',
+      params: { user: 'ada', show: 'deep-house', episode: 'late-night' },
     })
     await waitFor(() => expect(screen.queryByPlaceholderText('Search shows and episodes…')).toBeNull())
   })
@@ -104,7 +105,7 @@ describe('SearchCommand', () => {
     await screen.findByText('Late Night Mix')
     await userEvent.click(screen.getAllByText('Deep House Sessions')[0]!)
 
-    expect(navigate).toHaveBeenCalledWith({ to: '/$slug/manage', params: { slug: 'deep-house' } })
+    expect(navigate).toHaveBeenCalledWith({ to: '/$user/$show/manage', params: { user: 'ada', show: 'deep-house' } })
   })
 
   it('says when nothing matches', async () => {

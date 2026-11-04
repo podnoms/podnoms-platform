@@ -60,10 +60,10 @@ describe('comment notifications', () => {
     )
     const [, message] = vi.mocked(sendPush).mock.calls[0]!
     expect(message.body).toBe('Agreed @cat, and @bob is me')
-    expect(message.url).toMatch(/^\/the-show\/ep-1#comment-/)
+    expect(message.url).toMatch(/^\/owner\/the-show\/ep-1#comment-/)
     const [, event] = vi.mocked(emailCommentNotice).mock.calls[0]!
     expect(event).toMatchObject({ episodeTitle: 'Ep 1', showTitle: 'The Show', authorName: 'Bob' })
-    expect(event.link).toMatch(/^https:\/\/pods\.example\/the-show\/ep-1#comment-/)
+    expect(event.link).toMatch(/^https:\/\/pods\.example\/owner\/the-show\/ep-1#comment-/)
   })
 
   it('only sends desktop notifications to those who want them', async () => {

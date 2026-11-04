@@ -20,6 +20,9 @@ import {
   revokeLiveKey,
   setLiveTitle,
 } from '~/server/live.server'
+import { livePath } from '~/lib/paths'
+import { asShowRef, showAddressSchema } from '~/lib/show-schema'
+import { showMovedOrNotFound } from '~/server/show-address.server'
 import { getPublicShow, servedShowTheme } from '~/server/shows.server'
 
 async function viewerId() {
@@ -35,18 +38,20 @@ async function requireUserId() {
 
 // A show's live page: what's on, if anything, and its chat so far.
 export const fetchLivePage = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug: z.string() }))
+  .validator(showAddressSchema)
   .handler(async ({ data }) => {
     if (!liveEnabled()) throw notFound()
     const userId = await viewerId()
-    const show = await getPublicShow(data.slug, userId)
-    if (!show) throw notFound()
+    const ref = asShowRef(data)
+    const show = await getPublicShow(ref, userId)
+    if (!show) return showMovedOrNotFound(ref, livePath)
     const broadcast = await getOpenBroadcast(show.id)
     return {
       show: {
         id: show.id,
         title: show.title,
         slug: show.slug,
+        ownerSlug: show.ownerSlug,
         imageUrl: show.imageUrl,
         author: show.author,
         private: show.private,
@@ -66,10 +71,10 @@ export const fetchLivePage = createServerFn({ method: 'GET' })
 
 // The chat so far, after the page's event stream reconnects.
 export const fetchLiveChat = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug: z.string(), broadcastId: z.string() }))
+  .validator(z.object({ showId: z.string(), broadcastId: z.string() }))
   .handler(async ({ data }) => {
     const userId = await viewerId()
-    const show = await getPublicShow(data.slug, userId)
+    const show = await getPublicShow({ id: data.showId }, userId)
     if (!show) throw notFound()
     return listChat(show, data.broadcastId, userId)
   })

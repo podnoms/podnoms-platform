@@ -20,8 +20,8 @@ import { Route as EpisodeCommentsRoute } from '~/routes/api/mobile/episodes/$id/
 import { Route as EpisodeRoute } from '~/routes/api/mobile/episodes/$id/index'
 import { Route as BroadcastChatRoute } from '~/routes/api/mobile/broadcasts/$id/chat'
 import { Route as ChatMessageRoute } from '~/routes/api/mobile/chat/$id'
-import { Route as LiveHlsRoute } from '~/routes/api/mobile/live/$slug/hls/$'
-import { Route as LiveRoute } from '~/routes/api/mobile/live/$slug/index'
+import { Route as LiveHlsRoute } from '~/routes/api/mobile/live/$showId/hls/$'
+import { Route as LiveRoute } from '~/routes/api/mobile/live/$showId/index'
 import { Route as FollowsRoute } from '~/routes/api/mobile/follows'
 import { Route as HomeRoute } from '~/routes/api/mobile/home'
 import { Route as LiveNowRoute } from '~/routes/api/mobile/live/index'
@@ -29,7 +29,7 @@ import { Route as MeRoute } from '~/routes/api/mobile/me'
 import { Route as DeviceRoute } from '~/routes/api/mobile/notifications/device'
 import { Route as NotificationsRoute } from '~/routes/api/mobile/notifications/index'
 import { Route as NotificationShowsRoute } from '~/routes/api/mobile/notifications/shows'
-import { Route as ShowRoute } from '~/routes/api/mobile/shows/$slug'
+import { Route as ShowRoute } from '~/routes/api/mobile/shows/$showId'
 import { Route as ShowsRoute } from '~/routes/api/mobile/shows/index'
 import { Route as ThemeRoute } from '~/routes/api/mobile/theme'
 import { oauthProviders, readSession } from '~/server/auth.server'
@@ -126,11 +126,11 @@ describe('shows', () => {
     const { user, token } = await signedIn()
     const other = await createUser()
     const show = await createShow(user.id, { slug: 'mine', description: '<p>Hello &amp; welcome</p>' })
-    await createShow(other.id, { slug: 'theirs', private: true })
+    const theirs = await createShow(other.id, { slug: 'theirs', private: true })
     await createEpisode(show.id, { title: 'Ready', status: 'ready', audioUrl: '/api/episodes/x/audio' })
     await createEpisode(show.id, { title: 'Failed', status: 'failed', error: 'Nope' })
 
-    const response = await callRoute(ShowRoute, 'GET', request('/api/mobile/shows/mine', { token }), { slug: 'mine' })
+    const response = await callRoute(ShowRoute, 'GET', request(`/api/mobile/shows/${show.id}`, { token }), { showId: show.id })
     const body = (await response.json()) as { show: { description: string }; episodes: { title: string; status: string }[] }
     expect(body.show.description).toBe('Hello & welcome')
     expect(body.episodes.map((e) => [e.title, e.status]).sort()).toEqual([
@@ -138,8 +138,8 @@ describe('shows', () => {
       ['Ready', 'ready'],
     ])
 
-    const theirs = await callRoute(ShowRoute, 'GET', request('/api/mobile/shows/theirs', { token }), { slug: 'theirs' })
-    expect(theirs.status).toBe(404)
+    const hidden = await callRoute(ShowRoute, 'GET', request(`/api/mobile/shows/${theirs.id}`, { token }), { showId: theirs.id })
+    expect(hidden.status).toBe(404)
   })
 })
 
@@ -153,9 +153,9 @@ describe("other people's shows", () => {
     await createEpisode(show.id, { title: 'Broken', status: 'failed', error: 'Nope' })
     await db.insert(showFollows).values({ userId: user.id, showId: show.id })
 
-    const response = await callRoute(ShowRoute, 'GET', request('/api/mobile/shows/theirs', { token }), { slug: 'theirs' })
+    const response = await callRoute(ShowRoute, 'GET', request(`/api/mobile/shows/${show.id}`, { token }), { showId: show.id })
     expect(await response.json()).toMatchObject({
-      show: { slug: 'theirs', isOwner: false, following: true, followerCount: 1, imageUrl: 'http://x/images/a.jpg' },
+      show: { id: show.id, slug: 'theirs', isOwner: false, following: true, followerCount: 1, imageUrl: 'http://x/images/a.jpg' },
       episodes: [{ title: 'Out', status: 'ready', sourceUrl: null, error: null, audioUrl: 'http://x/api/episodes/x/audio' }],
     })
   })
@@ -514,23 +514,21 @@ describe('episode pages and comments', () => {
 
 describe('live', () => {
   const gif = { provider: 'giphy', id: 'abc', title: 'A wave', url: 'https://media.giphy.com/media/abc/giphy.gif', width: 200, height: 100 }
-  // Slugs are unique per test, as who may watch which show is remembered for a moment.
-  const slug = () => `show-${crypto.randomUUID().slice(0, 8)}`
   const goLive = async (showId: string) =>
     (await db.insert(liveBroadcasts).values({ showId, title: 'On air' }).returning())[0]!
-  const livePage = async (token: string, showSlug: string) =>
-    callRoute(LiveRoute, 'GET', request(`/api/mobile/live/${showSlug}`, { token }), { slug: showSlug })
+  const livePage = async (token: string, showId: string) =>
+    callRoute(LiveRoute, 'GET', request(`/api/mobile/live/${showId}`, { token }), { showId })
 
   it('says which shows are live, in the list and on the show', async () => {
     const { user, token } = await signedIn()
     const on = await createShow(user.id, { slug: 'on' })
-    await createShow(user.id, { slug: 'off' })
+    const off = await createShow(user.id, { slug: 'off' })
     await goLive(on.id)
 
     const list = (await (await callRoute(ShowsRoute, 'GET', request('/api/mobile/shows', { token }))).json()) as { slug: string; live: boolean }[]
     expect(Object.fromEntries(list.map((show) => [show.slug, show.live]))).toEqual({ on: true, off: false })
-    for (const [showSlug, live] of [['on', true], ['off', false]] as const) {
-      const response = await callRoute(ShowRoute, 'GET', request(`/api/mobile/shows/${showSlug}`, { token }), { slug: showSlug })
+    for (const [{ id }, live] of [[on, true], [off, false]] as const) {
+      const response = await callRoute(ShowRoute, 'GET', request(`/api/mobile/shows/${id}`, { token }), { showId: id })
       expect(((await response.json()) as { show: { live: boolean } }).show.live).toBe(live)
     }
   })
@@ -538,36 +536,33 @@ describe('live', () => {
   it('gives the live page of any show the user may see, counting who is watching', async () => {
     const owner = await signedIn()
     const viewer = await signedIn()
-    const showSlug = slug()
-    const show = await createShow(owner.user.id, { slug: showSlug, imageUrl: '/images/a.jpg' })
+    const show = await createShow(owner.user.id, { slug: 'on-air', imageUrl: '/images/a.jpg' })
     const broadcast = await goLive(show.id)
 
-    expect((await callRoute(LiveRoute, 'GET', request(`/api/mobile/live/${showSlug}`), { slug: showSlug })).status).toBe(401)
-    expect(await (await livePage(owner.token, showSlug)).json()).toMatchObject({ viewers: 1 })
-    const page = await (await livePage(viewer.token, showSlug)).json()
+    expect((await callRoute(LiveRoute, 'GET', request(`/api/mobile/live/${show.id}`), { showId: show.id })).status).toBe(401)
+    expect(await (await livePage(owner.token, show.id)).json()).toMatchObject({ viewers: 1 })
+    const page = await (await livePage(viewer.token, show.id)).json()
     expect(page).toMatchObject({
-      show: { slug: showSlug, imageUrl: 'http://x/images/a.jpg' },
+      show: { id: show.id, slug: 'on-air', imageUrl: 'http://x/images/a.jpg' },
       broadcast: { id: broadcast.id, title: 'On air', interrupted: false },
-      hlsUrl: `http://x/api/mobile/live/${showSlug}/hls/index.m3u8`,
+      hlsUrl: `http://x/api/mobile/live/${show.id}/hls/index.m3u8`,
       chat: [],
       viewers: 2,
     })
     // Asking again doesn't count twice.
-    expect(await (await livePage(viewer.token, showSlug)).json()).toMatchObject({ viewers: 2 })
+    expect(await (await livePage(viewer.token, show.id)).json()).toMatchObject({ viewers: 2 })
   })
 
   it('has no broadcast or chat while off air, and hides private shows from others', async () => {
     const owner = await signedIn()
     const viewer = await signedIn()
-    const off = slug()
-    const secret = slug()
-    await createShow(owner.user.id, { slug: off })
-    const hidden = await createShow(owner.user.id, { slug: secret, private: true })
+    const off = await createShow(owner.user.id, { slug: 'off' })
+    const hidden = await createShow(owner.user.id, { slug: 'secret', private: true })
     const broadcast = await goLive(hidden.id)
 
-    expect(await (await livePage(viewer.token, off)).json()).toMatchObject({ broadcast: null, chat: [] })
-    expect((await livePage(viewer.token, secret)).status).toBe(404)
-    expect((await livePage(owner.token, secret)).status).toBe(200)
+    expect(await (await livePage(viewer.token, off.id)).json()).toMatchObject({ broadcast: null, chat: [] })
+    expect((await livePage(viewer.token, hidden.id)).status).toBe(404)
+    expect((await livePage(owner.token, hidden.id)).status).toBe(200)
     const chat = request(`/api/mobile/broadcasts/${broadcast.id}/chat`, { token: viewer.token, method: 'POST', body: { body: 'Hi' } })
     expect((await callRoute(BroadcastChatRoute, 'POST', chat, { id: broadcast.id })).status).toBe(404)
   })
@@ -576,8 +571,7 @@ describe('live', () => {
     const owner = await signedIn()
     const viewer = await signedIn()
     const other = await signedIn()
-    const showSlug = slug()
-    const show = await createShow(owner.user.id, { slug: showSlug })
+    const show = await createShow(owner.user.id)
     const broadcast = await goLive(show.id)
     const post = (token: string, body: unknown) =>
       callRoute(BroadcastChatRoute, 'POST', request(`/api/mobile/broadcasts/${broadcast.id}/chat`, { token, method: 'POST', body }), { id: broadcast.id })
@@ -592,7 +586,7 @@ describe('live', () => {
     expect((await post(viewer.token, { body: 'Too soon' })).status).toBe(429)
     expect((await post(other.token, { gif })).status).toBe(201)
 
-    const page = (await (await livePage(owner.token, showSlug)).json()) as { chat: { body: string; gif: unknown; canDelete: boolean }[] }
+    const page = (await (await livePage(owner.token, show.id)).json()) as { chat: { body: string; gif: unknown; canDelete: boolean }[] }
     expect(page.chat.map((m) => [m.body, m.gif, m.canDelete])).toEqual([
       ['Hello 👋', null, true],
       ['', gif, true],
@@ -604,7 +598,7 @@ describe('live', () => {
 
   it('refuses chat on a broadcast that has ended', async () => {
     const { user, token } = await signedIn()
-    const show = await createShow(user.id, { slug: slug() })
+    const show = await createShow(user.id)
     const [ended] = await db.insert(liveBroadcasts).values({ showId: show.id, title: 'Over', endedAt: new Date() }).returning()
     const response = await callRoute(BroadcastChatRoute, 'POST', request('/x', { token, method: 'POST', body: { body: 'Hi' } }), { id: ended!.id })
     expect(response.status).toBe(404)
@@ -613,10 +607,9 @@ describe('live', () => {
   it('serves the video by token, to those who may watch', async () => {
     const owner = await signedIn()
     const viewer = await signedIn()
-    const showSlug = slug()
-    const show = await createShow(owner.user.id, { slug: showSlug, private: true })
+    const show = await createShow(owner.user.id, { private: true })
     const hls = (token?: string) =>
-      callRoute(LiveHlsRoute, 'GET', request(`/api/mobile/live/${showSlug}/hls/index.m3u8`, { token }), { slug: showSlug, _splat: 'index.m3u8' })
+      callRoute(LiveHlsRoute, 'GET', request(`/api/mobile/live/${show.id}/hls/index.m3u8`, { token }), { showId: show.id, _splat: 'index.m3u8' })
     const upstream = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('#EXTM3U', { headers: { 'content-type': 'application/vnd.apple.mpegurl' } }))
 
     expect((await hls()).status).toBe(401)
@@ -646,8 +639,8 @@ describe('what is live now', () => {
     ])
 
     expect((await callRoute(LiveNowRoute, 'GET', request('/api/mobile/live'))).status).toBe(401)
-    const { slugs } = (await (await callRoute(LiveNowRoute, 'GET', request('/api/mobile/live', { token }))).json()) as { slugs: string[] }
-    expect(slugs.sort()).toEqual(['mine', 'on-air'])
+    const { showIds } = (await (await callRoute(LiveNowRoute, 'GET', request('/api/mobile/live', { token }))).json()) as { showIds: string[] }
+    expect(showIds.sort()).toEqual([mine.id, on.id].sort())
   })
 })
 

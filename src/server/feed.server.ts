@@ -3,20 +3,22 @@
 import '@tanstack/react-start/server-only'
 import { and, eq } from 'drizzle-orm'
 import { domainFeedPath, toDomainPath } from '~/lib/custom-domain'
-import { episodePath, showPath, withFeedKey } from '~/lib/paths'
+import { episodePath, feedPath as showFeedPath, showPath, withFeedKey, type ShowRef } from '~/lib/paths'
 import { htmlToText } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
 import { episodes, shows, users } from '~/server/db/schema'
 import { isListed, newestPublishedFirst } from '~/server/episodes.server'
-import { showAuthor } from '~/server/shows.server'
-import { uuidV5 } from '~/server/uuid.server'
+import { showAuthor, showWhere, type ShowKey } from '~/server/shows.server'
+import { podcastGuid } from '~/server/podcast-guid.server'
 import { getBranding } from '~/server/branding.server'
 import { hasPaidAccess } from '~/server/subscriptions.server'
 
 // A private show's feed is only served with its feed key.
-export function feedPath(slug: string, feedKey?: string | null) {
-  return withFeedKey(`/feed/${slug}`, feedKey)
+export function feedPath(show: ShowRef, feedKey?: string | null) {
+  return withFeedKey(showFeedPath(show), feedKey)
 }
+
+export { podcastGuid }
 
 
 export function escapeXml(text: string) {
@@ -40,22 +42,15 @@ function categoryXml(category: string | null, subcategory: string | null) {
   return subcategory ? `${open}><itunes:category text="${escapeXml(subcategory)}"/></itunes:category>` : `${open}/>`
 }
 
-// The feed's permanent id (Podcasting 2.0's podcast:guid): a UUIDv5 of its URL
-// without the scheme or trailing slashes, so any host that moves the feed can
-// work out the same one.
-export function podcastGuid(feedUrl: string) {
-  return uuidV5(feedUrl.replace(/^[a-z]+:\/\//i, '').replace(/\/+$/, ''), 'ead4c236-bf58-58c6-a2c6-a6b28d128cb6')
-}
-
 function itunesExplicit(explicit: boolean) {
   return explicit ? 'true' : 'false'
 }
 
-// Null if there's no show with that slug. Private shows have feeds too,
-// as that's how their listeners subscribe, but only with the show's feed
-// key (options.key); their audio links carry it too.
+// Null if there's no such show. Private shows have feeds too, as that's how
+// their listeners subscribe, but only with the show's feed key
+// (options.key); their audio links carry it too.
 export async function buildShowFeed(
-  slug: string,
+  which: ShowKey,
   origin: string,
   options: { domain?: string; key?: string | null } = {},
 ) {
@@ -64,6 +59,8 @@ export async function buildShowFeed(
       id: shows.id,
       title: shows.title,
       slug: shows.slug,
+      ownerSlug: users.slug,
+      podcastGuid: shows.podcastGuid,
       description: shows.description,
       imageUrl: shows.imageUrl,
       category: shows.category,
@@ -79,7 +76,7 @@ export async function buildShowFeed(
     })
     .from(shows)
     .innerJoin(users, eq(users.id, shows.userId))
-    .where(eq(shows.slug, slug))
+    .where(showWhere(which))
     .limit(1)
   if (!show) return null
   if (show.private && (!show.feedKey || options.key !== show.feedKey || !(await hasPaidAccess(show.ownerId)))) return null
@@ -94,10 +91,10 @@ export async function buildShowFeed(
   // On the show's own domain, its links are to that domain's short paths.
   const domainOrigin = options.domain ? `https://${options.domain}` : null
   const absolute = (url: string) => new URL(url, domainOrigin ?? origin).toString()
-  const page = (path: string) => (options.domain ? (toDomainPath(path, show.slug) ?? path) : path)
-  const siteFeedUrl = new URL(feedPath(show.slug), origin).toString()
+  const page = (path: string) => (options.domain ? (toDomainPath(path, show) ?? path) : path)
+  const siteFeedUrl = new URL(feedPath(show), origin).toString()
   const feedUrl = withFeedKey(options.domain ? absolute(domainFeedPath) : siteFeedUrl, key)
-  const pageUrl = absolute(page(showPath(show.slug)))
+  const pageUrl = absolute(page(showPath(show)))
   const artwork = show.imageUrl ?? items.find((item) => item.imageUrl)?.imageUrl ?? null
   const description = show.description || show.title
   const latest = items[0] ? (items[0].publishedAt ?? items[0].createdAt) : show.updatedAt
@@ -107,7 +104,7 @@ export async function buildShowFeed(
     return [
       '<item>',
       tag('title', item.title),
-      tag('link', absolute(page(episodePath(show.slug, item.slug)))),
+      tag('link', absolute(page(episodePath(show, item.slug)))),
       tag('description', item.description),
       tag('itunes:summary', item.description && htmlToText(item.description)),
       `<guid isPermaLink="false">${escapeXml(item.id)}</guid>`,
@@ -145,8 +142,8 @@ export async function buildShowFeed(
       // Keeps private shows out of directories that honour it.
       show.private ? '<itunes:block>Yes</itunes:block>' : '',
       '<itunes:type>episodic</itunes:type>',
-      // From the site's feed URL, so the show keeps one id on any domain.
-      `<podcast:guid>${podcastGuid(siteFeedUrl)}</podcast:guid>`,
+      // Made once, so the show keeps one id on any domain and at any address.
+      `<podcast:guid>${escapeXml(show.podcastGuid)}</podcast:guid>`,
       // Asks other hosts not to import the feed, unless the owner (who can be
       // emailed) agrees.
       show.ownerEmail

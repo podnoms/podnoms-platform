@@ -10,6 +10,7 @@ const lastEpisodeSchema = z.object({
   showTitle: z.string(),
   slug: z.string().optional(),
   showSlug: z.string().optional(),
+  ownerSlug: z.string().optional(),
   isOwner: z.boolean().optional(),
   positionSeconds: z.number().nullable(),
 })

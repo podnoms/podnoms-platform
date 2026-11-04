@@ -8,6 +8,7 @@ import {
   getShowBySlug,
   getPublicShow,
   listShows,
+  movedShow,
   resetFeedKey,
   setShowPrivacy,
   updateDirectoryDetails,
@@ -18,6 +19,7 @@ import {
 } from '~/server/shows.server'
 import { prepareFonts } from '~/server/fonts.server'
 import { imagePath } from '~/server/storage.server'
+import { updateProfile } from '~/server/users.server'
 import { resetDb } from '../db'
 import {
   createEpisode,
@@ -43,8 +45,11 @@ describe('createShow', () => {
   it('creates the show with a slug from its title', async () => {
     const user = await createUser()
     const show = await createShow(user.id, { title: 'My Great Show' })
-    expect(show).toEqual({ id: expect.any(String), title: 'My Great Show', slug: 'my-great-show', imageUrl: null })
-    expect((await getRow(show.id)).userId).toBe(user.id)
+    expect(show).toEqual({ id: expect.any(String), title: 'My Great Show', slug: 'my-great-show', ownerSlug: user.slug, imageUrl: null })
+    const row = await getRow(show.id)
+    expect(row.userId).toBe(user.id)
+    // Made once, for the feed (without SITE_URL, at random).
+    expect(row.podcastGuid).toMatch(/^[0-9a-f-]{36}$/)
   })
 
   it('stores the plain-text description as HTML', async () => {
@@ -52,22 +57,30 @@ describe('createShow', () => {
     expect((await getRow(show.id)).description).toBe('<p>One</p><p>Two &lt;b&gt;</p>')
   })
 
-  it('makes slugs unique across all users', async () => {
+  it("makes slugs unique among the owner's shows, which can share them with others'", async () => {
     const a = await createUser()
     const b = await createUser()
     expect((await createShow(a.id, { title: 'Show' })).slug).toBe('show')
-    expect((await createShow(b.id, { title: 'Show' })).slug).toBe('show-2')
-    expect((await createShow(a.id, { title: 'SHOW!' })).slug).toBe('show-3')
+    expect((await createShow(b.id, { title: 'Show' })).slug).toBe('show')
+    expect((await createShow(a.id, { title: 'SHOW!' })).slug).toBe('show-2')
+  })
+
+  it("doesn't take one of the owner's shows' old slugs, which redirect", async () => {
+    const user = await createUser()
+    const show = await insertShow(user.id, { slug: 'show' })
+    await updateShow(user.id, { id: show.id, title: 'Show', slug: 'renamed' })
+    expect((await createShow(user.id, { title: 'Show' })).slug).toBe('show-2')
   })
 
   it('falls back to "show" when the title has no usable characters', async () => {
     expect((await createShow((await createUser()).id, { title: '🎙️' })).slug).toBe('show')
   })
 
-  it("doesn't take the name of one of the site's own pages", async () => {
+  it("doesn't take the name of one of the pages under its owner", async () => {
     const user = await createUser()
-    expect((await createShow(user.id, { title: 'Explore' })).slug).toBe('explore-2')
-    expect((await createShow(user.id, { title: 'Settings' })).slug).toBe('settings-2')
+    expect((await createShow(user.id, { title: 'Playlists' })).slug).toBe('playlists-2')
+    // The site's own top-level pages are fine down here.
+    expect((await createShow(user.id, { title: 'Explore' })).slug).toBe('explore')
   })
 })
 
@@ -143,12 +156,49 @@ describe('updateShow', () => {
     expect((await getRow(show.id)).slug).toBe('new-name')
   })
 
-  it("refuses a slug another show has, changing nothing", async () => {
+  it("refuses a slug another of the owner's shows has, or had, changing nothing", async () => {
+    const user = await createUser()
+    await insertShow(user.id, { slug: 'taken' })
+    const moved = await insertShow(user.id, { slug: 'was' })
+    await updateShow(user.id, { id: moved.id, title: 'T', slug: 'now' })
+    const show = await insertShow(user.id, { title: 'Old', slug: 'mine' })
+    for (const slug of ['taken', 'was']) {
+      await expect(updateShow(user.id, { id: show.id, title: 'New', slug })).rejects.toThrow(ShowSlugError)
+    }
+    expect(await getRow(show.id)).toMatchObject({ title: 'Old', slug: 'mine' })
+  })
+
+  it("takes a slug another owner's show has", async () => {
     const user = await createUser()
     await insertShow((await createUser()).id, { slug: 'taken' })
-    const show = await insertShow(user.id, { title: 'Old', slug: 'mine' })
-    await expect(updateShow(user.id, { id: show.id, title: 'New', slug: 'taken' })).rejects.toThrow(ShowSlugError)
-    expect(await getRow(show.id)).toMatchObject({ title: 'Old', slug: 'mine' })
+    const show = await insertShow(user.id, { slug: 'mine' })
+    expect(await updateShow(user.id, { id: show.id, title: 'T', slug: 'taken' })).toBe(true)
+  })
+
+  it('redirects from the old slug, and can go back to it', async () => {
+    const user = await createUser()
+    const show = await insertShow(user.id, { slug: 'old' })
+    const old = { ownerSlug: user.slug, slug: 'old' }
+    expect(await movedShow(old)).toBeNull()
+    await updateShow(user.id, { id: show.id, title: 'T', slug: 'new' })
+    expect(await movedShow(old)).toEqual({ ownerSlug: user.slug, slug: 'new' })
+    await updateShow(user.id, { id: show.id, title: 'T', slug: 'newer' })
+    expect(await movedShow(old)).toEqual({ ownerSlug: user.slug, slug: 'newer' })
+    expect(await movedShow({ ownerSlug: user.slug, slug: 'new' })).toEqual({ ownerSlug: user.slug, slug: 'newer' })
+    await updateShow(user.id, { id: show.id, title: 'T', slug: 'old' })
+    expect(await movedShow(old)).toBeNull()
+    expect(await movedShow({ ownerSlug: user.slug, slug: 'newer' })).toEqual(old)
+    // Another owner's slug of the same name is nothing to do with it.
+    expect(await movedShow({ ownerSlug: (await createUser()).slug, slug: 'new' })).toBeNull()
+  })
+
+  it("follows its owner's new slug", async () => {
+    const user = await createUser({ slug: 'ada' })
+    await insertShow(user.id, { slug: 'show' })
+    expect(await updateProfile(user.id, { name: null, slug: 'ada-l' })).toBe(true)
+    expect(await movedShow({ ownerSlug: 'ada', slug: 'show' })).toEqual({ ownerSlug: 'ada-l', slug: 'show' })
+    expect(await movedShow({ ownerSlug: 'ada-l', slug: 'show' })).toBeNull()
+    expect(await movedShow({ ownerSlug: 'ada', slug: 'nope' })).toBeNull()
   })
 
   it('keeps its own slug when given it again', async () => {
@@ -206,7 +256,7 @@ describe('getPublicShow', () => {
   it('finds any show by slug, with its author', async () => {
     const user = await createUser({ name: 'Ada' })
     const show = await insertShow(user.id, { slug: 'show', title: 'Show', category: 'Music' })
-    expect(await getPublicShow('show', null)).toEqual({
+    expect(await getPublicShow({ ownerSlug: user.slug, slug: 'show' }, null)).toEqual({
       id: show.id,
       userId: user.id,
       title: 'Show',
@@ -227,32 +277,37 @@ describe('getPublicShow', () => {
   })
 
   it("prefers the show's own author to the owner's name", async () => {
-    await insertShow((await createUser({ name: 'Ada' })).id, { slug: 'show', author: 'The Show Team' })
-    expect(await getPublicShow('show', null)).toMatchObject({ author: 'The Show Team' })
+    const show = await insertShow((await createUser({ name: 'Ada' })).id, { slug: 'show', author: 'The Show Team' })
+    expect(await getPublicShow({ id: show.id }, null)).toMatchObject({ author: 'The Show Team' })
   })
 
   it('shows private shows only to their owner', async () => {
     const owner = await createUser()
+    const secret = { ownerSlug: owner.slug, slug: 'secret' }
     await insertShow(owner.id, { slug: 'secret', private: true })
-    expect(await getPublicShow('secret', owner.id)).toMatchObject({ slug: 'secret', private: true })
-    expect(await getPublicShow('secret', null)).toBeNull()
-    expect(await getPublicShow('secret', (await createUser()).id)).toBeNull()
+    expect(await getPublicShow(secret, owner.id)).toMatchObject({ slug: 'secret', private: true })
+    expect(await getPublicShow(secret, null)).toBeNull()
+    expect(await getPublicShow(secret, (await createUser()).id)).toBeNull()
   })
 
   it("doesn't use a private episode's artwork", async () => {
     const show = await insertShow((await createUser()).id, { slug: 'show' })
     await createEpisode(show.id, { status: 'ready', imageUrl: '/images/hidden.jpg', private: true })
-    expect((await getPublicShow('show', null))!.imageUrl).toBeNull()
+    expect((await getPublicShow({ id: show.id }, null))!.imageUrl).toBeNull()
   })
 
   it("falls back to a ready episode's artwork", async () => {
     const show = await insertShow((await createUser()).id, { slug: 'show' })
     await createEpisode(show.id, { status: 'ready', imageUrl: '/images/ep.jpg' })
-    expect((await getPublicShow('show', null))!.imageUrl).toBe('/images/ep.jpg')
+    expect((await getPublicShow({ id: show.id }, null))!.imageUrl).toBe('/images/ep.jpg')
   })
 
-  it('returns null for an unknown slug', async () => {
-    expect(await getPublicShow('nope', null)).toBeNull()
+  it('returns null for an unknown address', async () => {
+    const user = await createUser()
+    await insertShow(user.id, { slug: 'show' })
+    expect(await getPublicShow({ ownerSlug: user.slug, slug: 'nope' }, null)).toBeNull()
+    // Show slugs are only unique per owner.
+    expect(await getPublicShow({ ownerSlug: (await createUser()).slug, slug: 'show' }, null)).toBeNull()
   })
 })
 
@@ -356,7 +411,7 @@ describe('updateShowTheme', () => {
     // Only the values the site uses are kept, and its fonts are downloaded first.
     expect((await getRow(show.id)).theme).toEqual(theme)
     expect(prepareFonts).toHaveBeenCalledWith(['Inter', 'Source Serif 4', 'JetBrains Mono'])
-    expect(await getPublicShow('show', null)).toMatchObject({ theme })
+    expect(await getPublicShow({ id: show.id }, null)).toMatchObject({ theme })
     expect(await updateShowTheme(user.id, { id: show.id, theme: null })).toBe(true)
     expect((await getRow(show.id)).theme).toBeNull()
   })

@@ -24,22 +24,22 @@ const readyEpisode = (values: Parameters<typeof createEpisode>[1] = {}) => ({
 })
 
 describe('feedPath', () => {
-  it('is /feed/<slug>', () => {
-    expect(feedPath('my-show')).toBe('/feed/my-show')
+  it('is under the show, /<owner>/<show>/feed', () => {
+    expect(feedPath({ ownerSlug: 'ada', slug: 'my-show' })).toBe('/ada/my-show/feed')
   })
 
   it("carries a private show's feed key", () => {
-    expect(feedPath('my-show', 'k3y')).toBe('/feed/my-show?key=k3y')
+    expect(feedPath({ ownerSlug: 'ada', slug: 'my-show' }, 'k3y')).toBe('/ada/my-show/feed?key=k3y')
   })
 })
 
 describe('buildShowFeed', () => {
   it('returns null for an unknown slug', async () => {
-    expect(await buildShowFeed('nope', origin)).toBeNull()
+    expect(await buildShowFeed({ ownerSlug: 'ada', slug: 'nope' }, origin)).toBeNull()
   })
 
   it('describes the show with the iTunes tags podcast apps expect', async () => {
-    const user = await createUser({ name: 'Ada & Co' })
+    const user = await createUser({ name: 'Ada & Co', slug: 'ada' })
     await createShow(user.id, {
       slug: 'show',
       title: 'The <Show>',
@@ -49,13 +49,13 @@ describe('buildShowFeed', () => {
       language: 'en-ie',
       explicit: true,
     })
-    const xml = (await buildShowFeed('show', origin))!
+    const xml = (await buildShowFeed({ ownerSlug: 'ada', slug: 'show' }, origin))!
     expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true)
     const doc = await parseFeed(xml)
     const channel = doc.querySelector('channel')!
     const text = (name: string) => channel.getElementsByTagName(name)[0]?.textContent
     expect(text('title')).toBe('The <Show>')
-    expect(text('link')).toBe(`${origin}/show`)
+    expect(text('link')).toBe(`${origin}/ada/show`)
     expect(text('description')).toBe('<p>About &amp; more</p>')
     expect(text('itunes:summary')).toBe('About & more')
     expect(text('language')).toBe('en-ie')
@@ -64,33 +64,33 @@ describe('buildShowFeed', () => {
     expect(text('itunes:type')).toBe('episodic')
     expect(channel.getElementsByTagName('itunes:category')[0]!.getAttribute('text')).toBe('Music')
     expect(channel.getElementsByTagName('itunes:image')[0]!.getAttribute('href')).toBe(`${origin}/images/art.jpg`)
-    expect(channel.getElementsByTagName('atom:link')[0]!.getAttribute('href')).toBe(`${origin}/feed/show`)
+    expect(channel.getElementsByTagName('atom:link')[0]!.getAttribute('href')).toBe(`${origin}/ada/show/feed`)
     expect(channel.getElementsByTagName('itunes:block')).toHaveLength(0)
   })
 
   it('nests the subcategory in the category', async () => {
-    await createShow((await createUser()).id, { slug: 'show', category: 'TV & Film', subcategory: 'Film Reviews' })
-    const xml = (await buildShowFeed('show', origin))!
+    await createShow((await createUser({ slug: 'ada' })).id, { slug: 'show', category: 'TV & Film', subcategory: 'Film Reviews' })
+    const xml = (await buildShowFeed({ ownerSlug: 'ada', slug: 'show' }, origin))!
     expect(xml).toContain('<itunes:category text="TV &amp; Film"><itunes:category text="Film Reviews"/></itunes:category>')
     await parseFeed(xml)
   })
 
   it("uses the show's own author over the owner's name", async () => {
-    await createShow((await createUser({ name: 'Ada' })).id, { slug: 'show', author: 'The Show Team' })
-    const doc = await parseFeed((await buildShowFeed('show', origin))!)
+    await createShow((await createUser({ name: 'Ada', slug: 'ada' })).id, { slug: 'show', author: 'The Show Team' })
+    const doc = await parseFeed((await buildShowFeed({ ownerSlug: 'ada', slug: 'show' }, origin))!)
     expect(doc.getElementsByTagName('itunes:author')[0]!.textContent).toBe('The Show Team')
   })
 
   it('names the owner, and locks the feed to them, only when they give an email', async () => {
-    const user = await createUser({ name: 'Ada' })
+    const user = await createUser({ name: 'Ada', slug: 'ada' })
     await createShow(user.id, { slug: 'open' })
     await createShow(user.id, { slug: 'owned', ownerEmail: 'ada@example.com' })
 
-    const open = await parseFeed((await buildShowFeed('open', origin))!)
+    const open = await parseFeed((await buildShowFeed({ ownerSlug: 'ada', slug: 'open' }, origin))!)
     expect(open.getElementsByTagName('itunes:owner')).toHaveLength(0)
     expect(open.getElementsByTagName('podcast:locked')[0]!.textContent).toBe('no')
 
-    const owned = await parseFeed((await buildShowFeed('owned', origin))!)
+    const owned = await parseFeed((await buildShowFeed({ ownerSlug: 'ada', slug: 'owned' }, origin))!)
     const owner = owned.getElementsByTagName('itunes:owner')[0]!
     expect(owner.getElementsByTagName('itunes:name')[0]!.textContent).toBe('Ada')
     expect(owner.getElementsByTagName('itunes:email')[0]!.textContent).toBe('ada@example.com')
@@ -99,66 +99,66 @@ describe('buildShowFeed', () => {
     expect(locked.getAttribute('owner')).toBe('ada@example.com')
   })
 
-  it("gives the feed a podcast:guid from its URL", async () => {
-    await createShow((await createUser()).id, { slug: 'show' })
-    const doc = await parseFeed((await buildShowFeed('show', origin))!)
-    expect(doc.getElementsByTagName('podcast:guid')[0]!.textContent).toBe(podcastGuid(`${origin}/feed/show`))
+  it("gives the feed the show's podcast:guid, made once", async () => {
+    const show = await createShow((await createUser({ slug: 'ada' })).id, { slug: 'show' })
+    const doc = await parseFeed((await buildShowFeed({ ownerSlug: 'ada', slug: 'show' }, origin))!)
+    expect(doc.getElementsByTagName('podcast:guid')[0]!.textContent).toBe(show.podcastGuid)
   })
 
   it('falls back to the title as description when there is none', async () => {
-    await createShow((await createUser()).id, { slug: 'show', title: 'Title only' })
-    const doc = await parseFeed((await buildShowFeed('show', origin))!)
+    await createShow((await createUser({ slug: 'ada' })).id, { slug: 'show', title: 'Title only' })
+    const doc = await parseFeed((await buildShowFeed({ ownerSlug: 'ada', slug: 'show' }, origin))!)
     expect(doc.querySelector('channel > description')!.textContent).toBe('Title only')
   })
 
   it('serves private shows only with their feed key', async () => {
-    await createShow((await createUser()).id, { slug: 'secret', private: true, feedKey: 'k3y' })
-    expect(await buildShowFeed('secret', origin)).toBeNull()
-    expect(await buildShowFeed('secret', origin, { key: 'wrong' })).toBeNull()
-    expect(await buildShowFeed('secret', origin, { key: 'k3y' })).not.toBeNull()
+    await createShow((await createUser({ slug: 'ada' })).id, { slug: 'secret', private: true, feedKey: 'k3y' })
+    expect(await buildShowFeed({ ownerSlug: 'ada', slug: 'secret' }, origin)).toBeNull()
+    expect(await buildShowFeed({ ownerSlug: 'ada', slug: 'secret' }, origin, { key: 'wrong' })).toBeNull()
+    expect(await buildShowFeed({ ownerSlug: 'ada', slug: 'secret' }, origin, { key: 'k3y' })).not.toBeNull()
   })
 
   it("doesn't serve a private show that has no feed key", async () => {
-    await createShow((await createUser()).id, { slug: 'secret', private: true })
-    expect(await buildShowFeed('secret', origin)).toBeNull()
-    expect(await buildShowFeed('secret', origin, { key: '' })).toBeNull()
+    await createShow((await createUser({ slug: 'ada' })).id, { slug: 'secret', private: true })
+    expect(await buildShowFeed({ ownerSlug: 'ada', slug: 'secret' }, origin)).toBeNull()
+    expect(await buildShowFeed({ ownerSlug: 'ada', slug: 'secret' }, origin, { key: '' })).toBeNull()
   })
 
   it("blocks private shows from directories, with the key on its own and its audio's links", async () => {
-    const show = await createShow((await createUser()).id, { slug: 'secret', private: true, feedKey: 'k3y' })
+    const show = await createShow((await createUser({ slug: 'ada' })).id, { slug: 'secret', private: true, feedKey: 'k3y' })
     await createEpisode(show.id, readyEpisode({ audioUrl: '/api/episodes/x/audio?v=2' }))
-    const doc = await parseFeed((await buildShowFeed('secret', origin, { key: 'k3y' }))!)
+    const doc = await parseFeed((await buildShowFeed({ ownerSlug: 'ada', slug: 'secret' }, origin, { key: 'k3y' }))!)
     expect(doc.getElementsByTagName('itunes:block')[0]!.textContent).toBe('Yes')
-    expect(doc.getElementsByTagName('atom:link')[0]!.getAttribute('href')).toBe(`${origin}/feed/secret?key=k3y`)
+    expect(doc.getElementsByTagName('atom:link')[0]!.getAttribute('href')).toBe(`${origin}/ada/secret/feed?key=k3y`)
     expect(doc.querySelector('enclosure')!.getAttribute('url')).toBe(`${origin}/api/episodes/x/audio?v=2&key=k3y`)
     // The id stays the same when the key is reset.
-    expect(doc.getElementsByTagName('podcast:guid')[0]!.textContent).toBe(podcastGuid(`${origin}/feed/secret`))
+    expect(doc.getElementsByTagName('podcast:guid')[0]!.textContent).toBe(show.podcastGuid)
   })
 
   it('leaves out private episodes', async () => {
-    const show = await createShow((await createUser()).id, { slug: 'show' })
+    const show = await createShow((await createUser({ slug: 'ada' })).id, { slug: 'show' })
     await createEpisode(show.id, readyEpisode({ title: 'Public' }))
     await createEpisode(show.id, readyEpisode({ title: 'Hidden', private: true }))
-    const doc = await parseFeed((await buildShowFeed('show', origin))!)
+    const doc = await parseFeed((await buildShowFeed({ ownerSlug: 'ada', slug: 'show' }, origin))!)
     const titles = [...doc.querySelectorAll('item')].map((item) => item.getElementsByTagName('title')[0]!.textContent)
     expect(titles).toEqual(['Public'])
   })
 
   it('lists only ready episodes with audio, newest first', async () => {
-    const show = await createShow((await createUser()).id, { slug: 'show' })
+    const show = await createShow((await createUser({ slug: 'ada' })).id, { slug: 'show' })
     await createEpisode(show.id, readyEpisode({ title: 'Older', publishedAt: new Date('2026-01-01T00:00:00Z') }))
     await createEpisode(show.id, readyEpisode({ title: 'Newer', publishedAt: new Date('2026-02-01T00:00:00Z') }))
     await createEpisode(show.id, { title: 'Pending', status: 'pending' })
     await createEpisode(show.id, { title: 'Failed', status: 'failed' })
     await createEpisode(show.id, { title: 'Ready, no audio', status: 'ready' })
-    const doc = await parseFeed((await buildShowFeed('show', origin))!)
+    const doc = await parseFeed((await buildShowFeed({ ownerSlug: 'ada', slug: 'show' }, origin))!)
     const titles = [...doc.querySelectorAll('item')].map((item) => item.getElementsByTagName('title')[0]!.textContent)
     expect(titles).toEqual(['Newer', 'Older'])
     expect(doc.getElementsByTagName('lastBuildDate')[0]!.textContent).toBe('Sun, 01 Feb 2026 00:00:00 GMT')
   })
 
   it('describes each episode and its enclosure', async () => {
-    const show = await createShow((await createUser()).id, { slug: 'show' })
+    const show = await createShow((await createUser({ slug: 'ada' })).id, { slug: 'show' })
     const episode = await createEpisode(
       show.id,
       readyEpisode({
@@ -169,13 +169,13 @@ describe('buildShowFeed', () => {
         publishedAt: new Date('2026-03-04T05:06:07Z'),
       }),
     )
-    const doc = await parseFeed((await buildShowFeed('show', origin))!)
+    const doc = await parseFeed((await buildShowFeed({ ownerSlug: 'ada', slug: 'show' }, origin))!)
     const item = doc.querySelector('item')!
     const text = (name: string) => item.getElementsByTagName(name)[0]?.textContent
     expect(text('title')).toBe('Ep "1"')
     expect(text('description')).toBe('<p>Line<br>two</p>')
     expect(text('itunes:summary')).toBe('Line\ntwo')
-    expect(text('link')).toBe(`${origin}/show/${episode.slug}`)
+    expect(text('link')).toBe(`${origin}/ada/show/${episode.slug}`)
     expect(text('guid')).toBe(episode.id)
     expect(item.getElementsByTagName('guid')[0]!.getAttribute('isPermaLink')).toBe('false')
     expect(text('pubDate')).toBe('Wed, 04 Mar 2026 05:06:07 GMT')
@@ -188,28 +188,28 @@ describe('buildShowFeed', () => {
   })
 
   it('dates unpublished episodes by when they were created', async () => {
-    const show = await createShow((await createUser()).id, { slug: 'show' })
+    const show = await createShow((await createUser({ slug: 'ada' })).id, { slug: 'show' })
     await createEpisode(show.id, readyEpisode({ createdAt: new Date('2026-05-06T07:08:09Z') }))
-    const doc = await parseFeed((await buildShowFeed('show', origin))!)
+    const doc = await parseFeed((await buildShowFeed({ ownerSlug: 'ada', slug: 'show' }, origin))!)
     expect(doc.querySelector('item pubDate')!.textContent).toBe('Wed, 06 May 2026 07:08:09 GMT')
   })
 
   it("uses an episode's artwork when the show has none", async () => {
-    const show = await createShow((await createUser()).id, { slug: 'show' })
+    const show = await createShow((await createUser({ slug: 'ada' })).id, { slug: 'show' })
     await createEpisode(show.id, readyEpisode({ imageUrl: '/images/ep.jpg' }))
-    const doc = await parseFeed((await buildShowFeed('show', origin))!)
+    const doc = await parseFeed((await buildShowFeed({ ownerSlug: 'ada', slug: 'show' }, origin))!)
     expect(doc.querySelector('channel > image > url')!.textContent).toBe(`${origin}/images/ep.jpg`)
   })
 
   it('keeps absolute artwork URLs as they are', async () => {
-    await createShow((await createUser()).id, { slug: 'show', imageUrl: 'https://cdn.example/art.jpg' })
-    expect(await buildShowFeed('show', origin)).toContain('href="https://cdn.example/art.jpg"')
+    await createShow((await createUser({ slug: 'ada' })).id, { slug: 'show', imageUrl: 'https://cdn.example/art.jpg' })
+    expect(await buildShowFeed({ ownerSlug: 'ada', slug: 'show' }, origin)).toContain('href="https://cdn.example/art.jpg"')
   })
 
   it('escapes text that would break the XML', async () => {
-    const show = await createShow((await createUser()).id, { slug: 'show', title: `A & B's <"show">` })
+    const show = await createShow((await createUser({ slug: 'ada' })).id, { slug: 'show', title: `A & B's <"show">` })
     await createEpisode(show.id, readyEpisode({ title: ']]></title><script>' }))
-    const xml = (await buildShowFeed('show', origin))!
+    const xml = (await buildShowFeed({ ownerSlug: 'ada', slug: 'show' }, origin))!
     expect(xml).not.toContain('<script>')
     const doc = await parseFeed(xml)
     expect(doc.querySelector('channel > title')!.textContent).toBe(`A & B's <"show">`)

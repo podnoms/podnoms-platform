@@ -132,7 +132,7 @@ function CommentBody({ body, mentions }: { body: string; mentions: CommentMentio
         const user = mentions[part]
         if (!user) return <Fragment key={index}>{`<@${part}>`}</Fragment>
         return (
-          <Link key={index} to="/u/$slug" params={{ slug: user.slug }} className="font-medium text-primary hover:underline">
+          <Link key={index} to="/$user" params={{ user: user.slug }} className="font-medium text-primary hover:underline">
             @{user.slug}
           </Link>
         )
@@ -347,7 +347,7 @@ function CommentItem({
       id={`comment-${comment.id}`}
       className={cn('group flex scroll-mt-20 gap-3 rounded-lg px-2 py-3 transition-colors', current && 'bg-primary/10')}
     >
-      <Link to="/u/$slug" params={{ slug: comment.author.slug }} className="shrink-0" tabIndex={-1}>
+      <Link to="/$user" params={{ user: comment.author.slug }} className="shrink-0" tabIndex={-1}>
         <Avatar className={isReply ? 'size-6' : 'size-8'}>
           {comment.author.image && <AvatarImage src={imageSrc(comment.author.image, 32)} alt="" />}
           <AvatarFallback className="text-xs">{initials(comment.author.name, null)}</AvatarFallback>
@@ -355,7 +355,7 @@ function CommentItem({
       </Link>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
-          <Link to="/u/$slug" params={{ slug: comment.author.slug }} className="font-medium hover:underline">
+          <Link to="/$user" params={{ user: comment.author.slug }} className="font-medium hover:underline">
             {name}
           </Link>
           {!isReply && (

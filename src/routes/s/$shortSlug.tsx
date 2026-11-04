@@ -7,7 +7,7 @@ import { episodeHeadOptions, PublicEpisode } from '~/components/public-episode'
 import { TwoFactorDialog } from '~/components/two-factor-dialog'
 import { fetchSharePage } from '~/functions/public'
 import { reportTrackedLinkVisit } from '~/lib/activity'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { isCustomDomain } from '~/lib/current-domain'
 import { publicPageHead } from '~/lib/page-meta'
 import { themeHead } from '~/lib/theme-css'
 import { brandingFrom, useBranding } from '~/lib/branding'
@@ -41,7 +41,7 @@ function SharePage() {
   const trackedLink = useTrackedLink(page.episode.id)
   const branding = useBranding()
   // A show's own domain stands alone: no credit to the site, and no signing in.
-  const onDomain = Boolean(currentDomainSlug())
+  const onDomain = isCustomDomain()
   return (
     <PlayerProvider signedIn={Boolean(session)} source="listen" trackedLink={trackedLink}>
       <div className="flex min-h-dvh flex-col">

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { normalizeDomain } from '~/lib/custom-domain'
-import { reservedShowSlugs } from '~/lib/paths'
+import { reservedShowSlugs, type ShowRef } from '~/lib/paths'
 import { tagNamesSchema } from '~/lib/tag-schema'
 import { siteThemeSchema } from '~/lib/theme-schema'
 import {
@@ -49,7 +49,8 @@ export const descriptionHtml = z.string().max(20000, 'That description is too lo
 // use, null to remove the image, or left out to keep it.
 export const imageChange = z.uuid().nullable().optional()
 
-// A show's slug, which its page and feed are addressed by (/<slug>).
+// A show's slug, which its page and feed are addressed by (/<owner>/<slug>):
+// unique among its owner's shows.
 export const showSlugField = z
   .string()
   .trim()
@@ -58,6 +59,13 @@ export const showSlugField = z
   .max(60, 'Keep the address under 60 characters')
   .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Use only letters, numbers and single hyphens between them')
   .refine((slug) => !reservedShowSlugs.has(slug), "That address is one of the site's own pages")
+
+// A show's address, as its pages' routes have it (/$user/$show).
+export const showAddressSchema = z.object({ user: z.string().min(1), show: z.string().min(1) })
+
+export function asShowRef(address: z.infer<typeof showAddressSchema>): ShowRef {
+  return { ownerSlug: address.user.toLowerCase(), slug: address.show.toLowerCase() }
+}
 
 export const editShowSchema = z.object({
   id: z.string().min(1),

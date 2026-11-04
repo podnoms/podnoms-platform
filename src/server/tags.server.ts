@@ -2,7 +2,7 @@ import '@tanstack/react-start/server-only'
 import { and, count, desc, eq, sql } from 'drizzle-orm'
 import type { TagSort } from '~/lib/tag-schema'
 import { db } from '~/server/db/client.server'
-import { episodeLikes, episodes, episodeTags, playbackPositions, shows, showTags } from '~/server/db/schema'
+import { episodeLikes, episodes, episodeTags, playbackPositions, shows, showTags, users } from '~/server/db/schema'
 import { isListed, likeCount, listenerEpisodeColumns, listenerPosition, newestPublishedFirst, type Page } from '~/server/episodes.server'
 import { popularDays } from '~/server/library.server'
 import { withEpisodeTags } from '~/server/tags-store.server'
@@ -42,11 +42,13 @@ export async function listTagEpisodes(tagId: string, viewerId: string | null, so
     ...listenerEpisodeColumns(viewerId),
     show: {
       slug: shows.slug,
+      ownerSlug: users.slug,
       title: shows.title,
       imageUrl: shows.imageUrl,
       userId: shows.userId,
     },
   }).from(episodes).innerJoin(shows, eq(shows.id, episodes.showId))
+    .innerJoin(users, eq(users.id, shows.userId))
     .leftJoin(playbackPositions, listenerPosition(viewerId))
     .where(taggedPublicEpisode(tagId))
     .orderBy(...(sort === 'popular' ? [desc(recentLikes), desc(likeCount)] : []), newestPublishedFirst, desc(episodes.id))

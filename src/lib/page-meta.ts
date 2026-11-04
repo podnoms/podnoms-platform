@@ -1,5 +1,5 @@
 import { brandOgImageUrl, type Branding } from '~/lib/branding'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { isCustomDomain } from '~/lib/current-domain'
 import { htmlToText } from '~/lib/rich-text'
 
 type Image = { url: string; width?: number; height?: number; type?: string }
@@ -37,7 +37,7 @@ export function publicPageHead(page: {
   noindex: boolean
 }) {
   const text = (page.description && htmlToText(page.description).replace(/\s+/g, ' ').trim()) || page.fallbackDescription
-  const onDomain = Boolean(currentDomainSlug())
+  const onDomain = isCustomDomain()
   const documentTitle = page.documentTitle ?? page.title
   const meta = [
     { title: onDomain ? documentTitle : `${documentTitle} · ${page.site.name}` },

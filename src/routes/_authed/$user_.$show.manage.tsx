@@ -42,11 +42,12 @@ import { formatDate, formatLength, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { isReady } from '~/lib/podcast-directories'
 import { htmlToText } from '~/lib/rich-text'
+import { showParams } from '~/lib/paths'
 import { cn } from '~/lib/utils'
 import { pageTitle, useBranding } from '~/lib/branding'
 
-export const Route = createFileRoute('/_authed/$slug/manage')({
-  loader: ({ params }) => fetchMyShow({ data: { slug: params.slug } }),
+export const Route = createFileRoute('/_authed/$user_/$show/manage')({
+  loader: ({ params }) => fetchMyShow({ data: params }),
   head: ({ loaderData, matches }) => ({ meta: loaderData ? [{ title: pageTitle(matches, loaderData.title) }] : [] }),
   component: ShowPage,
 })
@@ -57,8 +58,8 @@ function ShowPage() {
   const router = useRouter()
   const navigate = useNavigate()
   // Going live (from OBS) brings the owner to the live page, to watch and chat.
-  const broadcasting = useLiveStart(show.slug, show.liveEnabled, show.live, () =>
-    navigate({ to: '/live/$slug', params: { slug: show.slug } }),
+  const broadcasting = useLiveStart(show.id, show.liveEnabled, show.live, () =>
+    navigate({ to: '/$user/$show/live', params: showParams(show) }),
   )
   const [editing, setEditing] = useState(false)
   const [tab, setTab] = useState('episodes')
@@ -66,15 +67,15 @@ function ShowPage() {
   const { summary } = show
   const { totalSeconds, latestAt } = summary
   const { episodes: loaded, ...more } = useEpisodePages({
-    showSlug: show.slug,
+    showKey: show.id,
     first: show.episodes,
     total: summary.count,
-    fetchMore: (offset, limit) => fetchMyShowEpisodes({ data: { slug: show.slug, offset, limit } }),
+    fetchMore: (offset, limit) => fetchMyShowEpisodes({ data: { showId: show.id, offset, limit } }),
   })
   // Follow the show's episodes live (rather than polling) and reload the
   // page when one's details change or one is added, whether by a channel
   // check, the browser extension or another tab.
-  const live = useLiveProgress(show.slug, true, show, () =>
+  const live = useLiveProgress(show.id, true, show, () =>
     router.invalidate({ filter: (match) => match.routeId === Route.id }),
   )
   const episodes = loaded.map((episode) => withLiveProgress(episode, live))
@@ -162,7 +163,7 @@ function ShowPage() {
                   <span className="max-md:sr-only">Edit</span>
                 </Button>
                 <Button variant="outline" className={iconOnMobile} asChild>
-                  <Link to="/$slug" target='_blank' params={{ slug: show.slug }} >
+                  <Link to="/$user/$show" target="_blank" params={showParams(show)}>
                     <Icons.externalLink />
                     <span className="max-md:sr-only">Public page</span>
                   </Link>
@@ -243,7 +244,7 @@ function ShowPage() {
               ) : (
                 <ItemGroup className="gap-3">
                   {episodes.map((episode) => (
-                    <EpisodeRow key={episode.id} episode={episode} showSlug={show.slug} showTitle={show.title} />
+                    <EpisodeRow key={episode.id} episode={episode} show={show} showTitle={show.title} />
                   ))}
                 </ItemGroup>
               )}
@@ -322,7 +323,14 @@ function ShowPage() {
         onOpenChange={setEditing}
         heading="Edit show"
         description="Changes show in podcast apps the next time they check the feed."
-        details={{ title: show.title, description: show.description, imageUrl: show.imageUrl, tags: show.tags, slug: show.slug }}
+        details={{
+          title: show.title,
+          description: show.description,
+          imageUrl: show.imageUrl,
+          tags: show.tags,
+          slug: show.slug,
+          slugPrefix: `${show.ownerSlug}/`,
+        }}
         maxTitleLength={100}
         addressHint={
           show.customDomainTarget && (
@@ -345,7 +353,7 @@ function ShowPage() {
           const result = await updateMyShow({ data: { id: show.id, ...change } })
           if (result.error) return result.error
           // To the new address first, as the old one has gone.
-          if (change.slug) await navigate({ to: '/$slug/manage', params: { slug: change.slug }, replace: true })
+          if (change.slug) await navigate({ to: '/$user/$show/manage', params: showParams({ ...show, slug: change.slug }), replace: true })
           // The sidebar's shows are reloaded too, for their links.
           await router.invalidate()
         }}

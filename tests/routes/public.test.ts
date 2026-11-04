@@ -4,11 +4,13 @@ import { dirname } from 'node:path'
 import sharp from 'sharp'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Route as AudioRoute } from '~/routes/api/episodes/$id/audio'
-import { Route as FeedRoute } from '~/routes/feed/$slug'
+import { Route as FeedRoute } from '~/routes/$user_.$show_.feed'
 import { Route as ImageRoute } from '~/routes/images/$file'
-import { Route as ListenRoute } from '~/routes/listen/$slug.$episodeSlug'
+import { Route as OldProfileRoute } from '~/routes/u.$'
 import { getSession } from '~/server/auth.server'
 import { findShortLink } from '~/server/episodes.server'
+import { updateShow } from '~/server/shows.server'
+import { updateProfile } from '~/server/users.server'
 import { episodeAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import { callRoute, createEpisode, createShow, createUser, db, storeTestImage } from '../helpers'
@@ -159,32 +161,73 @@ describe('GET /images/:file', () => {
   })
 })
 
-describe('GET /feed/:slug', () => {
+describe('GET /:user/:show/feed', () => {
+  const get = (user: string, show: string, search = '') =>
+    callRoute(FeedRoute, 'GET', new Request(`https://pods.example/${user}/${show}/feed${search}`), { user, show })
+
   it('serves the RSS feed with absolute URLs for the request origin', async () => {
-    await createShow((await createUser()).id, { slug: 'show', title: 'Show' })
-    const response = await callRoute(FeedRoute, 'GET', new Request('https://pods.example/feed/show'), { slug: 'show' })
+    await createShow((await createUser({ slug: 'ada' })).id, { slug: 'show', title: 'Show' })
+    const response = await get('ada', 'show')
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('application/rss+xml; charset=utf-8')
     expect(response.headers.get('cache-control')).toBe('public, max-age=300')
     const xml = await response.text()
-    expect(xml).toContain('<atom:link href="https://pods.example/feed/show"')
-    expect(xml).toContain('<link>https://pods.example/show</link>')
+    expect(xml).toContain('<atom:link href="https://pods.example/ada/show/feed"')
+    expect(xml).toContain('<link>https://pods.example/ada/show</link>')
   })
 
-  it('is 404 for unknown shows', async () => {
-    const response = await callRoute(FeedRoute, 'GET', new Request('https://pods.example/feed/nope'), { slug: 'nope' })
-    expect(response.status).toBe(404)
+  it('is 404 for unknown shows, and for a show under someone else', async () => {
+    await createShow((await createUser({ slug: 'ada' })).id, { slug: 'show' })
+    await createUser({ slug: 'bob' })
+    expect((await get('ada', 'nope')).status).toBe(404)
+    expect((await get('bob', 'show')).status).toBe(404)
+    expect((await get('nobody', 'show')).status).toBe(404)
+  })
+
+  it('serves two owners\' shows with the same slug apart', async () => {
+    await createShow((await createUser({ slug: 'ada' })).id, { slug: 'show', title: "Ada's" })
+    await createShow((await createUser({ slug: 'bob' })).id, { slug: 'show', title: "Bob's" })
+    expect(await (await get('ada', 'show')).text()).toContain('<title>Ada&apos;s</title>')
+    expect(await (await get('bob', 'show')).text()).toContain('<title>Bob&apos;s</title>')
   })
 
   it("serves a private show's feed only with its key", async () => {
-    await createShow((await createUser()).id, { slug: 'secret', private: true, feedKey: 'k3y' })
-    const get = (search: string) =>
-      callRoute(FeedRoute, 'GET', new Request(`https://pods.example/feed/secret${search}`), { slug: 'secret' })
-    expect((await get('')).status).toBe(404)
-    expect((await get('?key=wrong')).status).toBe(404)
-    const response = await get('?key=k3y')
+    await createShow((await createUser({ slug: 'ada' })).id, { slug: 'secret', private: true, feedKey: 'k3y' })
+    expect((await get('ada', 'secret')).status).toBe(404)
+    expect((await get('ada', 'secret', '?key=wrong')).status).toBe(404)
+    const response = await get('ada', 'secret', '?key=k3y')
     expect(response.status).toBe(200)
-    expect(await response.text()).toContain('<atom:link href="https://pods.example/feed/secret?key=k3y"')
+    expect(await response.text()).toContain('<atom:link href="https://pods.example/ada/secret/feed?key=k3y"')
+  })
+
+  it('redirects for good when the owner or the show gets a new slug, keeping the key and guid', async () => {
+    const user = await createUser({ slug: 'ada' })
+    const show = await createShow(user.id, { slug: 'show', private: true, feedKey: 'k3y' })
+    expect(await updateProfile(user.id, { name: null, slug: 'ada-l' })).toBe(true)
+    let response = await get('ada', 'show', '?key=k3y')
+    expect(response.status).toBe(301)
+    expect(response.headers.get('location')).toBe('/ada-l/show/feed?key=k3y')
+
+    expect(await updateShow(user.id, { id: show.id, title: 'Show', slug: 'renamed' })).toBe(true)
+    for (const [owner, slug] of [['ada', 'show'], ['ada-l', 'show'], ['ada', 'renamed']]) {
+      response = await get(owner!, slug!, '?key=k3y')
+      expect(response.status).toBe(301)
+      expect(response.headers.get('location')).toBe('/ada-l/renamed/feed?key=k3y')
+    }
+    const xml = await (await get('ada-l', 'renamed', '?key=k3y')).text()
+    expect(xml).toContain(`<podcast:guid>${show.podcastGuid}</podcast:guid>`)
+    // The key is still checked at the new address.
+    expect((await get('ada-l', 'renamed')).status).toBe(404)
+  })
+})
+
+describe('GET /u/*', () => {
+  it('sends old profile and playlist addresses to where they are now, for good', async () => {
+    for (const [splat, location] of [['ada', '/ada'], ['ada/playlists/mix', '/ada/playlists/mix']] as const) {
+      const response = await callRoute(OldProfileRoute, 'GET', new Request(`https://pods.example/u/${splat}?x=1`), { _splat: splat })
+      expect(response.status).toBe(301)
+      expect(response.headers.get('location')).toBe(`${location}?x=1`)
+    }
   })
 })
 
@@ -192,7 +235,7 @@ describe('share pages', () => {
   it("find a published episode by its short slug", async () => {
     const show = await createShow((await createUser()).id, { slug: 'my-show' })
     const episode = await createEpisode(show.id, { slug: 'first', status: 'ready', audioUrl: '/api/episodes/x/audio' })
-    expect(await findShortLink(episode.shortSlug)).toEqual({ slug: 'my-show', episodeSlug: 'first' })
+    expect(await findShortLink(episode.shortSlug)).toEqual({ showId: show.id, episodeSlug: 'first' })
   })
 
   it("find nothing for an episode that isn't ready, or doesn't exist", async () => {
@@ -200,35 +243,5 @@ describe('share pages', () => {
     const episode = await createEpisode(show.id, { status: 'processing' })
     expect(await findShortLink(episode.shortSlug)).toBeNull()
     expect(await findShortLink('nosuchep')).toBeNull()
-  })
-})
-
-describe('GET /listen/:slug/:episodeSlug', () => {
-  const get = (slug: string, episodeSlug: string, search = '') =>
-    callRoute(ListenRoute, 'GET', new Request(`http://x/listen/${slug}/${episodeSlug}${search}`), { slug, episodeSlug })
-
-  it("sends old share links on to the episode's share page, for good", async () => {
-    const show = await createShow((await createUser()).id, { slug: 'my-show' })
-    const episode = await createEpisode(show.id, { slug: 'first', status: 'ready', audioUrl: '/api/episodes/x/audio' })
-    const response = await get('my-show', 'first', '?t=1')
-    expect(response.status).toBe(301)
-    expect(response.headers.get('location')).toBe(`/s/${episode.shortSlug}?t=1`)
-  })
-
-  it("is not found for an episode that isn't ready, or doesn't exist", async () => {
-    const show = await createShow((await createUser()).id, { slug: 'my-show' })
-    await createEpisode(show.id, { slug: 'first', status: 'processing' })
-    expect((await get('my-show', 'first')).status).toBe(404)
-    expect((await get('my-show', 'nope')).status).toBe(404)
-  })
-
-  it('is not found for a private episode, or a private show\'s', async () => {
-    const owner = await createUser()
-    const show = await createShow(owner.id, { slug: 'my-show' })
-    await createEpisode(show.id, { slug: 'hidden', status: 'ready', audioUrl: '/api/episodes/x/audio', private: true })
-    const secret = await createShow(owner.id, { slug: 'secret', private: true })
-    await createEpisode(secret.id, { slug: 'first', status: 'ready', audioUrl: '/api/episodes/x/audio' })
-    expect((await get('my-show', 'hidden')).status).toBe(404)
-    expect((await get('secret', 'first')).status).toBe(404)
   })
 })

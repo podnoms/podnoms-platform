@@ -63,7 +63,7 @@ describe('setEpisodeLike', () => {
     await setEpisodeLike((await createUser()).id, episode.id, true)
     expect(await listPublishedEpisodes(show.id, listener.id)).toMatchObject([{ likeCount: 2, liked: true }])
     expect(await listPublishedEpisodes(show.id, null)).toMatchObject([{ likeCount: 2, liked: false }])
-    expect((await getPublicEpisode('show', 'ep', listener.id))!.episode).toMatchObject({ likeCount: 2, liked: true })
+    expect((await getPublicEpisode(show, 'ep', listener.id))!.episode).toMatchObject({ likeCount: 2, liked: true })
   })
 })
 
@@ -117,8 +117,8 @@ describe('follows', () => {
     const { show } = await makeShow()
     const listener = await createUser()
     await setShowFollow(listener.id, show.id, true)
-    expect(await getPublicShow('show', listener.id)).toMatchObject({ followerCount: 1, following: true })
-    expect(await getPublicShow('show', null)).toMatchObject({ followerCount: 1, following: false })
+    expect(await getPublicShow(show, listener.id)).toMatchObject({ followerCount: 1, following: true })
+    expect(await getPublicShow(show, null)).toMatchObject({ followerCount: 1, following: false })
   })
 
   it("lists followed shows by title, even empty ones, but not ones made private since", async () => {

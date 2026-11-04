@@ -99,11 +99,17 @@ function DetailsPage() {
               </InputGroup>
               <FieldDescription>
                 How people @mention you in comments, and your{' '}
-                <Link to="/u/$slug" params={{ slug: profile.slug }} className="text-primary hover:underline">
+                <Link to="/$user" params={{ user: profile.slug }} className="text-primary hover:underline">
                   profile
                 </Link>
-                's address.
+                's address, which your shows' addresses start with.
               </FieldDescription>
+              {slug.trim() !== profile.slug && (
+                <FieldDescription>
+                  Your profile, your shows' pages and their feeds all move to the new address. The old ones
+                  redirect there, so podcast apps follow them.
+                </FieldDescription>
+              )}
             </Field>
             <Field>
               <FieldLabel htmlFor="profile-email">Email</FieldLabel>

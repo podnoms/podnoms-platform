@@ -40,7 +40,8 @@ async function follower(showId: string, values: Parameters<typeof createUser>[0]
 }
 
 async function makeShow(values: Parameters<typeof createShow>[1] = {}) {
-  const owner = await createUser()
+  // "owner", for the shows' addresses, unless it's a second show in the test.
+  const owner = await createUser({ slug: values.slug ? `owner-${values.slug}` : 'owner' })
   const show = await createShow(owner.id, { title: 'The Show', slug: 'the-show', imageUrl: '/images/show.jpg', ...values })
   return { owner, show }
 }
@@ -63,7 +64,7 @@ describe('going live', () => {
     expect(message).toEqual({
       title: 'The Show is live',
       body: 'Q&A night',
-      url: '/live/the-show',
+      url: '/owner/the-show/live',
       icon: '/images/show.jpg',
       tag: `live-${show.id}`,
     })
@@ -98,7 +99,7 @@ describe('new episodes', () => {
     expect(sendPush).toHaveBeenCalledExactlyOnceWith([user.id], {
       title: 'New from The Show',
       body: 'Late Night Mix',
-      url: '/the-show/late-night',
+      url: '/owner/the-show/late-night',
       icon: '/images/show.jpg',
       tag: `episodes-${show.id}`,
     })
@@ -121,7 +122,7 @@ describe('new episodes', () => {
     expect(sendPush).toHaveBeenCalledTimes(1)
     const [pushedTo, message] = vi.mocked(sendPush).mock.calls[0]!
     expect(pushedTo).toEqual([wants.id])
-    expect([message.title, message.url]).toEqual(['2 new episodes from The Show', '/the-show'])
+    expect([message.title, message.url]).toEqual(['2 new episodes from The Show', '/owner/the-show'])
     expect(message.body).toMatch(/^(One · Two|Two · One)$/)
     // Email is off until chosen.
     expect(emailFollowedEpisodes).not.toHaveBeenCalled()
@@ -137,7 +138,7 @@ describe('muting', () => {
     expect(await setFollowNotify(user.id, show.id, false)).toBe(true)
     expect(await setFollowNotify(user.id, crypto.randomUUID(), false)).toBe(false)
     expect(await listFollowNotify(user.id)).toEqual([
-      { showId: show.id, title: 'The Show', slug: 'the-show', imageUrl: '/images/show.jpg', notify: false },
+      { showId: show.id, title: 'The Show', slug: 'the-show', ownerSlug: 'owner', imageUrl: '/images/show.jpg', notify: false },
     ])
   })
 })
@@ -152,7 +153,7 @@ describe('the notifications menu', () => {
     notifyFollowersLive(show.id, 'Q&A night')
     await settle()
     expect((await listNotifications(quiet.id)).items).toMatchObject([
-      { kind: 'live', title: 'The Show is live', body: 'Q&A night', url: '/live/the-show', image: '/images/show.jpg' },
+      { kind: 'live', title: 'The Show is live', body: 'Q&A night', url: '/owner/the-show/live', image: '/images/show.jpg' },
     ])
     expect((await listNotifications(muted.id)).items).toEqual([])
     expect((await listNotifications(owner.id)).items).toEqual([])
@@ -168,7 +169,7 @@ describe('on the mobile app', () => {
     await settle()
     expect(vi.mocked(sendAppPush).mock.calls[0]).toEqual([
       expect.arrayContaining([yes.id]),
-      { title: 'The Show is live', body: 'Tonight', path: '/live/the-show', channel: 'live' },
+      { title: 'The Show is live', body: 'Tonight', path: `/live/${show.id}`, channel: 'live' },
     ])
     expect(vi.mocked(sendAppPush).mock.calls[0]![0]).toHaveLength(1)
   })
@@ -201,6 +202,6 @@ describe('on the mobile app', () => {
     notifyFollowersNewEpisode(one.id, show.id, null)
     notifyFollowersNewEpisode(two.id, show.id, null)
     await flushAllFollowerNotifications()
-    expect(vi.mocked(sendAppPush).mock.calls[1]![1]).toMatchObject({ title: '2 new episodes from The Show', path: '/shows/the-show' })
+    expect(vi.mocked(sendAppPush).mock.calls[1]![1]).toMatchObject({ title: '2 new episodes from The Show', path: `/shows/${show.id}` })
   })
 })

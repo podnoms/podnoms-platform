@@ -309,6 +309,13 @@
       "when": 1793737392605,
       "tag": "0043_fresh_multiple_man",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1793753440379,
+      "tag": "0044_user_namespaced_urls",
+      "breakpoints": true
     }
   ]
 }

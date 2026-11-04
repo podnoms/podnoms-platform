@@ -18,6 +18,7 @@ import { faker } from '@faker-js/faker'
 import { and, asc, eq, isNull, sql } from 'drizzle-orm'
 import { env } from '~/env'
 import { plainTextToHtml } from '~/lib/rich-text'
+import { reservedShowSlugs } from '~/lib/paths'
 import { firstFreeSlug, slugify } from '~/lib/slug'
 import { db } from '~/server/db/client.server'
 import { episodes, shows, users, type NewEpisode } from '~/server/db/schema'
@@ -119,8 +120,11 @@ try {
       await db.select({ id: users.id, email: users.email }).from(users).orderBy(asc(sql`ctid`)).limit(1)
   if (!owner) throw new Error(email ? `No user with the email ${email}` : 'There are no users; sign up first')
 
-  // Show slugs are unique across all users.
-  const takenShowSlugs = new Set((await db.select({ slug: shows.slug }).from(shows)).map((row) => row.slug))
+  // Show slugs are unique per owner, and can't be the paths under them.
+  const takenShowSlugs = new Set([
+    ...reservedShowSlugs,
+    ...(await db.select({ slug: shows.slug }).from(shows).where(eq(shows.userId, owner.id))).map((row) => row.slug),
+  ])
   let episodeTotal = 0
 
   for (let i = 0; i < showCount; i++) {
@@ -133,6 +137,7 @@ try {
         userId: owner.id,
         title,
         slug,
+        podcastGuid: crypto.randomUUID(),
         description: paragraphs(faker.number.int({ min: 1, max: 3 })),
         imageUrl: image(),
         category: faker.helpers.arrayElement(['Music', 'Comedy', 'Technology', 'News', 'Arts', 'Education']),

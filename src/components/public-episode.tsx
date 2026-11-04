@@ -14,10 +14,11 @@ import { Button } from '~/components/ui/button'
 import { Popover, PopoverAnchor, PopoverContent } from '~/components/ui/popover'
 import { Slider } from '~/components/ui/slider'
 import type { fetchEpisodePage } from '~/functions/public'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { isCustomDomain } from '~/lib/current-domain'
 import { formatClock, formatDate, initials, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { mentionsAsText } from '~/lib/user-slug'
+import { showParams, episodeParams } from '~/lib/paths'
 
 export type EpisodePageData = Awaited<ReturnType<typeof fetchEpisodePage>>
 
@@ -30,7 +31,7 @@ export type EpisodePageData = Awaited<ReturnType<typeof fetchEpisodePage>>
 export function PublicEpisode({ page, standalone = false }: { page: EpisodePageData; standalone?: boolean }) {
   const { show, episode, waveform, isOwner, shareUrl, embedUrl } = page
   const player = usePlayer()
-  const onDomain = Boolean(currentDomainSlug())
+  const onDomain = isCustomDomain()
   const commentable = !standalone && !onDomain
   // Shown with the details rather than on the button; the button keeps it current.
   const [likeCount, setLikeCount] = useState(episode.likeCount)
@@ -64,6 +65,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
         showTitle: show.title,
         slug: episode.slug,
         showSlug: show.slug,
+        ownerSlug: show.ownerSlug,
         isOwner,
         positionSeconds: episode.positionSeconds,
       },
@@ -80,8 +82,8 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
     <div className="flex flex-col gap-8">
       {!standalone && (
         <Link
-          to="/$slug"
-          params={{ slug: show.slug }}
+          to="/$user/$show"
+          params={showParams(show)}
           className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <Icons.back className="size-4" />
@@ -129,8 +131,8 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
               {isOwner && !standalone && !onDomain && (
                 <Button variant="outline" asChild>
                   <Link
-                    to="/$slug/$episodeSlug/manage"
-                    params={{ slug: show.slug, episodeSlug: episode.slug }}
+                    to="/$user/$show/$episode/manage"
+                    params={episodeParams(show, episode.slug)}
                   >
                     <Icons.settings />
                     Manage
@@ -238,8 +240,8 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
             {page.moreEpisodes.map((other) => (
               <li key={other.id}>
                 <Link
-                  to="/$slug/$episodeSlug"
-                  params={{ slug: show.slug, episodeSlug: other.slug }}
+                  to="/$user/$show/$episode"
+                  params={episodeParams(show, other.slug)}
                   className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm hover:bg-muted/50"
                 >
                   <span className="min-w-0 truncate font-medium">{other.title}</span>

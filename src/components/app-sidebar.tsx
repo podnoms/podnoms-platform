@@ -29,6 +29,7 @@ import { imageSrc } from '~/lib/images'
 import { cn } from '~/lib/utils'
 import { showSorts, saveShowSort, sortShows, type ShowSort } from '~/lib/show-sort'
 import { brandLogoUrl, useBranding } from '~/lib/branding'
+import { showParams, showPath, type ShowRef } from '~/lib/paths'
 
 // The sidebar lists this many followed shows, and links to the Following
 // page for the rest.
@@ -49,7 +50,7 @@ export function AppSidebar() {
   const shows = useMemo(() => sortShows(loaded, sort), [loaded, sort])
   const pathname = useLocation({ select: (location) => location.pathname })
   // A show's public and management pages, and its episodes', all count as its.
-  const isActive = (slug: string) => pathname === `/${slug}` || pathname.startsWith(`/${slug}/`)
+  const isActive = (show: ShowRef) => pathname === showPath(show) || pathname.startsWith(`${showPath(show)}/`)
   // A long list gets a filter box.
   const filterable = shows.length > 8
   const [query, setQuery] = useState('')
@@ -107,7 +108,7 @@ export function AppSidebar() {
                 {following.slice(0, maxFollowedShown).map((show) => (
                   <SidebarMenuItem key={show.id}>
                     <SidebarMenuButton asChild className="h-10 gap-3 px-2">
-                      <Link to="/$slug" params={{ slug: show.slug }} {...(isActive(show.slug) && { 'data-active': '' })}>
+                      <Link to="/$user/$show" params={showParams(show)} {...(isActive(show) && { 'data-active': '' })}>
                         <ShowThumb imageUrl={show.imageUrl} className="size-6" />
                         <span className="truncate">{show.title}</span>
                       </Link>
@@ -176,10 +177,10 @@ export function AppSidebar() {
                 <SidebarMenuItem key={show.id}>
                   <SidebarMenuButton asChild className="h-12 gap-3 px-2">
                     <Link
-                      to="/$slug/manage"
-                      params={{ slug: show.slug }}
+                      to="/$user/$show/manage"
+                      params={showParams(show)}
                       // The attribute's presence is what styles it, so leave it off otherwise.
-                      {...(isActive(show.slug) && { 'data-active': '' })}
+                      {...(isActive(show) && { 'data-active': '' })}
                     >
                       <ShowThumb imageUrl={show.imageUrl} className="size-8" />
                       <span className="truncate">{show.title}</span>

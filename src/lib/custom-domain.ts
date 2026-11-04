@@ -1,18 +1,18 @@
 // A show served from its owner's own domain (see custom-domains.server.ts).
 // On such a domain the show's pages have short paths: "/" for the show,
-// "/episodes/<slug>" for an episode (on the site, "/<show>/<slug>": kept
-// longer here so it can't clash with the site's own paths), "/live" for its
-// live page and "/feed" for its RSS feed. The router
-// maps them to the usual routes and back (see src/router.tsx), so the pages
-// and their links work unchanged.
-import { episodePath, livePath, reservedEpisodeSlugs, showPath } from '~/lib/paths'
+// "/episodes/<slug>" for an episode (on the site, "/<owner>/<show>/<slug>":
+// kept longer here so it can't clash with the site's own paths), "/live"
+// for its live page and "/feed" for its RSS feed. The router maps them to
+// the usual routes and back (see src/router.tsx), so the pages and their
+// links work unchanged.
+import { episodePath, feedPath, livePath, reservedEpisodeSlugs, showPath, type ShowRef } from '~/lib/paths'
 
 export const domainFeedPath = '/feed'
 export const domainLivePath = '/live'
 
 // Paths a custom domain serves as they are: server functions, audio, images,
 // embeds and the like, which the show's pages load or link to.
-const sharedPrefixes = ['/_serverFn/', '/api/', '/images/', '/assets/', '/embed/', '/listen/', '/s/', '/@', '/node_modules/', '/src/']
+const sharedPrefixes = ['/_serverFn/', '/api/', '/images/', '/assets/', '/embed/', '/s/', '/@', '/node_modules/', '/src/']
 
 export function isSharedPath(pathname: string) {
   // Files at the root, such as robots.txt and the icons.
@@ -21,25 +21,30 @@ export function isSharedPath(pathname: string) {
 }
 
 const episodeOnDomain = /^\/episodes\/([^/]+)\/?$/
+const withoutSlash = (pathname: string) => (pathname.length > 1 ? pathname.replace(/\/$/, '') : pathname)
 
 // The address bar's path on the show's domain → the site's path, or null
 // if the domain has no page there.
-export function toSitePath(pathname: string, slug: string) {
-  if (pathname === '/') return showPath(slug)
-  if (pathname === domainLivePath || pathname === `${domainLivePath}/`) return livePath(slug)
+export function toSitePath(pathname: string, show: ShowRef) {
+  const path = withoutSlash(pathname)
+  if (path === '/') return showPath(show)
+  if (path === domainLivePath) return livePath(show)
+  if (path === domainFeedPath) return feedPath(show)
   const episode = episodeOnDomain.exec(pathname)
-  return episode ? episodePath(slug, episode[1]!) : null
+  return episode ? episodePath(show, episode[1]!) : null
 }
 
 // The site's path → the address bar's path on the show's domain, or null
 // for pages that aren't the show's own.
-export function toDomainPath(pathname: string, slug: string) {
-  const show = showPath(slug)
-  if (pathname === show || pathname === `${show}/`) return '/'
-  if (pathname === `/feed/${slug}`) return domainFeedPath
-  if (pathname === livePath(slug) || pathname === `${livePath(slug)}/`) return domainLivePath
-  const episode = new RegExp(`^${show.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/([^/]+)/?$`).exec(pathname)
-  return episode && !reservedEpisodeSlugs.has(episode[1]!) ? `/episodes/${episode[1]}` : null
+export function toDomainPath(pathname: string, show: ShowRef) {
+  const path = withoutSlash(pathname)
+  const home = showPath(show)
+  if (path === home) return '/'
+  if (path === feedPath(show)) return domainFeedPath
+  if (path === livePath(show)) return domainLivePath
+  if (!path.startsWith(`${home}/`)) return null
+  const rest = path.slice(home.length + 1)
+  return !rest.includes('/') && !reservedEpisodeSlugs.has(rest) ? `/episodes/${rest}` : null
 }
 
 // A domain as typed or pasted ("https://Pod.Example.com/feed") → "pod.example.com",

@@ -9,7 +9,7 @@
 // channel's import sends one notification rather than one per episode. Like
 // the email batches, what's waiting is kept in memory.
 import '@tanstack/react-start/server-only'
-import { and, eq, inArray, ne, or } from 'drizzle-orm'
+import { and, eq, getTableColumns, inArray, ne, or } from 'drizzle-orm'
 import { episodePath, livePath, showPath } from '~/lib/paths'
 import { db } from '~/server/db/client.server'
 import { sendAppPush } from '~/server/app-push.server'
@@ -53,13 +53,18 @@ const safely = (work: Promise<void>) =>
 export function notifyFollowersLive(showId: string, broadcastTitle: string) {
   safely(
     (async () => {
-      const [show] = await db.select().from(shows).where(eq(shows.id, showId)).limit(1)
+      const [show] = await db
+        .select({ ...getTableColumns(shows), ownerSlug: users.slug })
+        .from(shows)
+        .innerJoin(users, eq(users.id, shows.userId))
+        .where(eq(shows.id, showId))
+        .limit(1)
       if (!show || show.private) return
       const to = await followers(showId, show.userId, 'live')
       const message = {
         title: `${show.title} is live`,
         body: broadcastTitle,
-        url: livePath(show.slug),
+        url: livePath(show),
         icon: show.imageUrl,
         tag: `live-${showId}`,
       }
@@ -67,7 +72,7 @@ export function notifyFollowersLive(showId: string, broadcastTitle: string) {
       for (const userId of to.email) emailFollowerLive(userId, show, broadcastTitle)
       await Promise.all([
         sendPush(to.push, message),
-        sendAppPush(to.app, { title: message.title, body: message.body, path: `/live/${show.slug}`, channel: 'live' }),
+        sendAppPush(to.app, { title: message.title, body: message.body, path: `/live/${show.id}`, channel: 'live' }),
       ])
     })(),
   )
@@ -92,7 +97,12 @@ async function flushEpisodes(showId: string) {
   const ids = waiting.get(showId)
   waiting.delete(showId)
   if (!ids?.size) return
-  const [show] = await db.select().from(shows).where(eq(shows.id, showId)).limit(1)
+  const [show] = await db
+        .select({ ...getTableColumns(shows), ownerSlug: users.slug })
+        .from(shows)
+        .innerJoin(users, eq(users.id, shows.userId))
+        .where(eq(shows.id, showId))
+        .limit(1)
   if (!show || show.private) return
   // As they are now: any made private or deleted meanwhile are left out.
   const ready = await db
@@ -108,14 +118,14 @@ async function flushEpisodes(showId: string) {
       ? {
           title: `New from ${show.title}`,
           body: first!.title,
-          url: episodePath(show.slug, first!.slug),
+          url: episodePath(show, first!.slug),
           icon: first!.imageUrl ?? show.imageUrl,
           tag: `episodes-${showId}`,
         }
       : {
           title: `${ready.length} new episodes from ${show.title}`,
           body: ready.map((episode) => episode.title).join(' · '),
-          url: showPath(show.slug),
+          url: showPath(show),
           icon: show.imageUrl,
           tag: `episodes-${showId}`,
         }
@@ -125,7 +135,7 @@ async function flushEpisodes(showId: string) {
     sendAppPush(to.app, {
       title: message.title,
       body: message.body,
-      path: ready.length === 1 ? `/episodes/${first!.id}` : `/shows/${show.slug}`,
+      path: ready.length === 1 ? `/episodes/${first!.id}` : `/shows/${show.id}`,
       channel: 'episodes',
     }),
   ])
@@ -144,11 +154,13 @@ export async function listFollowNotify(userId: string) {
       showId: shows.id,
       title: shows.title,
       slug: shows.slug,
+      ownerSlug: users.slug,
       imageUrl: shows.imageUrl,
       notify: showFollows.notify,
     })
     .from(showFollows)
     .innerJoin(shows, eq(shows.id, showFollows.showId))
+    .innerJoin(users, eq(users.id, shows.userId))
     .where(and(eq(showFollows.userId, userId), or(eq(shows.private, false), eq(shows.userId, userId))))
     .orderBy(shows.title)
 }

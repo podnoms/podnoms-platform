@@ -21,7 +21,7 @@ export const Route = createFileRoute('/_authed/likes')({
 function LikesPage() {
   const { episodes: first, total } = Route.useLoaderData()
   const { episodes, ...more } = useEpisodePages({
-    showSlug: 'likes',
+    showKey: 'likes',
     first,
     total,
     fetchMore: (offset, limit) => fetchMoreLikes({ data: { offset, limit } }),

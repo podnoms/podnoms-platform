@@ -24,10 +24,12 @@ describe('availableEpisodeSlug', () => {
     expect(await availableEpisodeSlug(show.id, 'Show')).toBe('show-3')
   })
 
-  it("never gives a path under the show that's taken (its manage page, the old /episodes/ links)", async () => {
+  it("never gives a path under the show that's taken (its manage, feed and live pages)", async () => {
     const show = await createShow((await createUser()).id)
     expect(await availableEpisodeSlug(show.id, 'Manage')).toBe('manage-2')
-    expect(await availableEpisodeSlug(show.id, 'Episodes')).toBe('episodes-2')
+    expect(await availableEpisodeSlug(show.id, 'Feed')).toBe('feed-2')
+    expect(await availableEpisodeSlug(show.id, 'Live')).toBe('live-2')
+    expect(await availableEpisodeSlug(show.id, 'Episodes')).toBe('episodes')
   })
 
   it('ignores slugs in other shows', async () => {

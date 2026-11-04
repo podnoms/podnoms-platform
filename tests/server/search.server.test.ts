@@ -13,7 +13,7 @@ describe('searchLibrary', () => {
     await createEpisode(show.id, { title: 'Techno Hour' })
 
     expect(await searchLibrary(user.id, 'house')).toEqual({
-      shows: [{ id: show.id, title: 'Deep House Sessions', slug: 'deep-house', imageUrl: null, excerpt: null }],
+      shows: [{ id: show.id, title: 'Deep House Sessions', slug: 'deep-house', ownerSlug: user.slug, imageUrl: null, excerpt: null }],
       episodes: [
         {
           id: episode.id,
@@ -22,6 +22,7 @@ describe('searchLibrary', () => {
           imageUrl: null,
           showTitle: 'Deep House Sessions',
           showSlug: 'deep-house',
+          ownerSlug: user.slug,
           ready: false,
           excerpt: null,
         },

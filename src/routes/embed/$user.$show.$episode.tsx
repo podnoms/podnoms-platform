@@ -8,7 +8,7 @@ import { reportActivity } from '~/lib/activity'
 import { formatClock } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { brandIconUrl, pageTitle, useBranding } from '~/lib/branding'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { isCustomDomain } from '~/lib/current-domain'
 import { themeHead } from '~/lib/theme-css'
 
 // A compact player for an episode, made to be put in an <iframe> on other
@@ -16,9 +16,9 @@ import { themeHead } from '~/lib/theme-css'
 // its own <audio> element so it doesn't touch the app's player or what it
 // remembers. Nothing stops it being framed; if a CSP or X-Frame-Options header
 // is ever added, this route needs to be allowed.
-export const Route = createFileRoute('/embed/$slug/$episodeSlug')({
+export const Route = createFileRoute('/embed/$user/$show/$episode')({
   staticData: { bare: true },
-  loader: ({ params }) => fetchEpisodePage({ data: { slug: params.slug, episodeSlug: params.episodeSlug } }),
+  loader: ({ params }) => fetchEpisodePage({ data: params }),
   head: ({ loaderData: page, matches }) => ({
     meta: [
       ...(page ? [{ title: pageTitle(matches, page.episode.title) }] : []),
@@ -100,7 +100,7 @@ function EmbedPlayer() {
               <p className="truncate text-sm text-muted-foreground">{show.title}</p>
             </div>
             {/* A show's own domain stands alone, without the site's name. */}
-            {!currentDomainSlug() && (
+            {!isCustomDomain() && (
               <a
                 href={pageUrl}
                 target="_blank"

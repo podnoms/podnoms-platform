@@ -3,7 +3,7 @@
 // "live/<show id>?key=<the show's live key>". The key is kept
 // encrypted, so its owner can see it again in the Go live dialog. MediaMTX
 // records the stream and serves it as HLS, which only the app may read;
-// viewers get it through /api/shows/$slug/live/hls, which applies the
+// viewers get it through /api/shows/$showId/live/hls, which applies the
 // show's privacy. The app polls MediaMTX's API to see
 // which shows are live, opening and ending live_broadcast rows; a
 // broadcast's recording becomes a private episode once it ends (see
@@ -366,26 +366,26 @@ export async function liveShowIdsAmong(showIds: string[]) {
   return new Set(open.map((broadcast) => broadcast.showId))
 }
 
-// The slugs of the live shows the viewer may watch.
-export async function listLiveSlugs(viewerId: string) {
+// The ids of the live shows the viewer may watch.
+export async function listVisibleLiveShowIds(viewerId: string) {
   if (!liveEnabled()) return []
   const live = await db
-    .select({ slug: shows.slug })
+    .select({ id: shows.id })
     .from(liveBroadcasts)
     .innerJoin(shows, eq(shows.id, liveBroadcasts.showId))
     .where(and(isNull(liveBroadcasts.endedAt), or(eq(shows.private, false), eq(shows.userId, viewerId))))
-  return live.map((show) => show.slug)
+  return live.map((show) => show.id)
 }
 
-// The show, by slug, if the viewer may watch it: anyone, unless it's
+// The show, by id, if the viewer may watch it: anyone, unless it's
 // private, when only its owner may.
-export async function getWatchableShow(slug: string, viewerId: string | null) {
+export async function getWatchableShow(showId: string, viewerId: string | null) {
   const [show] = await db
     .select({ id: shows.id, userId: shows.userId })
     .from(shows)
     .where(
       and(
-        eq(shows.slug, slug),
+        eq(shows.id, showId),
         viewerId ? or(eq(shows.private, false), eq(shows.userId, viewerId)) : eq(shows.private, false),
       ),
     )
@@ -533,11 +533,11 @@ export async function deleteChatMessage(userId: string, messageId: string) {
 // of the stream every second or so.
 const watchable = new ExpiringStore<{ id: string; userId: string } | null>(10_000)
 
-export async function getWatchableShowCached(slug: string, viewerId: string | null) {
-  const key = `${slug}\n${viewerId ?? ''}`
+export async function getWatchableShowCached(showId: string, viewerId: string | null) {
+  const key = `${showId}\n${viewerId ?? ''}`
   const known = watchable.get(key)
   if (known !== undefined) return known
-  const show = await getWatchableShow(slug, viewerId)
+  const show = await getWatchableShow(showId, viewerId)
   watchable.set(key, show)
   return show
 }

@@ -9,7 +9,7 @@ import { getPublicShow } from '~/server/shows.server'
 // A show the user may see and a page of its episodes: as listeners see them,
 // or if it's their own, in any state with live progress (the app asks again
 // every few seconds while any are processing).
-export const Route = createFileRoute('/api/mobile/shows/$slug')({
+export const Route = createFileRoute('/api/mobile/shows/$showId')({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
@@ -17,7 +17,7 @@ export const Route = createFileRoute('/api/mobile/shows/$slug')({
         if (userId instanceof Response) return userId
         const page = mobileEpisodePageSchema.safeParse(Object.fromEntries(new URL(request.url).searchParams))
         if (!page.success) return new Response('Invalid page', { status: 400 })
-        const show = await getPublicShow(params.slug, userId)
+        const show = await getPublicShow({ id: params.showId }, userId)
         if (!show) return new Response('Not found', { status: 404 })
         const isOwner = show.userId === userId
         const [episodes, live] = await Promise.all([

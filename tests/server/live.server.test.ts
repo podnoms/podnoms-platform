@@ -417,13 +417,13 @@ describe('chat', () => {
 describe('getWatchableShow', () => {
   it("only gives a private show to its owner", async () => {
     const owner = await createUser()
-    await createShow(owner.id, { slug: 'secret', private: true })
-    await createShow(owner.id, { slug: 'open' })
+    const secret = await createShow(owner.id, { slug: 'secret', private: true })
+    const open = await createShow(owner.id, { slug: 'open' })
 
-    expect(await getWatchableShow('secret', null)).toBeNull()
-    expect(await getWatchableShow('secret', (await createUser()).id)).toBeNull()
-    expect(await getWatchableShow('secret', owner.id)).not.toBeNull()
-    expect(await getWatchableShow('open', null)).not.toBeNull()
+    expect(await getWatchableShow(secret.id, null)).toBeNull()
+    expect(await getWatchableShow(secret.id, (await createUser()).id)).toBeNull()
+    expect(await getWatchableShow(secret.id, owner.id)).not.toBeNull()
+    expect(await getWatchableShow(open.id, null)).not.toBeNull()
   })
 })
 

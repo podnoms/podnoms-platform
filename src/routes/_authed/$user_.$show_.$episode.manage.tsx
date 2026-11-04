@@ -36,11 +36,13 @@ import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
 import { formatClock, formatDate, hostname, initials, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { pageTitle } from '~/lib/branding'
+import { episodeParams, showParams } from '~/lib/paths'
 
-// An episode's management page, at /:slug/:episodeSlug/manage. The trailing
-// underscore on $slug_ keeps it from nesting inside the show page's route.
-export const Route = createFileRoute('/_authed/$slug_/$episodeSlug/manage')({
-  loader: ({ params }) => fetchMyEpisode({ data: { slug: params.slug, episodeSlug: params.episodeSlug } }),
+// An episode's management page, at /<owner>/<show>/<episode>/manage. The
+// trailing underscores keep it from nesting inside the profile's and show
+// page's routes.
+export const Route = createFileRoute('/_authed/$user_/$show_/$episode/manage')({
+  loader: ({ params }) => fetchMyEpisode({ data: params }),
   head: ({ loaderData, matches }) => ({ meta: loaderData ? [{ title: pageTitle(matches, loaderData.episode.title) }] : [] }),
   component: EpisodePage,
 })
@@ -62,13 +64,13 @@ function EpisodePage() {
   // rather than polling. When its details change, reload them; a link's
   // temporary slug is replaced when its title is fetched, so follow it to the
   // new URL rather than reloading the old one.
-  const live = useLiveProgress(show.slug, inProgress || episode.replacing, loaded, async (changed) => {
+  const live = useLiveProgress(show.id, inProgress || episode.replacing, loaded, async (changed) => {
     if (changed.size > 0 && !changed.has(episode.id)) return
     const slug = await fetchMyEpisodeSlug({ data: { id: episode.id } }).catch(() => null)
     if (slug && slug !== episode.slug) {
       await navigate({
-        to: '/$slug/$episodeSlug/manage',
-        params: { slug: show.slug, episodeSlug: slug },
+        to: '/$user/$show/$episode/manage',
+        params: episodeParams(show, slug),
         replace: true,
       })
     } else {
@@ -112,6 +114,7 @@ function EpisodePage() {
         showTitle: show.title,
         slug: episode.slug,
         showSlug: show.slug,
+        ownerSlug: show.ownerSlug,
         isOwner: true,
         positionSeconds: episode.positionSeconds,
       },
@@ -124,7 +127,7 @@ function EpisodePage() {
     try {
       if (isCurrent) player.close()
       await deleteMyEpisode({ data: { id: episode.id } })
-      await navigate({ to: '/$slug/manage', params: { slug: show.slug } })
+      await navigate({ to: '/$user/$show/manage', params: showParams(show) })
     } finally {
       setDeleting(false)
     }
@@ -148,8 +151,8 @@ function EpisodePage() {
   return (
     <div className="mx-auto flex w-full max-w-page flex-col gap-8 p-4 md:p-6">
       <Link
-        to="/$slug/manage"
-        params={{ slug: show.slug }}
+        to="/$user/$show/manage"
+        params={showParams(show)}
         className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <Icons.back className="size-4" />
@@ -191,7 +194,7 @@ function EpisodePage() {
             )}
             {ready && (
               <Button variant="outline" asChild>
-                <Link to="/$slug/$episodeSlug" params={{ slug: show.slug, episodeSlug: episode.slug }}>
+                <Link to="/$user/$show/$episode" params={episodeParams(show, episode.slug)}>
                   <Icons.externalLink />
                   View public page
                 </Link>
@@ -295,8 +298,8 @@ function EpisodePage() {
           </div>
           {/* Comments are read, written and answered on the public page. */}
           <Link
-            to="/$slug/$episodeSlug"
-            params={{ slug: show.slug, episodeSlug: episode.slug }}
+            to="/$user/$show/$episode"
+            params={episodeParams(show, episode.slug)}
             hash="comments-heading"
             className="flex w-fit items-center gap-1.5 text-sm text-primary hover:underline"
           >

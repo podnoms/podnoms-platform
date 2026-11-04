@@ -2,11 +2,13 @@ import { Link } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { formatDate, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
+import { showParams } from '~/lib/paths'
 
 export type ShowCardData = {
   id: string
   title: string
   slug: string
+  ownerSlug: string
   imageUrl: string | null
   author: string | null
   episodeCount: number
@@ -23,8 +25,8 @@ export function ShowCard({ show }: { show: ShowCardData }) {
   ].filter(Boolean)
   return (
     <Link
-      to="/$slug"
-      params={{ slug: show.slug }}
+      to="/$user/$show"
+      params={showParams(show)}
       className="group flex min-w-0 flex-col gap-3 rounded-xl p-2 transition-colors outline-none hover:bg-muted/60 focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >
       {show.imageUrl ? (

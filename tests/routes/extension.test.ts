@@ -54,7 +54,7 @@ describe('GET /api/extension/shows', () => {
 
     const response = await callRoute(ShowsRoute, 'GET', new Request('http://x/api/extension/shows'))
     expect(await response.json()).toEqual([
-      { id: expect.any(String), slug: 'mine', title: 'Mine', imageUrl: 'http://x/images/a.jpg', url: 'http://x/mine' },
+      { id: expect.any(String), slug: 'mine', title: 'Mine', imageUrl: 'http://x/images/a.jpg', url: `http://x/${user.slug}/mine` },
     ])
   })
 })

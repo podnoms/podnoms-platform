@@ -3,7 +3,7 @@ import '@tanstack/react-start/server-only'
 import { and, count, desc, eq, gte, isNotNull, lt, sql } from 'drizzle-orm'
 import { activityInScope, activityPeriod, summariseActivity } from '~/server/activity.server'
 import { db } from '~/server/db/client.server'
-import { episodeActivity, episodes, shows } from '~/server/db/schema'
+import { episodeActivity, episodes, shows, users } from '~/server/db/schema'
 
 export type Dashboard = Awaited<ReturnType<typeof getDashboard>>
 
@@ -41,14 +41,16 @@ export async function getDashboard(userId: string, days: number, now = new Date(
         imageUrl: sql<string | null>`coalesce(${episodes.imageUrl}, ${shows.imageUrl})`,
         showTitle: shows.title,
         showSlug: shows.slug,
+        ownerSlug: users.slug,
         plays: sql<number>`count(*) filter (where ${episodeActivity.type} = 'play')`.mapWith(Number),
         downloads: sql<number>`count(*) filter (where ${episodeActivity.type} = 'download')`.mapWith(Number),
       })
       .from(episodeActivity)
       .innerJoin(episodes, eq(episodes.id, episodeActivity.episodeId))
       .innerJoin(shows, eq(shows.id, episodes.showId))
+      .innerJoin(users, eq(users.id, shows.userId))
       .where(and(inPeriod, sql`${episodeActivity.type} <> 'share'`))
-      .groupBy(episodes.id, shows.id)
+      .groupBy(episodes.id, shows.id, users.id)
       .orderBy(desc(count()), episodes.title)
       .limit(5),
     db
@@ -62,9 +64,11 @@ export async function getDashboard(userId: string, days: number, now = new Date(
         createdAt: episodes.createdAt,
         showTitle: shows.title,
         showSlug: shows.slug,
+        ownerSlug: users.slug,
       })
       .from(episodes)
       .innerJoin(shows, eq(shows.id, episodes.showId))
+      .innerJoin(users, eq(users.id, shows.userId))
       .where(eq(shows.userId, userId))
       .orderBy(desc(episodes.createdAt), episodes.title)
       .limit(5),

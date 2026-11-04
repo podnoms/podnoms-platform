@@ -5,7 +5,7 @@ import '@tanstack/react-start/server-only'
 import { and, desc, eq, max, sql } from 'drizzle-orm'
 import { episodePath, showPath } from '~/lib/paths'
 import { db } from '~/server/db/client.server'
-import { episodes, episodeTags, shows, showTags, tags } from '~/server/db/schema'
+import { episodes, episodeTags, shows, showTags, tags, users } from '~/server/db/schema'
 import { escapeXml } from '~/server/feed.server'
 import { isListed, newestPublishedFirst } from '~/server/episodes.server'
 
@@ -24,17 +24,19 @@ const publishedAt = sql<Date>`coalesce(${episodes.publishedAt}, ${episodes.creat
 export async function listSitemapEntries(): Promise<SitemapEntry[]> {
   const latest = max(publishedAt).mapWith(episodes.createdAt)
   const listedShows = await db
-    .select({ slug: shows.slug, imageUrl: shows.imageUrl, lastModified: latest })
+    .select({ slug: shows.slug, ownerSlug: users.slug, imageUrl: shows.imageUrl, lastModified: latest })
     .from(shows)
+    .innerJoin(users, eq(users.id, shows.userId))
     .innerJoin(episodes, and(eq(episodes.showId, shows.id), isListed))
     .where(eq(shows.private, false))
-    .groupBy(shows.id)
+    .groupBy(shows.id, users.id)
     .orderBy(desc(latest))
     .limit(maxEntries)
   const items = await db
-    .select({ showSlug: shows.slug, slug: episodes.slug, lastModified: publishedAt })
+    .select({ show: { slug: shows.slug, ownerSlug: users.slug }, slug: episodes.slug, lastModified: publishedAt })
     .from(episodes)
     .innerJoin(shows, eq(shows.id, episodes.showId))
+    .innerJoin(users, eq(users.id, shows.userId))
     .where(and(eq(shows.private, false), isListed))
     .orderBy(newestPublishedFirst, desc(episodes.id))
     .limit(maxEntries)
@@ -59,11 +61,11 @@ export async function listSitemapEntries(): Promise<SitemapEntry[]> {
   return [
     ...sitePages.map((path) => ({ path })),
     ...listedShows.map((show) => ({
-      path: showPath(show.slug),
+      path: showPath(show),
       lastModified: show.lastModified,
       image: show.imageUrl ?? undefined,
     })),
-    ...items.map((item) => ({ path: episodePath(item.showSlug, item.slug), lastModified: item.lastModified })),
+    ...items.map((item) => ({ path: episodePath(item.show, item.slug), lastModified: item.lastModified })),
     ...tagSlugs.map((slug) => ({ path: `/tags/${encodeURIComponent(slug)}` })),
   ].slice(0, maxEntries)
 }

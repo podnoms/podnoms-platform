@@ -9,7 +9,7 @@ export function ListenerEpisodeList({ episodes }: { episodes: (ListenerEpisode &
         <PublicEpisodeRow
           key={episode.id}
           episode={episode}
-          showSlug={episode.show.slug}
+          show={episode.show}
           showTitle={episode.show.title}
           showImageUrl={episode.show.imageUrl}
           isOwner={episode.show.isOwner}

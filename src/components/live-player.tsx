@@ -12,13 +12,13 @@ const retryMs = 3000
 // the page was showing has ended. hls.js is used where the
 // browser can play it (most), and the browser's own HLS elsewhere (older iOS).
 export function LivePlayer({
-  slug,
+  showId,
   broadcastId,
   artwork,
   interrupted = false,
   ended = false,
 }: {
-  slug: string
+  showId: string
   broadcastId: string | null
   artwork: string | null
   // The stream has dropped out, and may come back.
@@ -31,7 +31,7 @@ export function LivePlayer({
   useEffect(() => {
     const element = video.current
     if (!broadcastId || !element) return
-    const src = `/api/shows/${encodeURIComponent(slug)}/live/hls/index.m3u8`
+    const src = `/api/shows/${encodeURIComponent(showId)}/live/hls/index.m3u8`
     let hls: Hls | null = null
     let retry: ReturnType<typeof setTimeout> | undefined
     let stopped = false
@@ -94,7 +94,7 @@ export function LivePlayer({
       element.removeAttribute('src')
       element.load()
     }
-  }, [slug, broadcastId])
+  }, [showId, broadcastId])
 
   return (
     <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-muted shadow-lg ring-1 ring-border">

@@ -2,8 +2,8 @@
 // the HLS proxy and the live event stream.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Route as AuthRoute } from '~/routes/api/live/auth'
-import { Route as EventsRoute } from '~/routes/api/shows/$slug/live/events'
-import { Route as HlsRoute } from '~/routes/api/shows/$slug/live/hls/$'
+import { Route as EventsRoute } from '~/routes/api/shows/$showId/live/events'
+import { Route as HlsRoute } from '~/routes/api/shows/$showId/live/hls/$'
 import { getSession } from '~/server/auth.server'
 import { liveBroadcasts } from '~/server/db/schema'
 import { createLiveKey } from '~/server/live.server'
@@ -57,10 +57,10 @@ describe('POST /api/live/auth', () => {
   })
 })
 
-describe('GET /api/shows/:slug/live/hls/*', () => {
-  const get = (showSlug: string, file: string, search = '') =>
-    callRoute(HlsRoute, 'GET', new Request(`http://x/api/shows/${showSlug}/live/hls/${file}${search}`), {
-      slug: showSlug,
+describe('GET /api/shows/:showId/live/hls/*', () => {
+  const get = (showId: string, file: string, search = '') =>
+    callRoute(HlsRoute, 'GET', new Request(`http://x/api/shows/${showId}/live/hls/${file}${search}`), {
+      showId,
       _splat: file,
     })
 
@@ -70,7 +70,7 @@ describe('GET /api/shows/:slug/live/hls/*', () => {
       .spyOn(globalThis, 'fetch')
       .mockImplementation(async () => new Response('#EXTM3U\n', { headers: { 'Content-Type': 'application/vnd.apple.mpegurl' } }))
 
-    const response = await get(show.slug, 'index.m3u8', '?_HLS_msn=3&_HLS_part=1')
+    const response = await get(show.id, 'index.m3u8', '?_HLS_msn=3&_HLS_part=1')
 
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('#EXTM3U\n')
@@ -84,19 +84,19 @@ describe('GET /api/shows/:slug/live/hls/*', () => {
   it('lets private caches keep segments', async () => {
     const show = await createShow((await createUser()).id, { slug: slug() })
     vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response('data'))
-    expect((await get(show.slug, 'seg1_part0.mp4')).headers.get('cache-control')).toBe('private, max-age=3600')
+    expect((await get(show.id, 'seg1_part0.mp4')).headers.get('cache-control')).toBe('private, max-age=3600')
   })
 
   it('is 404 while the show is not live', async () => {
     const show = await createShow((await createUser()).id, { slug: slug() })
     vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response('not found', { status: 404 }))
-    expect((await get(show.slug, 'index.m3u8')).status).toBe(404)
+    expect((await get(show.id, 'index.m3u8')).status).toBe(404)
   })
 
   it('is 502 when MediaMTX is down', async () => {
     const show = await createShow((await createUser()).id, { slug: slug() })
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fetch failed'))
-    expect((await get(show.slug, 'index.m3u8')).status).toBe(502)
+    expect((await get(show.id, 'index.m3u8')).status).toBe(502)
   })
 
   it("only shows a private show's stream to its owner", async () => {
@@ -104,33 +104,33 @@ describe('GET /api/shows/:slug/live/hls/*', () => {
     const show = await createShow(owner.id, { slug: slug(), private: true })
     const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response('#EXTM3U\n'))
 
-    expect((await get(show.slug, 'index.m3u8')).status).toBe(404)
+    expect((await get(show.id, 'index.m3u8')).status).toBe(404)
     signIn((await createUser()).id)
-    expect((await get(show.slug, 'index.m3u8')).status).toBe(404)
+    expect((await get(show.id, 'index.m3u8')).status).toBe(404)
     expect(fetch).not.toHaveBeenCalled()
     signIn(owner.id)
-    expect((await get(show.slug, 'index.m3u8')).status).toBe(200)
+    expect((await get(show.id, 'index.m3u8')).status).toBe(200)
   })
 
   it("won't fetch anything but a plain file name", async () => {
     const show = await createShow((await createUser()).id, { slug: slug() })
     const fetch = vi.spyOn(globalThis, 'fetch')
     for (const file of ['../other/index.m3u8', '..', 'a/b.m3u8', '.hidden', '']) {
-      expect((await get(show.slug, file)).status).toBe(404)
+      expect((await get(show.id, file)).status).toBe(404)
     }
     expect(fetch).not.toHaveBeenCalled()
   })
 })
 
-describe('GET /api/shows/:slug/live/events', () => {
-  const get = (showSlug: string, signal?: AbortSignal, search = '?watching=1') =>
-    callRoute(EventsRoute, 'GET', new Request(`http://x/api/shows/${showSlug}/live/events${search}`, { signal }), {
-      slug: showSlug,
+describe('GET /api/shows/:showId/live/events', () => {
+  const get = (showId: string, signal?: AbortSignal, search = '?watching=1') =>
+    callRoute(EventsRoute, 'GET', new Request(`http://x/api/shows/${showId}/live/events${search}`, { signal }), {
+      showId,
     })
 
   it("is 404 for a private show that isn't the viewer's", async () => {
     const show = await createShow((await createUser()).id, { slug: slug(), private: true })
-    expect((await get(show.slug)).status).toBe(404)
+    expect((await get(show.id)).status).toBe(404)
   })
 
   it('streams what is on and how many are watching, to anyone', async () => {
@@ -138,7 +138,7 @@ describe('GET /api/shows/:slug/live/events', () => {
     const [broadcast] = await db.insert(liveBroadcasts).values({ showId: show.id, title: 'On air' }).returning()
     const abort = new AbortController()
 
-    const response = await get(show.slug, abort.signal)
+    const response = await get(show.id, abort.signal)
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('text/event-stream; charset=utf-8')
     const reader = response.body!.getReader()
@@ -157,7 +157,7 @@ describe('GET /api/shows/:slug/live/events', () => {
     await db.insert(liveBroadcasts).values({ showId: show.id, title: 'On air' })
     const abort = new AbortController()
 
-    const reader = (await get(show.slug, abort.signal, '')).body!.getReader()
+    const reader = (await get(show.id, abort.signal, '')).body!.getReader()
     let text = ''
     while (!text.includes('event: status')) text += new TextDecoder().decode((await reader.read()).value)
     abort.abort()

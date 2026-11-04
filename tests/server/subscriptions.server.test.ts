@@ -194,7 +194,7 @@ describe('gated features, once a user has no access', () => {
   it('refuses new custom domains and stops serving verified ones, keeping them', async () => {
     const user = await createUser()
     const show = await createShow(user.id, { customDomain: 'pod.example.com', customDomainVerifiedAt: new Date(), customDomainToken: 't' })
-    expect(await showForDomain('pod.example.com')).toBe(show.slug)
+    expect(await showForDomain('pod.example.com')).toEqual({ ownerSlug: user.slug, slug: show.slug })
     await enforceWithGraceOver()
     await expect(setCustomDomain(user.id, show.id, 'other.example.com')).rejects.toBeInstanceOf(PaidFeatureError)
     // A domain not looked up yet, as lookups are cached for a minute.
@@ -216,12 +216,12 @@ describe('gated features, once a user has no access', () => {
     const show = await createShow(user.id, { private: true, feedKey: 'key' })
     const episode = await createEpisode(show.id, { status: 'ready', publishedAt: new Date() })
     const access = { key: 'key', viewerId: async () => null }
-    expect(await buildShowFeed(show.slug, 'https://site.test', { key: 'key' })).toContain('<rss')
+    expect(await buildShowFeed(show, 'https://site.test', { key: 'key' })).toContain('<rss')
     expect(await getEpisodeAudio(episode.id, access)).not.toBeNull()
 
     await enforceWithGraceOver()
-    expect(await buildShowFeed(show.slug, 'https://site.test', { key: 'key' })).toBeNull()
-    expect(await buildShowFeed(show.slug, 'https://site.test')).toBeNull()
+    expect(await buildShowFeed(show, 'https://site.test', { key: 'key' })).toBeNull()
+    expect(await buildShowFeed(show, 'https://site.test')).toBeNull()
     expect(await getEpisodeAudio(episode.id, access)).toBeNull()
     const [row] = await db.select().from(shows).where(eq(shows.id, show.id))
     expect(row!.private).toBe(true)
@@ -229,7 +229,7 @@ describe('gated features, once a user has no access', () => {
     expect(await getEpisodeAudio(episode.id, { key: null, viewerId: async () => user.id })).not.toBeNull()
 
     await subscribe(user.id)
-    expect(await buildShowFeed(show.slug, 'https://site.test', { key: 'key' })).toContain('<rss')
+    expect(await buildShowFeed(show, 'https://site.test', { key: 'key' })).toContain('<rss')
   })
 
   it("refuses a live stream with a good key, and making a key", async () => {

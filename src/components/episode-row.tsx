@@ -36,6 +36,7 @@ import {
 import { formatClock, formatDate, hostname, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { htmlToText } from '~/lib/rich-text'
+import { episodeParams, type ShowRef } from '~/lib/paths'
 import type { EpisodeStatus } from '~/server/db/schema'
 import type { EpisodeProgress as ProgressInfo } from '~/server/episode-processor.server'
 
@@ -62,11 +63,11 @@ export type EpisodeRowData = {
 
 export function EpisodeRow({
   episode,
-  showSlug,
+  show,
   showTitle,
 }: {
   episode: EpisodeRowData
-  showSlug: string
+  show: ShowRef
   showTitle: string
 }) {
   const router = useRouter()
@@ -103,7 +104,8 @@ export function EpisodeRow({
       imageUrl: episode.imageUrl,
       showTitle,
       slug: episode.slug,
-      showSlug,
+      showSlug: show.slug,
+      ownerSlug: show.ownerSlug,
       isOwner: true,
       positionSeconds: episode.positionSeconds,
     })
@@ -153,8 +155,8 @@ export function EpisodeRow({
               (as listeners see it, once it's ready; until then, only its manage
               page shows it); the buttons sit above it. */}
           <Link
-            to={episode.status === 'ready' ? '/$slug/$episodeSlug' : '/$slug/$episodeSlug/manage'}
-            params={{ slug: showSlug, episodeSlug: episode.slug }}
+            to={episode.status === 'ready' ? '/$user/$show/$episode' : '/$user/$show/$episode/manage'}
+            params={episodeParams(show, episode.slug)}
             className="outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
           >
             {title}
@@ -207,7 +209,7 @@ export function EpisodeRow({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-auto">
             <DropdownMenuItem asChild>
-              <Link to="/$slug/$episodeSlug/manage" params={{ slug: showSlug, episodeSlug: episode.slug }}>
+              <Link to="/$user/$show/$episode/manage" params={episodeParams(show, episode.slug)}>
                 <Icons.settings />
                 Manage episode
               </Link>

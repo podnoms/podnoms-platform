@@ -17,9 +17,9 @@ import { brandingFrom } from '~/lib/branding'
 
 // A user's public profile, which anyone can see: who they are, and their
 // public shows and playlists. @mentions in comments link here.
-export const Route = createFileRoute('/u/$slug')({
+export const Route = createFileRoute('/$user')({
   staticData: { publicPage: true },
-  loader: ({ params }) => fetchUserProfile({ data: { slug: params.slug } }),
+  loader: ({ params }) => fetchUserProfile({ data: { slug: params.user } }),
   head: ({ loaderData: profile, matches }) => {
     if (!profile) return {}
     const branding = brandingFrom(matches)
@@ -75,7 +75,7 @@ function ProfilePage() {
           <ItemGroup className="gap-2">
             {profile.playlists.map((playlist) => (
               <Item key={playlist.id} variant="outline" asChild>
-                <Link to="/u/$slug/playlists/$playlistSlug" params={{ slug: profile.slug, playlistSlug: playlist.slug }}>
+                <Link to="/$user/playlists/$playlistSlug" params={{ user: profile.slug, playlistSlug: playlist.slug }}>
                   <ItemMedia variant="icon">
                     <Icons.playlist />
                   </ItemMedia>

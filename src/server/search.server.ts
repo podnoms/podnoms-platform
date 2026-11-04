@@ -5,7 +5,7 @@ import { and, desc, eq, ilike, or, sql, type SQL } from 'drizzle-orm'
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 import { htmlToText } from '~/lib/rich-text'
 import { db } from '~/server/db/client.server'
-import { episodes, shows } from '~/server/db/schema'
+import { episodes, shows, users } from '~/server/db/schema'
 import { isPublished } from '~/server/episodes.server'
 
 const maxShows = 5
@@ -47,10 +47,12 @@ export async function searchLibrary(userId: string, query: string) {
         id: shows.id,
         title: shows.title,
         slug: shows.slug,
+        ownerSlug: users.slug,
         description: shows.description,
         imageUrl: shows.imageUrl,
       })
       .from(shows)
+      .innerJoin(users, eq(users.id, shows.userId))
       .where(
         and(
           eq(shows.userId, userId),
@@ -68,11 +70,13 @@ export async function searchLibrary(userId: string, query: string) {
         imageUrl: sql<string | null>`coalesce(${episodes.imageUrl}, ${shows.imageUrl})`,
         showTitle: shows.title,
         showSlug: shows.slug,
+        ownerSlug: users.slug,
         // Whether it has a public page yet.
         ready: sql<boolean>`${isPublished}`,
       })
       .from(episodes)
       .innerJoin(shows, eq(shows.id, episodes.showId))
+      .innerJoin(users, eq(users.id, shows.userId))
       .where(
         and(
           eq(shows.userId, userId),

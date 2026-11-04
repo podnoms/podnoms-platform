@@ -74,7 +74,7 @@ export function showSeriesJsonLd(show: {
 // The episode, and the breadcrumbs from the site to it through its show.
 export function showEpisodeJsonLd(page: {
   siteName: string
-  show: { title: string; slug: string }
+  show: { title: string; slug: string; ownerSlug: string }
   episode: {
     title: string
     description: string | null
@@ -86,7 +86,7 @@ export function showEpisodeJsonLd(page: {
   audioUrl: string
   image: string | null
 }): JsonLd[] {
-  const showUrl = new URL(showPath(page.show.slug), page.pageUrl).toString()
+  const showUrl = new URL(showPath(page.show), page.pageUrl).toString()
   const duration = page.episode.durationSeconds ? isoDuration(page.episode.durationSeconds) : undefined
   return [
     {

@@ -42,7 +42,7 @@ afterEach(async () => {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 50))
 
 async function failedEpisode(userValues: Parameters<typeof createUser>[0] = {}) {
-  const user = await createUser({ email: 'owner@example.com', ...userValues })
+  const user = await createUser({ email: 'owner@example.com', slug: 'owner', ...userValues })
   const show = await createShow(user.id, { title: 'My Show', slug: 'my-show' })
   const episode = await createEpisode(show.id, { title: 'Ep 1', slug: 'ep-1', status: 'failed' })
   return { user, show, episode }
@@ -62,7 +62,7 @@ describe('notifications', () => {
     expect(sent.to).toBe('owner@example.com')
     expect(sent.subject).toBe('1 episode failed, 2 new')
     const { text } = await renderEmail(sent, 'https://pods.example')
-    expect(text).toContain('https://pods.example/my-show/ep-1/manage')
+    expect(text).toContain('https://pods.example/owner/my-show/ep-1/manage')
   })
 
   it('sends after the batch delay', async () => {
@@ -104,7 +104,7 @@ describe('notifications', () => {
 })
 
 describe('emails about shows the user follows', () => {
-  const show = { title: 'Loved', slug: 'loved' }
+  const show = { title: 'Loved', slug: 'loved', ownerSlug: 'ada' }
 
   it('adds new episodes to the next email, if the user chose them', async () => {
     const wants = await createUser({ email: 'wants@example.com', emailFollowedEpisodes: true })
@@ -118,7 +118,7 @@ describe('emails about shows the user follows', () => {
     expect(sent.to).toBe('wants@example.com')
     expect(sent.subject).toBe('New from Loved: Late Night Mix')
     const { text } = await renderEmail(sent, 'https://pods.example')
-    expect(text).toContain('https://pods.example/loved/late-night')
+    expect(text).toContain('https://pods.example/ada/loved/late-night')
   })
 
   it('sends going live at once, if the user chose it', async () => {
@@ -139,7 +139,7 @@ describe('the notifications menu', () => {
     notifyEpisodeFailed(episode.id, 'Video unavailable')
     await settle()
     expect((await listNotifications(user.id)).items).toMatchObject([
-      { kind: 'episodeFailed', title: 'Ep 1 couldn’t be processed', body: 'Video unavailable', url: '/my-show/ep-1/manage' },
+      { kind: 'episodeFailed', title: 'Ep 1 couldn’t be processed', body: 'Video unavailable', url: '/owner/my-show/ep-1/manage' },
     ])
   })
 })

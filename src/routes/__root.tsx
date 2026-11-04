@@ -20,7 +20,7 @@ import { readShowSort } from '~/lib/show-sort'
 import { brandIconUrl, defaultBranding, siteThemeStyleId } from '~/lib/branding'
 import { fontCssUrl } from '~/lib/theme-fonts'
 import { startClientErrorReporting } from '~/lib/client-errors'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { currentDomainShow, domainShowAttribute, isCustomDomain } from '~/lib/current-domain'
 import { loginSearchSchema } from '~/lib/login-search'
 import appCss from '~/styles/app.css?url'
 
@@ -143,9 +143,10 @@ function RootDocument({
   themeCss: string
   children: ReactNode
 }) {
+  const domainShow = currentDomainShow()
   return (
     // ThemeProvider's inline script sets the theme class on <html> before hydration.
-    <html lang="en" suppressHydrationWarning data-custom-domain={currentDomainSlug() ?? undefined}>
+    <html lang="en" suppressHydrationWarning data-custom-domain={domainShow ? domainShowAttribute(domainShow) : undefined}>
       <head>
         <HeadContent />
         {/* The admin Theme tab swaps this element's contents to preview a theme. */}
@@ -163,7 +164,7 @@ function RootDocument({
             // One player around both layouts, so what's playing carries on
             // between the app and public pages.
             <PlayerProvider signedIn={signedIn}>
-              {signedIn && !standalone && !(publicPage && currentDomainSlug()) ? (
+              {signedIn && !standalone && !(publicPage && isCustomDomain()) ? (
                 <SidebarProvider style={{ '--sidebar-width': '18rem' } as CSSProperties}>
                   <AppSidebar />
                   {/* --top-nav-height lets sticky content sit below the sticky top nav. */}
@@ -183,7 +184,7 @@ function RootDocument({
             </PlayerProvider>
           )}
           {/* A show's own domain has no accounts. */}
-          {!bare && !currentDomainSlug() && (
+          {!bare && !isCustomDomain() && (
             <>
               <LoginDialog />
               <TwoFactorDialog />

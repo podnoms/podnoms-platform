@@ -3,7 +3,7 @@
 // root route loads it (see fetchBranding); this module is shared by client and
 // server. Anything left unset is the default below.
 import { useLoaderData } from '@tanstack/react-router'
-import { currentDomainSlug } from '~/lib/current-domain'
+import { isCustomDomain } from '~/lib/current-domain'
 import type { SiteTheme } from '~/lib/theme-schema'
 
 export type CopyItem = { title: string; description: string }
@@ -155,6 +155,6 @@ export function brandingFrom(matches: ReadonlyArray<{ routeId: string; loaderDat
 // A page's <title>: "Likes · <site name>".
 export function pageTitle(matches: ReadonlyArray<{ routeId: string; loaderData?: unknown }>, title: string) {
   // A show's own domain doesn't name the site.
-  if (currentDomainSlug()) return title
+  if (isCustomDomain()) return title
   return `${title} · ${brandingFrom(matches).name}`
 }

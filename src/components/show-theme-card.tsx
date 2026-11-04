@@ -22,7 +22,7 @@ export function ShowThemeCard({
   show,
   onChanged,
 }: {
-  show: { id: string; slug: string; theme: SiteTheme | null }
+  show: { id: string; slug: string; ownerSlug: string; theme: SiteTheme | null }
   onChanged: () => Promise<void>
 }) {
   const branding = useBranding()
@@ -95,7 +95,7 @@ export function ShowThemeCard({
               </h3>
             </div>
             <Button variant="ghost" size="sm" asChild>
-              <a href={showPath(show.slug)} target="_blank" rel="noreferrer">
+              <a href={showPath(show)} target="_blank" rel="noreferrer">
                 <Icons.externalLink />
                 Open the page
               </a>
@@ -103,7 +103,7 @@ export function ShowThemeCard({
           </div>
           <iframe
             ref={frame}
-            src={showPath(show.slug)}
+            src={showPath(show)}
             title="Preview of your show's page"
             onLoad={apply}
             className="h-[40rem] w-full rounded-lg border bg-background"

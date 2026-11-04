@@ -18,6 +18,7 @@ import { Kbd } from '~/components/ui/kbd'
 import { Spinner } from '~/components/ui/spinner'
 import { searchMyLibrary } from '~/functions/search'
 import { imageSrc } from '~/lib/images'
+import { episodeParams, showParams, type ShowRef } from '~/lib/paths'
 import type { SearchResults } from '~/server/search.server'
 
 // Waits for a pause in typing before searching.
@@ -105,14 +106,14 @@ function SearchPalette({ close }: { close: () => void }) {
     close()
     void to()
   }
-  const openShow = (slug: string) => go(() => navigate({ to: '/$slug/manage', params: { slug } }))
+  const openShow = (show: ShowRef) => go(() => navigate({ to: '/$user/$show/manage', params: showParams(show) }))
   // Its public page once it's ready (which links on to managing it); until
   // then, only its manage page shows it.
-  const openEpisode = (slug: string, episodeSlug: string, ready: boolean) =>
+  const openEpisode = (show: ShowRef, episodeSlug: string, ready: boolean) =>
     go(() =>
       navigate({
-        to: ready ? '/$slug/$episodeSlug' : '/$slug/$episodeSlug/manage',
-        params: { slug, episodeSlug },
+        to: ready ? '/$user/$show/$episode' : '/$user/$show/$episode/manage',
+        params: episodeParams(show, episodeSlug),
       }),
     )
 
@@ -128,7 +129,7 @@ function SearchPalette({ close }: { close: () => void }) {
         {!trimmed && shows.length > 0 && (
           <CommandGroup heading="Your shows">
             {shows.map((show) => (
-              <CommandItem key={show.id} value={`show-${show.id}`} onSelect={() => openShow(show.slug)}>
+              <CommandItem key={show.id} value={`show-${show.id}`} onSelect={() => openShow(show)}>
                 <Artwork url={show.imageUrl} />
                 <span className="truncate">{show.title}</span>
               </CommandItem>
@@ -150,7 +151,7 @@ function SearchPalette({ close }: { close: () => void }) {
                   <CommandItem
                     key={show.id}
                     value={`show-${show.id}`}
-                    onSelect={() => openShow(show.slug)}
+                    onSelect={() => openShow(show)}
                   >
                     <Artwork url={show.imageUrl} />
                     <ResultText title={show.title} detail={show.excerpt} />
@@ -164,7 +165,7 @@ function SearchPalette({ close }: { close: () => void }) {
                   <CommandItem
                     key={episode.id}
                     value={`episode-${episode.id}`}
-                    onSelect={() => openEpisode(episode.showSlug, episode.slug, episode.ready)}
+                    onSelect={() => openEpisode({ ownerSlug: episode.ownerSlug, slug: episode.showSlug }, episode.slug, episode.ready)}
                   >
                     <Artwork url={episode.imageUrl} />
                     <ResultText title={episode.title} detail={episode.excerpt ?? episode.showTitle} />

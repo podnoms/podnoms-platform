@@ -23,6 +23,7 @@ import { createMyShow } from '~/functions/shows'
 import { newChannelShowSchema } from '~/lib/channel-schema'
 import { newShowSchema } from '~/lib/show-schema'
 import { channelProviders } from '~/lib/platforms'
+import { showParams } from '~/lib/paths'
 
 type Start = 'blank' | 'channel'
 
@@ -72,7 +73,7 @@ export function NewShowDialog({ children }: { children: ReactNode }) {
       // `sync` waits for the reload: otherwise it runs in the background and
       // the navigation below aborts it, leaving the sidebar without the show.
       await router.invalidate({ sync: true })
-      await navigate({ to: '/$slug', params: { slug: show.slug } })
+      await navigate({ to: '/$user/$show', params: showParams(show) })
     } catch {
       setError('Something went wrong creating your show. Please try again.')
     } finally {

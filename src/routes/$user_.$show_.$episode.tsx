@@ -6,13 +6,13 @@ import { themeHead } from '~/lib/theme-css'
 import { jsonLdMeta, showEpisodeJsonLd } from '~/lib/structured-data'
 import { brandingFrom } from '~/lib/branding'
 
-// An episode's public page, at /:slug/:episodeSlug. The
-// trailing underscore on $slug_ keeps it from nesting inside the show page's
-// route. Its owner manages it at .../manage; its share page (/s/<shortSlug>)
+// An episode's public page, at /<owner>/<show>/<episode>. The trailing
+// underscores keep it from nesting inside the profile's and show page's
+// routes. Its owner manages it at .../manage; its share page (/s/<shortSlug>)
 // has it without the site around it, for sharing.
-export const Route = createFileRoute('/$slug_/$episodeSlug')({
+export const Route = createFileRoute('/$user_/$show_/$episode')({
   staticData: { standalone: true },
-  loader: ({ params }) => fetchEpisodePage({ data: { slug: params.slug, episodeSlug: params.episodeSlug } }),
+  loader: ({ params }) => fetchEpisodePage({ data: params }),
   head: ({ loaderData: page, matches }) => {
     if (!page) return {}
     const branding = brandingFrom(matches)
