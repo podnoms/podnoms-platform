@@ -8,8 +8,8 @@ import { brandLogoUrl, useBranding, withSiteName } from '~/lib/branding'
 
 // The icons beside each step and feature; their text is the site's own (see
 // LandingCopy in src/lib/branding.ts).
-const stepIcons: Icon[] = [Icons.link, Icons.retry, Icons.rss]
-const featureIcons: Icon[] = [Icons.broadcast, Icons.upload, Icons.logo, Icons.share, Icons.duration, Icons.security]
+const stepIcons: Icon[] = [Icons.add, Icons.upload, Icons.follow]
+const featureIcons: Icon[] = [Icons.upload, Icons.broadcast, Icons.rss, Icons.palette, Icons.comment, Icons.link]
 
 // The headline, with *words* highlighted.
 function Headline({ text }: { text: string }) {
@@ -60,50 +60,81 @@ function ExploreButton({ children }: { children: ReactNode }) {
   )
 }
 
-// A mock of a link becoming an episode. Decorative only, so hidden from screen readers.
+// The mock show's episodes, each added a different way.
+const previewEpisodes: { title: string; source: string; SourceIcon: Icon; duration: string }[] = [
+  { title: 'Ep. 24: Building in public', source: 'Uploaded', SourceIcon: Icons.upload, duration: '42:10' },
+  { title: 'Friday live session', source: 'Recorded live', SourceIcon: Icons.broadcast, duration: '1:12:45' },
+  { title: 'Our talk at the meetup', source: 'From YouTube', SourceIcon: Icons.link, duration: '28:03' },
+]
+
+// A mock of a show page: its episodes, wherever they came from, and its feed.
+// Decorative only, so hidden from screen readers.
 function HeroPreview() {
   const origin = useLoaderData({ from: '__root__', select: (data) => data.siteLinks.origin })
   return (
     <div aria-hidden="true" className="relative min-w-0">
       <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-primary/20 blur-3xl" />
       <div className="flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-2xl sm:p-5">
-        <div className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm">
-          <Icons.link className="size-4 shrink-0 text-muted-foreground" />
-          <span className="truncate text-muted-foreground">https://www.youtube.com/watch?v=dQw4w9WgXcQ</span>
-          <span className="ml-auto shrink-0 rounded-md bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
-            Add
-          </span>
-        </div>
-
-        <div className="flex gap-4 rounded-xl border bg-background/60 p-3">
-          <div className="grid size-20 shrink-0 place-items-center rounded-lg bg-linear-to-br from-primary via-accent to-secondary sm:size-24">
+        <div className="flex items-center gap-4">
+          <div className="grid size-20 shrink-0 place-items-center rounded-xl bg-linear-to-br from-primary via-accent to-secondary sm:size-24">
             <Icons.logo className="size-9 text-black/70" />
           </div>
-          <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate font-medium">Late night mix, vol. 12</p>
-              <p className="text-xs text-muted-foreground">My Mixes · 58:21</p>
-            </div>
-            <div className="flex h-10 items-center gap-px sm:gap-[2px]">
-              {bars.map((height, i) => (
-                <span
-                  key={i}
-                  className={`flex-1 rounded-full ${i < 21 ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-                  style={{ height: `${height * 100}%` }}
-                />
-              ))}
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <p className="truncate text-lg font-semibold">The Side Project</p>
+            <p className="text-xs text-muted-foreground">by you · 1,284 followers</p>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1 rounded-md bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
+                <Icons.follow className="size-3" />
+                Follow
+              </span>
+              <span className="flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium">
+                <span className="size-1.5 animate-pulse rounded-full bg-destructive" />
+                Live now
+              </span>
             </div>
           </div>
         </div>
+
+        <ul className="flex flex-col gap-2">
+          {previewEpisodes.map(({ title, source, SourceIcon, duration }, i) => (
+            <li key={title} className="flex flex-col gap-2 rounded-xl border bg-background/60 px-3 py-2.5">
+              <div className="flex items-center gap-3">
+                <span
+                  className={`grid size-7 shrink-0 place-items-center rounded-full ${i === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                >
+                  {i === 0 ? <Icons.pause className="size-3.5" /> : <Icons.play className="size-3.5" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{title}</p>
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <SourceIcon className="size-3" />
+                    {source} · {duration}
+                  </p>
+                </div>
+              </div>
+              {i === 0 && (
+                <div className="flex h-7 items-center gap-px sm:gap-[2px]">
+                  {bars.map((height, j) => (
+                    <span
+                      key={j}
+                      className={`flex-1 rounded-full ${j < 21 ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                      style={{ height: `${height * 100}%` }}
+                    />
+                  ))}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
 
         <div className="flex items-center gap-3 rounded-lg border border-dashed px-3 py-2 text-xs">
           <span className="grid size-6 shrink-0 place-items-center rounded-md bg-secondary text-secondary-foreground">
             <Icons.rss className="size-3.5" />
           </span>
-          <span className="truncate font-mono text-muted-foreground">{new URL(origin).host}/feed/my-mixes</span>
+          <span className="truncate font-mono text-muted-foreground">{new URL(origin).host}/you/the-side-project/feed</span>
           <span className="ml-auto flex shrink-0 items-center gap-1 text-muted-foreground">
             <Icons.check className="size-3.5 text-primary" />
-            In your feed
+            In every app
           </span>
         </div>
       </div>
@@ -133,7 +164,7 @@ export function LandingPage({ shows }: { shows: ShowCardData[] }) {
           <p className="max-w-xl text-lg text-pretty text-muted-foreground">{text(copy.heroText)}</p>
           <div className="flex flex-wrap justify-center gap-3">
             <SignUpButton>
-              Get started free
+              Create your show
               <Icons.back className="rotate-180" />
             </SignUpButton>
             <ExploreButton>Explore shows</ExploreButton>
@@ -216,7 +247,7 @@ export function LandingPage({ shows }: { shows: ShowCardData[] }) {
           <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{text(copy.ctaTitle)}</h2>
           <p className="mx-auto mt-3 max-w-md text-muted-foreground">{text(copy.ctaText)}</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <SignUpButton>Create your show</SignUpButton>
+            <SignUpButton>Get started free</SignUpButton>
             <SignInButton />
           </div>
         </div>

@@ -51,57 +51,66 @@ export const landingStepCount = 3
 export const landingFeatureCount = 6
 
 export const defaultLandingCopy: LandingCopy = {
-  heroTitle: 'Turn any link into a *show*.',
+  heroTitle: 'Robot powered *shows*.',
   heroText:
-    'Paste a YouTube, Mixcloud or SoundCloud link, or upload your own audio. {name} turns it into an episode and drops it straight into your podcast app.',
+    'Upload your recordings, go live, or pull in episodes from YouTube, Mixcloud and SoundCloud. {name} gives your show its own page, its own feed and listeners who follow along.',
   stepsTitle: 'How it works',
   steps: [
     {
-      title: 'Paste a link or upload a file',
-      description: 'A YouTube video, a Mixcloud mix, a SoundCloud track, or audio and video from your own machine.',
+      title: 'Create your show',
+      description: 'Give it a name, artwork and a description. It gets its own page and its own address.',
     },
     {
-      title: 'The robots do the rest',
-      description: 'Audio is extracted and converted to MP3, and the title, description and artwork are filled in for you.',
+      title: 'Add episodes your way',
+      description:
+        'Upload audio or video, record a live broadcast, or paste a link. Conversion, artwork and details are handled for you.',
     },
     {
-      title: 'Listen anywhere',
-      description: 'Every show gets its own RSS feed, so episodes turn up in whatever podcast app you already use.',
+      title: 'Grow your audience',
+      description:
+        'Listeners follow, like and comment on {name}, and subscribe in whatever podcast app they already use.',
     },
   ],
-  featuresTitle: 'Everything your feed needs',
-  featuresText: 'For mixes you want on the commute, talks you never get round to watching, or a show of your own.',
+  featuresTitle: 'Everything your show needs',
+  featuresText: 'Whether it’s a weekly talk show, your DJ sets or a feed of things you want to hear.',
   features: [
     {
-      title: 'Thousands of sources',
-      description: 'If yt-dlp can read it, {name} can make an episode of it: YouTube, Mixcloud, SoundCloud and many, many more.',
-    },
-    { title: 'Bring your own audio', description: 'Upload audio or video files and they are converted to podcast-ready MP3.' },
-    {
-      title: 'Works with every podcast app',
-      description: 'Standard RSS feeds for Apple Podcasts, Pocket Casts, Overcast, AntennaPod and the rest.',
+      title: 'Bring your own audio',
+      description: 'Upload audio or video files from your own machine and they’re turned into podcast-ready episodes.',
     },
     {
-      title: 'Share and embed',
-      description: 'Each episode gets a public page with a waveform player, plus an embeddable player for your site.',
+      title: 'Go live',
+      description: 'Stream from OBS with live chat, and the recording becomes an episode when you finish.',
     },
-    { title: 'Listener stats', description: 'See plays, downloads and shares, with the apps and countries your listeners use.' },
     {
-      title: 'Locked down',
-      description: 'Sign in with Google, GitHub or Facebook, and protect your account with authenticator apps or security keys.',
+      title: 'In every podcast app',
+      description: 'A standard RSS feed for Apple Podcasts, Pocket Casts, Overcast, AntennaPod and the rest.',
+    },
+    {
+      title: 'Your page, your look',
+      description: 'A public page with a waveform player, an embed for your site, your own theme and your own domain.',
+    },
+    {
+      title: 'Listeners who stick around',
+      description: 'Followers hear about new episodes, and can like, comment at a moment in the episode and share.',
+    },
+    {
+      title: 'Or paste a link',
+      description:
+        'Turn a YouTube video, Mixcloud mix or SoundCloud track into an episode, or follow a whole channel and new uploads arrive on their own.',
     },
   ],
   exploreTitle: 'Listen on {name}',
   exploreText: 'Shows people have made here, for anyone to listen to.',
-  ctaTitle: 'Your first episode is one link away',
-  ctaText: "Create a show, paste a link, and subscribe. That's it.",
+  ctaTitle: 'Start your show today',
+  ctaText: 'Create a show, add your first episode, and share it with the world.',
 }
 
 export const defaultBranding: Branding = {
   name: 'podnoms',
   tagline: 'Robot powered shows',
   description:
-    'Turn YouTube, Mixcloud and SoundCloud links, or your own audio and video, into shows with their own RSS feeds.',
+    'Make your own show from your recordings, live broadcasts, or YouTube, Mixcloud and SoundCloud links, with its own page and RSS feed.',
   contactEmail: 'hello@podnoms.com',
   logoVersion: null,
   landing: defaultLandingCopy,
