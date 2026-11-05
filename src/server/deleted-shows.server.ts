@@ -1,7 +1,7 @@
 // A deleted show's files aren't removed straight away. Deleting it writes a
 // manifest to MEDIA_DIR/deleted/<show id>/ and queues the show-archive job,
-// which moves the show's files (its episodes' audio, kept uploads and
-// waveforms, its artwork and live recordings) in beside it. They're kept for
+// which moves the show's files (its episodes' audio, masters, HLS streams,
+// kept uploads and waveforms, its artwork and live recordings) in beside it. They're kept for
 // deletedShowRetentionMs in case they're wanted back; then the daily
 // deleted-purge job removes the folder for good. Never served.
 import '@tanstack/react-start/server-only'
@@ -13,6 +13,8 @@ import {
   deletedShowDir,
   deletedShowsDir,
   episodeAudioPath,
+  episodeHlsDir,
+  episodeMasterPath,
   episodeSourcePath,
   episodeWaveformPath,
   imagePath,
@@ -106,6 +108,8 @@ export async function archiveDeletedShow(showId: string) {
   }
   for (const episode of manifest.episodes) {
     await move('audio', episodeAudioPath(episode.id))
+    await move('masters', episodeMasterPath(episode.id))
+    await move('hls', episodeHlsDir(episode.id))
     await move('sources', episodeSourcePath(episode.id))
     await move('waveforms', episodeWaveformPath(episode.id))
   }

@@ -2,6 +2,17 @@ import { Fragment, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { Link, useNavigate, useRouteContext } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { CommentComposer } from '~/components/comment-composer'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '~/components/ui/alert-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { Button } from '~/components/ui/button'
 import { likeComment, postComment, removeComment } from '~/functions/comments'
@@ -270,6 +281,8 @@ export function EpisodeComments({
             onGifChange={attach}
             gifs={gifs}
             aria-label="Comment"
+            // Equal-width digits, so the ticking time doesn't shift the rest.
+            className="placeholder:tabular-nums"
             placeholder={`Comment at ${formatClock(atSeconds)}… (@ to mention someone)`}
             value={body}
             maxLength={commentMaxLength}
@@ -279,7 +292,14 @@ export function EpisodeComments({
           <div className="flex items-center gap-3">
             <Button type="submit" size="sm" disabled={saving || (!body.trim() && !gif)}>
               <Icons.comment />
-              Comment at <span className="tabular-nums">{formatClock(atSeconds)}</span>
+              {/* Only once it's fixed, so it doesn't tick along with playback. */}
+              {startedAt === null ? (
+                'Comment'
+              ) : (
+                <>
+                  Comment at <span className="tabular-nums">{formatClock(atSeconds)}</span>
+                </>
+              )}
             </Button>
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
@@ -342,6 +362,8 @@ function CommentItem({
   onDelete: () => void
 }) {
   const name = comment.author.name ?? `@${comment.author.slug}`
+  // Deleting a comment takes its replies with it.
+  const replyCount = 'replies' in comment ? comment.replies.length : 0
   return (
     <div
       id={`comment-${comment.id}`}
@@ -403,16 +425,35 @@ function CommentItem({
         </div>
       </div>
       {comment.canDelete && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8 shrink-0 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
-          title={isReply ? 'Delete reply' : 'Delete comment and its replies'}
-          onClick={onDelete}
-        >
-          <Icons.delete />
-          <span className="sr-only">{isReply ? 'Delete reply' : 'Delete comment'}</span>
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 shrink-0 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
+              title={isReply ? 'Delete reply' : 'Delete comment and its replies'}
+            >
+              <Icons.delete />
+              <span className="sr-only">{isReply ? 'Delete reply' : 'Delete comment'}</span>
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{isReply ? 'Delete this reply?' : 'Delete this comment?'}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {replyCount > 0
+                  ? `Its ${pluralise(replyCount, 'reply', 'replies')} will be deleted too. This can't be undone.`
+                  : "This can't be undone."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" onClick={onDelete}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   )

@@ -7,7 +7,7 @@ import '@tanstack/react-start/server-only'
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:crypto'
 import { env } from '~/env'
 
-export type SecretPurpose = 'podnoms totp secret' | 'podnoms smtp password' | 'podnoms live key' | 'podnoms push key' | 'podnoms stripe secret' | 'podnoms patreon secret'
+export type SecretPurpose = 'podnoms totp secret' | 'podnoms smtp password' | 'podnoms live key' | 'podnoms push key' | 'podnoms stripe secret' | 'podnoms patreon secret' | 'podnoms hls signature'
 
 const keys = new Map<SecretPurpose, Buffer>()
 
@@ -18,6 +18,11 @@ function keyFor(purpose: SecretPurpose) {
     keys.set(purpose, key)
   }
   return key
+}
+
+// A key for signing (rather than encrypting) with, e.g. HLS URLs.
+export function signingKey(purpose: SecretPurpose) {
+  return keyFor(purpose)
 }
 
 // Stored as "<iv>.<auth tag>.<ciphertext>", each base64url-encoded.

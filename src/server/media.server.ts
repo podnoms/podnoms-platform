@@ -65,17 +65,35 @@ export async function probeAudio(path: string): Promise<AudioInfo | null> {
   }
 }
 
+// Everything we encode is MP3 at this constant bitrate, the highest MP3 has.
+export const mp3Bitrate = '320k'
+
+// Reads ffmpeg's -progress output (key=value lines; out_time_us is how far
+// it has got), reporting it as a fraction when the duration is known.
+function progressReader(durationSeconds: number | null, onProgress: (fraction: number) => void) {
+  let buffered = ''
+  return (chunk: string) => {
+    buffered += chunk
+    const lines = buffered.split('\n')
+    buffered = lines.pop() ?? ''
+    for (const line of lines) {
+      const match = /^out_time_us=(\d+)$/.exec(line)
+      if (match && durationSeconds) onProgress(Math.min(1, Number(match[1]) / 1e6 / durationSeconds))
+    }
+  }
+}
+
 // Writes the file's first audio track to an MP3, reporting progress as a
 // fraction when the duration is known. MP3 audio is copied rather than
-// re-encoded, so it doesn't lose quality.
+// re-encoded, so it doesn't lose quality (re-encoding a lower-bitrate MP3 at
+// 320k would only make it bigger). Anything else is encoded at mp3Bitrate.
 export async function convertToMp3(
   source: string,
   destination: string,
   info: AudioInfo,
   onProgress: (fraction: number) => void,
 ) {
-  const codecArgs = info.codec === 'mp3' ? ['-c:a', 'copy'] : ['-c:a', 'libmp3lame', '-q:a', '5']
-  let buffered = ''
+  const codecArgs = info.codec === 'mp3' ? ['-c:a', 'copy'] : ['-c:a', 'libmp3lame', '-b:a', mp3Bitrate]
   await run(
     env.FFMPEG_PATH,
     [
@@ -87,19 +105,119 @@ export async function convertToMp3(
       '-f', 'mp3',
       destination,
     ],
-    (chunk) => {
-      // -progress writes key=value lines; out_time_us is how far it has got.
-      buffered += chunk
-      const lines = buffered.split('\n')
-      buffered = lines.pop() ?? ''
-      for (const line of lines) {
-        const match = /^out_time_us=(\d+)$/.exec(line)
-        if (match && info.durationSeconds) {
-          onProgress(Math.min(1, Number(match[1]) / 1e6 / info.durationSeconds))
-        }
-      }
-    },
+    progressReader(info.durationSeconds, onProgress),
   )
+}
+
+// Copies the file's first audio track, untouched, into Matroska (which takes
+// any codec): the episode's master, which its MP3 and HLS stream are made
+// from. Video is left behind.
+export async function extractMaster(source: string, destination: string) {
+  await run(env.FFMPEG_PATH, [
+    '-hide_banner', '-nostdin', '-y', '-loglevel', 'error',
+    '-i', source,
+    '-map', '0:a:0', '-vn',
+    '-c:a', 'copy',
+    '-f', 'matroska',
+    destination,
+  ])
+}
+
+// What choosing a stream's bitrates needs to know about its source.
+export type StreamInfo = {
+  codec: string
+  // Bits per second: the audio track's, or failing that the whole file's.
+  bitrate: number | null
+  channels: number
+  durationSeconds: number | null
+}
+
+type StreamProbeOutput = {
+  streams?: { codec_name?: string; bit_rate?: string; channels?: number }[]
+  format?: { duration?: string; bit_rate?: string }
+}
+
+export async function probeStream(path: string): Promise<StreamInfo | null> {
+  let output: StreamProbeOutput
+  try {
+    const json = await run(env.FFPROBE_PATH, [
+      '-v', 'error',
+      '-print_format', 'json',
+      '-show_entries', 'stream=codec_name,bit_rate,channels:format=duration,bit_rate',
+      '-select_streams', 'a:0',
+      path,
+    ])
+    output = JSON.parse(json) as StreamProbeOutput
+  } catch {
+    return null
+  }
+  const stream = output.streams?.[0]
+  if (!stream?.codec_name) return null
+  const bitrate = Number(stream.bit_rate) || Number(output.format?.bit_rate) || null
+  const duration = Number(output.format?.duration)
+  return {
+    codec: stream.codec_name,
+    bitrate,
+    channels: stream.channels ?? 2,
+    durationSeconds: Number.isFinite(duration) && duration > 0 ? Math.round(duration) : null,
+  }
+}
+
+// The HLS stream's bitrates (AAC), lowest first, as players start with the
+// first. Mono sources get mono at half the rate.
+const stereoLadder = [96_000, 160_000, 256_000]
+// Bitrates up to this much above the source's are still made: AAC needs less
+// than most codecs for the same quality, so 160k is worth having from a 128k
+// MP3, but 256k isn't.
+const headroom = 1.25
+
+// Lossless sources' bitrates say how well they compressed, not how good they
+// are (a quiet FLAC can be tiny), so they always get every bitrate.
+const lossless = /^(flac|alac|wavpack|tta|ape|truehd|mlp|pcm_.*)$/
+
+export function hlsRenditions({ codec, bitrate, channels }: Pick<StreamInfo, 'codec' | 'bitrate' | 'channels'>) {
+  const mono = channels === 1
+  const ladder = mono ? stereoLadder.map((rate) => rate / 2) : stereoLadder
+  // Never more than the source has; the lowest is always made.
+  const kept = bitrate && !lossless.test(codec) ? ladder.filter((rate, i) => i === 0 || rate <= bitrate * headroom) : ladder
+  return kept.map((rate) => ({ name: `${rate / 1000}k`, bitrate: rate, channels: mono ? 1 : 2 }))
+}
+
+// Segments are about this long.
+export const hlsSegmentSeconds = 6
+
+// Writes an HLS stream of the master into `dir`: master.m3u8, and for each
+// bitrate a folder (named like "160k") with its playlist, init segment and
+// segments, which the playlists name relatively. VOD, in fMP4 segments.
+export async function packageHls(
+  master: string,
+  dir: string,
+  info: StreamInfo,
+  onProgress: (fraction: number) => void,
+) {
+  const renditions = hlsRenditions(info)
+  await run(
+    env.FFMPEG_PATH,
+    [
+      '-hide_banner', '-nostdin', '-y',
+      '-i', master,
+      ...renditions.flatMap(() => ['-map', '0:a:0']),
+      '-c:a', 'aac',
+      ...renditions.flatMap((rendition, i) => [`-b:a:${i}`, String(rendition.bitrate), `-ac:a:${i}`, String(rendition.channels)]),
+      '-progress', 'pipe:1', '-nostats',
+      '-f', 'hls',
+      '-hls_time', String(hlsSegmentSeconds),
+      '-hls_playlist_type', 'vod',
+      '-hls_segment_type', 'fmp4',
+      '-hls_fmp4_init_filename', 'init.mp4',
+      '-hls_segment_filename', `${dir}/%v/seg-%05d.m4s`,
+      '-master_pl_name', 'master.m3u8',
+      '-var_stream_map', renditions.map((rendition, i) => `a:${i},name:${rendition.name}`).join(' '),
+      `${dir}/%v/index.m3u8`,
+    ],
+    progressReader(info.durationSeconds, onProgress),
+  )
+  return renditions
 }
 
 // Joins recordings (a live broadcast's segments, in order) into one file of

@@ -10,6 +10,7 @@ import { imageSrc } from '~/lib/images'
 import { brandIconUrl, pageTitle, useBranding } from '~/lib/branding'
 import { isCustomDomain } from '~/lib/current-domain'
 import { themeHead } from '~/lib/theme-css'
+import { EpisodeSource } from '~/lib/stream'
 
 // A compact player for an episode, made to be put in an <iframe> on other
 // sites (see embedSnippet). It renders without the app's shell, and plays with
@@ -38,6 +39,9 @@ function EmbedPlayer() {
   const [position, setPosition] = useState(0)
   const [duration, setDuration] = useState(episode.durationSeconds ?? 0)
   const artwork = episode.imageUrl ?? show.imageUrl
+  // Nothing is fetched until it's first played (see src/lib/stream.ts).
+  const sourceRef = useRef<EpisodeSource | null>(null)
+  useEffect(() => () => sourceRef.current?.destroy(), [])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -64,6 +68,11 @@ function EmbedPlayer() {
   function toggle() {
     const audio = audioRef.current
     if (!audio) return
+    if (!sourceRef.current) {
+      sourceRef.current = new EpisodeSource(audio)
+      sourceRef.current.load({ id: episode.id, audioUrl: episode.audioUrl! }, { autoplay: true, startAt: position || undefined })
+      return
+    }
     if (audio.paused) void audio.play()
     else audio.pause()
   }
@@ -71,13 +80,14 @@ function EmbedPlayer() {
   function seek(seconds: number) {
     const audio = audioRef.current
     if (!audio) return
-    audio.currentTime = seconds
+    // Before it's loaded, this is just where it will start.
+    if (sourceRef.current) audio.currentTime = seconds
     setPosition(seconds)
   }
 
   return (
     <div className="flex h-dvh items-center bg-card p-3 text-card-foreground">
-      <audio ref={audioRef} src={episode.audioUrl!} preload="none" />
+      <audio ref={audioRef} preload="none" onError={() => sourceRef.current?.handleError()} />
       <div className="flex w-full min-w-0 items-center gap-4">
         {artwork ? (
           <img src={imageSrc(artwork, 152)} alt="" className="size-28 shrink-0 rounded-lg object-cover sm:size-38" />

@@ -6,6 +6,12 @@ import { env } from '~/env'
 const audioDir = resolve(env.MEDIA_DIR, 'audio')
 // Files users have uploaded but not yet turned into an episode, one folder per user.
 const uploadsDir = resolve(env.MEDIA_DIR, 'uploads')
+// Each episode's source audio as it came (its first audio track, copied into
+// Matroska), which its MP3 and HLS stream are made from (see hls.server.ts).
+const mastersDir = resolve(env.MEDIA_DIR, 'masters')
+// Episodes' HLS streams, one folder per episode holding a folder per build
+// (its version, see hls.server.ts).
+const hlsDir = resolve(env.MEDIA_DIR, 'hls')
 // Uploaded files waiting to be converted, kept until the episode is ready so a
 // failed conversion can be retried.
 const sourcesDir = resolve(env.MEDIA_DIR, 'sources')
@@ -36,6 +42,8 @@ const deletedDir = resolve(env.MEDIA_DIR, 'deleted')
 // Every folder above, for the media clean-up job (see media-cleanup.server.ts).
 export const mediaDirs = {
   audio: audioDir,
+  masters: mastersDir,
+  hls: hlsDir,
   uploads: uploadsDir,
   sources: sourcesDir,
   images: imagesDir,
@@ -97,6 +105,24 @@ export function replacementAudioName(episodeId: string) {
 
 export function replacementAudioPath(episodeId: string) {
   return join(audioDir, `${replacementAudioName(episodeId)}.mp3`)
+}
+
+export async function ensureMastersDir() {
+  await mkdir(mastersDir, { recursive: true })
+  return mastersDir
+}
+
+// `name` is the episode's ID, or replacementAudioName for audio replacing it.
+export function episodeMasterPath(name: string) {
+  return join(mastersDir, `${name}.mka`)
+}
+
+export function episodeHlsDir(episodeId: string) {
+  return join(hlsDir, safeId(episodeId))
+}
+
+export function episodeHlsVersionDir(episodeId: string, version: string) {
+  return join(episodeHlsDir(episodeId), safeId(version))
 }
 
 export function episodeWaveformPath(episodeId: string) {

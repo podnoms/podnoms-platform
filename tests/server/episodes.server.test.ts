@@ -27,7 +27,16 @@ import {
   summarisePublishedEpisodes,
   updateEpisode,
 } from '~/server/episodes.server'
-import { deletedShowDir, episodeAudioPath, episodeSourcePath, episodeWaveformPath, imagePath, stagedUploadPath } from '~/server/storage.server'
+import {
+  deletedShowDir,
+  episodeAudioPath,
+  episodeHlsVersionDir,
+  episodeMasterPath,
+  episodeSourcePath,
+  episodeWaveformPath,
+  imagePath,
+  stagedUploadPath,
+} from '~/server/storage.server'
 import { resetDb } from '../db'
 import {
   createEpisode as insertEpisode,
@@ -301,7 +310,7 @@ describe('getEpisodeAudio', () => {
     const { show } = await setup()
     const ready = await insertEpisode(show.id, { status: 'ready', audioMimeType: 'audio/mpeg' })
     const pending = await insertEpisode(show.id, { status: 'pending' })
-    expect(await getEpisodeAudio(ready.id, anyone)).toEqual({ audioMimeType: 'audio/mpeg' })
+    expect(await getEpisodeAudio(ready.id, anyone)).toEqual({ audioMimeType: 'audio/mpeg', hlsVersion: null, public: true })
     expect(await getEpisodeAudio(pending.id, anyone)).toBeNull()
     expect(await getEpisodeAudio('missing', anyone)).toBeNull()
   })
@@ -314,6 +323,8 @@ describe('getEpisodeAudio', () => {
     expect(await getEpisodeAudio(episode.id, { ...anyone, viewerId: async () => 'someone-else' })).toBeNull()
     expect(await getEpisodeAudio(episode.id, { ...anyone, key: 'k3y' })).not.toBeNull()
     expect(await getEpisodeAudio(episode.id, { ...anyone, viewerId: async () => user.id })).not.toBeNull()
+    // Not public, so its stream is signed for whoever may have it.
+    expect(await getEpisodeAudio(episode.id, { ...anyone, key: 'k3y' })).toMatchObject({ public: false })
   })
 
   it("serves a private episode's audio only to its owner, feed key or not", async () => {
@@ -343,6 +354,20 @@ describe('setEpisodePrivacy', () => {
     expect(await isPrivate()).toBe(true)
     expect(await setEpisodePrivacy(user.id, episode.id, false)).toBe(true)
     expect(await isPrivate()).toBe(false)
+  })
+
+  it("moves the episode's stream to a new version when it's made private", async () => {
+    const { user, show } = await setup()
+    const episode = await insertEpisode(show.id, { status: 'ready', hlsVersion: 'v1' })
+    await touch(join(episodeHlsVersionDir(episode.id, 'v1'), 'master.m3u8'))
+    const version = async () => (await db.select().from(episodes).where(eq(episodes.id, episode.id)))[0]!.hlsVersion
+    await setEpisodePrivacy(user.id, episode.id, true)
+    const moved = await version()
+    expect(moved).not.toBe('v1')
+    expect(await exists(join(episodeHlsVersionDir(episode.id, moved!), 'master.m3u8'))).toBe(true)
+    // Made public again, it can keep the version it has.
+    await setEpisodePrivacy(user.id, episode.id, false)
+    expect(await version()).toBe(moved)
   })
 })
 
@@ -404,12 +429,12 @@ describe('deleteEpisode', () => {
     const { user, show } = await setup()
     const image = await storeTestImage()
     const episode = await insertEpisode(show.id, { status: 'ready', imageUrl: image.url })
-    for (const path of [episodeAudioPath(episode.id), episodeSourcePath(episode.id), episodeWaveformPath(episode.id)]) {
-      await touch(path)
-    }
+    const segment = join(episodeHlsVersionDir(episode.id, 'v1'), '96k', 'seg-00000.m4s')
+    const files = [episodeAudioPath(episode.id), episodeMasterPath(episode.id), segment, episodeSourcePath(episode.id), episodeWaveformPath(episode.id)]
+    for (const path of files) await touch(path)
     expect(await deleteEpisode(user.id, episode.id)).toBe(true)
     expect(await getRow(episode.id)).toBeUndefined()
-    for (const path of [episodeAudioPath(episode.id), episodeSourcePath(episode.id), episodeWaveformPath(episode.id), image.path]) {
+    for (const path of [...files, image.path]) {
       expect(await exists(path)).toBe(false)
     }
   })

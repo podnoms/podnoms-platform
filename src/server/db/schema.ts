@@ -329,6 +329,16 @@ export const episodes = pgTable(
     audioUrl: text('audioUrl'),
     audioMimeType: text('audioMimeType'),
     audioSizeBytes: bigint('audioSizeBytes', { mode: 'number' }),
+    // The source's audio as it came, kept as the master everything else is
+    // made from (see hls.server.ts); null for episodes made before masters
+    // were kept, whose MP3 is the best copy there is.
+    masterCodec: text('masterCodec'),
+    masterBitrate: integer('masterBitrate'),
+    masterChannels: integer('masterChannels'),
+    // The current build of the episode's HLS stream, a folder under
+    // MEDIA_DIR/hls/<episode id>/; null until it's built, when players use
+    // the MP3.
+    hlsVersion: text('hlsVersion'),
     durationSeconds: integer('durationSeconds'),
     status: episodeStatus('status').notNull().default('pending'),
     // Why processing failed, when status is 'failed'; on a ready episode, why

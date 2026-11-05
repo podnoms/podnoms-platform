@@ -14,7 +14,8 @@ import {
   temporaryEpisodeSlug,
   withRandomSuffix,
 } from '~/server/episode-slugs.server'
-import { episodeAudioPath, episodeSourcePath } from '~/server/storage.server'
+import { deleteHls, moveHlsVersions } from '~/server/hls.server'
+import { episodeAudioPath, episodeMasterPath, episodeSourcePath } from '~/server/storage.server'
 import { findUpload, moveUploadToEpisode, type UploadedAudio } from '~/server/uploads.server'
 import { plainTextToHtml } from '~/lib/rich-text'
 import { commitImage, deleteImage } from '~/server/images.server'
@@ -414,6 +415,7 @@ export async function getEpisodeAudio(episodeId: string, access: AudioAccess) {
     .select({
       status: episodes.status,
       audioMimeType: episodes.audioMimeType,
+      hlsVersion: episodes.hlsVersion,
       private: episodes.private,
       showPrivate: shows.private,
       feedKey: shows.feedKey,
@@ -429,7 +431,12 @@ export async function getEpisodeAudio(episodeId: string, access: AudioAccess) {
     (!episode.showPrivate ||
       (!!access.key && access.key === episode.feedKey && (await hasPaidAccess(episode.ownerId))))
   if (!listed && (await access.viewerId()) !== episode.ownerId) return null
-  return { audioMimeType: episode.audioMimeType }
+  return {
+    audioMimeType: episode.audioMimeType,
+    hlsVersion: episode.hlsVersion,
+    // Anyone may have it, so its stream needn't be signed (see hls.server.ts).
+    public: !episode.private && !episode.showPrivate,
+  }
 }
 
 // The episode, if it belongs to one of the user's shows.
@@ -461,9 +468,12 @@ export async function deleteEpisode(userId: string, episodeId: string) {
   return true
 }
 
-// An episode's audio, kept source, artwork and waveform, once its row is gone.
+// An episode's audio, master, stream, kept source, artwork and waveform, once
+// its row is gone.
 async function deleteEpisodeFiles(episode: { id: string; imageUrl: string | null }) {
   await rm(episodeAudioPath(episode.id), { force: true })
+  await rm(episodeMasterPath(episode.id), { force: true })
+  await deleteHls(episode.id)
   await rm(episodeSourcePath(episode.id), { force: true })
   await deleteImage(episode.imageUrl)
   await deleteWaveform(episode.id)
@@ -530,6 +540,8 @@ export async function setEpisodePrivacy(userId: string, episodeId: string, isPri
   const episode = await findOwnedEpisode(userId, episodeId)
   if (!episode) return false
   await db.update(episodes).set({ private: isPrivate }).where(eq(episodes.id, episode.id))
+  // Its stream's public URLs stop working (see hls.server.ts).
+  if (isPrivate) await moveHlsVersions([episode.id])
   return true
 }
 

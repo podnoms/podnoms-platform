@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { saveMyPlaybackPosition } from '~/functions/shows'
 import { reportActivity, reportTrackedLinkVisit } from '~/lib/activity'
 import { readLastEpisode, storeLastEpisode } from '~/lib/last-episode'
+import { EpisodeSource, preloadHls } from '~/lib/stream'
 import { defaultVolume, readStoredVolume, storeVolume, type Volume } from '~/lib/volume'
 
 export type PlayerEpisode = {
@@ -77,6 +78,18 @@ export function PlayerProvider({
   children: ReactNode
 }) {
   const audioRef = useRef<HTMLAudioElement>(null)
+  // Feeds the element each episode's stream, or its MP3 (see src/lib/stream.ts).
+  const sourceRef = useRef<EpisodeSource | null>(null)
+  const sourceFor = (audio: HTMLAudioElement) => (sourceRef.current ??= new EpisodeSource(audio))
+  useEffect(() => {
+    // Most browsers need hls.js to stream; have it ready before anything plays.
+    const idle = setTimeout(() => void preloadHls().catch(() => {}), 2000)
+    return () => {
+      clearTimeout(idle)
+      sourceRef.current?.destroy()
+      sourceRef.current = null
+    }
+  }, [])
   const [episode, setEpisode] = useState<PlayerEpisode | null>(null)
   const [queue, setQueue] = useState<PlayerQueue | null>(null)
   const queueIndex = queue && episode ? queue.episodes.findIndex((queued) => queued.id === episode.id) : -1
@@ -122,6 +135,10 @@ export function PlayerProvider({
 
   // Where to start the episode that's loading, instead of resuming.
   const startAt = useRef<number | null>(null)
+  // A stream that failed carries on in the MP3 from where it had got to.
+  const resumeFallback = (seconds: number) => {
+    startAt.current = seconds
+  }
 
   // Queue up the episode from last visit, paused, once hydrated (the server
   // can't see storage). Until then there's nothing to remember.
@@ -134,7 +151,7 @@ export function PlayerProvider({
     if (last && audio) {
       restoredId.current = last.id
       setEpisode(last)
-      audio.src = last.audioUrl
+      sourceFor(audio).load(last, { autoplay: false, startAt: last.positionSeconds ?? undefined, onFallback: resumeFallback })
     }
     setRestored(true)
   }, [])
@@ -166,9 +183,11 @@ export function PlayerProvider({
       // progress shown doesn't drop to 0 and jump back in the meantime.
       setCurrentTime(options?.startAt ?? positionOf(next.id, next.positionSeconds))
       setDuration(0)
-      audio.src = next.audioUrl
+      // Loading resets the rate to the default one, which a stream loads after.
+      audio.defaultPlaybackRate = rate
+      const resumeAt = options?.startAt ?? positionOf(next.id, next.positionSeconds)
+      sourceFor(audio).load(next, { autoplay: true, startAt: resumeAt || undefined, onFallback: resumeFallback })
       audio.playbackRate = rate
-      void audio.play()
     },
     [episode, rate, savePosition, positionOf],
   )
@@ -234,7 +253,10 @@ export function PlayerProvider({
       },
       setRate: (next) => {
         setRateState(next)
-        if (audioRef.current) audioRef.current.playbackRate = next
+        if (audioRef.current) {
+          audioRef.current.playbackRate = next
+          audioRef.current.defaultPlaybackRate = next
+        }
       },
       setVolume: (level) => changeVolume({ level, muted: level === 0 }),
       // Unmuting at zero would still be silent, so it goes back to full.
@@ -245,8 +267,7 @@ export function PlayerProvider({
         if (audio && episode) {
           savePosition(episode.id, audio.currentTime)
           audio.pause()
-          audio.removeAttribute('src')
-          audio.load()
+          sourceFor(audio).unload()
         }
         setEpisode(null)
         setQueue(null)
@@ -321,6 +342,8 @@ export function PlayerProvider({
         // An episode queued up from last visit may have been deleted since, or
         // belong to whoever was signed in before; drop it rather than show it broken.
         onError={() => {
+          // The stream failing just means the MP3 instead.
+          if (sourceRef.current?.handleError()) return
           if (episode && episode.id === restoredId.current) {
             restoredId.current = null
             setEpisode(null)

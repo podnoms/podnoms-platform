@@ -1,8 +1,9 @@
+import { mkdir } from 'node:fs/promises'
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { themePresets } from '~/lib/theme-presets'
 import { pickStyles } from '~/lib/theme-schema'
-import { shows } from '~/server/db/schema'
+import { episodes, shows } from '~/server/db/schema'
 import {
   createShow,
   getShowBySlug,
@@ -18,7 +19,7 @@ import {
   updateShow,
 } from '~/server/shows.server'
 import { prepareFonts } from '~/server/fonts.server'
-import { imagePath } from '~/server/storage.server'
+import { episodeHlsVersionDir, imagePath } from '~/server/storage.server'
 import { updateProfile } from '~/server/users.server'
 import { resetDb } from '../db'
 import {
@@ -324,6 +325,20 @@ describe('setShowPrivacy', () => {
     expect(await getRow(show.id)).toMatchObject({ private: false, feedKey })
     await setShowPrivacy(user.id, show.id, true)
     expect(await getRow(show.id)).toMatchObject({ private: true, feedKey })
+  })
+
+  it("moves its episodes' streams to new versions when it's made private", async () => {
+    const user = await createUser()
+    const show = await insertShow(user.id)
+    const [episode] = await db
+      .insert(episodes)
+      .values({ showId: show.id, title: 'One', slug: 'one', status: 'ready', hlsVersion: 'v1' })
+      .returning()
+    await mkdir(episodeHlsVersionDir(episode!.id, 'v1'), { recursive: true })
+    await setShowPrivacy(user.id, show.id, true)
+    const [row] = await db.select().from(episodes).where(eq(episodes.id, episode!.id))
+    expect(row!.hlsVersion).not.toBe('v1')
+    expect(row!.hlsVersion).toBeTruthy()
   })
 
   it("won't change someone else's show", async () => {

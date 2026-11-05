@@ -9,11 +9,12 @@ import { resetThrottle, throttleStatus } from '~/server/download-throttle.server
 import { subscribeToEpisodeEvents, type EpisodeEvent } from '~/server/episode-events.server'
 import { enqueueEpisode, getEpisodeProgress, resumeUnfinishedEpisodes } from '~/server/episode-processor.server'
 import { fetcherConfig } from '~/server/fetcher.server'
+import { hlsBuildsSettled } from '~/server/hls.server'
 import { notifyFollowersNewEpisode } from '~/server/follower-notifications.server'
 import { reportError } from '~/server/logger.server'
 import { setPaidFeaturesEnforced } from '~/server/subscriptions.server'
 import { ytDlpConfig } from '~/server/ytdlp.server'
-import { episodeAudioPath, episodeSourcePath, episodeWaveformPath, replacementAudioPath } from '~/server/storage.server'
+import { episodeAudioPath, episodeMasterPath, episodeSourcePath, episodeWaveformPath, replacementAudioName, replacementAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import { startFakeFetcher } from '../fixtures/fake-fetcher'
 import { createEpisode, createShow, createUser, db, exists, hasFfmpeg, makeImage, makeTone } from '../helpers'
@@ -38,6 +39,9 @@ beforeAll(async () => {
 })
 
 afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())))
+// Streams are built in the background once episodes are ready; let them
+// finish before the next test resets everything.
+afterEach(() => hlsBuildsSettled())
 beforeEach(async () => {
   vi.mocked(reportError).mockClear()
   await resetDb(db)
@@ -200,6 +204,17 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     expect(converting.at(-1)).toEqual({ stage: 'converting', percent: 100 })
   })
 
+  it("keeps the download's audio as the master, and builds its stream from it", async () => {
+    const episode = await linkEpisode({ sourceUrl: link('/watch', { title: 'Mastered' }) })
+    enqueueEpisode(episode.id)
+    await processed(episode.id)
+    expect(await exists(episodeMasterPath(episode.id))).toBe(true)
+    await hlsBuildsSettled()
+    const row = await getRow(episode.id)
+    expect(row.masterCodec).toBe('mp3')
+    expect(row.hlsVersion).toBeTruthy()
+  })
+
   it('removes the download once it has been converted', async () => {
     const episode = await linkEpisode({ sourceUrl: link('/watch') })
     enqueueEpisode(episode.id)
@@ -358,6 +373,20 @@ describe.skipIf(!hasFfmpeg)('episodes from uploads', () => {
     expect(await exists(episodeWaveformPath(episode.id))).toBe(true)
   })
 
+  it("keeps the upload's audio as the master, and builds its stream from it", async () => {
+    const show = await createShow((await createUser()).id)
+    const episode = await createEpisode(show.id, { title: 'Upload', slug: 'upload' })
+    await makeTone(episodeSourcePath(episode.id), 2, ['-f', 'wav'])
+
+    enqueueEpisode(episode.id)
+    await processed(episode.id)
+    expect(await exists(episodeMasterPath(episode.id))).toBe(true)
+    await hlsBuildsSettled()
+    const row = await getRow(episode.id)
+    expect(row).toMatchObject({ masterCodec: 'pcm_s16le', masterChannels: 1 })
+    expect(row.hlsVersion).toBeTruthy()
+  })
+
   it('tells open pages how it is going, and when it is done', async () => {
     const show = await createShow((await createUser()).id)
     const episode = await createEpisode(show.id)
@@ -470,6 +499,24 @@ describe.skipIf(!hasFfmpeg)('replacing audio', () => {
     expect(await replaced(episode.id)).toMatchObject({ status: 'ready', sourceUrl: null, durationSeconds: 2, title: 'Mine' })
     expect(await exists(episodeSourcePath(episode.id))).toBe(false)
     expect(await readFile(episodeAudioPath(episode.id), 'utf8')).not.toBe('old')
+  })
+
+  it('swaps in the new master, and builds a new stream from it', async () => {
+    const episode = await readyEpisode({ hlsVersion: 'old', masterCodec: 'flac' })
+    await mkdir(dirname(episodeMasterPath(episode.id)), { recursive: true })
+    await writeFile(episodeMasterPath(episode.id), 'old')
+    await makeTone(episodeSourcePath(episode.id), 2, ['-f', 'wav'])
+    await db.update(episodes).set({ replacement: { sourceUrl: null } }).where(eq(episodes.id, episode.id))
+    enqueueEpisode(episode.id)
+
+    await replaced(episode.id)
+    expect(await readFile(episodeMasterPath(episode.id), 'utf8')).not.toBe('old')
+    expect(await exists(episodeMasterPath(replacementAudioName(episode.id)))).toBe(false)
+    await hlsBuildsSettled()
+    const row = await getRow(episode.id)
+    expect(row.hlsVersion).toBeTruthy()
+    expect(row.hlsVersion).not.toBe('old')
+    expect(row.masterCodec).toBe('pcm_s16le')
   })
 
   it('keeps the old audio and notes the error when it fails', async () => {

@@ -5,6 +5,7 @@ import '@tanstack/react-start/server-only'
 import { and, eq, or } from 'drizzle-orm'
 import { cssColourToHslTriplet } from '~/lib/colour'
 import { htmlToText } from '~/lib/rich-text'
+import { hlsEntryPath } from '~/lib/stream'
 import type { ModeStyles } from '~/lib/theme-schema'
 import { storedMentionPattern } from '~/lib/user-slug'
 import { listComments, type CommentReply, type EpisodeComment } from '~/server/comments.server'
@@ -63,6 +64,13 @@ export function mobileShow(
   }
 }
 
+// A ready episode's HLS stream (see hls.server.ts), which the app plays when
+// it's there, sending its token as it does for the audio. It's a 404 until the
+// stream is built, when the app plays audioUrl.
+function streamUrl(request: Request, episodeId: string, ready = true) {
+  return ready ? absolute(request, hlsEntryPath(episodeId)) : null
+}
+
 type OwnedEpisode = Awaited<ReturnType<typeof listEpisodes>>[number]
 
 // One of the user's own episodes, in any state, with its live progress.
@@ -75,6 +83,7 @@ export function mobileEpisode(request: Request, episode: OwnedEpisode) {
     sourceUrl: episode.sourceUrl,
     imageUrl: absolute(request, episode.imageUrl),
     audioUrl: episode.status === 'ready' ? absolute(request, episode.audioUrl) : null,
+    hlsUrl: streamUrl(request, episode.id, episode.status === 'ready'),
     durationSeconds: episode.durationSeconds,
     status: episode.status,
     error: episode.error,
@@ -99,6 +108,7 @@ export function mobilePublishedEpisode(request: Request, episode: PublishedEpiso
     sourceUrl: null,
     imageUrl: absolute(request, episode.imageUrl),
     audioUrl: absolute(request, episode.audioUrl),
+    hlsUrl: streamUrl(request, episode.id),
     durationSeconds: episode.durationSeconds,
     status: 'ready' as const,
     error: null,
@@ -120,6 +130,7 @@ export function mobileListenerEpisode(request: Request, episode: ListenerEpisode
     title: episode.title,
     imageUrl: absolute(request, episode.imageUrl ?? episode.show.imageUrl),
     audioUrl: absolute(request, episode.audioUrl),
+    hlsUrl: streamUrl(request, episode.id),
     durationSeconds: episode.durationSeconds,
     positionSeconds: episode.positionSeconds ?? 0,
     show: { slug: episode.show.slug, title: episode.show.title },
@@ -242,6 +253,7 @@ export async function mobileEpisodePage(request: Request, userId: string, episod
       description: episode.description ? htmlToText(episode.description) : null,
       imageUrl: absolute(request, episode.imageUrl ?? show.imageUrl),
       audioUrl: episode.status === 'ready' ? absolute(request, episode.audioUrl) : null,
+      hlsUrl: streamUrl(request, episode.id, episode.status === 'ready'),
       positionSeconds: episode.positionSeconds ?? 0,
       // Only the owner sees where it came from, or why it failed.
       sourceUrl: isOwner ? episode.sourceUrl : null,

@@ -137,6 +137,11 @@ describe('shows', () => {
       ['Failed', 'failed'],
       ['Ready', 'ready'],
     ])
+    // Ready episodes can be streamed; the app plays audioUrl until that's built.
+    const streams = (body.episodes as unknown as { id: string; status: string; hlsUrl: string | null }[]).map((e) => [e.status, e.hlsUrl])
+    expect(streams).toContainEqual(['failed', null])
+    const ready = (body.episodes as unknown as { id: string; status: string }[]).find((e) => e.status === 'ready')!
+    expect(streams).toContainEqual(['ready', `http://x/api/episodes/${ready.id}/hls/master.m3u8`])
 
     const hidden = await callRoute(ShowRoute, 'GET', request(`/api/mobile/shows/${theirs.id}`, { token }), { showId: theirs.id })
     expect(hidden.status).toBe(404)

@@ -1,7 +1,7 @@
 // Removes media files nothing needs any more: files no show, episode or
 // user refers to (bar those of deleted shows, see deleted-shows.server.ts), uploads that never became an episode, and the kept upload of
-// an episode that has been failed for a week, and live recordings that were
-// never made into episodes. Run daily as a job (see
+// an episode that has been failed for a week, live recordings that were
+// never made into episodes, and HLS streams' old versions. Run daily as a job (see
 // jobs.server.ts); safe to run at any time, and to run again.
 import '@tanstack/react-start/server-only'
 import { readdir, rm, rmdir, stat } from 'node:fs/promises'
@@ -28,6 +28,29 @@ export const failedSourceRemovedError =
   'The uploaded file was removed after a week. Replace the audio to try again.'
 
 type File = { name: string; path: string; modified: number }
+
+// An episode's HLS folder holds a folder per version; all but the current
+// one are left a while for players part way through them (see hls.server.ts).
+// Folders of episodes that are gone go too.
+async function removeOldHlsVersions(now: number, current: Map<string, string | null>, wanted: (id: string) => boolean) {
+  let removed = 0
+  for (const episodeDir of await readdir(mediaDirs.hls, { withFileTypes: true }).catch(() => [])) {
+    if (!episodeDir.isDirectory()) continue
+    const path = join(mediaDirs.hls, episodeDir.name)
+    const keepAll = wanted(episodeDir.name) && !current.has(episodeDir.name)
+    for (const versionDir of await readdir(path, { withFileTypes: true }).catch(() => [])) {
+      if (!versionDir.isDirectory() || keepAll) continue
+      if (wanted(episodeDir.name) && versionDir.name === current.get(episodeDir.name)) continue
+      const versionPath = join(path, versionDir.name)
+      const modified = (await stat(versionPath).catch(() => null))?.mtimeMs ?? now
+      if (now - modified < orphanGraceMs) continue
+      await rm(versionPath, { recursive: true, force: true })
+      removed++
+    }
+    if ((await readdir(path).catch(() => ['?'])).length === 0) await rmdir(path).catch(() => {})
+  }
+  return removed
+}
 
 async function filesIn(dir: string): Promise<File[]> {
   const entries = await readdir(dir, { withFileTypes: true }).catch(() => [])
@@ -124,7 +147,9 @@ export async function cleanUpMedia(now = Date.now()) {
   // Deleted shows' files are left for the show-archive job to move, should
   // it not have run yet (see deleted-shows.server.ts).
   const deleted = await deletedShowMedia()
-  const episodeIds = new Set((await db.select({ id: episodes.id }).from(episodes)).map((row) => row.id))
+  const episodeRows = await db.select({ id: episodes.id, hlsVersion: episodes.hlsVersion }).from(episodes)
+  const episodeIds = new Set(episodeRows.map((row) => row.id))
+  const hlsVersions = new Map(episodeRows.map((row) => [row.id, row.hlsVersion]))
 
   // A database with no episodes while there are audio files is more likely
   // the wrong database (or an empty one being restored) than a site whose
@@ -147,6 +172,9 @@ export async function cleanUpMedia(now = Date.now()) {
   const removed = {
     failedSources: await removeOldFailedSources(now),
     audio: await removeUnwanted(mediaDirs.audio, now, beforeFirstDot, episodeWanted),
+    masters: await removeUnwanted(mediaDirs.masters, now, beforeFirstDot, episodeWanted),
+    // Episodes of deleted shows (wanted, but not in the table) keep everything.
+    hlsVersions: await removeOldHlsVersions(now, hlsVersions, episodeWanted),
     waveforms: await removeUnwanted(mediaDirs.waveforms, now, beforeFirstDot, episodeWanted),
     sources: await removeUnwanted(mediaDirs.sources, now, beforeFirstDot, episodeWanted),
     images: await removeUnwanted(mediaDirs.images, now, beforeFirstDot, (id) => imageIds.has(id)),

@@ -80,6 +80,7 @@ import { Route as ApiMobileShowsShowIdRouteImport } from './routes/api/mobile/sh
 import { Route as ApiShowsShowIdEventsRouteImport } from './routes/api/shows/$showId/events'
 import { Route as EmbedUserShowEpisodeRouteImport } from './routes/embed/$user.$show.$episode'
 import { Route as AuthedUserShowEpisodeManageRouteImport } from './routes/_authed/$user_.$show_.$episode.manage'
+import { Route as ApiEpisodesIdHlsSplatRouteImport } from './routes/api/episodes/$id/hls/$'
 import { Route as ApiMobileAuthOauthProviderRouteImport } from './routes/api/mobile/auth/oauth/$provider'
 import { Route as ApiMobileAuthOauthExchangeRouteImport } from './routes/api/mobile/auth/oauth/exchange'
 import { Route as ApiMobileAuthOauthFinishRouteImport } from './routes/api/mobile/auth/oauth/finish'
@@ -459,6 +460,11 @@ const AuthedUserShowEpisodeManageRoute =
     path: '/$user/$show/$episode/manage',
     getParentRoute: () => AuthedRoute,
   } as any)
+const ApiEpisodesIdHlsSplatRoute = ApiEpisodesIdHlsSplatRouteImport.update({
+  id: '/api/episodes/$id/hls/$',
+  path: '/api/episodes/$id/hls/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMobileAuthOauthProviderRoute =
   ApiMobileAuthOauthProviderRouteImport.update({
     id: '/api/mobile/auth/oauth/$provider',
@@ -614,6 +620,7 @@ export interface FileRoutesByFullPath {
   '/api/mobile/notifications/': typeof ApiMobileNotificationsIndexRoute
   '/api/mobile/shows/': typeof ApiMobileShowsIndexRoute
   '/$user/$show/$episode/manage': typeof AuthedUserShowEpisodeManageRoute
+  '/api/episodes/$id/hls/$': typeof ApiEpisodesIdHlsSplatRoute
   '/api/mobile/auth/oauth/$provider': typeof ApiMobileAuthOauthProviderRoute
   '/api/mobile/auth/oauth/exchange': typeof ApiMobileAuthOauthExchangeRoute
   '/api/mobile/auth/oauth/finish': typeof ApiMobileAuthOauthFinishRoute
@@ -699,6 +706,7 @@ export interface FileRoutesByTo {
   '/api/mobile/notifications': typeof ApiMobileNotificationsIndexRoute
   '/api/mobile/shows': typeof ApiMobileShowsIndexRoute
   '/$user/$show/$episode/manage': typeof AuthedUserShowEpisodeManageRoute
+  '/api/episodes/$id/hls/$': typeof ApiEpisodesIdHlsSplatRoute
   '/api/mobile/auth/oauth/$provider': typeof ApiMobileAuthOauthProviderRoute
   '/api/mobile/auth/oauth/exchange': typeof ApiMobileAuthOauthExchangeRoute
   '/api/mobile/auth/oauth/finish': typeof ApiMobileAuthOauthFinishRoute
@@ -787,6 +795,7 @@ export interface FileRoutesById {
   '/api/mobile/notifications/': typeof ApiMobileNotificationsIndexRoute
   '/api/mobile/shows/': typeof ApiMobileShowsIndexRoute
   '/_authed/$user_/$show_/$episode/manage': typeof AuthedUserShowEpisodeManageRoute
+  '/api/episodes/$id/hls/$': typeof ApiEpisodesIdHlsSplatRoute
   '/api/mobile/auth/oauth/$provider': typeof ApiMobileAuthOauthProviderRoute
   '/api/mobile/auth/oauth/exchange': typeof ApiMobileAuthOauthExchangeRoute
   '/api/mobile/auth/oauth/finish': typeof ApiMobileAuthOauthFinishRoute
@@ -875,6 +884,7 @@ export interface FileRouteTypes {
     | '/api/mobile/notifications/'
     | '/api/mobile/shows/'
     | '/$user/$show/$episode/manage'
+    | '/api/episodes/$id/hls/$'
     | '/api/mobile/auth/oauth/$provider'
     | '/api/mobile/auth/oauth/exchange'
     | '/api/mobile/auth/oauth/finish'
@@ -960,6 +970,7 @@ export interface FileRouteTypes {
     | '/api/mobile/notifications'
     | '/api/mobile/shows'
     | '/$user/$show/$episode/manage'
+    | '/api/episodes/$id/hls/$'
     | '/api/mobile/auth/oauth/$provider'
     | '/api/mobile/auth/oauth/exchange'
     | '/api/mobile/auth/oauth/finish'
@@ -1047,6 +1058,7 @@ export interface FileRouteTypes {
     | '/api/mobile/notifications/'
     | '/api/mobile/shows/'
     | '/_authed/$user_/$show_/$episode/manage'
+    | '/api/episodes/$id/hls/$'
     | '/api/mobile/auth/oauth/$provider'
     | '/api/mobile/auth/oauth/exchange'
     | '/api/mobile/auth/oauth/finish'
@@ -1123,6 +1135,7 @@ export interface RootRouteChildren {
   ApiMobileLiveIndexRoute: typeof ApiMobileLiveIndexRoute
   ApiMobileNotificationsIndexRoute: typeof ApiMobileNotificationsIndexRoute
   ApiMobileShowsIndexRoute: typeof ApiMobileShowsIndexRoute
+  ApiEpisodesIdHlsSplatRoute: typeof ApiEpisodesIdHlsSplatRoute
   ApiMobileAuthOauthProviderRoute: typeof ApiMobileAuthOauthProviderRoute
   ApiMobileAuthOauthExchangeRoute: typeof ApiMobileAuthOauthExchangeRoute
   ApiMobileAuthOauthFinishRoute: typeof ApiMobileAuthOauthFinishRoute
@@ -1638,6 +1651,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedUserShowEpisodeManageRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/api/episodes/$id/hls/$': {
+      id: '/api/episodes/$id/hls/$'
+      path: '/api/episodes/$id/hls/$'
+      fullPath: '/api/episodes/$id/hls/$'
+      preLoaderRoute: typeof ApiEpisodesIdHlsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mobile/auth/oauth/$provider': {
       id: '/api/mobile/auth/oauth/$provider'
       path: '/api/mobile/auth/oauth/$provider'
@@ -1842,6 +1862,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobileLiveIndexRoute: ApiMobileLiveIndexRoute,
   ApiMobileNotificationsIndexRoute: ApiMobileNotificationsIndexRoute,
   ApiMobileShowsIndexRoute: ApiMobileShowsIndexRoute,
+  ApiEpisodesIdHlsSplatRoute: ApiEpisodesIdHlsSplatRoute,
   ApiMobileAuthOauthProviderRoute: ApiMobileAuthOauthProviderRoute,
   ApiMobileAuthOauthExchangeRoute: ApiMobileAuthOauthExchangeRoute,
   ApiMobileAuthOauthFinishRoute: ApiMobileAuthOauthFinishRoute,

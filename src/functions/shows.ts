@@ -70,6 +70,7 @@ import { getProfile } from '~/server/users.server'
 import { listTrackedLinks } from '~/server/tracked-links.server'
 import { getEpisodeTags, getShowTags } from '~/server/tags-store.server'
 import { backfillWaveforms, readWaveform } from '~/server/waveforms.server'
+import { backfillHls } from '~/server/hls.server'
 
 async function requireUserId() {
   const session = await getSession(getRequest())
@@ -100,6 +101,7 @@ export const fetchMyShow = createServerFn({ method: 'GET' })
     void resumeUnfinishedEpisodes()
     void localiseRemoteImages()
     void backfillWaveforms()
+    void backfillHls()
     const [episodes, summary, channel, readiness, profile, followerCount, broadcast, tags] = await Promise.all([
       listEpisodes(userId, show.id, { offset: 0, limit: episodePageSize }),
       summariseEpisodes(show.id),

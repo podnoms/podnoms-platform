@@ -12,6 +12,8 @@ import {
 import {
   deletedShowDir,
   episodeAudioPath,
+  episodeHlsVersionDir,
+  episodeMasterPath,
   episodeSourcePath,
   episodeWaveformPath,
   imagePath,
@@ -50,16 +52,19 @@ describe('archiveDeletedShow', () => {
     })
     const recording = join(showLiveRecordingsDir(show.id), '2026-10-01_20-00-00.mp4')
     const variant = imageVariantPath(showImage, 256, 'webp')
-    const files = [episodeAudioPath(episodeId), episodeWaveformPath(episodeId), imagePath(showImage), imagePath(episodeImage), recording, variant]
+    const segment = join(episodeHlsVersionDir(episodeId, 'v1'), '96k', 'seg-00000.m4s')
+    const files = [episodeAudioPath(episodeId), episodeMasterPath(episodeId), segment, episodeWaveformPath(episodeId), imagePath(showImage), imagePath(episodeImage), recording, variant]
     for (const path of files) await touch(path)
     await writeDeletedShowManifest(show)
 
-    expect(await archiveDeletedShow(show.id)).toEqual({ moved: 5 })
+    expect(await archiveDeletedShow(show.id)).toEqual({ moved: 7 })
 
     for (const path of files) expect(await exists(path)).toBe(false)
     const dir = deletedShowDir(show.id)
     for (const path of [
       join(dir, 'audio', `${episodeId}.mp3`),
+      join(dir, 'masters', `${episodeId}.mka`),
+      join(dir, 'hls', episodeId, 'v1', '96k', 'seg-00000.m4s'),
       join(dir, 'waveforms', `${episodeId}.json`),
       join(dir, 'images', `${showImage}.jpg`),
       join(dir, 'images', `${episodeImage}.jpg`),

@@ -1,7 +1,10 @@
 // Turns an episode's source into audio, then marks it ready (or failed). A
-// source link is downloaded by yt-dlp, which extracts an MP3 and reports the
-// metadata; an uploaded file is converted to MP3 by ffmpeg. A ready episode's
-// audio can be replaced the same way, without taking it offline meanwhile.
+// source link is downloaded by yt-dlp, which reports the metadata; an upload
+// is used as it is. Either way its first audio track is kept, untouched, as
+// the episode's master (see media.server.ts), which ffmpeg makes the MP3 from;
+// once the episode is ready, its HLS stream is built from the master in the
+// background (see hls.server.ts). A ready episode's audio can be replaced the
+// same way, without taking it offline meanwhile.
 //
 // Jobs run in this server process, so only one instance of the app may run.
 // Downloads wait for a slot in the site-wide download throttle (see
@@ -29,14 +32,17 @@ import { remoteDownload, usingFetcher } from '~/server/fetcher.server'
 import { notifyFollowersNewEpisode } from '~/server/follower-notifications.server'
 import { availableEpisodeSlug, isSlugConflict, withRandomSuffix } from '~/server/episode-slugs.server'
 import { downloadImage } from '~/server/images.server'
-import { convertToMp3, probeAudio } from '~/server/media.server'
+import { convertToMp3, extractMaster, probeAudio } from '~/server/media.server'
+import { queueHlsBuild } from '~/server/hls.server'
 import { logger, reportError } from '~/server/logger.server'
 import { notifyEpisodeFailed } from '~/server/notifications.server'
 import { saveWaveform } from '~/server/waveforms.server'
 import { runYtDlpLines } from '~/server/ytdlp.server'
 import {
   ensureAudioDir,
+  ensureMastersDir,
   episodeAudioPath,
+  episodeMasterPath,
   episodeAudioUrl,
   episodeSourcePath,
   replacementAudioName,
@@ -139,10 +145,39 @@ async function runYtDlp(sourceUrl: string, outputTemplate: string, onLine: (line
   return filepath ? { ...info, filepath } : info
 }
 
-// What a download or conversion learnt about the episode's audio.
+// What a download or conversion learnt about the episode's audio. `master`
+// is where its master was saved, or null if one couldn't be made.
 type ProcessedAudio = Pick<SourceInfo, 'title' | 'description' | 'thumbnail' | 'timestamp' | 'upload_date'> & {
   path: string
+  master: string | null
   durationSeconds: number | null
+}
+
+// Saves the source's first audio track as `<name>.mka` among the masters,
+// returning its path. If that fails the episode just has no master, as before
+// masters were kept, and its MP3 is made from the source.
+async function saveMaster(episodeId: string, source: string, name: string) {
+  const master = join(await ensureMastersDir(), `${name}.mka`)
+  try {
+    await extractMaster(source, master)
+    return master
+  } catch (error) {
+    await rm(master, { force: true })
+    reportError(error, { episodeId, msg: 'Could not keep the episode’s source audio as its master' })
+    return null
+  }
+}
+
+// Makes the MP3 from the master (or the source, without one), reporting progress.
+async function makeMp3(episodeId: string, source: string, master: string | null, path: string, durationSeconds: number | null) {
+  const input = master ?? source
+  const audio = await probeAudio(input)
+  if (!audio) throw new Error("The file doesn't contain any audio")
+  setProgress(episodeId, { stage: 'converting', percent: 0 })
+  await convertToMp3(input, path, { ...audio, durationSeconds: durationSeconds ?? audio.durationSeconds }, (fraction) => {
+    setProgress(episodeId, { stage: 'converting', percent: Math.floor(fraction * 100) })
+  })
+  return durationSeconds ?? audio.durationSeconds
 }
 
 // Saved in the audio folder as `<name>.mp3`. yt-dlp downloads the audio as
@@ -182,39 +217,37 @@ async function downloadSource(
   if (!info.filepath) throw new Error("yt-dlp didn't say where it saved the download")
   const downloaded = info.filepath
   const path = join(dir, `${name}.mp3`)
+  let master: string | null = null
   try {
-    const audio = await probeAudio(downloaded)
-    if (!audio) throw new Error("The download doesn't contain any audio")
+    if (!(await probeAudio(downloaded))) throw new Error("The download doesn't contain any audio")
+    master = await saveMaster(episodeId, downloaded, name)
     // The site's length, where it gives one, else the file's.
-    const durationSeconds = info.duration ? Math.round(info.duration) : audio.durationSeconds
-    setProgress(episodeId, { stage: 'converting', percent: 0 })
-    await convertToMp3(downloaded, path, { ...audio, durationSeconds }, (fraction) => {
-      setProgress(episodeId, { stage: 'converting', percent: Math.floor(fraction * 100) })
-    })
-    return { ...info, path, durationSeconds }
+    const durationSeconds = await makeMp3(episodeId, downloaded, master, path, info.duration ? Math.round(info.duration) : null)
+    return { ...info, path, master, durationSeconds }
   } catch (error) {
     await rm(path, { force: true })
+    if (master) await rm(master, { force: true })
     throw error
   } finally {
     await rm(downloaded, { force: true })
   }
 }
 
-async function convertUpload(episodeId: string, path = episodeAudioPath(episodeId)): Promise<ProcessedAudio> {
+// `name` is as for the episode's audio: its ID, or replacementAudioName.
+async function convertUpload(episodeId: string, name = episodeId): Promise<ProcessedAudio> {
   setProgress(episodeId, { stage: 'converting', percent: 0 })
   const source = episodeSourcePath(episodeId)
-  const info = await probeAudio(source)
-  if (!info) throw new Error("The uploaded file is missing or doesn't contain any audio")
-  await ensureAudioDir()
+  if (!(await probeAudio(source))) throw new Error("The uploaded file is missing or doesn't contain any audio")
+  const path = join(await ensureAudioDir(), `${name}.mp3`)
+  const master = await saveMaster(episodeId, source, name)
   try {
-    await convertToMp3(source, path, info, (fraction) => {
-      setProgress(episodeId, { stage: 'converting', percent: Math.floor(fraction * 100) })
-    })
+    const durationSeconds = await makeMp3(episodeId, source, master, path, null)
+    return { path, master, durationSeconds }
   } catch (error) {
     await rm(path, { force: true })
+    if (master) await rm(master, { force: true })
     throw error
   }
-  return { path, durationSeconds: info.durationSeconds }
 }
 
 // Whether the owner has room for this much audio on the episode. Others count
@@ -242,13 +275,17 @@ async function processEpisode(episodeId: string) {
     // A link's length is only known by now.
     await requireRoomFor(episode, audio.durationSeconds ?? 0).catch(async (error: unknown) => {
       await rm(audio.path, { force: true })
+      if (audio.master) await rm(audio.master, { force: true })
       throw error
     })
     await markReady(episodeId, audio)
-    // The upload is only kept so a failed conversion can be retried.
+    // The upload is only kept so a failed conversion can be retried; the
+    // master has its audio now.
     if (!episode.sourceUrl) await rm(episodeSourcePath(episodeId), { force: true })
     // The episode can be played meanwhile; it just has no waveform if this fails.
     await saveWaveform(episodeId).catch((error: unknown) => logWaveformFailure(episodeId, error))
+    // Players use the MP3 until this is done.
+    queueHlsBuild(episodeId)
     logger.info({ ...job, durationMs: Date.now() - started }, 'Episode processing finished')
   } catch (error) {
     if (error instanceof RateLimitedError) {
@@ -349,10 +386,13 @@ async function replaceAudio(episode: Episode, { sourceUrl }: EpisodeReplacement)
   try {
     const audio = sourceUrl
       ? await downloadSource(id, sourceUrl, { name: replacementAudioName(id) })
-      : await convertUpload(id, replacementAudioPath(id))
+      : await convertUpload(id, replacementAudioName(id))
     await requireRoomFor(episode, audio.durationSeconds ?? 0)
     const { size } = await stat(audio.path)
     await rename(audio.path, episodeAudioPath(id))
+    // The old master goes too if the new audio has none, as it's not this audio.
+    if (audio.master) await rename(audio.master, episodeMasterPath(id))
+    else await rm(episodeMasterPath(id), { force: true })
     await db
       .update(episodes)
       .set({
@@ -363,9 +403,16 @@ async function replaceAudio(episode: Episode, { sourceUrl }: EpisodeReplacement)
         audioUrl: episodeAudioUrl(id, Date.now().toString(36)),
         audioMimeType: 'audio/mpeg',
         audioSizeBytes: size,
+        masterCodec: null,
+        masterBitrate: null,
+        masterChannels: null,
+        // The old stream is the old audio: players use the MP3 until the new
+        // one is built.
+        hlsVersion: null,
       })
       .where(eq(episodes.id, id))
     await saveWaveform(id).catch((error: unknown) => logWaveformFailure(id, error))
+    queueHlsBuild(id)
     logger.info({ episodeId: id, sourceUrl }, 'Episode audio replaced')
   } catch (error) {
     // Kept waiting to be replaced, and tried again once the platform lets us.
@@ -377,6 +424,7 @@ async function replaceAudio(episode: Episode, { sourceUrl }: EpisodeReplacement)
     else reportError(error, { episodeId: id, showId: episode.showId, sourceUrl, stage: progress.get(id)?.stage, msg: 'Episode audio replacement failed' })
     const message = error instanceof Error ? error.message : String(error)
     await rm(replacementAudioPath(id), { force: true })
+    await rm(episodeMasterPath(replacementAudioName(id)), { force: true })
     await db
       .update(episodes)
       .set({ replacement: null, error: `Couldn't replace the audio: ${message}`.slice(0, 1000) })

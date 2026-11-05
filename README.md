@@ -75,7 +75,11 @@ Everything PodNoms stores on disk lives under `MEDIA_DIR`:
 
 ```text
 media/
-  audio/            episode MP3s
+  audio/            episode MP3s, for feeds and downloads
+  masters/          each episode's source audio as it came, which its MP3
+                    and stream are made from (keep these: they can't be remade)
+  hls/              episode HLS streams, for the site's and the app's players
+                    (remade if missing)
   images/           artwork, as JPEGs
   images/variants/  resized copies, made on request (safe to delete)
   waveforms/        episode waveforms, as JSON (remade if missing)
@@ -206,8 +210,8 @@ Jobs are queued in Redis with [BullMQ](https://docs.bullmq.io/) and run by a wor
 | `deleted-purge` | Daily, 04:15 | Removes deleted shows' folders from `MEDIA_DIR/deleted` once they're 30 days old |
 | `custom-domain-check` | Daily, 05:15 | Checks the DNS records of shows' verified custom domains again; a domain whose records have been wrong for 3 days stops being served |
 | `geoip-update` | Wednesdays, 04:00 | Downloads the latest GeoLite2 database, if a MaxMind account is configured |
-| `media-cleanup` | Daily, 03:30 | Removes files in `MEDIA_DIR` that no show, episode or user refers to (once they're a day old), uploads and images that were never saved (after a day), the kept upload of an episode that has been failed for a week, telling its owner to upload it again, and live recordings that weren't made into episodes (after a week) |
-| `show-archive` | When a show is deleted | Moves the show's files (episode audio, kept uploads, waveforms, artwork and live recordings) into `MEDIA_DIR/deleted/<show id>`, next to a `manifest.json` of the show and its episodes. Without Redis this is done straight away instead |
+| `media-cleanup` | Daily, 03:30 | Removes files in `MEDIA_DIR` that no show, episode or user refers to (once they're a day old), HLS streams' old versions (a day after they're replaced), uploads and images that were never saved (after a day), the kept upload of an episode that has been failed for a week, telling its owner to upload it again, and live recordings that weren't made into episodes (after a week) |
+| `show-archive` | When a show is deleted | Moves the show's files (episode audio, masters, HLS streams, kept uploads, waveforms, artwork and live recordings) into `MEDIA_DIR/deleted/<show id>`, next to a `manifest.json` of the show and its episodes. Without Redis this is done straight away instead |
 
 Admins can watch, retry and clean up jobs at `/admin/queues` ([Bull Board](https://github.com/felixmosh/bull-board)), linked from the account menu as **Jobs**.
 

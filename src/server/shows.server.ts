@@ -8,6 +8,7 @@ import { plainTextToHtml } from '~/lib/rich-text'
 import { firstFreeSlug, slugify } from '~/lib/slug'
 import { customDomainValues, withDomainConflict } from '~/server/custom-domains.server'
 import { hasPaidAccess, requirePaidAccess } from '~/server/subscriptions.server'
+import { moveHlsVersions } from '~/server/hls.server'
 import { themeAssets } from '~/lib/theme-css'
 import type { SiteTheme } from '~/lib/theme-schema'
 import { commitImage, deleteImage } from '~/server/images.server'
@@ -185,6 +186,11 @@ export async function setShowPrivacy(userId: string, showId: string, isPrivate: 
     .set({ private: isPrivate, ...(isPrivate && { feedKey: sql`coalesce(${shows.feedKey}, ${randomFeedKey()})` }) })
     .where(and(eq(shows.id, showId), eq(shows.userId, userId)))
     .returning({ id: shows.id })
+  // Its episodes' streams' public URLs stop working (see hls.server.ts).
+  if (isPrivate && updated.length) {
+    const rows = await db.select({ id: episodes.id }).from(episodes).where(eq(episodes.showId, showId))
+    await moveHlsVersions(rows.map((row) => row.id))
+  }
   return updated.length > 0
 }
 

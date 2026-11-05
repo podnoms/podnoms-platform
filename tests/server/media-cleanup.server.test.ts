@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, utimes, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -7,6 +7,9 @@ import { writeDeletedShowManifest } from '~/server/deleted-shows.server'
 import { cleanUpMedia, failedSourceRemovedError } from '~/server/media-cleanup.server'
 import {
   episodeAudioPath,
+  episodeHlsDir,
+  episodeHlsVersionDir,
+  episodeMasterPath,
   episodeSourcePath,
   episodeWaveformPath,
   imagePath,
@@ -147,10 +150,40 @@ describe('cleanUpMedia', () => {
     for (const { id } of [fromLink, pending]) expect(await exists(episodeSourcePath(id))).toBe(true)
   })
 
+  it("removes masters whose episode is gone, keeping the others'", async () => {
+    const show = await createShow((await createUser()).id)
+    const kept = await createEpisode(show.id)
+    const gone = crypto.randomUUID()
+    for (const id of [kept.id, gone]) await touch(episodeMasterPath(id))
+    expect((await cleanUpMedia(later(2 * day))).masters).toBe(1)
+    expect(await exists(episodeMasterPath(kept.id))).toBe(true)
+    expect(await exists(episodeMasterPath(gone))).toBe(false)
+  })
+
+  it("removes a stream's old versions a day after they were replaced, and gone episodes' streams", async () => {
+    const show = await createShow((await createUser()).id)
+    const episode = await createEpisode(show.id, { hlsVersion: 'current' })
+    const gone = crypto.randomUUID()
+    for (const [id, version] of [[episode.id, 'current'], [episode.id, 'old'], [episode.id, 'replaced'], [gone, 'v1']] as const) {
+      await touch(join(episodeHlsVersionDir(id, version), '96k', 'seg-00000.m4s'))
+    }
+    // Replaced a moment ago: dated later, so younger than a day by then.
+    const replaced = new Date(later(1.5 * day))
+    await utimes(episodeHlsVersionDir(episode.id, 'replaced'), replaced, replaced)
+
+    expect((await cleanUpMedia(later(2 * day))).hlsVersions).toBe(2)
+    expect(await exists(episodeHlsVersionDir(episode.id, 'current'))).toBe(true)
+    expect(await exists(episodeHlsVersionDir(episode.id, 'replaced'))).toBe(true)
+    expect(await exists(episodeHlsVersionDir(episode.id, 'old'))).toBe(false)
+    expect(await exists(episodeHlsDir(gone))).toBe(false)
+  })
+
   it('reports nothing removed when there is nothing to remove', async () => {
     expect(await cleanUpMedia()).toEqual({
       failedSources: 0,
       audio: 0,
+      masters: 0,
+      hlsVersions: 0,
       waveforms: 0,
       sources: 0,
       images: 0,
