@@ -13,9 +13,14 @@
 //   &live=b&short=a                                 uploads that are live streams or Shorts
 //   &pages=https://www.mixcloud.com/someone/        uploads' pages are <pages><id>/ rather than video.test
 // The audio it "downloads" is a copy of FAKE_YTDLP_AUDIO.
-import { copyFileSync, writeFileSync } from 'node:fs'
+// --version prints what's in FAKE_PIP_VERSION_FILE (see fake-pip.mjs).
+import { copyFileSync, readFileSync, writeFileSync } from 'node:fs'
 
 const args = process.argv.slice(2)
+if (args[0] === '--version') {
+  console.log(process.env.FAKE_PIP_VERSION_FILE ? readFileSync(process.env.FAKE_PIP_VERSION_FILE, 'utf8') : '2026.01.01')
+  process.exit(0)
+}
 const output = args[args.indexOf('--output') + 1]
 const url = new URL(args.at(-1))
 writeFileSync(`${process.env.MEDIA_DIR}/yt-dlp-args.json`, JSON.stringify(args))

@@ -12,6 +12,7 @@ import {
   throttleStatus,
   withDownloadSlot,
   type SlotOptions,
+  whileNoDownloads,
 } from '~/server/download-throttle.server'
 
 const settings: SiteSettings = {
@@ -256,5 +257,33 @@ describe('placeInQueue', () => {
     expect(placeInQueue('high')).toBe(1)
     expect(placeInQueue('low')).toBe(2)
     expect(placeInQueue('unknown')).toBeNull()
+  })
+})
+
+describe('whileNoDownloads', () => {
+  it('is skipped while a download holds a slot', async () => {
+    const running = job('youtube')
+    await settle()
+    const run = vi.fn(async () => 'done')
+    expect(await whileNoDownloads(run)).toBeNull()
+    expect(run).not.toHaveBeenCalled()
+
+    running.finish()
+    await settle()
+    expect(await whileNoDownloads(run)).toBe('done')
+  })
+
+  it('holds back downloads until it has finished, then lets them start', async () => {
+    let finish = () => {}
+    const held = whileNoDownloads(() => new Promise<void>((resolve) => (finish = resolve)))
+    const waiting = job('youtube')
+    await settle()
+    expect(waiting.started).toBe(false)
+    expect(await whileNoDownloads(async () => 'again')).toBeNull()
+
+    finish()
+    await held
+    await settle()
+    expect(waiting.started).toBe(true)
   })
 })

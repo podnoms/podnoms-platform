@@ -18,6 +18,7 @@ import { Route as CommentRoute } from '~/routes/api/mobile/comments/$id/index'
 import { Route as CommentLikeRoute } from '~/routes/api/mobile/comments/$id/like'
 import { Route as EpisodeCommentsRoute } from '~/routes/api/mobile/episodes/$id/comments'
 import { Route as EpisodeRoute } from '~/routes/api/mobile/episodes/$id/index'
+import { Route as WaveformRoute } from '~/routes/api/mobile/episodes/$id/waveform'
 import { Route as BroadcastChatRoute } from '~/routes/api/mobile/broadcasts/$id/chat'
 import { Route as ChatMessageRoute } from '~/routes/api/mobile/chat/$id'
 import { Route as LiveHlsRoute } from '~/routes/api/mobile/live/$showId/hls/$'
@@ -40,7 +41,7 @@ import { colourKeys, type ModeStyles } from '~/lib/theme-schema'
 import { handleMobileCors } from '~/server/mobile-api.server'
 import { updateSiteSettings } from '~/server/site-settings.server'
 import { issueMobileToken } from '~/server/mobile-auth.server'
-import { episodeAudioPath } from '~/server/storage.server'
+import { episodeAudioPath, episodeWaveformPath } from '~/server/storage.server'
 import { confirmTotpSetup, startTotpSetup } from '~/server/two-factor.server'
 import { createUser as signUp } from '~/server/users.server'
 import { resetDb } from '../db'
@@ -295,6 +296,26 @@ describe('audio', () => {
     expect((await play()).status).toBe(404)
     expect((await play(await issueMobileToken((await createUser()).id))).status).toBe(404)
 
+  })
+})
+
+describe('waveforms', () => {
+  it("gives an episode's waveform to those who may see it, and null before it's made", async () => {
+    const { user, token } = await signedIn()
+    const listener = await signedIn()
+    const show = await createShow(user.id)
+    const episode = await createEpisode(show.id, { status: 'ready', audioUrl: '/a', private: true })
+    const waveform = (id: string, token: string) =>
+      callRoute(WaveformRoute, 'GET', request(`/api/mobile/episodes/${id}/waveform`, { token }), { id })
+
+    expect(await (await waveform(episode.id, token)).json()).toBeNull()
+
+    const path = episodeWaveformPath(episode.id)
+    await mkdir(dirname(path), { recursive: true })
+    await writeFile(path, JSON.stringify({ version: 1, peaks: [255, 128, 0], rms: [200, 100, 0] }))
+    expect(await (await waveform(episode.id, token)).json()).toEqual([200, 100, 0])
+    expect(await (await waveform(episode.id, listener.token)).json()).toBeNull()
+    expect((await waveform(episode.id, '')).status).toBe(401)
   })
 })
 

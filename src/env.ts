@@ -14,6 +14,15 @@ export const env = createEnv({
     // yt-dlp to "confirm you're not a bot". yt-dlp writes refreshed cookies
     // back to it, so it must be writable.
     YTDLP_COOKIES_FILE: z.string().optional(),
+    // pip in the virtualenv yt-dlp is installed in (/opt/yt-dlp/bin/pip in the
+    // Docker image). When set, the ytdlp-update job keeps yt-dlp up to date
+    // there, as YouTube changes often and an old yt-dlp is refused sooner.
+    YTDLP_PIP: z.string().optional(),
+    // A bgutil proof-of-origin token server (the bgutil-ytdlp-pot-provider
+    // sidecar, e.g. http://bgutil-provider:4416). yt-dlp's bgutil plugin, in
+    // the Docker image, gets YouTube PO tokens from it, which get past most of
+    // YouTube's "confirm you're not a bot" checks without fresh cookies.
+    YTDLP_POT_PROVIDER_URL: z.url().optional(),
     // The remote fetcher (see fetcher.server.ts), which runs yt-dlp on another
     // host, e.g. http://fetcher.tailnet:8080. Without it yt-dlp runs here.
     // FETCHER_SECRET is shared with it (its FETCHER_SECRET).

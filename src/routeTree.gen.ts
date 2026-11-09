@@ -91,6 +91,7 @@ import { Route as ApiMobileEpisodesIdIndexRouteImport } from './routes/api/mobil
 import { Route as ApiMobileEpisodesIdCommentsRouteImport } from './routes/api/mobile/episodes/$id/comments'
 import { Route as ApiMobileEpisodesIdPositionRouteImport } from './routes/api/mobile/episodes/$id/position'
 import { Route as ApiMobileEpisodesIdRetryRouteImport } from './routes/api/mobile/episodes/$id/retry'
+import { Route as ApiMobileEpisodesIdWaveformRouteImport } from './routes/api/mobile/episodes/$id/waveform'
 import { Route as ApiMobileLiveShowIdIndexRouteImport } from './routes/api/mobile/live/$showId/index'
 import { Route as ApiShowsShowIdLiveEventsRouteImport } from './routes/api/shows/$showId/live/events'
 import { Route as ApiMobileLiveShowIdHlsSplatRouteImport } from './routes/api/mobile/live/$showId/hls/$'
@@ -524,6 +525,12 @@ const ApiMobileEpisodesIdRetryRoute =
     path: '/api/mobile/episodes/$id/retry',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiMobileEpisodesIdWaveformRoute =
+  ApiMobileEpisodesIdWaveformRouteImport.update({
+    id: '/api/mobile/episodes/$id/waveform',
+    path: '/api/mobile/episodes/$id/waveform',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiMobileLiveShowIdIndexRoute =
   ApiMobileLiveShowIdIndexRouteImport.update({
     id: '/api/mobile/live/$showId/',
@@ -629,6 +636,7 @@ export interface FileRoutesByFullPath {
   '/api/mobile/episodes/$id/comments': typeof ApiMobileEpisodesIdCommentsRoute
   '/api/mobile/episodes/$id/position': typeof ApiMobileEpisodesIdPositionRoute
   '/api/mobile/episodes/$id/retry': typeof ApiMobileEpisodesIdRetryRoute
+  '/api/mobile/episodes/$id/waveform': typeof ApiMobileEpisodesIdWaveformRoute
   '/api/shows/$showId/live/events': typeof ApiShowsShowIdLiveEventsRoute
   '/api/mobile/comments/$id/': typeof ApiMobileCommentsIdIndexRoute
   '/api/mobile/episodes/$id/': typeof ApiMobileEpisodesIdIndexRoute
@@ -715,6 +723,7 @@ export interface FileRoutesByTo {
   '/api/mobile/episodes/$id/comments': typeof ApiMobileEpisodesIdCommentsRoute
   '/api/mobile/episodes/$id/position': typeof ApiMobileEpisodesIdPositionRoute
   '/api/mobile/episodes/$id/retry': typeof ApiMobileEpisodesIdRetryRoute
+  '/api/mobile/episodes/$id/waveform': typeof ApiMobileEpisodesIdWaveformRoute
   '/api/shows/$showId/live/events': typeof ApiShowsShowIdLiveEventsRoute
   '/api/mobile/comments/$id': typeof ApiMobileCommentsIdIndexRoute
   '/api/mobile/episodes/$id': typeof ApiMobileEpisodesIdIndexRoute
@@ -804,6 +813,7 @@ export interface FileRoutesById {
   '/api/mobile/episodes/$id/comments': typeof ApiMobileEpisodesIdCommentsRoute
   '/api/mobile/episodes/$id/position': typeof ApiMobileEpisodesIdPositionRoute
   '/api/mobile/episodes/$id/retry': typeof ApiMobileEpisodesIdRetryRoute
+  '/api/mobile/episodes/$id/waveform': typeof ApiMobileEpisodesIdWaveformRoute
   '/api/shows/$showId/live/events': typeof ApiShowsShowIdLiveEventsRoute
   '/api/mobile/comments/$id/': typeof ApiMobileCommentsIdIndexRoute
   '/api/mobile/episodes/$id/': typeof ApiMobileEpisodesIdIndexRoute
@@ -893,6 +903,7 @@ export interface FileRouteTypes {
     | '/api/mobile/episodes/$id/comments'
     | '/api/mobile/episodes/$id/position'
     | '/api/mobile/episodes/$id/retry'
+    | '/api/mobile/episodes/$id/waveform'
     | '/api/shows/$showId/live/events'
     | '/api/mobile/comments/$id/'
     | '/api/mobile/episodes/$id/'
@@ -979,6 +990,7 @@ export interface FileRouteTypes {
     | '/api/mobile/episodes/$id/comments'
     | '/api/mobile/episodes/$id/position'
     | '/api/mobile/episodes/$id/retry'
+    | '/api/mobile/episodes/$id/waveform'
     | '/api/shows/$showId/live/events'
     | '/api/mobile/comments/$id'
     | '/api/mobile/episodes/$id'
@@ -1067,6 +1079,7 @@ export interface FileRouteTypes {
     | '/api/mobile/episodes/$id/comments'
     | '/api/mobile/episodes/$id/position'
     | '/api/mobile/episodes/$id/retry'
+    | '/api/mobile/episodes/$id/waveform'
     | '/api/shows/$showId/live/events'
     | '/api/mobile/comments/$id/'
     | '/api/mobile/episodes/$id/'
@@ -1144,6 +1157,7 @@ export interface RootRouteChildren {
   ApiMobileEpisodesIdCommentsRoute: typeof ApiMobileEpisodesIdCommentsRoute
   ApiMobileEpisodesIdPositionRoute: typeof ApiMobileEpisodesIdPositionRoute
   ApiMobileEpisodesIdRetryRoute: typeof ApiMobileEpisodesIdRetryRoute
+  ApiMobileEpisodesIdWaveformRoute: typeof ApiMobileEpisodesIdWaveformRoute
   ApiShowsShowIdLiveEventsRoute: typeof ApiShowsShowIdLiveEventsRoute
   ApiMobileCommentsIdIndexRoute: typeof ApiMobileCommentsIdIndexRoute
   ApiMobileEpisodesIdIndexRoute: typeof ApiMobileEpisodesIdIndexRoute
@@ -1728,6 +1742,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMobileEpisodesIdRetryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mobile/episodes/$id/waveform': {
+      id: '/api/mobile/episodes/$id/waveform'
+      path: '/api/mobile/episodes/$id/waveform'
+      fullPath: '/api/mobile/episodes/$id/waveform'
+      preLoaderRoute: typeof ApiMobileEpisodesIdWaveformRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mobile/live/$showId/': {
       id: '/api/mobile/live/$showId/'
       path: '/api/mobile/live/$showId'
@@ -1871,6 +1892,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMobileEpisodesIdCommentsRoute: ApiMobileEpisodesIdCommentsRoute,
   ApiMobileEpisodesIdPositionRoute: ApiMobileEpisodesIdPositionRoute,
   ApiMobileEpisodesIdRetryRoute: ApiMobileEpisodesIdRetryRoute,
+  ApiMobileEpisodesIdWaveformRoute: ApiMobileEpisodesIdWaveformRoute,
   ApiShowsShowIdLiveEventsRoute: ApiShowsShowIdLiveEventsRoute,
   ApiMobileCommentsIdIndexRoute: ApiMobileCommentsIdIndexRoute,
   ApiMobileEpisodesIdIndexRoute: ApiMobileEpisodesIdIndexRoute,

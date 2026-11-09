@@ -53,6 +53,7 @@ Settings are read from `.env` and checked at startup by [`src/env.ts`](src/env.t
 | `MEDIA_DIR` | No | Where all media is stored (default `./media`) |
 | `YTDLP_PATH`, `FFMPEG_PATH`, `FFPROBE_PATH` | No | Paths to the binaries (default: found on `PATH`) |
 | `YTDLP_COOKIES_FILE` | No | A writable cookies.txt from a signed-in YouTube account (use a throwaway one), passed to yt-dlp when YouTube asks it to "confirm you're not a bot". See [exporting YouTube cookies](https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies). Not sent to the fetcher. |
+| `YTDLP_PIP` | No | pip in yt-dlp's virtualenv. When set (the Docker image sets it to `/opt/yt-dlp/bin/pip`), yt-dlp is upgraded on every start and every 4 hours by the `ytdlp-update` job, whenever no download is running, so it doesn't wait for a new image. |
 | `FETCHER_URL`, `FETCHER_SECRET` | No | A [podnoms-fetcher](https://github.com/podnoms/podnoms-fetcher) to run yt-dlp on another host (e.g. behind a VPN); without them yt-dlp runs here |
 | `AUTH_GITHUB_ID` / `_SECRET`, `AUTH_GOOGLE_ID` / `_SECRET`, `AUTH_FACEBOOK_ID` / `_SECRET` | No | Each sign-in provider is enabled when both of its values are set. The OAuth callback URL is `<SITE_URL>/api/auth/callback/<provider>`. |
 | `LOG_LEVEL` | No | `trace`, `debug`, `info` (default), `warn`, `error`, `fatal` or `silent` |

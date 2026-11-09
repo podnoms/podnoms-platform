@@ -5,11 +5,13 @@ FROM oven/bun:1.4.1-alpine AS bun
 # What the app needs at runtime. The test stage builds on this too, so tests
 # run against the same ffmpeg, ffprobe and libc that ship.
 # ffmpeg includes ffprobe. The Python environment includes yt-dlp's YouTube
-# challenge solver; use the Node runtime already installed in this image.
+# challenge solver; use the Node runtime already installed in this image. It
+# also has the bgutil plugin, which gets YouTube PO tokens from a sidecar
+# (YTDLP_POT_PROVIDER_URL); without one it does nothing.
 FROM node:22-alpine AS runtime-base
 RUN apk add --no-cache ca-certificates ffmpeg python3 \
     && python3 -m venv /opt/yt-dlp \
-    && /opt/yt-dlp/bin/pip install --no-cache-dir 'yt-dlp[default]' \
+    && /opt/yt-dlp/bin/pip install --no-cache-dir 'yt-dlp[default]' bgutil-ytdlp-pot-provider \
     && printf '%s\n' '--js-runtimes node' > /etc/yt-dlp.conf
 ENV PATH="/opt/yt-dlp/bin:${PATH}"
 
@@ -42,13 +44,17 @@ RUN bun run build \
 
 FROM runtime-base AS runtime
 WORKDIR /app
+# yt-dlp's environment belongs to the app's user, which keeps it up to date
+# (on start, and with the ytdlp-update job) without a new image.
 RUN mkdir -p /app/media \
-    && chown node:node /app/media
+    && chown node:node /app/media \
+    && chown -R node:node /opt/yt-dlp
 
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000 \
-    MEDIA_DIR=/app/media
+    MEDIA_DIR=/app/media \
+    YTDLP_PIP=/opt/yt-dlp/bin/pip
 
 COPY --from=build /app/.output ./.output
 COPY --from=build /app/migrate.mjs ./migrate.mjs

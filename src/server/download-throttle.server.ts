@@ -66,6 +66,8 @@ const lastServedAt = new Map<string, number>()
 const cooldowns = new Map<Platform, { until: number; ms: number; reason: CooldownReason }>()
 const listeners = new Set<() => void>()
 let timer: ReturnType<typeof setTimeout> | undefined
+// Set by whileNoDownloads: no slot is given out.
+let held = false
 
 export async function withDownloadSlot<T>(platform: Platform, options: SlotOptions, run: () => Promise<T>): Promise<T> {
   const slot = await new Promise<Running>((start) => {
@@ -104,6 +106,20 @@ function startCooldown(platform: Platform, reason: CooldownReason) {
     { platform, reason, cooldownMinutes: ms / 60_000 },
     reason === 'fetcher' ? "Can't reach the fetcher; pausing downloads from the platform" : 'Platform is rate-limiting us; pausing downloads from it',
   )
+}
+
+// Runs something no download may overlap (updating yt-dlp), holding every
+// slot until it's done. Skipped, returning null, while anything (a download or
+// a channel listing) holds a slot; waiters stay queued.
+export async function whileNoDownloads<T>(run: () => Promise<T>): Promise<T | null> {
+  if (held || running.size > 0) return null
+  held = true
+  try {
+    return await run()
+  } finally {
+    held = false
+    void pump()
+  }
 }
 
 // Whether the platform is refusing us, so nothing should be sent to it.
@@ -160,7 +176,7 @@ export async function pump() {
       timer = undefined
       let wakeAt = Infinity
       for (const waiter of [...waiting].sort(inTurn)) {
-        if (running.size >= settings.downloadConcurrency) break
+        if (held || running.size >= settings.downloadConcurrency) break
         const now = Date.now()
         const { platform } = waiter
         const busy = [...running].filter((r) => r.platform === platform).length
@@ -242,4 +258,5 @@ export function resetThrottle() {
   nextStartAt.clear()
   lastServedAt.clear()
   cooldowns.clear()
+  held = false
 }

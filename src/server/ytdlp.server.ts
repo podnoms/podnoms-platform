@@ -10,6 +10,7 @@ import { getSiteSettings } from '~/server/site-settings.server'
 // Overridable in tests.
 export const ytDlpConfig = {
   cookiesFile: env.YTDLP_COOKIES_FILE ?? null,
+  potProviderUrl: env.YTDLP_POT_PROVIDER_URL ?? null,
 }
 
 export async function politeArgs() {
@@ -26,6 +27,11 @@ export async function politeArgs() {
     ...(downloadRateLimit ? ['--limit-rate', downloadRateLimit] : []),
     // A signed-in account's cookies get past YouTube's "not a bot" check.
     ...(ytDlpConfig.cookiesFile ? ['--cookies', ytDlpConfig.cookiesFile] : []),
+    // So does a proof-of-origin token, from the bgutil sidecar (its plugin's
+    // default address is localhost, not the sidecar's).
+    ...(ytDlpConfig.potProviderUrl
+      ? ['--extractor-args', `youtubepot-bgutilhttp:base_url=${ytDlpConfig.potProviderUrl.replace(/\/$/, '')}`]
+      : []),
   ]
 }
 

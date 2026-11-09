@@ -249,6 +249,7 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     expect(args[args.indexOf('--retry-sleep') + 1]).toBe('exp=1:60')
     expect(args).not.toContain('--limit-rate')
     expect(args).not.toContain('--cookies')
+    expect(args).not.toContain('--extractor-args')
   })
 
   it('gives yt-dlp the cookies file when there is one', async () => {
@@ -261,6 +262,19 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
       expect(args[args.indexOf('--cookies') + 1]).toBe('/data/cookies.txt')
     } finally {
       ytDlpConfig.cookiesFile = null
+    }
+  })
+
+  it("points yt-dlp's PO token plugin at the sidecar when there is one", async () => {
+    ytDlpConfig.potProviderUrl = 'http://bgutil-provider:4416/'
+    try {
+      const episode = await linkEpisode({ sourceUrl: link('/watch') })
+      enqueueEpisode(episode.id)
+      await processed(episode.id)
+      const args = JSON.parse(await readFile(join(media, 'yt-dlp-args.json'), 'utf8')) as string[]
+      expect(args[args.indexOf('--extractor-args') + 1]).toBe('youtubepot-bgutilhttp:base_url=http://bgutil-provider:4416')
+    } finally {
+      ytDlpConfig.potProviderUrl = null
     }
   })
 
