@@ -608,12 +608,13 @@ function Users({ users }: { users: Overview['users'] }) {
 // Opens the site as this user sees it, read-only (see view-as.server.ts).
 function ViewAsButton({ user }: { user: Overview['users'][number] }) {
   const { session } = Route.useRouteContext()
+  const router = useRouter()
   const [state, setState] = useState<'idle' | 'starting' | 'error'>('idle')
 
   async function start() {
     setState('starting')
     try {
-      await viewSiteAs(user.id)
+      await viewSiteAs(router, user.id)
     } catch {
       setState('error')
     }

@@ -27,10 +27,18 @@ export async function politeArgs() {
     ...(downloadRateLimit ? ['--limit-rate', downloadRateLimit] : []),
     // A signed-in account's cookies get past YouTube's "not a bot" check.
     ...(ytDlpConfig.cookiesFile ? ['--cookies', ytDlpConfig.cookiesFile] : []),
-    // So does a proof-of-origin token, from the bgutil sidecar (its plugin's
-    // default address is localhost, not the sidecar's).
+    // With proof-of-origin tokens from the bgutil sidecar (its plugin's default
+    // address is localhost, not the sidecar's), YouTube's mobile web client is
+    // tried first: since Nov 2026 the default clients' audio is often refused
+    // with a 403 once the download starts, while mweb's, which needs a token,
+    // isn't. Without the sidecar, mweb would fail, so yt-dlp keeps its defaults.
     ...(ytDlpConfig.potProviderUrl
-      ? ['--extractor-args', `youtubepot-bgutilhttp:base_url=${ytDlpConfig.potProviderUrl.replace(/\/$/, '')}`]
+      ? [
+          '--extractor-args',
+          `youtubepot-bgutilhttp:base_url=${ytDlpConfig.potProviderUrl.replace(/\/$/, '')}`,
+          '--extractor-args',
+          'youtube:player_client=mweb,default',
+        ]
       : []),
   ]
 }

@@ -10,7 +10,7 @@ import { PlayerBar } from '~/components/player/player-bar'
 import { PlayerProvider } from '~/components/player/player-provider'
 import { PublicHeader } from '~/components/public-header'
 import { TwoFactorDialog } from '~/components/two-factor-dialog'
-import { ViewAsBanner } from '~/components/view-as-banner'
+import { ViewAsBanner, useViewAsTab } from '~/components/view-as-banner'
 import { fetchOAuthProviders, fetchAuthState } from '~/functions/auth'
 import { fetchBranding } from '~/functions/branding'
 import { fetchErrorReportingDsn } from '~/functions/error-reporting'
@@ -108,6 +108,7 @@ function RootComponent() {
   const { session } = Route.useRouteContext()
   const { errorReportingDsn, branding } = Route.useLoaderData()
   useEffect(() => startClientErrorReporting(errorReportingDsn), [errorReportingDsn])
+  useViewAsTab(Boolean(session?.viewingAs))
   const bare = useMatches({ select: (matches) => matches.some((match) => match.staticData.bare) })
   const publicPage = useMatches({ select: (matches) => matches.some((match) => match.staticData.publicPage) })
   const ownHeader = useMatches({ select: (matches) => matches.some((match) => match.staticData.ownHeader) })

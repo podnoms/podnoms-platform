@@ -19,7 +19,7 @@ import { episodeActivity, episodes, shows, siteSettings, type ActivitySource, ty
 import { lookupLocation } from '~/server/geoip.server'
 import { internalKeyPrefix } from '~/server/site-settings.server'
 import { describeUserAgent, isBot } from '~/server/user-agent.server'
-import { hasViewAsCookie } from '~/server/view-as.server'
+import { hasViewAs } from '~/server/view-as.server'
 
 export type ActivityInput = {
   episodeId: string
@@ -37,8 +37,8 @@ export type ActivityInput = {
 // it was recorded.
 export async function recordActivity(request: Request, input: ActivityInput) {
   const userAgent = request.headers.get('user-agent')
-  // Nor an admin viewing the site as someone else (see view-as.server.ts).
-  if (isBot(userAgent) || hasViewAsCookie(request)) return false
+  // Nor an admin's tab viewing the site as someone else (see view-as.server.ts).
+  if (isBot(userAgent) || hasViewAs(request)) return false
   const [episode] = await db
     .select({ showId: episodes.showId })
     .from(episodes)

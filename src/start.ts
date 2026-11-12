@@ -4,6 +4,7 @@
 import { isNotFound, isRedirect } from '@tanstack/react-router'
 import { createMiddleware, createStart } from '@tanstack/react-start'
 import { noindexPath } from '~/lib/robots'
+import { viewAsHeaders } from '~/lib/view-as'
 
 // Served often enough that a line each would drown out everything else.
 const quietPaths = [/^\/images\//, /^\/api\/episodes\/[^/]+\/audio/, /^\/api\/shows\/[^/]+\/live\/hls\//, /^\/assets\//, /^\/@/, /^\/node_modules\//, /\.\w+$/]
@@ -67,6 +68,10 @@ const serverFnErrorMiddleware = createMiddleware({ type: 'function' }).server(as
   }
 })
 
+// A tab where an admin is viewing the site as someone else sends its token
+// with every server function call (see src/lib/view-as.ts).
+const viewAsMiddleware = createMiddleware({ type: 'function' }).client(({ next }) => next({ headers: viewAsHeaders() }))
+
 // Shows on their owners' own domains (see custom-domains.server.ts).
 const customDomainMiddleware = createMiddleware().server(async ({ request, next }) => {
   const { handleCustomDomain } = await import('~/server/custom-domains.server')
@@ -82,5 +87,5 @@ const mobileCorsMiddleware = createMiddleware().server(async ({ request, pathnam
 
 export const startInstance = createStart(() => ({
   requestMiddleware: [loggingMiddleware, noindexMiddleware, mobileCorsMiddleware, customDomainMiddleware],
-  functionMiddleware: [serverFnErrorMiddleware],
+  functionMiddleware: [viewAsMiddleware, serverFnErrorMiddleware],
 }))

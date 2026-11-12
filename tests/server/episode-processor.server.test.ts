@@ -265,14 +265,15 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     }
   })
 
-  it("points yt-dlp's PO token plugin at the sidecar when there is one", async () => {
+  it("points yt-dlp's PO token plugin at the sidecar, and prefers the client that needs one, when there is one", async () => {
     ytDlpConfig.potProviderUrl = 'http://bgutil-provider:4416/'
     try {
       const episode = await linkEpisode({ sourceUrl: link('/watch') })
       enqueueEpisode(episode.id)
       await processed(episode.id)
       const args = JSON.parse(await readFile(join(media, 'yt-dlp-args.json'), 'utf8')) as string[]
-      expect(args[args.indexOf('--extractor-args') + 1]).toBe('youtubepot-bgutilhttp:base_url=http://bgutil-provider:4416')
+      const extractorArgs = args.flatMap((arg, i) => (arg === '--extractor-args' ? [args[i + 1]] : []))
+      expect(extractorArgs).toEqual(['youtubepot-bgutilhttp:base_url=http://bgutil-provider:4416', 'youtube:player_client=mweb,default'])
     } finally {
       ytDlpConfig.potProviderUrl = null
     }

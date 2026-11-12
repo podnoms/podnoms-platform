@@ -1,5 +1,6 @@
 import type { ReportedActivity } from '~/lib/activity-schema'
 import type { TrackedLinkVisit } from '~/lib/tracked-link-schema'
+import { viewAsHeaders } from '~/lib/view-as'
 
 // Omit, for each kind of activity.
 type WithoutReferrer<T> = T extends unknown ? Omit<T, 'referrer'> : never
@@ -11,7 +12,7 @@ export function reportActivity(episodeId: string, activity: WithoutReferrer<Repo
   if (typeof window === 'undefined') return
   void fetch(`/api/episodes/${encodeURIComponent(episodeId)}/activity`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...viewAsHeaders() },
     body: JSON.stringify({ ...activity, referrer: document.referrer || undefined }),
     keepalive: true,
   }).catch(() => {})
@@ -23,7 +24,7 @@ export function reportTrackedLinkVisit(token: string, visit: TrackedLinkVisit) {
   if (typeof window === 'undefined') return
   void fetch(`/api/tracked-links/${encodeURIComponent(token)}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...viewAsHeaders() },
     body: JSON.stringify(visit),
     keepalive: true,
   }).catch(() => {})
