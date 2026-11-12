@@ -18,11 +18,14 @@ import { publicUrl } from '~/server/site-url.server'
 import { accounts, sessions, users, verificationTokens } from '~/server/db/schema'
 import { hasTwoFactor, redeemTwoFactorTicket } from '~/server/two-factor.server'
 import { assignUserSlug, firstUserIsAdmin, verifyUser } from '~/server/users.server'
+import { isReadRequest, ReadOnlyError, viewedUserId } from '~/server/view-as.server'
 
 declare module '@auth/core/types' {
   interface Session {
     // Signed in, but yet to pass two-factor authentication.
     twoFactorPending?: boolean
+    // An admin viewing the site as this user (see view-as.server.ts).
+    viewAs?: { adminId: string }
   }
 }
 
@@ -174,10 +177,23 @@ export async function readSession(request: Request): Promise<Session | null> {
 }
 
 // The session of a fully signed-in user: null while two-factor authentication
-// is pending.
-export async function getSession(request: Request): Promise<Session | null> {
+// is pending. While an admin is viewing the site as another user, it's that
+// user's, for reading only: any request but a GET or HEAD throws, as does one
+// marked `write` (a GET that changes something or gives away a secret).
+export async function getSession(request: Request, options: { write?: boolean } = {}): Promise<Session | null> {
   const session = await readSession(request)
-  return session && !session.twoFactorPending ? session : null
+  if (!session || session.twoFactorPending) return null
+  const viewed = await viewAsSession(request, session)
+  if (viewed !== session && (options.write || !isReadRequest(request))) throw new ReadOnlyError()
+  return viewed
+}
+
+// The session as it applies: the viewed user's while an admin views the site
+// as them, otherwise the one given.
+export async function viewAsSession(request: Request, session: Session): Promise<Session> {
+  const adminId = session.user?.id
+  const userId = adminId ? await viewedUserId(request, adminId) : null
+  return userId && adminId ? { expires: session.expires, user: { id: userId }, viewAs: { adminId } } : session
 }
 
 // The user who has signed in but has yet to pass their second factor.

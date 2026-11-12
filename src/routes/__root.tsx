@@ -10,6 +10,7 @@ import { PlayerBar } from '~/components/player/player-bar'
 import { PlayerProvider } from '~/components/player/player-provider'
 import { PublicHeader } from '~/components/public-header'
 import { TwoFactorDialog } from '~/components/two-factor-dialog'
+import { ViewAsBanner } from '~/components/view-as-banner'
 import { fetchOAuthProviders, fetchAuthState } from '~/functions/auth'
 import { fetchBranding } from '~/functions/branding'
 import { fetchErrorReportingDsn } from '~/functions/error-reporting'
@@ -114,6 +115,7 @@ function RootComponent() {
   return (
     <RootDocument
       signedIn={Boolean(session)}
+      viewingAs={session?.viewingAs ? (session.user.name ?? session.user.email) : null}
       bare={bare}
       publicPage={publicPage || standalone}
       ownHeader={ownHeader}
@@ -127,6 +129,7 @@ function RootComponent() {
 
 function RootDocument({
   signedIn,
+  viewingAs,
   bare,
   publicPage,
   ownHeader,
@@ -135,6 +138,8 @@ function RootDocument({
   children,
 }: {
   signedIn: boolean
+  // The name of the user an admin is viewing the site as, read-only.
+  viewingAs: string | null
   bare: boolean
   publicPage: boolean
   ownHeader: boolean
@@ -183,6 +188,7 @@ function RootDocument({
               <PlayerBar />
             </PlayerProvider>
           )}
+          {viewingAs !== null && !bare && <ViewAsBanner name={viewingAs} />}
           {/* A show's own domain has no accounts. */}
           {!bare && !isCustomDomain() && (
             <>

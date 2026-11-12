@@ -10,7 +10,7 @@ export const Route = createFileRoute('/api/billing/patreon/connect')({
     handlers: {
       GET: async ({ request }) => {
         if (!(await getPatreonConfig())) return new Response('Not found', { status: 404 })
-        const session = await getSession(request)
+        const session = await getSession(request, { write: true })
         const { origin } = new URL(publicUrl(request))
         if (!session?.user?.id) return Response.redirect(`${origin}/?login=true`, 302)
         return Response.redirect(await patreonAuthorizeUrl(session.user.id, origin), 302)

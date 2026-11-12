@@ -104,7 +104,10 @@ export const endMyBroadcast = createServerFn({ method: 'POST' })
 export const fetchMyLive = createServerFn({ method: 'GET' })
   .validator(liveShowSchema)
   .handler(async ({ data }) => {
-    const settings = await getLiveSettings(await requireUserId(), data.showId)
+    // Carries the stream key, which an admin viewing as the owner mustn't see.
+    const userId = (await getSession(getRequest(), { write: true }))?.user?.id
+    if (!userId) throw new Error('You need to be signed in')
+    const settings = await getLiveSettings(userId, data.showId)
     if (!settings) throw notFound()
     return settings
   })

@@ -5,6 +5,7 @@ import { AdminModeration } from '~/components/admin-moderation'
 import { BrandingSettings } from '~/components/branding-settings'
 import { Icons } from '~/components/icons'
 import { ThemeSettings } from '~/components/theme-settings'
+import { viewSiteAs } from '~/components/view-as-banner'
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
@@ -571,6 +572,9 @@ function Users({ users }: { users: Overview['users'] }) {
               <TableHead className="text-end">Channels</TableHead>
               <TableHead>Uploads per channel</TableHead>
               <TableHead>Free {paidPlanName}</TableHead>
+              <TableHead>
+                <span className="sr-only">View as</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -589,12 +593,41 @@ function Users({ users }: { users: Overview['users'] }) {
                 <TableCell>
                   <ComplimentaryAccess user={user} />
                 </TableCell>
+                <TableCell className="text-end">
+                  <ViewAsButton user={user} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </CardContent>
     </Card>
+  )
+}
+
+// Opens the site as this user sees it, read-only (see view-as.server.ts).
+function ViewAsButton({ user }: { user: Overview['users'][number] }) {
+  const { session } = Route.useRouteContext()
+  const [state, setState] = useState<'idle' | 'starting' | 'error'>('idle')
+
+  async function start() {
+    setState('starting')
+    try {
+      await viewSiteAs(user.id)
+    } catch {
+      setState('error')
+    }
+  }
+
+  if (user.email === session?.user.email) return null
+  return (
+    <div className="flex items-center justify-end gap-2">
+      {state === 'error' && <span className="text-xs text-destructive">Couldn't start</span>}
+      <Button size="sm" variant="outline" disabled={state === 'starting'} onClick={() => void start()}>
+        <Icons.show />
+        View as
+      </Button>
+    </div>
   )
 }
 
