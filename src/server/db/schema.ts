@@ -6,6 +6,7 @@ import {
   type AnyPgColumn,
   bigint,
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -493,6 +494,14 @@ export const mobileTokens = authSchema.table(
 
 // --- Site settings ----------------------------------------------------------
 
+// postgres.js and PGlite already decode JSON. Drizzle's built-in jsonb decoder
+// parses strings again, turning values such as "3e357632" or "true" into other
+// types. Settings can be any JSON value, so keep the driver's decoded value.
+const settingJsonb = customType<{ data: unknown; driverData: unknown }>({
+  dataType: () => 'jsonb',
+  toDriver: (value) => JSON.stringify(value),
+})
+
 // Settings for the whole site, edited by admins: one row for each setting
 // that has been saved, with its value as JSON. Settings without a row have
 // their default; the names, types and defaults are in site-settings.server.ts.
@@ -500,7 +509,7 @@ export const mobileTokens = authSchema.table(
 // activity.server.ts), never shown as settings.
 export const siteSettings = pgTable('site_settings', {
   key: text('key').primaryKey(),
-  value: jsonb('value').notNull(),
+  value: settingJsonb('value').notNull(),
   updatedAt: timestamps.updatedAt,
 })
 

@@ -44,6 +44,16 @@ describe('site settings', () => {
     expect(row!.value).toBeNull()
   })
 
+  it.each(['3e357632', '12345678', 'true', 'null', '{"name":"text"}', '[1,2]', '"quoted"'])(
+    'preserve the string %s without decoding it as JSON again',
+    async (value) => {
+      await updateSiteSettings({ logoVersion: value, siteName: value })
+      expect(await getSiteSettings()).toMatchObject({ logoVersion: value, siteName: value })
+      const [row] = await db.select().from(siteSettings).where(eq(siteSettings.key, 'logoVersion'))
+      expect(row!.value).toBe(value)
+    },
+  )
+
   it('use the default for a value of the wrong type, and ignore settings that no longer exist', async () => {
     await db.insert(siteSettings).values([
       { key: 'downloadConcurrency', value: 'lots' },

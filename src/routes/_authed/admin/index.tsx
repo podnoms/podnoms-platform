@@ -2,6 +2,7 @@ import { useDeferredValue, useState, type FormEvent } from 'react'
 import { createFileRoute, notFound, useNavigate, useRouter } from '@tanstack/react-router'
 import { z } from 'zod'
 import { AdminModeration } from '~/components/admin-moderation'
+import { AdminShows } from '~/components/admin-shows'
 import { BrandingSettings } from '~/components/branding-settings'
 import { Icons } from '~/components/icons'
 import { ThemeSettings } from '~/components/theme-settings'
@@ -45,7 +46,7 @@ import { pageTitle, useBranding } from '~/lib/branding'
 import { paidGraceDays, paidPlanName } from '~/lib/subscriptions'
 import { emailSettingsSchema, siteSettingsSchema } from '~/lib/site-settings-schema'
 
-const adminTabs = z.enum(['downloads', 'users', 'moderation', 'email', 'branding', 'theme', 'subscriptions'])
+const adminTabs = z.enum(['downloads', 'users', 'shows', 'moderation', 'email', 'branding', 'theme', 'subscriptions'])
 type AdminTab = z.infer<typeof adminTabs>
 
 export const Route = createFileRoute('/_authed/admin/')({
@@ -93,6 +94,10 @@ function AdminPage() {
             Users
             <span className="text-muted-foreground tabular-nums">{overview.users.length}</span>
           </TabsTrigger>
+          <TabsTrigger value="shows">
+            Shows
+            <span className="text-muted-foreground tabular-nums">{overview.shows.length}</span>
+          </TabsTrigger>
           <TabsTrigger value="moderation">
             Moderation
             {overview.moderation.reports.length > 0 && (
@@ -124,6 +129,9 @@ function AdminPage() {
         </TabsContent>
         <TabsContent value="users" className="flex flex-col gap-6 pt-4">
           <Users users={overview.users} />
+        </TabsContent>
+        <TabsContent value="shows" className="flex flex-col gap-6 pt-4">
+          <AdminShows shows={overview.shows} />
         </TabsContent>
         <TabsContent value="moderation" className="flex flex-col gap-6 pt-4">
           <AdminModeration moderation={overview.moderation} />

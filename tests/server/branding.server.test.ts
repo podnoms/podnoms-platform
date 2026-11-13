@@ -40,6 +40,7 @@ const input: BrandingInput = {
 
 // Settings outlive each test, so put the default branding back.
 afterEach(async () => {
+  vi.restoreAllMocks()
   await resetLogo()
   await saveTheme(null)
   await saveBranding({ ...defaultBranding, landing: null, analyticsScriptUrl: null, analyticsAttributes: {} })
@@ -110,8 +111,10 @@ describe('the logo', () => {
     expect(await sharp(path).metadata()).toMatchObject({ width: 192, height: 192, format: 'png' })
   })
 
-  it('makes an uploaded image a square 512px PNG, keeping transparency', async () => {
+  it.each(['3e357632', '12345678'])('makes an uploaded image a square 512px PNG, keeping transparency (version %s)', async (logoId) => {
+    vi.spyOn(crypto, 'randomUUID').mockReturnValueOnce(`${logoId}-0000-4000-8000-000000000000`)
     const { logoVersion } = await saveLogo(streamOf(await makeImage(800, 400, 'jpeg')))
+    expect(logoVersion).toBe(logoId)
     expect((await getBranding()).logoVersion).toBe(logoVersion)
     const { path, version } = await brandIcon(512)
     expect(version).toBe(logoVersion)
