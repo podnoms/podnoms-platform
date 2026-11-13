@@ -11,13 +11,13 @@ import { isCustomDomain } from '~/lib/current-domain'
 import { formatCount } from '~/lib/format'
 import { pageTitle } from '~/lib/branding'
 import { showParams } from '~/lib/paths'
-import { themeHead } from '~/lib/theme-css'
+import { showThemeHead } from '~/lib/app-shell'
 
 // A show's live page, at /<owner>/<show>/live: its broadcast from OBS
 // while there is one, and the chat beside it. It follows the broadcast
 // starting and ending without a reload.
 export const Route = createFileRoute('/$user_/$show_/live')({
-  staticData: { standalone: true },
+  staticData: { publicPage: true },
   loader: ({ params }) => fetchLivePage({ data: params }),
   head: ({ loaderData: page, matches }) =>
     page
@@ -26,7 +26,7 @@ export const Route = createFileRoute('/$user_/$show_/live')({
             { title: pageTitle(matches, `${page.show.title} live`) },
             ...(page.show.private ? [{ name: 'robots', content: 'noindex' }] : []),
           ],
-          ...themeHead(page.theme),
+          ...showThemeHead(matches, page.theme),
         }
       : {},
   component: LivePage,

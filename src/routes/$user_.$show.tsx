@@ -20,7 +20,7 @@ import { showParams } from '~/lib/paths'
 import { directories } from '~/lib/podcast-directories'
 import { publicPageHead } from '~/lib/page-meta'
 import { htmlToText } from '~/lib/rich-text'
-import { themeHead } from '~/lib/theme-css'
+import { showThemeHead } from '~/lib/app-shell'
 import { jsonLdMeta, showSeriesJsonLd } from '~/lib/structured-data'
 import { brandingFrom } from '~/lib/branding'
 
@@ -28,7 +28,7 @@ import { brandingFrom } from '~/lib/branding'
 // manages it at .../manage. Static routes win over this one, which is why
 // slugs can't be any of reservedShowSlugs (src/lib/paths.ts).
 export const Route = createFileRoute('/$user_/$show')({
-  staticData: { standalone: true },
+  staticData: { publicPage: true },
   loader: ({ params }) => fetchShowPage({ data: params }),
   head: ({ loaderData: show, matches }) => {
     if (!show) return {}
@@ -49,7 +49,7 @@ export const Route = createFileRoute('/$user_/$show')({
       feedTitle: show.title,
       noindex: show.private,
     })
-    const theme = themeHead(show.theme)
+    const theme = showThemeHead(matches, show.theme)
     const themed = { ...head, links: [...head.links, ...theme.links], styles: theme.styles }
     // Unlisted shows aren't described to search engines.
     if (show.private) return themed

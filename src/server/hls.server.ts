@@ -34,7 +34,7 @@ import { episodeAudioPath, episodeHlsDir, episodeHlsVersionDir, episodeMasterPat
 export const hlsSignatureLifetimeMs = 24 * 60 * 60 * 1000
 
 // Files a version may hold, by their path inside it.
-export const hlsFilePattern = /^\d+k\/(index\.m3u8|init_\d+\.mp4|seg-\d{5,}\.m4s)$/
+export const hlsFilePattern = /^\d+k\/(index\.m3u8|init(_\d+)?\.mp4|seg-\d{5,}\.m4s)$/
 
 export function newHlsVersion() {
   return randomBytes(6).toString('base64url')

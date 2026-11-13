@@ -74,6 +74,28 @@ describe.skipIf(!hasFfmpeg)('buildHls', () => {
     expect(await current(episode.id)).toMatchObject({ hlsVersion: version, masterCodec: null })
   })
 
+  // ffmpeg names the init segment init_<n>.mp4 when there are several
+  // bitrates but plain init.mp4 when there's one, and both must be served.
+  it.each([
+    ['one bitrate', ['-ac', '1', '-b:a', '32k']],
+    ['several bitrates', ['-ac', '2', '-b:a', '320k']],
+  ])('can serve every file its playlists name, with %s', async (_, toneArgs) => {
+    const episode = await readyEpisode()
+    await makeTone(episodeAudioPath(episode.id), 4, toneArgs)
+    const version = await buildHls(episode.id)
+    const dir = episodeHlsVersionDir(episode.id, version!)
+    const bitrates = (await readdir(dir)).filter((name) => name !== 'master.m3u8')
+    for (const bitrate of bitrates) {
+      const playlist = await readFile(`${dir}/${bitrate}/index.m3u8`, 'utf8')
+      const init = /#EXT-X-MAP:URI="([^"]+)"/.exec(playlist)?.[1]
+      expect(init).toBeTruthy()
+      const segments = playlist.split('\n').filter((line) => line && !line.startsWith('#'))
+      for (const file of [init!, ...segments]) {
+        expect(await hlsFilePath(episode.id, version!, null, `${bitrate}/${file}`), `${bitrate}/${file}`).toBeTruthy()
+      }
+    }
+  })
+
   it("does nothing for an episode that isn't ready", async () => {
     const owner = await createUser()
     const show = await createShow(owner.id)

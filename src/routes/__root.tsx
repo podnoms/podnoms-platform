@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { useEffect, type CSSProperties, type ReactNode } from 'react'
-import { HeadContent, Outlet, Scripts, createRootRoute, useMatches } from '@tanstack/react-router'
+import { HeadContent, Outlet, Scripts, createRootRoute, retainSearchParams, useMatches } from '@tanstack/react-router'
 import { AppSidebar } from '~/components/app-sidebar'
 import { ThemeProvider } from '~/components/theme-provider'
 import { TopNav } from '~/components/top-nav'
@@ -22,6 +22,7 @@ import { brandIconUrl, defaultBranding, siteThemeStyleId } from '~/lib/branding'
 import { fontCssUrl } from '~/lib/theme-fonts'
 import { startClientErrorReporting } from '~/lib/client-errors'
 import { currentDomainShow, domainShowAttribute, isCustomDomain } from '~/lib/current-domain'
+import { inAppShell } from '~/lib/app-shell'
 import { loginSearchSchema } from '~/lib/login-search'
 import appCss from '~/styles/app.css?url'
 
@@ -38,10 +39,6 @@ declare module '@tanstack/react-router' {
     // Draws its own header, so visitors don't get the public header, as for
     // the landing page.
     ownHeader?: boolean
-    // One of a show's own pages (the show, its episodes, its live page): a
-    // public page that's the same for everyone, signed in or not, as on the
-    // show's own domain, so signed-in users don't get the app's shell.
-    standalone?: boolean
   }
 }
 
@@ -52,6 +49,8 @@ export const Route = createRootRoute({
   // and, while a sign-in waits for its second factor, `context.twoFactor`.
   beforeLoad: () => fetchAuthState(),
   validateSearch: loginSearchSchema,
+  // The visitor's view lasts as links are followed, e.g. in the Theme tab's frame.
+  search: { middlewares: [retainSearchParams(['preview'])] },
   // OAuth providers with keys (for the login dialog), the user's shows and
   // the ones they follow (for the sidebar), where to report browser errors,
   // where to donate and chat (for the top nav), and the site's branding.
@@ -112,15 +111,15 @@ function RootComponent() {
   const bare = useMatches({ select: (matches) => matches.some((match) => match.staticData.bare) })
   const publicPage = useMatches({ select: (matches) => matches.some((match) => match.staticData.publicPage) })
   const ownHeader = useMatches({ select: (matches) => matches.some((match) => match.staticData.ownHeader) })
-  const standalone = useMatches({ select: (matches) => matches.some((match) => match.staticData.standalone) })
+  const { preview } = Route.useSearch()
   return (
     <RootDocument
       signedIn={Boolean(session)}
       viewingAs={session?.viewingAs ? (session.user.name ?? session.user.email) : null}
       bare={bare}
-      publicPage={publicPage || standalone}
+      publicPage={publicPage}
       ownHeader={ownHeader}
-      standalone={standalone}
+      preview={preview === true}
       themeCss={branding.theme?.css ?? ''}
     >
       <Outlet />
@@ -134,7 +133,7 @@ function RootDocument({
   bare,
   publicPage,
   ownHeader,
-  standalone,
+  preview,
   themeCss,
   children,
 }: {
@@ -144,7 +143,8 @@ function RootDocument({
   bare: boolean
   publicPage: boolean
   ownHeader: boolean
-  standalone: boolean
+  // The page as visitors see it, though signed in (see app-shell.ts).
+  preview: boolean
   // The theme admins chose (see branding.server.ts), over app.css's own.
   themeCss: string
   children: ReactNode
@@ -162,7 +162,7 @@ function RootDocument({
       <body suppressHydrationWarning>
         <ThemeProvider>
           {/* The app shell (sidebar and top nav) is only for signed-in users,
-              and not on a show's own pages, or any public page on its domain.
+              and not on a show's own domain or in the visitor's view.
               Everyone gets the player, so public pages can play episodes. */}
           {bare ? (
             children
@@ -170,7 +170,7 @@ function RootDocument({
             // One player around both layouts, so what's playing carries on
             // between the app and public pages.
             <PlayerProvider signedIn={signedIn}>
-              {signedIn && !standalone && !(publicPage && isCustomDomain()) ? (
+              {inAppShell({ signedIn, publicPage, preview }) ? (
                 <SidebarProvider style={{ '--sidebar-width': '18rem' } as CSSProperties}>
                   <AppSidebar />
                   {/* --top-nav-height lets sticky content sit below the sticky top nav. */}

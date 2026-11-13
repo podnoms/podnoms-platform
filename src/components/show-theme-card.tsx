@@ -32,6 +32,9 @@ export function ShowThemeCard({
   const { resolvedTheme } = useTheme()
   const [chosenMode, setChosenMode] = useState<'light' | 'dark' | null>(null)
   const mode = chosenMode ?? resolvedTheme
+  // The page as visitors see it: the owner, signed in, would get it in the
+  // app's shell, with the site's theme (see src/lib/app-shell.ts).
+  const previewPath = `${showPath(show)}?preview=true`
   const frame = useRef<HTMLIFrameElement>(null)
   // What's being previewed: null for no theme of the show's own.
   const previewed = useRef<SiteTheme | null>(show.theme)
@@ -95,7 +98,7 @@ export function ShowThemeCard({
               </h3>
             </div>
             <Button variant="ghost" size="sm" asChild>
-              <a href={showPath(show)} target="_blank" rel="noreferrer">
+              <a href={previewPath} target="_blank" rel="noreferrer">
                 <Icons.externalLink />
                 Open the page
               </a>
@@ -103,7 +106,7 @@ export function ShowThemeCard({
           </div>
           <iframe
             ref={frame}
-            src={showPath(show)}
+            src={previewPath}
             title="Preview of your show's page"
             onLoad={apply}
             className="h-[40rem] w-full rounded-lg border bg-background"
