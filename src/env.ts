@@ -67,6 +67,9 @@ export const env = createEnv({
     BITCOIN_ADDRESS: z.string().optional(),
     // An invite link to the community Discord server, shown in the top nav.
     DISCORD_SERVER: z.url().optional(),
+    // Public store listing or testing page for the mobile app. Leave unset
+    // until a download is available; the landing page and sidebar hide it.
+    MOBILE_APP_URL: z.url({ protocol: /^https?$/ }).optional(),
     // Search engines' site-ownership tokens (the content of their verification
     // meta tag), for Google Search Console and Bing Webmaster Tools.
     GOOGLE_SITE_VERIFICATION: z.string().optional(),

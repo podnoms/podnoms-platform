@@ -60,6 +60,9 @@ export const users = pgTable(
     // Admins can manage the whole site (e.g. the job queues). The first user
     // to sign up becomes one (see firstUserIsAdmin in users.server.ts).
     isAdmin: boolean('isAdmin').notNull().default(false),
+    // When an admin disabled the account (see setUserDisabled in admin.server.ts):
+    // while set, the user can't sign in and is signed out everywhere.
+    disabledAt: timestamp('disabledAt', { mode: 'date' }),
     // Which emails the user gets about their shows (see notifications.server.ts).
     notifyEpisodeFailed: boolean('notifyEpisodeFailed').notNull().default(true),
     notifyNewEpisodes: boolean('notifyNewEpisodes').notNull().default(true),

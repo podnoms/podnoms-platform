@@ -4,7 +4,14 @@ import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { imageModerationSchema } from '~/lib/image-moderation'
 import { resolveReportSchema } from '~/lib/report-schema'
-import { complimentaryAccessSchema, emailSettingsSchema, siteSettingsSchema, testEmailSchema, userChannelLimitSchema } from '~/lib/site-settings-schema'
+import {
+  complimentaryAccessSchema,
+  emailSettingsSchema,
+  siteSettingsSchema,
+  testEmailSchema,
+  userChannelLimitSchema,
+  userDisabledSchema,
+} from '~/lib/site-settings-schema'
 import {
   endCooldown,
   getAdminOverview,
@@ -13,6 +20,7 @@ import {
   saveSiteSettings,
   sendTestEmail,
   setUserChannelLimit,
+  setUserDisabled,
 } from '~/server/admin.server'
 import { getSession } from '~/server/auth.server'
 import { resolveReport } from '~/server/reports.server'
@@ -64,6 +72,13 @@ export const saveComplimentaryAccess = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     await requireAdmin()
     if (!(await setComplimentaryAccess(data.userId, data.complimentary))) throw notFound()
+  })
+
+export const saveUserDisabled = createServerFn({ method: 'POST' })
+  .validator(userDisabledSchema)
+  .handler(async ({ data }) => {
+    await requireAdmin()
+    if (!(await setUserDisabled(data.userId, data.disabled))) throw notFound()
   })
 
 export const endPlatformCooldown = createServerFn({ method: 'POST' })

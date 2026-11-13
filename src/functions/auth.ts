@@ -16,8 +16,10 @@ import { createUser, getProfile } from '~/server/users.server'
 export const fetchAuthState = createServerFn({ method: 'GET' }).handler(async () => {
   const request = getRequest()
   const signedIn = await readSession(request)
+  // The browser signs a disabled account out, with a message (see AccountDisabled).
+  if (signedIn?.accountDisabled) return { session: null, twoFactor: null, accountDisabled: true }
   if (signedIn?.twoFactorPending && signedIn.user?.id) {
-    return { session: null, twoFactor: await getTwoFactorMethods(signedIn.user.id) }
+    return { session: null, twoFactor: await getTwoFactorMethods(signedIn.user.id), accountDisabled: false }
   }
   // The user an admin is viewing the site as, if they are.
   const session = signedIn && (await viewAsSession(request, signedIn))
@@ -40,6 +42,7 @@ export const fetchAuthState = createServerFn({ method: 'GET' }).handler(async ()
         }
       : null,
     twoFactor: null,
+    accountDisabled: false,
   }
 })
 

@@ -28,6 +28,8 @@ export const userChannelLimitSchema = z.object({ userId: z.string().min(1), limi
 
 export const complimentaryAccessSchema = z.object({ userId: z.string().min(1), complimentary: z.boolean() })
 
+export const userDisabledSchema = z.object({ userId: z.string().min(1), disabled: z.boolean() })
+
 // An email address, optionally with a name: "podnoms <hello@podnoms.com>".
 const mailbox = /^(?:[^<>@]*<\s*[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+\s*>|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)$/
 

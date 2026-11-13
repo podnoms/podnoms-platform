@@ -31,9 +31,9 @@ export function signIn(provider: AuthProvider, fields: Record<string, string> = 
 
 // Also forgets the episode queued in the player, so the next person to sign in
 // on this browser doesn't see it. The volume is left, as it's about the device.
-export function signOut() {
+export function signOut(callbackUrl = '/') {
   storeLastEpisode(null)
-  return postToAuth('signout', {})
+  return postToAuth('signout', { callbackUrl })
 }
 
 // Updates the session in place, without navigating. Auth.js passes `data` to

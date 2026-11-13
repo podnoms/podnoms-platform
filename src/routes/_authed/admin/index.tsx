@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useDeferredValue, useState, type FormEvent } from 'react'
 import { createFileRoute, notFound, useNavigate, useRouter } from '@tanstack/react-router'
 import { z } from 'zod'
 import { AdminModeration } from '~/components/admin-moderation'
@@ -7,12 +7,24 @@ import { Icons } from '~/components/icons'
 import { ThemeSettings } from '~/components/theme-settings'
 import { viewSiteAs } from '~/components/view-as-banner'
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '~/components/ui/alert-dialog'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '~/components/ui/empty'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '~/components/ui/input-group'
 import { Switch } from '~/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~/components/ui/table'
 import { AdminSubscriptions } from '~/components/admin-subscriptions'
@@ -24,6 +36,7 @@ import {
   saveAdminSettings,
   saveComplimentaryAccess,
   saveUserChannelLimit,
+  saveUserDisabled,
   sendAdminTestEmail,
 } from '~/functions/admin'
 import { formatDateTime } from '~/lib/format'
@@ -553,7 +566,19 @@ function DownloadSettings({ settings }: { settings: Overview['settings'] }) {
   )
 }
 
+// Whether a user matches what's typed in the search box: any word in their
+// name, email or slug.
+function matchesSearch(user: Overview['users'][number], query: string) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+  const text = [user.name, user.email, user.slug].filter(Boolean).join(' ').toLowerCase()
+  return words.every((word) => text.includes(word))
+}
+
 function Users({ users }: { users: Overview['users'] }) {
+  const [query, setQuery] = useState('')
+  const deferredQuery = useDeferredValue(query)
+  const shown = users.filter((user) => matchesSearch(user, deferredQuery))
+
   return (
     <Card>
       <CardHeader>
@@ -561,10 +586,26 @@ function Users({ users }: { users: Overview['users'] }) {
         <CardDescription>
           Uploads per channel is how many of a channel's newest uploads each user's shows import, and look at on each
           check. 0 stops them following channels. Free {paidPlanName} gives someone everything a subscriber gets, with
-          unlimited audio, without paying. Turning it off gives them {paidGraceDays} days before it stops.
+          unlimited audio, without paying. Turning it off gives them {paidGraceDays} days before it stops. Disabling an
+          account signs it out everywhere and stops it signing in; its shows stay as they are.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-4">
+        <InputGroup className="max-w-sm">
+          <InputGroupAddon>
+            <Icons.search />
+          </InputGroupAddon>
+          <InputGroupInput
+            type="search"
+            aria-label="Search users"
+            placeholder="Search by name, email or handle"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </InputGroup>
+        {shown.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">No users match “{deferredQuery.trim()}”.</p>
+        ) : (
         <Table>
           <TableHeader>
             <TableRow>
@@ -573,16 +614,19 @@ function Users({ users }: { users: Overview['users'] }) {
               <TableHead>Uploads per channel</TableHead>
               <TableHead>Free {paidPlanName}</TableHead>
               <TableHead>
-                <span className="sr-only">View as</span>
+                <span className="sr-only">Actions</span>
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
+            {shown.map((user) => (
+              <TableRow key={user.id} className={user.disabledAt ? 'text-muted-foreground' : undefined}>
                 <TableCell>
                   <div className="flex flex-col">
-                    <span>{user.name ?? user.email}</span>
+                    <span className="flex items-center gap-2">
+                      {user.name ?? user.email}
+                      {user.disabledAt && <Badge variant="destructive">Disabled</Badge>}
+                    </span>
                     {user.name && <span className="text-xs text-muted-foreground">{user.email}</span>}
                   </div>
                 </TableCell>
@@ -593,13 +637,17 @@ function Users({ users }: { users: Overview['users'] }) {
                 <TableCell>
                   <ComplimentaryAccess user={user} />
                 </TableCell>
-                <TableCell className="text-end">
-                  <ViewAsButton user={user} />
+                <TableCell>
+                  <div className="flex items-center justify-end gap-2">
+                    <ViewAsButton user={user} />
+                    <DisableUserButton user={user} />
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+        )}
       </CardContent>
     </Card>
   )
@@ -629,6 +677,60 @@ function ViewAsButton({ user }: { user: Overview['users'][number] }) {
         View as
       </Button>
     </div>
+  )
+}
+
+// Disables the account (signing it out everywhere), after asking, or enables
+// it again. Admins can't be disabled.
+function DisableUserButton({ user }: { user: Overview['users'][number] }) {
+  const router = useRouter()
+  const [state, setState] = useState<'idle' | 'saving' | 'error'>('idle')
+  const name = user.name ?? user.email
+
+  async function save(disabled: boolean) {
+    setState('saving')
+    try {
+      await saveUserDisabled({ data: { userId: user.id, disabled } })
+      await router.invalidate()
+      setState('idle')
+    } catch {
+      setState('error')
+    }
+  }
+
+  if (user.isAdmin) return null
+  return (
+    <>
+      {state === 'error' && <span className="text-xs text-destructive">Couldn't save</span>}
+      {user.disabledAt ? (
+        <Button size="sm" variant="outline" disabled={state === 'saving'} onClick={() => void save(false)}>
+          Enable
+        </Button>
+      ) : (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" variant="outline" disabled={state === 'saving'}>
+              Disable
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Disable {name}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                They'll be signed out everywhere, including the mobile app, and told their account has been disabled.
+                They won't be able to sign in until you enable it again. Their shows stay as they are.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" onClick={() => void save(true)}>
+                Disable
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </>
   )
 }
 

@@ -13,6 +13,7 @@ import {
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupAction,
   SidebarGroupContent,
@@ -26,6 +27,7 @@ import {
   useSidebar,
 } from '~/components/ui/sidebar'
 import { imageSrc } from '~/lib/images'
+import { extensionLinks } from '~/lib/app-links'
 import { cn } from '~/lib/utils'
 import { showSorts, saveShowSort, sortShows, type ShowSort } from '~/lib/show-sort'
 import { brandLogoUrl, useBranding } from '~/lib/branding'
@@ -44,7 +46,7 @@ const libraryLinks = [
 ] as const
 
 export function AppSidebar() {
-  const { shows: loaded, following, showSort } = useLoaderData({ from: '__root__' })
+  const { shows: loaded, following, showSort, siteLinks } = useLoaderData({ from: '__root__' })
   const branding = useBranding()
   const [sort, setSort] = useState(showSort)
   const shows = useMemo(() => sortShows(loaded, sort), [loaded, sort])
@@ -207,6 +209,37 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter onClick={closeOnLink}>
+        <SidebarGroup className="p-0">
+          <SidebarGroupLabel>Apps & extensions</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {siteLinks.mobileAppUrl && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <a href={siteLinks.mobileAppUrl} target="_blank" rel="noopener noreferrer">
+                      <Icons.mobileApp aria-hidden="true" />
+                      <span>Mobile app</span>
+                      <Icons.externalLink aria-hidden="true" className="ml-auto" />
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {extensionLinks.map(({ label, href }) => (
+                <SidebarMenuItem key={href}>
+                  <SidebarMenuButton asChild>
+                    <a href={href} target="_blank" rel="noopener noreferrer">
+                      <Icons.extension aria-hidden="true" />
+                      <span>{label}</span>
+                      <Icons.externalLink aria-hidden="true" className="ml-auto" />
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

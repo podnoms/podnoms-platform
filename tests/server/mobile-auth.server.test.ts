@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { Secret, TOTP } from 'otpauth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setUserDisabled } from '~/server/admin.server'
 import { mobileTokens } from '~/server/db/schema'
 import {
   finishMobileSignIn,
@@ -53,6 +54,17 @@ describe('tokens', () => {
     expect(await mobileUserId(new Request('http://x/'))).toBeNull()
     await revokeMobileToken(token)
     expect(await mobileUserId(withToken(token))).toBeNull()
+  })
+
+  it("stops working while the user's account is disabled", async () => {
+    // The first user is an admin, who can't be disabled.
+    await createUser('admin@example.com', 'password123')
+    const user = (await createUser('me@example.com', 'password123'))!
+    const token = await issueMobileToken(user.id)
+    await setUserDisabled(user.id, true)
+    expect(await mobileUserId(withToken(token))).toBeNull()
+    await setUserDisabled(user.id, false)
+    expect(await mobileUserId(withToken(token))).toBe(user.id)
   })
 
   it('brings lastUsedAt up to date at most hourly', async () => {

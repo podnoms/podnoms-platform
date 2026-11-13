@@ -50,6 +50,7 @@ Settings are read from `.env` and checked at startup by [`src/env.ts`](src/env.t
 | `DATABASE_URL` | Yes | Postgres connection string |
 | `AUTH_SECRET` | Yes | At least 32 characters; generate one with `openssl rand -base64 32` |
 | `SITE_URL` | In production | The site's public address, e.g. `https://podnoms.com`. Used for every absolute link (RSS feeds, sign-in and OAuth callbacks, link previews) and for links in emails sent in the background, which have no request to take the address from. Without it, the address comes from each request. There's no `AUTH_URL`: sign-in uses this. |
+| `MOBILE_APP_URL` | No | Public download or testing page for the mobile app, linked from the landing page and signed-in sidebar. Without it, the mobile app link is hidden. Chrome and Firefox extension links are defined in `src/lib/app-links.ts` and also appear beside the new episode link field. |
 | `MEDIA_DIR` | No | Where all media is stored (default `./media`) |
 | `YTDLP_PATH`, `FFMPEG_PATH`, `FFPROBE_PATH` | No | Paths to the binaries (default: found on `PATH`) |
 | `YTDLP_COOKIES_FILE` | No | A writable cookies.txt from a signed-in YouTube account (use a throwaway one), passed to yt-dlp when YouTube asks it to "confirm you're not a bot". See [exporting YouTube cookies](https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies). Not sent to the fetcher. |

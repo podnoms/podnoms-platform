@@ -14,7 +14,7 @@ import {
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldSeparator } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
 import { requestPasswordResetFn, signUp } from '~/functions/auth'
-import { signIn } from '~/lib/auth-client'
+import { signIn, signOut } from '~/lib/auth-client'
 import { credentialsSchema, passwordResetRequestSchema } from '~/lib/auth-schema'
 import { brandLogoUrl } from '~/lib/branding'
 
@@ -29,6 +29,7 @@ const authErrors: Record<string, string> = {
   CredentialsSignin: 'Incorrect email or password.',
   OAuthAccountNotLinked: 'That email is already linked to a different sign-in method.',
   AccessDenied: 'Access was denied.',
+  AccountDisabled: 'Your account has been disabled.',
 }
 
 // Notices shown above the form, e.g. after a password reset.
@@ -46,7 +47,7 @@ function currentPageUrl() {
 }
 
 export function LoginDialog() {
-  const { session, twoFactor } = useRouteContext({ from: '__root__' })
+  const { session, twoFactor, accountDisabled } = useRouteContext({ from: '__root__' })
   const { providers, branding } = useLoaderData({ from: '__root__' })
   const search = useSearch({ from: '__root__' })
   const navigate = useNavigate()
@@ -56,6 +57,11 @@ export function LoginDialog() {
   const [mode, setMode] = useState<'signIn' | 'signUp' | 'forgot'>('signIn')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string>()
+
+  // An admin has disabled the account: sign it out, and say why.
+  useEffect(() => {
+    if (accountDisabled) void signOut('/?login=true&authError=AccountDisabled')
+  }, [accountDisabled])
 
   // Reset the form each time the dialog opens, showing any error Auth.js sent back.
   useEffect(() => {

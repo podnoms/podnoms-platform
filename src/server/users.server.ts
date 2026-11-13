@@ -248,6 +248,13 @@ export async function isAdmin(userId: string) {
   return user?.isAdmin ?? false
 }
 
+// Whether an admin has disabled the account: it can't sign in, and its
+// sessions and app tokens stop working (see setUserDisabled in admin.server.ts).
+export async function isDisabled(userId: string) {
+  const [user] = await db.select({ disabledAt: users.disabledAt }).from(users).where(eq(users.id, userId)).limit(1)
+  return Boolean(user?.disabledAt)
+}
+
 // How many of a channel's newest uploads the user's shows import (see
 // channels.server.ts); 0 if there's no such user.
 export async function getChannelEpisodeLimit(userId: string) {

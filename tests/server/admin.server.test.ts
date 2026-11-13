@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { getAdminOverview, saveSiteSettings, setUserChannelLimit } from '~/server/admin.server'
+import { getAdminOverview, saveSiteSettings, setUserChannelLimit, setUserDisabled } from '~/server/admin.server'
 import { channels, subscriptions, users } from '~/server/db/schema'
 import { updateSiteSettings } from '~/server/site-settings.server'
 import { resetDb } from '../db'
@@ -62,5 +62,23 @@ describe('the admin page', () => {
     const [row] = await db.select({ limit: users.channelEpisodeLimit }).from(users).where(eq(users.id, user.id))
     expect(row!.limit).toBe(25)
     expect(await setUserChannelLimit('nobody', 5)).toBe(false)
+  })
+})
+
+describe('disabling users', () => {
+  it('marks the user disabled, shown on the admin page, and enables them again', async () => {
+    const user = await createUser({ email: 'a@example.com' })
+    expect(await setUserDisabled(user.id, true)).toBe(true)
+    expect((await getAdminOverview()).users[0]?.disabledAt).toBeInstanceOf(Date)
+    expect(await setUserDisabled(user.id, false)).toBe(true)
+    expect((await getAdminOverview()).users[0]?.disabledAt).toBeNull()
+  })
+
+  it("won't disable an admin, or a user who doesn't exist", async () => {
+    const admin = await createUser({ email: 'a@example.com', isAdmin: true })
+    expect(await setUserDisabled(admin.id, true)).toBe(false)
+    expect(await setUserDisabled('nobody', true)).toBe(false)
+    const [row] = await db.select({ disabledAt: users.disabledAt }).from(users).where(eq(users.id, admin.id))
+    expect(row?.disabledAt).toBeNull()
   })
 })

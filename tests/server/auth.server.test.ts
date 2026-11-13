@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { Secret, TOTP } from 'otpauth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setUserDisabled } from '~/server/admin.server'
 import { users } from '~/server/db/schema'
 import {
   authConfig,
@@ -100,6 +101,32 @@ describe('signing in with email and password', () => {
       }),
     )
     expect(cookiesFrom(response)).not.toContain('session-token')
+  })
+})
+
+describe('a disabled account', () => {
+  it('is signed out at once, with the session marked so the browser can say why', async () => {
+    // The first user is an admin, who can't be disabled.
+    await createUser('admin@example.com', 'password123')
+    const user = (await createUser('me@example.com', 'password123'))!
+    const { cookie } = await signIn('me@example.com', 'password123')
+    expect(await sessionFor(cookie)).not.toBeNull()
+
+    await setUserDisabled(user.id, true)
+    expect(await sessionFor(cookie)).toBeNull()
+    expect((await readSession(pageRequest(cookie)))?.accountDisabled).toBe(true)
+
+    await setUserDisabled(user.id, false)
+    expect((await sessionFor(cookie))?.user?.id).toBe(user.id)
+  })
+
+  it("gets no usable session by signing in again", async () => {
+    // The first user is an admin, who can't be disabled.
+    await createUser('admin@example.com', 'password123')
+    const user = (await createUser('me@example.com', 'password123'))!
+    await setUserDisabled(user.id, true)
+    const { cookie } = await signIn('me@example.com', 'password123')
+    expect(await sessionFor(cookie)).toBeNull()
   })
 })
 

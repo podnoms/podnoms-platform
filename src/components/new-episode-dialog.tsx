@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import { AudioFileField, audioSourceChoices, useAudioUpload, type AudioSource } from '~/components/audio-file-field'
 import { ChoiceCards } from '~/components/choice-cards'
@@ -22,6 +22,7 @@ import { Textarea } from '~/components/ui/textarea'
 import { createMyEpisode, lookUpEpisodeLink } from '~/functions/shows'
 import { linkEpisodeSchema, linkLookupSchema, uploadEpisodeSchema } from '~/lib/episode-schema'
 import { platformOf } from '~/lib/platforms'
+import { extensionLinks } from '~/lib/app-links'
 
 // Wraps a trigger (a button) that opens the "New episode" form for a show.
 export function NewEpisodeDialog({
@@ -155,6 +156,16 @@ export function NewEpisodeDialog({
                     <Spinner aria-label="Looking up the link" className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground" />
                   )}
                 </div>
+                <FieldDescription>
+                  Add audio straight from a page with our{' '}
+                  {extensionLinks.map(({ browser, href }, i) => (
+                    <Fragment key={href}>
+                      {i > 0 && ' or '}
+                      <a href={href} target="_blank" rel="noopener noreferrer">{browser}</a>
+                    </Fragment>
+                  ))}{' '}
+                  extension.
+                </FieldDescription>
               </Field>
             ) : (
               <AudioFileField id="episode-file" state={uploadState} />

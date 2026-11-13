@@ -28,7 +28,9 @@ export async function getAdminOverview() {
         id: users.id,
         name: users.name,
         email: users.email,
+        slug: users.slug,
         isAdmin: users.isAdmin,
+        disabledAt: users.disabledAt,
         channelEpisodeLimit: users.channelEpisodeLimit,
         complimentaryAccess: users.complimentaryAccess,
         subscribed: exists(
@@ -84,6 +86,18 @@ export async function saveImageModeration(limits: ImageModerationLimits) {
 
 export async function setUserChannelLimit(userId: string, limit: number) {
   const updated = await db.update(users).set({ channelEpisodeLimit: limit }).where(eq(users.id, userId)).returning({ id: users.id })
+  return updated.length > 0
+}
+
+// Disables or re-enables an account. A disabled account can't sign in or use
+// the app, and is signed out everywhere on its next request (see getSession and
+// mobileUserId); its shows stay as they are. Admins can't be disabled.
+export async function setUserDisabled(userId: string, disabled: boolean) {
+  const updated = await db
+    .update(users)
+    .set({ disabledAt: disabled ? new Date() : null })
+    .where(and(eq(users.id, userId), eq(users.isAdmin, false)))
+    .returning({ id: users.id })
   return updated.length > 0
 }
 

@@ -12,10 +12,10 @@
 // redirect can't use the code.
 import '@tanstack/react-start/server-only'
 import { createHash, randomBytes } from 'node:crypto'
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import { getSession, readSession } from '~/server/auth.server'
 import { db } from '~/server/db/client.server'
-import { mobileTokens } from '~/server/db/schema'
+import { mobileTokens, users } from '~/server/db/schema'
 import { ExpiringStore } from '~/server/expiring-store.server'
 import { logger } from '~/server/logger.server'
 import { getTwoFactorMethods, hasTwoFactor, redeemTwoFactorTicket, verifySecondFactor } from '~/server/two-factor.server'
@@ -51,7 +51,9 @@ export async function mobileUserId(request: Request) {
   const [row] = await db
     .select({ userId: mobileTokens.userId, lastUsedAt: mobileTokens.lastUsedAt })
     .from(mobileTokens)
-    .where(eq(mobileTokens.tokenHash, tokenHash))
+    // A disabled account's tokens stop working (see setUserDisabled).
+    .innerJoin(users, eq(users.id, mobileTokens.userId))
+    .where(and(eq(mobileTokens.tokenHash, tokenHash), isNull(users.disabledAt)))
     .limit(1)
   if (!row) return null
   if (Date.now() - row.lastUsedAt.getTime() > lastUsedResolutionMs) {

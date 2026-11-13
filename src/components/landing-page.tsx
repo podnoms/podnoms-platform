@@ -4,6 +4,7 @@ import { Icons, type Icon } from '~/components/icons'
 import { ModeToggle } from '~/components/mode-toggle'
 import { ShowGrid, type ShowCardData } from '~/components/show-card'
 import { Button } from '~/components/ui/button'
+import { extensionLinks } from '~/lib/app-links'
 import { brandLogoUrl, useBranding, withSiteName } from '~/lib/branding'
 
 // The icons beside each step and feature; their text is the site's own (see
@@ -146,6 +147,7 @@ function HeroPreview() {
 // engines) can go on to listen.
 export function LandingPage({ shows }: { shows: ShowCardData[] }) {
   const branding = useBranding()
+  const mobileAppUrl = useLoaderData({ from: '__root__', select: (data) => data.siteLinks.mobileAppUrl })
   const copy = branding.landing
   const text = (value: string) => withSiteName(value, branding)
   return (
@@ -225,6 +227,34 @@ export function LandingPage({ shows }: { shows: ShowCardData[] }) {
         </div>
       </section>
 
+      <section id="apps" aria-labelledby="apps-heading" className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 px-4 pb-16 text-center md:pb-24">
+        <h2 id="apps-heading" className="text-2xl font-semibold tracking-tight md:text-3xl">Apps & extensions</h2>
+        <p className="max-w-xl text-muted-foreground">
+          {mobileAppUrl && 'Take your shows with you on the mobile app. '}
+          Found something worth listening to? Send audio and video straight to your shows with the browser extension.
+        </p>
+        <div className="flex flex-wrap justify-center gap-3">
+          {mobileAppUrl && (
+            <Button size="lg" asChild>
+              <a href={mobileAppUrl} target="_blank" rel="noopener noreferrer">
+                <Icons.mobileApp data-icon="inline-start" aria-hidden="true" />
+                Get the mobile app
+                <Icons.externalLink data-icon="inline-end" aria-hidden="true" />
+              </a>
+            </Button>
+          )}
+          {extensionLinks.map(({ label, href }) => (
+            <Button key={href} variant="outline" size="lg" asChild>
+              <a href={href} target="_blank" rel="noopener noreferrer">
+                <Icons.extension data-icon="inline-start" aria-hidden="true" />
+                {label}
+                <Icons.externalLink data-icon="inline-end" aria-hidden="true" />
+              </a>
+            </Button>
+          ))}
+        </div>
+      </section>
+
       {shows.length > 0 && (
         <section className="mx-auto w-full max-w-6xl px-4 pb-16 md:pb-24">
           <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
@@ -260,6 +290,7 @@ export function LandingPage({ shows }: { shows: ShowCardData[] }) {
           <Link to="/explore" className="ml-4 hover:text-foreground">
             Explore
           </Link>
+          <a href="#apps" className="hover:text-foreground">Apps & extensions</a>
           <Link to="/privacy" className="hover:text-foreground">
             Privacy
           </Link>
