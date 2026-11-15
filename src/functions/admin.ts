@@ -11,6 +11,7 @@ import {
   testEmailSchema,
   userChannelLimitSchema,
   userDisabledSchema,
+  userOnHoldSchema,
 } from '~/lib/site-settings-schema'
 import {
   endCooldown,
@@ -21,6 +22,7 @@ import {
   sendTestEmail,
   setUserChannelLimit,
   setUserDisabled,
+  setUserOnHold,
 } from '~/server/admin.server'
 import { getSession } from '~/server/auth.server'
 import { resolveReport } from '~/server/reports.server'
@@ -79,6 +81,13 @@ export const saveUserDisabled = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     await requireAdmin()
     if (!(await setUserDisabled(data.userId, data.disabled))) throw notFound()
+  })
+
+export const saveUserOnHold = createServerFn({ method: 'POST' })
+  .validator(userOnHoldSchema)
+  .handler(async ({ data }) => {
+    await requireAdmin()
+    if (!(await setUserOnHold(data.userId, data.reason))) throw notFound()
   })
 
 export const endPlatformCooldown = createServerFn({ method: 'POST' })

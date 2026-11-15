@@ -249,6 +249,7 @@ describe('migrations', () => {
       'episode_comment',
       'episode_like',
       'episode_tag',
+      'ignored_show',
       'live_broadcast',
       'live_chat_message',
       'notification',

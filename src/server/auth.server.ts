@@ -17,7 +17,7 @@ import { logger, reportError } from '~/server/logger.server'
 import { publicUrl } from '~/server/site-url.server'
 import { accounts, sessions, users, verificationTokens } from '~/server/db/schema'
 import { hasTwoFactor, redeemTwoFactorTicket } from '~/server/two-factor.server'
-import { assignUserSlug, firstUserIsAdmin, isDisabled, verifyUser } from '~/server/users.server'
+import { assignUserSlug, firstUserIsAdmin, getAccountStatus, verifyUser } from '~/server/users.server'
 import { isReadRequest, ReadOnlyError, viewedUserId } from '~/server/view-as.server'
 
 declare module '@auth/core/types' {
@@ -27,6 +27,9 @@ declare module '@auth/core/types' {
     // An admin has disabled the account: it counts as signed out (see
     // getSession), and the browser signs it out with a message.
     accountDisabled?: boolean
+    // An admin has put the account on hold: it counts as signed out (see
+    // getSession), and the browser shows the user the reason.
+    accountOnHold?: { reason: string }
     // An admin viewing the site as this user (see view-as.server.ts).
     viewAs?: { adminId: string }
   }
@@ -127,11 +130,16 @@ export const authConfig: AuthConfig = {
       return token
     },
     // Expose the database user id on the session; the JWT keeps it in `sub`.
-    // Checked on every read, so disabling an account signs it out at once.
+    // Checked on every read, so disabling an account or putting it on hold
+    // takes effect at once.
     async session({ session, token }) {
       if (token.sub) session.user.id = token.sub
       if (token.twoFactorPendingSince) session.twoFactorPending = true
-      if (token.sub && (await isDisabled(token.sub))) session.accountDisabled = true
+      if (token.sub) {
+        const status = await getAccountStatus(token.sub)
+        if (status.disabled) session.accountDisabled = true
+        if (status.onHold) session.accountOnHold = status.onHold
+      }
       return session
     },
   },
@@ -187,7 +195,7 @@ export async function readSession(request: Request): Promise<Session | null> {
 // marked `write` (a GET that changes something or gives away a secret).
 export async function getSession(request: Request, options: { write?: boolean } = {}): Promise<Session | null> {
   const session = await readSession(request)
-  if (!session || session.twoFactorPending || session.accountDisabled) return null
+  if (!session || session.twoFactorPending || session.accountDisabled || session.accountOnHold) return null
   const viewed = await viewAsSession(request, session)
   if (viewed !== session && (options.write || !isReadRequest(request))) throw new ReadOnlyError()
   return viewed

@@ -4,6 +4,7 @@ import { dirname } from 'node:path'
 import sharp from 'sharp'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Route as AudioRoute } from '~/routes/api/episodes/$id/audio'
+import { Route as AudioMp3Route } from '~/routes/api/episodes/$id/audio[.]mp3'
 import { Route as FeedRoute } from '~/routes/$user_.$show_.feed'
 import { Route as ImageRoute } from '~/routes/images/$file'
 import { Route as OldProfileRoute } from '~/routes/u.$'
@@ -62,6 +63,16 @@ describe('GET /api/episodes/:id/audio', () => {
     expect((await get(episode.id)).status).toBe(404)
     vi.mocked(getSession).mockResolvedValue({ user: { id: episode.ownerId }, expires: '' })
     expect((await get(episode.id)).status).toBe(200)
+  })
+
+  it('serves the same at audio.mp3, the address feeds give', async () => {
+    const episode = await readyEpisode({ private: true, feedKey: 'k3y' })
+    const mp3 = (search: string) =>
+      callRoute(AudioMp3Route, 'GET', new Request(`http://x/api/episodes/${episode.id}/audio.mp3${search}`), { id: episode.id })
+    expect((await mp3('')).status).toBe(404)
+    const response = await mp3('?key=k3y')
+    expect(response.status).toBe(200)
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(audio)
   })
 
   it('serves the whole file, advertising range support', async () => {

@@ -33,6 +33,8 @@ export async function getAdminOverview() {
         slug: users.slug,
         isAdmin: users.isAdmin,
         disabledAt: users.disabledAt,
+        onHoldAt: users.onHoldAt,
+        onHoldReason: users.onHoldReason,
         channelEpisodeLimit: users.channelEpisodeLimit,
         complimentaryAccess: users.complimentaryAccess,
         subscribed: exists(
@@ -100,6 +102,19 @@ export async function setUserDisabled(userId: string, disabled: boolean) {
   const updated = await db
     .update(users)
     .set({ disabledAt: disabled ? new Date() : null })
+    .where(and(eq(users.id, userId), eq(users.isAdmin, false)))
+    .returning({ id: users.id })
+  return updated.length > 0
+}
+
+// Puts an account on hold, with the reason the user is shown, or takes it off
+// (a null reason). An account on hold is signed out everywhere, like a disabled
+// one (see getSession and mobileUserId), but signing in shows the user why
+// instead of an error. Its shows stay as they are. Admins can't be put on hold.
+export async function setUserOnHold(userId: string, reason: string | null) {
+  const updated = await db
+    .update(users)
+    .set(reason === null ? { onHoldAt: null, onHoldReason: null } : { onHoldAt: new Date(), onHoldReason: reason })
     .where(and(eq(users.id, userId), eq(users.isAdmin, false)))
     .returning({ id: users.id })
   return updated.length > 0

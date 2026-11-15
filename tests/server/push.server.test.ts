@@ -18,9 +18,8 @@ import { createUser, db } from '../helpers'
 
 const push = vi.hoisted(() => ({ sendNotification: vi.fn() }))
 vi.mock('web-push', async (importOriginal) => {
-  // A CommonJS module: the code under test uses its default export.
-  const actual = await importOriginal<{ default: object }>()
-  return { ...actual, default: { ...actual.default, sendNotification: push.sendNotification } }
+  const actual = await importOriginal<object>()
+  return { ...actual, sendNotification: push.sendNotification }
 })
 
 const firefox = 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0'

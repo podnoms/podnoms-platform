@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { Secret, TOTP } from 'otpauth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { setUserDisabled } from '~/server/admin.server'
+import { setUserDisabled, setUserOnHold } from '~/server/admin.server'
 import { users } from '~/server/db/schema'
 import {
   authConfig,
@@ -127,6 +127,32 @@ describe('a disabled account', () => {
     await setUserDisabled(user.id, true)
     const { cookie } = await signIn('me@example.com', 'password123')
     expect(await sessionFor(cookie)).toBeNull()
+  })
+})
+
+describe('an account on hold', () => {
+  it("is signed out at once, with the reason on the session so the browser can say why", async () => {
+    // The first user is an admin, who can't be put on hold.
+    await createUser('admin@example.com', 'password123')
+    const user = (await createUser('me@example.com', 'password123'))!
+    const { cookie } = await signIn('me@example.com', 'password123')
+
+    await setUserOnHold(user.id, 'Payment outstanding')
+    expect(await sessionFor(cookie)).toBeNull()
+    expect((await readSession(pageRequest(cookie)))?.accountOnHold).toEqual({ reason: 'Payment outstanding' })
+
+    await setUserOnHold(user.id, null)
+    expect((await sessionFor(cookie))?.user?.id).toBe(user.id)
+    expect((await readSession(pageRequest(cookie)))?.accountOnHold).toBeUndefined()
+  })
+
+  it('gets only the reason by signing in again', async () => {
+    await createUser('admin@example.com', 'password123')
+    const user = (await createUser('me@example.com', 'password123'))!
+    await setUserOnHold(user.id, 'Payment outstanding')
+    const { cookie } = await signIn('me@example.com', 'password123')
+    expect(await sessionFor(cookie)).toBeNull()
+    expect((await readSession(pageRequest(cookie)))?.accountOnHold).toEqual({ reason: 'Payment outstanding' })
   })
 })
 

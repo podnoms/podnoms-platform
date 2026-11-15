@@ -109,7 +109,7 @@ export async function buildShowFeed(
       tag('itunes:summary', item.description && htmlToText(item.description)),
       `<guid isPermaLink="false">${escapeXml(item.id)}</guid>`,
       `<pubDate>${published.toUTCString()}</pubDate>`,
-      `<enclosure url="${escapeXml(withFeedKey(absolute(item.audioUrl!), key))}" length="${item.audioSizeBytes ?? 0}" type="${escapeXml(item.audioMimeType ?? 'audio/mpeg')}"/>`,
+      `<enclosure url="${escapeXml(withFeedKey(absolute(enclosurePath(item.audioUrl!)), key))}" length="${item.audioSizeBytes ?? 0}" type="${escapeXml(item.audioMimeType ?? 'audio/mpeg')}"/>`,
       // Plain seconds, which podcast apps accept as well as HH:MM:SS.
       item.durationSeconds ? `<itunes:duration>${item.durationSeconds}</itunes:duration>` : '',
       item.imageUrl ? `<itunes:image href="${escapeXml(absolute(item.imageUrl))}"/>` : '',
@@ -158,4 +158,10 @@ export async function buildShowFeed(
   </channel>
 </rss>
 `
+}
+
+// Apple Podcasts wants an enclosure's URL to end in the file's extension, so
+// feeds link to the audio endpoint's audio.mp3 (every episode's audio is MP3).
+function enclosurePath(audioUrl: string) {
+  return audioUrl.replace(/\/audio(?=\?|$)/, '/audio.mp3')
 }

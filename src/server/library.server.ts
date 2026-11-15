@@ -5,7 +5,7 @@
 import '@tanstack/react-start/server-only'
 import { and, count, desc, eq, gt, isNull, lt, max, ne, not, or, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
-import { episodeActivity, episodeLikes, episodes, playbackPositions, showFollows, shows, users } from '~/server/db/schema'
+import { episodeActivity, episodeLikes, episodes, ignoredShows, playbackPositions, showFollows, shows, users } from '~/server/db/schema'
 import {
   isListed,
   likeCount,
@@ -22,6 +22,7 @@ import { showArtwork, showAuthor, showFollowColumns } from '~/server/shows.serve
 // The show an episode in a list across shows belongs to.
 const episodeShowColumns = {
   show: {
+    id: shows.id,
     slug: shows.slug,
     ownerSlug: users.slug,
     title: shows.title,
@@ -49,6 +50,14 @@ export function withOwnership<T extends { show: { userId: string } }>(rows: T[],
     ...episode,
     show: { ...(show as Omit<T['show'], 'userId'>), isOwner: userId === listenerId },
   }))
+}
+
+// Leaves out the shows the viewer has ignored (see setShowIgnored).
+export function notIgnoredBy(viewerId: string | null) {
+  if (!viewerId) return sql`true`
+  return sql`not exists (
+    select 1 from ${ignoredShows} where ${ignoredShows.showId} = ${shows.id} and ${ignoredShows.userId} = ${viewerId}
+  )`
 }
 
 export type ListenerEpisode = Awaited<ReturnType<typeof listLikedEpisodes>>[number]
@@ -163,7 +172,7 @@ export function listFollowedShows(userId: string) {
 export async function listFollowingEpisodes(userId: string, page: Page) {
   const rows = await listenerEpisodes(userId)
     .innerJoin(showFollows, and(eq(showFollows.showId, shows.id), eq(showFollows.userId, userId)))
-    .where(and(visibleTo(userId), isListed))
+    .where(and(visibleTo(userId), isListed, notIgnoredBy(userId)))
     .orderBy(newestPublishedFirst, desc(episodes.id))
     .offset(page.offset)
     .limit(page.limit)
@@ -179,6 +188,7 @@ export async function listContinueListening(userId: string, limit = 8) {
     .where(
       and(
         visibleTo(userId),
+        notIgnoredBy(userId),
         gt(playbackPositions.positionSeconds, 0),
         not(playedBy(userId)),
         or(
@@ -192,6 +202,34 @@ export async function listContinueListening(userId: string, limit = 8) {
   return withOwnership(rows, userId)
 }
 
+// --- Ignored shows ------------------------------------------------------------
+
+// Ignores a show, so its episodes stop turning up in the user's lists, or
+// stops ignoring it. Returns whether it's ignored now, or null if there's no
+// such show for them.
+export async function setShowIgnored(userId: string, showId: string, ignored: boolean) {
+  const [show] = await db
+    .select({ id: shows.id })
+    .from(shows)
+    .where(and(eq(shows.id, showId), followable(userId)))
+    .limit(1)
+  if (!show) return null
+  if (ignored) await db.insert(ignoredShows).values({ userId, showId }).onConflictDoNothing()
+  else await db.delete(ignoredShows).where(and(eq(ignoredShows.userId, userId), eq(ignoredShows.showId, showId)))
+  return { ignored }
+}
+
+// The shows the user has ignored, most recently first, so they can undo it.
+export function listIgnoredShows(userId: string) {
+  return db
+    .select({ id: shows.id, title: shows.title, slug: shows.slug, ownerSlug: users.slug, imageUrl: showArtwork })
+    .from(ignoredShows)
+    .innerJoin(shows, eq(shows.id, ignoredShows.showId))
+    .innerJoin(users, eq(users.id, shows.userId))
+    .where(eq(ignoredShows.userId, userId))
+    .orderBy(desc(ignoredShows.createdAt))
+}
+
 // --- Explore ------------------------------------------------------------------
 
 const anyone = and(eq(shows.private, false), isListed)
@@ -200,7 +238,7 @@ const anyone = and(eq(shows.private, false), isListed)
 export function listExploreShows(viewerId: string | null, page: Page) {
   const { query, latestAt } = showCards(viewerId)
   return query
-    .where(eq(shows.private, false))
+    .where(and(eq(shows.private, false), notIgnoredBy(viewerId)))
     .groupBy(shows.id, users.id)
     .orderBy(desc(latestAt), desc(shows.id))
     .offset(page.offset)
@@ -228,7 +266,7 @@ export async function countExploreShows() {
 // The newest public episodes across the site.
 export async function listLatestEpisodes(viewerId: string | null, page: Page) {
   const rows = await listenerEpisodes(viewerId)
-    .where(anyone)
+    .where(and(anyone, notIgnoredBy(viewerId)))
     .orderBy(newestPublishedFirst, desc(episodes.id))
     .offset(page.offset)
     .limit(page.limit)
@@ -246,7 +284,7 @@ export async function listPopularEpisodes(viewerId: string | null, limit = 6) {
     where ${episodeLikes.episodeId} = ${episodes.id} and ${episodeLikes.createdAt} > ${since.toISOString()}
   )`
   const rows = await listenerEpisodes(viewerId)
-    .where(and(anyone, gt(recentLikes, 0)))
+    .where(and(anyone, notIgnoredBy(viewerId), gt(recentLikes, 0)))
     .orderBy(desc(recentLikes), desc(likeCount), newestPublishedFirst)
     .limit(limit)
   return withOwnership(rows, viewerId)
@@ -281,6 +319,7 @@ export function listTrendingShows(viewerId: string, limit = 10) {
       and(
         eq(shows.private, false),
         ne(shows.userId, viewerId),
+        notIgnoredBy(viewerId),
         sql`not exists (
           select 1 from ${showFollows} where ${showFollows.showId} = ${shows.id} and ${showFollows.userId} = ${viewerId}
         )`,

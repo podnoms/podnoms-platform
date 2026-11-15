@@ -20,6 +20,16 @@ import {
   AlertDialogTrigger,
 } from '~/components/ui/alert-dialog'
 import { Badge } from '~/components/ui/badge'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '~/components/ui/dialog'
 import { Button } from '~/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '~/components/ui/empty'
@@ -27,6 +37,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/c
 import { Input } from '~/components/ui/input'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '~/components/ui/input-group'
 import { Switch } from '~/components/ui/switch'
+import { Textarea } from '~/components/ui/textarea'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~/components/ui/table'
 import { AdminSubscriptions } from '~/components/admin-subscriptions'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
@@ -38,6 +49,7 @@ import {
   saveComplimentaryAccess,
   saveUserChannelLimit,
   saveUserDisabled,
+  saveUserOnHold,
   sendAdminTestEmail,
 } from '~/functions/admin'
 import { formatDateTime } from '~/lib/format'
@@ -628,14 +640,23 @@ function Users({ users }: { users: Overview['users'] }) {
           </TableHeader>
           <TableBody>
             {shown.map((user) => (
-              <TableRow key={user.id} className={user.disabledAt ? 'text-muted-foreground' : undefined}>
+              <TableRow
+                key={user.id}
+                className={user.disabledAt || user.onHoldAt ? 'text-muted-foreground' : undefined}
+              >
                 <TableCell>
                   <div className="flex flex-col">
                     <span className="flex items-center gap-2">
                       {user.name ?? user.email}
                       {user.disabledAt && <Badge variant="destructive">Disabled</Badge>}
+                      {user.onHoldAt && <Badge variant="secondary">On hold</Badge>}
                     </span>
                     {user.name && <span className="text-xs text-muted-foreground">{user.email}</span>}
+                    {user.onHoldAt && (
+                      <span className="max-w-xs truncate text-xs text-muted-foreground" title={user.onHoldReason ?? ''}>
+                        On hold since {formatDateTime(user.onHoldAt)}: {user.onHoldReason}
+                      </span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell className="text-end tabular-nums">{user.channels}</TableCell>
@@ -648,6 +669,7 @@ function Users({ users }: { users: Overview['users'] }) {
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
                     <ViewAsButton user={user} />
+                    <OnHoldButton user={user} />
                     <DisableUserButton user={user} />
                   </div>
                 </TableCell>
@@ -739,6 +761,107 @@ function DisableUserButton({ user }: { user: Overview['users'][number] }) {
         </AlertDialog>
       )}
     </>
+  )
+}
+
+// Puts the account on hold, asking for the reason the user is shown when they
+// sign in, or takes it off hold. Admins can't be put on hold.
+function OnHoldButton({ user }: { user: Overview['users'][number] }) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState('')
+  const [state, setState] = useState<'idle' | 'saving' | 'error'>('idle')
+  const [error, setError] = useState<string>()
+  const name = user.name ?? user.email
+
+  async function save(reason: string | null) {
+    setState('saving')
+    try {
+      await saveUserOnHold({ data: { userId: user.id, reason } })
+      await router.invalidate()
+      setState('idle')
+      setOpen(false)
+    } catch {
+      setState('error')
+    }
+  }
+
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const trimmed = reason.trim()
+    if (!trimmed) {
+      setError('Say why the account is on hold.')
+      return
+    }
+    setError(undefined)
+    void save(trimmed)
+  }
+
+  if (user.isAdmin) return null
+  if (user.onHoldAt) {
+    return (
+      <>
+        {state === 'error' && <span className="text-xs text-destructive">Couldn't save</span>}
+        <Button size="sm" variant="outline" disabled={state === 'saving'} onClick={() => void save(null)}>
+          Release hold
+        </Button>
+      </>
+    )
+  }
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (next) {
+          setReason('')
+          setError(undefined)
+          setState('idle')
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          Hold
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          <DialogHeader>
+            <DialogTitle>Put {name} on hold?</DialogTitle>
+            <DialogDescription>
+              They'll be signed out everywhere, including the mobile app. When they sign in, they'll only be told their
+              account is on hold, with the reason you give here. Their shows stay as they are.
+            </DialogDescription>
+          </DialogHeader>
+          <Field data-invalid={Boolean(error) || undefined}>
+            <FieldLabel htmlFor={`hold-reason-${user.id}`}>Reason</FieldLabel>
+            <Textarea
+              id={`hold-reason-${user.id}`}
+              value={reason}
+              maxLength={1000}
+              rows={4}
+              placeholder="e.g. A payment is outstanding. Please get in touch."
+              aria-invalid={Boolean(error) || undefined}
+              onChange={(event) => setReason(event.target.value)}
+            />
+            <FieldDescription>Shown to {name} as you write it.</FieldDescription>
+            {error && <FieldError>{error}</FieldError>}
+          </Field>
+          <DialogFooter>
+            {state === 'error' && <span className="self-center text-xs text-destructive">Couldn't save</span>}
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="submit" disabled={state === 'saving'}>
+              Put on hold
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 

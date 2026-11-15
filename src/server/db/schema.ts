@@ -64,6 +64,10 @@ export const users = pgTable(
     // When an admin disabled the account (see setUserDisabled in admin.server.ts):
     // while set, the user can't sign in and is signed out everywhere.
     disabledAt: timestamp('disabledAt', { mode: 'date' }),
+    // When an admin put the account on hold, and why (see setUserOnHold in
+    // admin.server.ts): while set, signing in only shows the user the reason.
+    onHoldAt: timestamp('onHoldAt', { mode: 'date' }),
+    onHoldReason: text('onHoldReason'),
     // Which emails the user gets about their shows (see notifications.server.ts).
     notifyEpisodeFailed: boolean('notifyEpisodeFailed').notNull().default(true),
     notifyNewEpisodes: boolean('notifyNewEpisodes').notNull().default(true),
@@ -584,6 +588,23 @@ export const showFollows = pgTable(
     primaryKey({ columns: [table.userId, table.showId] }),
     index('show_follow_showId_idx').on(table.showId),
   ],
+)
+
+// Shows a user has chosen not to see in their lists (Continue listening,
+// New from shows you follow, Popular, Explore): see library.server.ts. The
+// show's own pages, and the user's likes and playlists, still have them.
+export const ignoredShows = pgTable(
+  'ignored_show',
+  {
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    showId: text('showId')
+      .notNull()
+      .references(() => shows.id, { onDelete: 'cascade' }),
+    createdAt: timestamps.createdAt,
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.showId] })],
 )
 
 // The browsers a user has turned desktop notifications on in: each one's Web

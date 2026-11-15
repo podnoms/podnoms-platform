@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { Secret, TOTP } from 'otpauth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { setUserDisabled } from '~/server/admin.server'
+import { setUserDisabled, setUserOnHold } from '~/server/admin.server'
 import { mobileTokens } from '~/server/db/schema'
 import {
   finishMobileSignIn,
@@ -64,6 +64,16 @@ describe('tokens', () => {
     await setUserDisabled(user.id, true)
     expect(await mobileUserId(withToken(token))).toBeNull()
     await setUserDisabled(user.id, false)
+    expect(await mobileUserId(withToken(token))).toBe(user.id)
+  })
+
+  it("stops working while the user's account is on hold", async () => {
+    await createUser('admin@example.com', 'password123')
+    const user = (await createUser('me@example.com', 'password123'))!
+    const token = await issueMobileToken(user.id)
+    await setUserOnHold(user.id, 'Payment outstanding')
+    expect(await mobileUserId(withToken(token))).toBeNull()
+    await setUserOnHold(user.id, null)
     expect(await mobileUserId(withToken(token))).toBe(user.id)
   })
 

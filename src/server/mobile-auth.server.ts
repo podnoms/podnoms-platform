@@ -51,9 +51,10 @@ export async function mobileUserId(request: Request) {
   const [row] = await db
     .select({ userId: mobileTokens.userId, lastUsedAt: mobileTokens.lastUsedAt })
     .from(mobileTokens)
-    // A disabled account's tokens stop working (see setUserDisabled).
+    // A disabled or on-hold account's tokens stop working (see setUserDisabled
+    // and setUserOnHold).
     .innerJoin(users, eq(users.id, mobileTokens.userId))
-    .where(and(eq(mobileTokens.tokenHash, tokenHash), isNull(users.disabledAt)))
+    .where(and(eq(mobileTokens.tokenHash, tokenHash), isNull(users.disabledAt), isNull(users.onHoldAt)))
     .limit(1)
   if (!row) return null
   if (Date.now() - row.lastUsedAt.getTime() > lastUsedResolutionMs) {

@@ -41,6 +41,7 @@ export async function listTagEpisodes(tagId: string, viewerId: string | null, so
   const rows = await db.select({
     ...listenerEpisodeColumns(viewerId),
     show: {
+      id: shows.id,
       slug: shows.slug,
       ownerSlug: users.slug,
       title: shows.title,

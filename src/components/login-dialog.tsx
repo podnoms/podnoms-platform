@@ -47,12 +47,13 @@ function currentPageUrl() {
 }
 
 export function LoginDialog() {
-  const { session, twoFactor, accountDisabled } = useRouteContext({ from: '__root__' })
+  const { session, twoFactor, accountDisabled, accountOnHold } = useRouteContext({ from: '__root__' })
   const { providers, branding } = useLoaderData({ from: '__root__' })
   const search = useSearch({ from: '__root__' })
   const navigate = useNavigate()
-  // While a sign-in waits for its second factor, TwoFactorDialog shows instead.
-  const open = !session && !twoFactor && Boolean(search.login)
+  // While a sign-in waits for its second factor, TwoFactorDialog shows instead,
+  // and for an account on hold, AccountOnHoldDialog.
+  const open = !session && !twoFactor && !accountOnHold && Boolean(search.login)
 
   const [mode, setMode] = useState<'signIn' | 'signUp' | 'forgot'>('signIn')
   const [pending, setPending] = useState(false)

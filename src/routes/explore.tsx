@@ -85,7 +85,7 @@ function ExplorePage() {
         <>
           {popular.length > 0 && (
             <PageSection title="Popular this month" description="The most liked episodes of the last 30 days.">
-              <ListenerEpisodeList episodes={popular} />
+              <ListenerEpisodeList episodes={popular} ignorable />
             </PageSection>
           )}
           <PageSection title="Shows" count={showCount}>
@@ -97,7 +97,7 @@ function ExplorePage() {
             )}
           </PageSection>
           <PageSection title="Latest episodes">
-            <ListenerEpisodeList episodes={episodes.episodes} />
+            <ListenerEpisodeList episodes={episodes.episodes} ignorable />
             <EpisodeListEnd {...episodes} />
           </PageSection>
         </>

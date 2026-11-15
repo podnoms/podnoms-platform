@@ -248,11 +248,19 @@ export async function isAdmin(userId: string) {
   return user?.isAdmin ?? false
 }
 
-// Whether an admin has disabled the account: it can't sign in, and its
-// sessions and app tokens stop working (see setUserDisabled in admin.server.ts).
-export async function isDisabled(userId: string) {
-  const [user] = await db.select({ disabledAt: users.disabledAt }).from(users).where(eq(users.id, userId)).limit(1)
-  return Boolean(user?.disabledAt)
+// Whether an admin has disabled the account or put it on hold (with the reason
+// they gave). Either way it can't be used, and its sessions and app tokens stop
+// working (see setUserDisabled and setUserOnHold in admin.server.ts).
+export async function getAccountStatus(userId: string) {
+  const [user] = await db
+    .select({ disabledAt: users.disabledAt, onHoldAt: users.onHoldAt, onHoldReason: users.onHoldReason })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+  return {
+    disabled: Boolean(user?.disabledAt),
+    onHold: user?.onHoldAt ? { reason: user.onHoldReason ?? '' } : null,
+  }
 }
 
 // How many of a channel's newest uploads the user's shows import (see

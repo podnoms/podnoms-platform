@@ -30,6 +30,12 @@ export const complimentaryAccessSchema = z.object({ userId: z.string().min(1), c
 
 export const userDisabledSchema = z.object({ userId: z.string().min(1), disabled: z.boolean() })
 
+// Puts an account on hold with the reason shown to the user, or (null) takes it off.
+export const userOnHoldSchema = z.object({
+  userId: z.string().min(1),
+  reason: z.string().trim().min(1, 'Say why the account is on hold').max(1000).nullable(),
+})
+
 // An email address, optionally with a name: "podnoms <hello@podnoms.com>".
 const mailbox = /^(?:[^<>@]*<\s*[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+\s*>|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)$/
 

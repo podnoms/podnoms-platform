@@ -5,7 +5,7 @@ import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { episodePageSize } from '~/lib/episode-pages'
-import { followShowSchema, likeEpisodeSchema, listPageSchema } from '~/lib/library-schema'
+import { followShowSchema, ignoreShowSchema, likeEpisodeSchema, listPageSchema } from '~/lib/library-schema'
 import { getSession } from '~/server/auth.server'
 import {
   countExploreShows,
@@ -14,11 +14,13 @@ import {
   listExploreShows,
   listFollowedShows,
   listFollowingEpisodes,
+  listIgnoredShows,
   listLatestEpisodes,
   listLikedEpisodes,
   listPopularEpisodes,
   setEpisodeLike,
   setShowFollow,
+  setShowIgnored,
 } from '~/server/library.server'
 import { withWaveforms } from '~/server/waveforms.server'
 import { withEpisodeTags } from '~/server/tags-store.server'
@@ -56,6 +58,15 @@ export const followShow = createServerFn({ method: 'POST' })
     return result
   })
 
+// Ignores a show (or stops), so its episodes stay out of the user's lists.
+export const ignoreShow = createServerFn({ method: 'POST' })
+  .validator(ignoreShowSchema)
+  .handler(async ({ data }) => {
+    const result = await setShowIgnored(await requireUserId(), data.showId, data.ignored)
+    if (!result) throw notFound()
+    return result
+  })
+
 // The shows the signed-in user follows, for the sidebar.
 export const fetchFollowedShows = createServerFn({ method: 'GET' }).handler(async () =>
   listFollowedShows(await requireUserId()),
@@ -89,11 +100,12 @@ export const fetchMoreLikes = createServerFn({ method: 'GET' })
 
 export const fetchFollowing = createServerFn({ method: 'GET' }).handler(async () => {
   const userId = await requireUserId()
-  const [shows, episodes] = await Promise.all([
+  const [shows, episodes, ignored] = await Promise.all([
     listFollowedShows(userId),
     listFollowingEpisodes(userId, firstPage).then(withListenerDetails),
+    listIgnoredShows(userId),
   ])
-  return { shows, episodes }
+  return { shows, episodes, ignored }
 })
 
 export const fetchMoreFollowingEpisodes = createServerFn({ method: 'GET' })

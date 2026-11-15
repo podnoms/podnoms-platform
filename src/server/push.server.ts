@@ -9,7 +9,7 @@
 // have to turn notifications on again.
 import '@tanstack/react-start/server-only'
 import { and, desc, eq, inArray } from 'drizzle-orm'
-import webpush, { WebPushError } from 'web-push'
+import { generateVAPIDKeys, sendNotification, WebPushError } from 'web-push'
 import { z } from 'zod'
 import { db } from '~/server/db/client.server'
 import { pushSubscriptions, siteSettings, users } from '~/server/db/schema'
@@ -31,7 +31,7 @@ let keys: Promise<{ publicKey: string; privateKey: string }> | undefined
 
 export function getPushKeys() {
   keys ??= (async () => {
-    const generated = webpush.generateVAPIDKeys()
+    const generated = generateVAPIDKeys()
     await db
       .insert(siteSettings)
       .values({
@@ -131,7 +131,7 @@ export async function sendPush(userIds: string[], message: PushMessage) {
   await Promise.all(
     subscriptions.map(async (subscription) => {
       try {
-        await webpush.sendNotification(
+        await sendNotification(
           { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
           payload,
           // Kept for a day by the push service if the browser is offline.

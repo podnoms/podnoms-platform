@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { useEffect, type CSSProperties, type ReactNode } from 'react'
 import { HeadContent, Outlet, Scripts, createRootRoute, retainSearchParams, useMatches } from '@tanstack/react-router'
+import { AccountOnHoldDialog } from '~/components/account-on-hold-dialog'
 import { AppSidebar } from '~/components/app-sidebar'
 import { ThemeProvider } from '~/components/theme-provider'
 import { TopNav } from '~/components/top-nav'
@@ -195,6 +196,7 @@ function RootDocument({
             <>
               <LoginDialog />
               <TwoFactorDialog />
+              <AccountOnHoldDialog />
             </>
           )}
         </ThemeProvider>

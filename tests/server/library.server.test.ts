@@ -10,11 +10,14 @@ import {
   listExploreShows,
   listFollowedShows,
   listFollowingEpisodes,
+  listIgnoredShows,
+  listTrendingShows,
   listLatestEpisodes,
   listLikedEpisodes,
   listPopularEpisodes,
   setEpisodeLike,
   setShowFollow,
+  setShowIgnored,
 } from '~/server/library.server'
 import { getPublicShow } from '~/server/shows.server'
 import { resetDb } from '../db'
@@ -218,5 +221,52 @@ describe('explore', () => {
       ['two', 2],
       ['one', 1],
     ])
+  })
+})
+
+describe('setShowIgnored', () => {
+  it("leaves an ignored show's episodes out of the listener's lists until it's unignored", async () => {
+    const { show: kept } = await makeShow('kept')
+    const { show: ignored } = await makeShow('ignored')
+    const listener = await createUser()
+    const other = await createUser()
+    for (const show of [kept, ignored]) {
+      const episode = await createEpisode(show.id, { ...ready, slug: `${show.slug}-ep`, durationSeconds: 600 })
+      await setShowFollow(listener.id, show.id, true)
+      await setEpisodeLike(other.id, episode.id, true)
+      await setEpisodeLike(listener.id, episode.id, true)
+      await savePlaybackPosition(listener.id, episode.id, 100)
+    }
+    expect(await setShowIgnored(listener.id, ignored.id, true)).toEqual({ ignored: true })
+
+    const slugs = (rows: { slug: string }[]) => rows.map((row) => row.slug).sort()
+    expect(slugs(await listContinueListening(listener.id))).toEqual(['kept-ep'])
+    expect(slugs(await listFollowingEpisodes(listener.id, page))).toEqual(['kept-ep'])
+    expect(slugs(await listLatestEpisodes(listener.id, page))).toEqual(['kept-ep'])
+    expect(slugs(await listPopularEpisodes(listener.id))).toEqual(['kept-ep'])
+    expect(slugs(await listExploreShows(listener.id, page))).toEqual(['kept'])
+    // Likes are the listener's own choice, so they stay.
+    expect(slugs(await listLikedEpisodes(listener.id, page))).toEqual(['ignored-ep', 'kept-ep'])
+    // Only for them.
+    expect(slugs(await listLatestEpisodes(other.id, page))).toEqual(['ignored-ep', 'kept-ep'])
+    expect((await listIgnoredShows(listener.id)).map((show) => show.slug)).toEqual(['ignored'])
+
+    await setShowIgnored(listener.id, ignored.id, false)
+    expect(slugs(await listContinueListening(listener.id))).toEqual(['ignored-ep', 'kept-ep'])
+    expect(await listIgnoredShows(listener.id)).toEqual([])
+  })
+
+  it('leaves ignored shows out of trending', async () => {
+    const { show } = await makeShow('ignored')
+    await createEpisode(show.id, ready)
+    const listener = await createUser()
+    expect((await listTrendingShows(listener.id)).map((s) => s.slug)).toEqual(['ignored'])
+    await setShowIgnored(listener.id, show.id, true)
+    expect(await listTrendingShows(listener.id)).toEqual([])
+  })
+
+  it("can't ignore a show the user can't see", async () => {
+    const { show } = await makeShow('secret', { private: true })
+    expect(await setShowIgnored((await createUser()).id, show.id, true)).toBeNull()
   })
 })

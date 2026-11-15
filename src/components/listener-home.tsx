@@ -33,7 +33,7 @@ export function ListenerHome({ data }: { data: ListenerHomeData }) {
         more={newEpisodes.length > 0 ? { label: 'See all', to: '/following' } : undefined}
       >
         {newEpisodes.length > 0 ? (
-          <ListenerEpisodeList episodes={newEpisodes} />
+          <ListenerEpisodeList episodes={newEpisodes} ignorable />
         ) : (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
@@ -57,7 +57,7 @@ export function ListenerHome({ data }: { data: ListenerHomeData }) {
 
       {popular.length > 0 && (
         <PageSection title="Popular this month" more={{ label: 'Explore', to: '/explore' }}>
-          <ListenerEpisodeList episodes={popular} />
+          <ListenerEpisodeList episodes={popular} ignorable />
         </PageSection>
       )}
 
@@ -96,7 +96,7 @@ export function ContinueListening({ episodes }: { episodes: ListenerHomeData['co
   if (episodes.length === 0) return null
   return (
     <PageSection title="Continue listening">
-      <ListenerEpisodeList episodes={episodes} />
+      <ListenerEpisodeList episodes={episodes} ignorable />
     </PageSection>
   )
 }

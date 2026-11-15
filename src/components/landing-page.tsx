@@ -26,8 +26,10 @@ function Headline({ text }: { text: string }) {
 }
 
 // Bar heights for the decorative waveform, between 0.15 and 1.
+// Whole percentages, so the server's HTML and the browser's render agree
+// (full-precision floats get serialised differently and fail hydration).
 const bars = Array.from({ length: 56 }, (_, i) =>
-  Math.max(0.15, Math.abs(Math.sin(i * 0.55) * 0.7 + Math.sin(i * 1.7) * 0.3)),
+  Math.round(Math.max(0.15, Math.abs(Math.sin(i * 0.55) * 0.7 + Math.sin(i * 1.7) * 0.3)) * 100),
 )
 
 function SignUpButton({ children }: { children: ReactNode }) {
@@ -119,7 +121,7 @@ function HeroPreview() {
                     <span
                       key={j}
                       className={`flex-1 rounded-full ${j < 21 ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-                      style={{ height: `${height * 100}%` }}
+                      style={{ height: `${height}%` }}
                     />
                   ))}
                 </div>

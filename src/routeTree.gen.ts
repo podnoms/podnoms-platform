@@ -65,6 +65,7 @@ import { Route as ApiBillingPatreonWebhookRouteImport } from './routes/api/billi
 import { Route as ApiBillingStripeWebhookRouteImport } from './routes/api/billing/stripe/webhook'
 import { Route as ApiEpisodesIdActivityRouteImport } from './routes/api/episodes/$id/activity'
 import { Route as ApiEpisodesIdAudioRouteImport } from './routes/api/episodes/$id/audio'
+import { Route as ApiEpisodesIdAudioDotmp3RouteImport } from './routes/api/episodes/$id/audio[.]mp3'
 import { Route as ApiMobileAuthProvidersRouteImport } from './routes/api/mobile/auth/providers'
 import { Route as ApiMobileAuthSignInRouteImport } from './routes/api/mobile/auth/sign-in'
 import { Route as ApiMobileAuthSignOutRouteImport } from './routes/api/mobile/auth/sign-out'
@@ -383,6 +384,12 @@ const ApiEpisodesIdAudioRoute = ApiEpisodesIdAudioRouteImport.update({
   path: '/api/episodes/$id/audio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiEpisodesIdAudioDotmp3Route =
+  ApiEpisodesIdAudioDotmp3RouteImport.update({
+    id: '/api/episodes/$id/audio.mp3',
+    path: '/api/episodes/$id/audio.mp3',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiMobileAuthProvidersRoute = ApiMobileAuthProvidersRouteImport.update({
   id: '/api/mobile/auth/providers',
   path: '/api/mobile/auth/providers',
@@ -619,6 +626,7 @@ export interface FileRoutesByFullPath {
   '/api/billing/stripe/webhook': typeof ApiBillingStripeWebhookRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
+  '/api/episodes/$id/audio.mp3': typeof ApiEpisodesIdAudioDotmp3Route
   '/api/mobile/auth/providers': typeof ApiMobileAuthProvidersRoute
   '/api/mobile/auth/sign-in': typeof ApiMobileAuthSignInRoute
   '/api/mobile/auth/sign-out': typeof ApiMobileAuthSignOutRoute
@@ -707,6 +715,7 @@ export interface FileRoutesByTo {
   '/api/billing/stripe/webhook': typeof ApiBillingStripeWebhookRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
+  '/api/episodes/$id/audio.mp3': typeof ApiEpisodesIdAudioDotmp3Route
   '/api/mobile/auth/providers': typeof ApiMobileAuthProvidersRoute
   '/api/mobile/auth/sign-in': typeof ApiMobileAuthSignInRoute
   '/api/mobile/auth/sign-out': typeof ApiMobileAuthSignOutRoute
@@ -798,6 +807,7 @@ export interface FileRoutesById {
   '/api/billing/stripe/webhook': typeof ApiBillingStripeWebhookRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
+  '/api/episodes/$id/audio.mp3': typeof ApiEpisodesIdAudioDotmp3Route
   '/api/mobile/auth/providers': typeof ApiMobileAuthProvidersRoute
   '/api/mobile/auth/sign-in': typeof ApiMobileAuthSignInRoute
   '/api/mobile/auth/sign-out': typeof ApiMobileAuthSignOutRoute
@@ -889,6 +899,7 @@ export interface FileRouteTypes {
     | '/api/billing/stripe/webhook'
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
+    | '/api/episodes/$id/audio.mp3'
     | '/api/mobile/auth/providers'
     | '/api/mobile/auth/sign-in'
     | '/api/mobile/auth/sign-out'
@@ -977,6 +988,7 @@ export interface FileRouteTypes {
     | '/api/billing/stripe/webhook'
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
+    | '/api/episodes/$id/audio.mp3'
     | '/api/mobile/auth/providers'
     | '/api/mobile/auth/sign-in'
     | '/api/mobile/auth/sign-out'
@@ -1067,6 +1079,7 @@ export interface FileRouteTypes {
     | '/api/billing/stripe/webhook'
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
+    | '/api/episodes/$id/audio.mp3'
     | '/api/mobile/auth/providers'
     | '/api/mobile/auth/sign-in'
     | '/api/mobile/auth/sign-out'
@@ -1147,6 +1160,7 @@ export interface RootRouteChildren {
   ApiBillingStripeWebhookRoute: typeof ApiBillingStripeWebhookRoute
   ApiEpisodesIdActivityRoute: typeof ApiEpisodesIdActivityRoute
   ApiEpisodesIdAudioRoute: typeof ApiEpisodesIdAudioRoute
+  ApiEpisodesIdAudioDotmp3Route: typeof ApiEpisodesIdAudioDotmp3Route
   ApiMobileAuthProvidersRoute: typeof ApiMobileAuthProvidersRoute
   ApiMobileAuthSignInRoute: typeof ApiMobileAuthSignInRoute
   ApiMobileAuthSignOutRoute: typeof ApiMobileAuthSignOutRoute
@@ -1574,6 +1588,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiEpisodesIdAudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/episodes/$id/audio.mp3': {
+      id: '/api/episodes/$id/audio.mp3'
+      path: '/api/episodes/$id/audio.mp3'
+      fullPath: '/api/episodes/$id/audio.mp3'
+      preLoaderRoute: typeof ApiEpisodesIdAudioDotmp3RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mobile/auth/providers': {
       id: '/api/mobile/auth/providers'
       path: '/api/mobile/auth/providers'
@@ -1890,6 +1911,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBillingStripeWebhookRoute: ApiBillingStripeWebhookRoute,
   ApiEpisodesIdActivityRoute: ApiEpisodesIdActivityRoute,
   ApiEpisodesIdAudioRoute: ApiEpisodesIdAudioRoute,
+  ApiEpisodesIdAudioDotmp3Route: ApiEpisodesIdAudioDotmp3Route,
   ApiMobileAuthProvidersRoute: ApiMobileAuthProvidersRoute,
   ApiMobileAuthSignInRoute: ApiMobileAuthSignInRoute,
   ApiMobileAuthSignOutRoute: ApiMobileAuthSignOutRoute,

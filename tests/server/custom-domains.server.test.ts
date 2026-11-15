@@ -379,7 +379,7 @@ describe('handleCustomDomain', () => {
     const xml = await response.text()
     expect(xml).toContain('<atom:link href="https://pod.example.com/feed"')
     expect(xml).toContain('<link>https://pod.example.com/episodes/ep-1</link>')
-    expect(xml).toContain('url="https://pod.example.com/api/episodes/x/audio"')
+    expect(xml).toContain('url="https://pod.example.com/api/episodes/x/audio.mp3"')
     expect(xml).toContain(`<podcast:guid>${show.podcastGuid}</podcast:guid>`)
   })
 })

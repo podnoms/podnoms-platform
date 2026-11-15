@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { getAdminOverview, saveSiteSettings, setUserChannelLimit, setUserDisabled } from '~/server/admin.server'
+import { getAdminOverview, saveSiteSettings, setUserChannelLimit, setUserDisabled, setUserOnHold } from '~/server/admin.server'
 import { channels, subscriptions, users } from '~/server/db/schema'
 import { updateSiteSettings } from '~/server/site-settings.server'
 import { resetDb } from '../db'
@@ -80,5 +80,25 @@ describe('disabling users', () => {
     expect(await setUserDisabled('nobody', true)).toBe(false)
     const [row] = await db.select({ disabledAt: users.disabledAt }).from(users).where(eq(users.id, admin.id))
     expect(row?.disabledAt).toBeNull()
+  })
+})
+
+describe('putting users on hold', () => {
+  it('records when and why, shown on the admin page, and takes them off again', async () => {
+    const user = await createUser({ email: 'a@example.com' })
+    expect(await setUserOnHold(user.id, 'Payment outstanding')).toBe(true)
+    const held = (await getAdminOverview()).users[0]
+    expect(held?.onHoldAt).toBeInstanceOf(Date)
+    expect(held?.onHoldReason).toBe('Payment outstanding')
+    expect(await setUserOnHold(user.id, null)).toBe(true)
+    expect((await getAdminOverview()).users[0]).toMatchObject({ onHoldAt: null, onHoldReason: null })
+  })
+
+  it("won't put an admin on hold, or a user who doesn't exist", async () => {
+    const admin = await createUser({ email: 'a@example.com', isAdmin: true })
+    expect(await setUserOnHold(admin.id, 'No')).toBe(false)
+    expect(await setUserOnHold('nobody', 'No')).toBe(false)
+    const [row] = await db.select({ onHoldAt: users.onHoldAt }).from(users).where(eq(users.id, admin.id))
+    expect(row?.onHoldAt).toBeNull()
   })
 })

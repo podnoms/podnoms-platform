@@ -130,7 +130,7 @@ describe('buildShowFeed', () => {
     const doc = await parseFeed((await buildShowFeed({ ownerSlug: 'ada', slug: 'secret' }, origin, { key: 'k3y' }))!)
     expect(doc.getElementsByTagName('itunes:block')[0]!.textContent).toBe('Yes')
     expect(doc.getElementsByTagName('atom:link')[0]!.getAttribute('href')).toBe(`${origin}/ada/secret/feed?key=k3y`)
-    expect(doc.querySelector('enclosure')!.getAttribute('url')).toBe(`${origin}/api/episodes/x/audio?v=2&key=k3y`)
+    expect(doc.querySelector('enclosure')!.getAttribute('url')).toBe(`${origin}/api/episodes/x/audio.mp3?v=2&key=k3y`)
     // The id stays the same when the key is reset.
     expect(doc.getElementsByTagName('podcast:guid')[0]!.textContent).toBe(show.podcastGuid)
   })
@@ -182,7 +182,7 @@ describe('buildShowFeed', () => {
     expect(text('itunes:duration')).toBe('3725')
     expect(item.getElementsByTagName('itunes:image')[0]!.getAttribute('href')).toBe(`${origin}/images/ep.jpg`)
     const enclosure = item.getElementsByTagName('enclosure')[0]!
-    expect(enclosure.getAttribute('url')).toBe(`${origin}/api/episodes/x/audio`)
+    expect(enclosure.getAttribute('url')).toBe(`${origin}/api/episodes/x/audio.mp3`)
     expect(enclosure.getAttribute('length')).toBe('12345')
     expect(enclosure.getAttribute('type')).toBe('audio/mpeg')
   })
