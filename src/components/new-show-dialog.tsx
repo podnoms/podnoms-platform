@@ -16,7 +16,7 @@ import { Icons } from '~/components/icons'
 import { TagInput } from '~/components/tag-input'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
-import { Textarea } from '~/components/ui/textarea'
+import { RichTextEditor } from '~/components/rich-text-editor'
 import { PaidFeatureNotice, usePaidAccess } from '~/components/paid-feature-notice'
 import { createMyChannelShow, fetchMyChannelLimit } from '~/functions/channels'
 import { createMyShow } from '~/functions/shows'
@@ -39,6 +39,7 @@ export function NewShowDialog({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string>()
   const [start, setStart] = useState<Start>('blank')
   const [tags, setTags] = useState<string[]>([])
+  const [description, setDescription] = useState('')
   // How many uploads a channel show starts with; fetched when it's chosen.
   const [channelLimit, setChannelLimit] = useState<number>()
 
@@ -50,7 +51,7 @@ export function NewShowDialog({ children }: { children: ReactNode }) {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const form = { ...Object.fromEntries(new FormData(event.currentTarget)), tags }
+    const form = { ...Object.fromEntries(new FormData(event.currentTarget)), tags, descriptionHtml: description }
     const parsed = start === 'channel' ? newChannelShowSchema.safeParse(form) : newShowSchema.safeParse(form)
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message)
@@ -89,13 +90,14 @@ export function NewShowDialog({ children }: { children: ReactNode }) {
         if (next) {
           setError(undefined)
           setTags([])
+          setDescription('')
           // The limit may have been changed by an admin since.
           setChannelLimit(undefined)
         }
       }}
     >
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>New show</DialogTitle>
           <DialogDescription className="sr-only">Start a blank show, or one that follows a channel.</DialogDescription>
@@ -127,7 +129,12 @@ export function NewShowDialog({ children }: { children: ReactNode }) {
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="show-description">Description</FieldLabel>
-                  <Textarea id="show-description" name="description" maxLength={4000} />
+                  <RichTextEditor
+                    id="show-description"
+                    value={description}
+                    onChange={setDescription}
+                    placeholder="What's it about?"
+                  />
                 </Field>
               </>
             ) : (

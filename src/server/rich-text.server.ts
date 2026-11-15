@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 import sanitize from 'sanitize-html'
-import { htmlToText } from '~/lib/rich-text'
+import { htmlToText, plainTextToHtml } from '~/lib/rich-text'
 
 // What the description editor can produce, and what podcast apps render.
 const options: sanitize.IOptions = {
@@ -18,6 +18,14 @@ export function sanitizeDescription(html: string | null | undefined) {
   if (!html) return null
   const clean = sanitize(html, options)
   return htmlToText(clean) ? clean : null
+}
+
+// A new show's or episode's description: the editor's HTML, sanitised, or
+// plain text (from the browser extension or an older form) made HTML. Null
+// when there's none, so an episode falls back on its source's.
+export function newDescription(input: { description?: string; descriptionHtml?: string }) {
+  if (input.descriptionHtml !== undefined) return sanitizeDescription(input.descriptionHtml)
+  return input.description ? plainTextToHtml(input.description) : null
 }
 
 // The same, plus headings, for the site's privacy policy and terms (see

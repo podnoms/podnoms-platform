@@ -103,6 +103,20 @@ describe('createEpisode from a link', () => {
     expect(await getRow(episode!.id)).toMatchObject({ title: 'My Episode', description: '<p>Line 1<br>Line 2</p>' })
   })
 
+  it("keeps the editor's HTML, sanitised, over plain text, and none when it's empty", async () => {
+    const { user, show } = await setup()
+    const rich = await createEpisode(user.id, {
+      showId: show.id,
+      sourceUrl: 'https://youtu.be/abc',
+      description: 'ignored',
+      descriptionHtml: '<p onclick="x"><strong>Hi</strong></p>',
+    })
+    expect(await getRow(rich!.id)).toMatchObject({ description: '<p><strong>Hi</strong></p>' })
+    // An empty editor leaves it to the source's description.
+    const empty = await createEpisode(user.id, { showId: show.id, sourceUrl: 'https://youtu.be/abc', descriptionHtml: '<p></p>' })
+    expect(await getRow(empty!.id)).toMatchObject({ description: null })
+  })
+
   it('numbers the slug when the title repeats', async () => {
     const { user, show } = await setup()
     const input = { showId: show.id, sourceUrl: 'https://youtu.be/abc', title: 'Same' }

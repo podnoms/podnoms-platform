@@ -3,6 +3,7 @@ import { useRouter } from '@tanstack/react-router'
 import { AudioFileField, audioSourceChoices, useAudioUpload, type AudioSource } from '~/components/audio-file-field'
 import { ChoiceCards } from '~/components/choice-cards'
 import { ImageField, imageIdToSave, type ImageValue } from '~/components/image-field'
+import { RichTextEditor } from '~/components/rich-text-editor'
 import { TagInput } from '~/components/tag-input'
 import { Button } from '~/components/ui/button'
 import {
@@ -18,11 +19,11 @@ import {
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
 import { Spinner } from '~/components/ui/spinner'
-import { Textarea } from '~/components/ui/textarea'
 import { createMyEpisode, lookUpEpisodeLink } from '~/functions/shows'
 import { linkEpisodeSchema, linkLookupSchema, uploadEpisodeSchema } from '~/lib/episode-schema'
 import { platformOf } from '~/lib/platforms'
 import { extensionLinks } from '~/lib/app-links'
+import { htmlToText, plainTextToHtml } from '~/lib/rich-text'
 
 // Wraps a trigger (a button) that opens the "New episode" form for a show.
 export function NewEpisodeDialog({
@@ -38,7 +39,10 @@ export function NewEpisodeDialog({
   const [open, setOpen] = useState(false)
   const [source, setSource] = useState<AudioSource>('link')
   const [title, setTitle] = useState('')
+  // HTML from the editor, which only reads its value when it mounts: filling
+  // it in from a link bumps `editorKey` to remount it with the new one.
   const [description, setDescription] = useState('')
+  const [editorKey, setEditorKey] = useState(0)
   const [image, setImage] = useState<ImageValue>({ kind: 'keep' })
   const [tags, setTags] = useState<string[]>([])
   const [pending, setPending] = useState(false)
@@ -55,7 +59,11 @@ export function NewEpisodeDialog({
     // Each replaces what an earlier link filled in, but not what's been edited.
     const auto = autoFromLink.current
     if (title) setTitle((current) => (current === '' || current === auto.title ? title : current))
-    if (description) setDescription((current) => (current === '' || current === auto.description ? description : current))
+    const descriptionHtml = description ? plainTextToHtml(description) : undefined
+    if (descriptionHtml && (htmlToText(currentDescription.current) === '' || currentDescription.current === auto.description)) {
+      setDescription(descriptionHtml)
+      setEditorKey((key) => key + 1)
+    }
     if (image) {
       setImage((current) =>
         current.kind === 'keep' || (current.kind === 'uploaded' && current.imageId === auto.imageId)
@@ -63,14 +71,27 @@ export function NewEpisodeDialog({
           : current,
       )
     }
-    autoFromLink.current = { title: title ?? auto.title, description: description ?? auto.description, imageId: image?.imageId ?? auto.imageId }
+    autoFromLink.current = {
+      title: title ?? auto.title,
+      description: descriptionHtml ?? auto.description,
+      imageId: image?.imageId ?? auto.imageId,
+    }
   })
+  // The description as it is now, for the lookup's callback to compare.
+  const currentDescription = useRef(description)
+  currentDescription.current = description
   // What the last link looked up filled in.
   const autoFromLink = useRef<{ title?: string; description?: string; imageId?: string }>({})
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const fields = { ...Object.fromEntries(new FormData(event.currentTarget)), showId, imageId: imageIdToSave(image) ?? undefined, tags }
+    const fields = {
+      ...Object.fromEntries(new FormData(event.currentTarget)),
+      showId,
+      imageId: imageIdToSave(image) ?? undefined,
+      descriptionHtml: description,
+      tags,
+    }
     const parsed =
       source === 'link'
         ? linkEpisodeSchema.safeParse(fields)
@@ -109,6 +130,7 @@ export function NewEpisodeDialog({
           setError(undefined)
           setTitle('')
           setDescription('')
+          setEditorKey((key) => key + 1)
           setImage({ kind: 'keep' })
           setTags([])
           autoTitle.current = ''
@@ -120,7 +142,7 @@ export function NewEpisodeDialog({
       }}
     >
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>New episode</DialogTitle>
           <DialogDescription>
@@ -180,35 +202,37 @@ export function NewEpisodeDialog({
                   onChange={setImage}
                   suggest={() => ({ title, description, context: showTitle })}
                 />
+                {source === 'link' && <FieldDescription>Leave empty to use the video's thumbnail.</FieldDescription>}
               </Field>
-              <Field className="min-w-0">
-                <FieldLabel htmlFor="episode-title">Title</FieldLabel>
-                <Input
-                  id="episode-title"
-                  name="title"
-                  autoComplete="off"
-                  maxLength={200}
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                />
-                <FieldDescription>
-                  {source === 'link' ? "Leave blank to use the video's title." : "Leave blank to use the file's title or name."}
-                </FieldDescription>
-                {source === 'link' && <FieldDescription>Leave the artwork empty to use the video's thumbnail.</FieldDescription>}
-              </Field>
+              <FieldGroup className="min-w-0 flex-1">
+                <Field>
+                  <FieldLabel htmlFor="episode-title">Title</FieldLabel>
+                  <Input
+                    id="episode-title"
+                    name="title"
+                    autoComplete="off"
+                    maxLength={200}
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                  />
+                  <FieldDescription>
+                    {source === 'link' ? "Leave blank to use the video's title." : "Leave blank to use the file's title or name."}
+                  </FieldDescription>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="episode-description">Description</FieldLabel>
+                  <RichTextEditor
+                    key={editorKey}
+                    id="episode-description"
+                    value={description}
+                    onChange={setDescription}
+                    placeholder="What's it about?"
+                  />
+                  {source === 'link' && <FieldDescription>Leave blank to use the video's description.</FieldDescription>}
+                </Field>
+                <TagInput id="episode-tags" value={tags} onChange={setTags} disabled={pending} />
+              </FieldGroup>
             </div>
-            <Field>
-              <FieldLabel htmlFor="episode-description">Description</FieldLabel>
-              <Textarea
-                id="episode-description"
-                name="description"
-                maxLength={4000}
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-              />
-              {source === 'link' && <FieldDescription>Leave blank to use the video's description.</FieldDescription>}
-            </Field>
-            <TagInput id="episode-tags" value={tags} onChange={setTags} disabled={pending} />
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
         </form>

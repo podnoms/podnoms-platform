@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sanitizeDescription } from '~/server/rich-text.server'
+import { newDescription, sanitizeDescription } from '~/server/rich-text.server'
 
 // An attribute of the first tag in some HTML, whatever order they're in.
 const attr = (html: string, name: string) => new RegExp(`\\s${name}="([^"]*)"`).exec(html)?.[1]
@@ -36,5 +36,16 @@ describe('sanitizeDescription', () => {
     expect(sanitizeDescription('<a href="javascript:alert(1)">x</a>')).not.toContain('javascript')
     expect(sanitizeDescription('<a href="data:text/html,hi">x</a>')).not.toContain('data:')
     expect(sanitizeDescription('<a href="mailto:a@b.co">mail</a>')).toContain('href="mailto:a@b.co"')
+  })
+})
+
+describe('newDescription', () => {
+  it('sanitises HTML from the editor, or makes plain text HTML', () => {
+    expect(newDescription({ descriptionHtml: '<p>Hi <a href="https://a.com" onclick="x">a</a></p>' })).toBe(
+      '<p>Hi <a href="https://a.com" rel="noopener noreferrer" target="_blank">a</a></p>',
+    )
+    expect(newDescription({ description: 'One\n\nTwo' })).toBe('<p>One</p><p>Two</p>')
+    expect(newDescription({ description: 'plain', descriptionHtml: '<p></p>' })).toBeNull()
+    expect(newDescription({})).toBeNull()
   })
 })

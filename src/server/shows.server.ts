@@ -4,7 +4,6 @@ import { db } from '~/server/db/client.server'
 import { episodes, showFollows, showSlugAliases, shows, userSlugAliases, users } from '~/server/db/schema'
 import { reservedShowSlugs, type ShowRef } from '~/lib/paths'
 import { newPodcastGuid } from '~/server/podcast-guid.server'
-import { plainTextToHtml } from '~/lib/rich-text'
 import { firstFreeSlug, slugify } from '~/lib/slug'
 import { customDomainValues, withDomainConflict } from '~/server/custom-domains.server'
 import { hasPaidAccess, requirePaidAccess } from '~/server/subscriptions.server'
@@ -12,7 +11,7 @@ import { moveHlsVersions } from '~/server/hls.server'
 import { themeAssets } from '~/lib/theme-css'
 import type { SiteTheme } from '~/lib/theme-schema'
 import { commitImage, deleteImage } from '~/server/images.server'
-import { sanitizeDescription } from '~/server/rich-text.server'
+import { newDescription, sanitizeDescription } from '~/server/rich-text.server'
 import { syncShowTags } from '~/server/tags-store.server'
 import type { DirectoryLinks } from '~/lib/podcast-directories'
 import type { DirectoryDetailsInput, DirectoryLinkInput, EditShowInput, NewShowInput, ShowThemeInput } from '~/lib/show-schema'
@@ -233,7 +232,7 @@ async function ownerSlug(userId: string) {
 
 export async function createShow(userId: string, input: NewShowInput) {
   const [slug, owner] = await Promise.all([availableSlug(userId, input.title), ownerSlug(userId)])
-  const description = input.description ? plainTextToHtml(input.description) : undefined
+  const description = newDescription(input) ?? undefined
   if (input.customDomain) await requirePaidAccess(userId, 'customDomain')
   // Its own domain, if one was given, is checked later from the Custom domain tab.
   const domain = input.customDomain ? customDomainValues(input.customDomain) : {}

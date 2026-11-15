@@ -17,9 +17,8 @@ import {
 import { deleteHls, moveHlsVersions } from '~/server/hls.server'
 import { episodeAudioPath, episodeMasterPath, episodeSourcePath } from '~/server/storage.server'
 import { findUpload, moveUploadToEpisode, type UploadedAudio } from '~/server/uploads.server'
-import { plainTextToHtml } from '~/lib/rich-text'
 import { commitImage, deleteImage } from '~/server/images.server'
-import { sanitizeDescription } from '~/server/rich-text.server'
+import { newDescription, sanitizeDescription } from '~/server/rich-text.server'
 import { syncEpisodeTags } from '~/server/tags-store.server'
 import { showAuthor, showWhere, type ShowKey } from '~/server/shows.server'
 import { deleteWaveform, readWaveform } from '~/server/waveforms.server'
@@ -333,7 +332,7 @@ export async function createEpisode(userId: string, input: NewEpisodeInput, { pa
     .where(and(eq(shows.id, input.showId), eq(shows.userId, userId)))
     .limit(1)
   if (!show) return null
-  const description = input.description && plainTextToHtml(input.description)
+  const description = newDescription(input)
   const upload = 'uploadId' in input ? await findUpload(userId, input.uploadId) : null
   if ('uploadId' in input && !upload) throw new Error('That upload has expired. Please choose the file again.')
   await requireAudioRoom(userId, upload?.durationSeconds ?? 0)

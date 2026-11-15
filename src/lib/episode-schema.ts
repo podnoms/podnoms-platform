@@ -17,7 +17,10 @@ const episodeDetails = {
   showId: z.string().min(1),
   // Left blank, the title and description come from the source.
   title: optionalText(200, 'Keep the title under 200 characters'),
+  // Plain text (from the browser extension), or HTML from the rich text
+  // editor (the site's form), which wins when both are sent.
   description: optionalText(4000, 'Keep the description under 4000 characters'),
+  descriptionHtml,
   // An uploaded image (see /api/images). Left out, the source's artwork is used.
   imageId: z.uuid().optional(),
   tags: tagNamesSchema.optional(),

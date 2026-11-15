@@ -37,6 +37,8 @@ export const newShowSchema = z.object({
     .max(4000, 'Keep the description under 4000 characters')
     .transform((value) => value || undefined)
     .optional(),
+  // HTML from the rich text editor, used instead of `description` when sent.
+  descriptionHtml: z.string().max(20000, 'That description is too long').optional(),
   customDomain: customDomainField.optional(),
   tags: tagNamesSchema.optional(),
 })

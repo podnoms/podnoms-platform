@@ -1,7 +1,9 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Placeholder } from '@tiptap/extensions'
+import { Markdown } from '@tiptap/markdown'
+import { MarkdownLinks, editorMarkdown, looksLikeMarkdown } from '~/lib/markdown-editing'
 import { Icons, type Icon } from '~/components/icons'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
@@ -14,6 +16,8 @@ import { Toggle } from '~/components/ui/toggle'
 // paragraphs, bold, italic, underline, strikethrough, links, lists and quotes.
 // With `headings`, for whole pages (see sanitizePage), it offers two levels of
 // heading too, and grows taller. `value` is only read when the editor mounts.
+// It takes markdown as well: typed (**bold**, - lists, > quotes, [text](url)
+// and so on become formatting as you type) or pasted.
 export function RichTextEditor({
   id,
   value,
@@ -27,6 +31,8 @@ export function RichTextEditor({
   placeholder?: string
   headings?: boolean
 }) {
+  // handlePaste is set before the editor exists, so it reads it from here.
+  const editorRef = useRef<Editor | null>(null)
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -37,6 +43,8 @@ export function RichTextEditor({
         link: { openOnClick: false, autolink: true, defaultProtocol: 'https' },
       }),
       Placeholder.configure({ placeholder }),
+      Markdown,
+      MarkdownLinks,
     ],
     content: value,
     // The page is rendered on the server, where there's no editor to render.
@@ -44,11 +52,25 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         ...(id ? { id } : {}),
+        'aria-multiline': 'true',
         class: `rich-text min-h-32 ${headings ? 'max-h-[36rem]' : 'max-h-80'} overflow-y-auto px-3 py-2 outline-none`,
+      },
+      // Plain text that looks like markdown (copied from a README, a notes
+      // app or a chat) goes in formatted. Anything with HTML on the
+      // clipboard is left to the editor, which keeps its formatting.
+      handlePaste: (_view, event) => {
+        const text = event.clipboardData?.getData('text/plain')
+        if (!text || event.clipboardData?.types.includes('text/html') || !looksLikeMarkdown(text)) return false
+        const current = editorRef.current
+        if (!current?.markdown) return false
+        current.chain().focus().insertContent(editorMarkdown(text, { headings }), { contentType: 'markdown' }).run()
+        return true
       },
     },
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
   })
+
+  editorRef.current = editor
 
   return (
     <div className="overflow-hidden rounded-md border border-input shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
