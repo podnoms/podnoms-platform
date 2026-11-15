@@ -4,7 +4,6 @@
 import '@tanstack/react-start/server-only'
 import { createWriteStream } from 'node:fs'
 import { readFile, rename, rm, stat, truncate, writeFile } from 'node:fs/promises'
-import { basename, extname } from 'node:path'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { maxUploadBytes } from '~/lib/episode-schema'
@@ -62,6 +61,25 @@ export async function receiveFile(body: ReadableStream<Uint8Array>, path: string
 
 const metadataPath = (path: string) => `${path}.json`
 
+// The title an uploaded file's name gives it. The name is whatever the browser
+// (or anyone posting here) sent: it's only ever used for this, never as a
+// path or part of one, as files are stored under IDs made here. Still, it's
+// cut down to the name itself: no folders (either kind of slash), control
+// characters or extension.
+export function titleFromFilename(filename: string) {
+  const name = filename
+    .normalize('NFC')
+    .replace(/[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '')
+    .split(/[\\/]/)
+    .pop()!
+    .trim()
+  const title = name.replace(/\.[^.\s]{1,10}$/, '').replace(/^\.+/, '').trim()
+  return title.slice(0, 200).trim() || 'Untitled episode'
+}
+
+// Upload IDs are made here (startUpload); nothing else is taken for one.
+const uploadIdPattern = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
+
 async function startUpload(userId: string) {
   const dir = await ensureUserUploadsDir(userId)
   void removeStaleFiles(dir).catch(() => {})
@@ -76,7 +94,7 @@ async function finishUpload(userId: string, uploadId: string, filename: string) 
     if (!info) throw new UploadError("That file doesn't contain any audio we can read", 415)
     const upload: UploadedAudio = {
       uploadId,
-      title: info.title ?? (basename(filename, extname(filename)).trim() || 'Untitled episode'),
+      title: info.title?.trim() || titleFromFilename(filename),
       durationSeconds: info.durationSeconds,
     }
     await writeFile(metadataPath(path), JSON.stringify(upload))
@@ -124,7 +142,7 @@ export async function saveUploadPart(
     if (offset > 0) throw new UploadError('Invalid upload offset', 400)
     uploadId = await startUpload(userId)
   } else {
-    if (!/^[\w-]+$/.test(uploadId)) throw new UploadError('Invalid upload', 400)
+    if (!uploadIdPattern.test(uploadId)) throw new UploadError('Invalid upload', 400)
     if (await findUpload(userId, uploadId)) throw new UploadError('That upload is already finished', 409)
   }
 

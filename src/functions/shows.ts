@@ -48,6 +48,7 @@ import {
   replaceEpisodeAudio,
   retryEpisode,
   savePlaybackPosition,
+  setEpisodePlayed,
   setEpisodePrivacy,
   summariseEpisodes,
   updateEpisode,
@@ -367,4 +368,12 @@ export const saveMyPlaybackPosition = createServerFn({ method: 'POST' })
   .validator(z.object({ episodeId: z.string(), seconds: z.number().min(0) }))
   .handler(async ({ data }) => {
     if (!(await savePlaybackPosition(await requireUserId(), data.episodeId, data.seconds))) throw notFound()
+  })
+
+// Marks an episode as played (the player does when one ends) or not, as the
+// app does, so both show the same.
+export const setMyEpisodePlayed = createServerFn({ method: 'POST' })
+  .validator(z.object({ episodeId: z.string(), played: z.boolean() }))
+  .handler(async ({ data }) => {
+    if (!(await setEpisodePlayed(await requireUserId(), data.episodeId, data.played))) throw notFound()
   })

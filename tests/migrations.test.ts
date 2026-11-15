@@ -253,6 +253,7 @@ describe('migrations', () => {
       'live_chat_message',
       'notification',
       'playback_position',
+      'played_episode',
       'playlist',
       'playlist_item',
       'push_subscription',

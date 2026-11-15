@@ -4,7 +4,7 @@ import { and, count, desc, eq, isNotNull, isNull, max, or, sql } from 'drizzle-o
 import { db } from '~/server/db/client.server'
 import { hasPaidAccess, requireAudioRoom } from '~/server/subscriptions.server'
 import { archiveDeletedShow, writeDeletedShowManifest } from '~/server/deleted-shows.server'
-import { episodeLikes, episodes, playbackPositions, shows, users, type NewEpisode } from '~/server/db/schema'
+import { episodeLikes, episodes, playbackPositions, playedEpisodes, shows, users, type NewEpisode } from '~/server/db/schema'
 import { publishEpisodeEvent } from '~/server/episode-events.server'
 import { enqueueEpisode } from '~/server/episode-processor.server'
 import { saveLinkArtwork } from '~/server/link-details.server'
@@ -68,6 +68,15 @@ export function likedBy(listenerId: string | null) {
     : sql<boolean>`false`.mapWith(Boolean)
 }
 
+// Whether the listener (if signed in) has played the episode, or marked it so.
+export function playedBy(listenerId: string | null) {
+  return listenerId
+    ? sql<boolean>`exists (
+        select 1 from ${playedEpisodes} where ${playedEpisodes.episodeId} = ${episodes.id} and ${playedEpisodes.userId} = ${listenerId}
+      )`.mapWith(Boolean)
+    : sql<boolean>`false`.mapWith(Boolean)
+}
+
 // An episode as listeners see it, with where they left off and its likes.
 // Needs playbackPositions joined (see listenerPosition).
 export function listenerEpisodeColumns(listenerId: string | null) {
@@ -101,7 +110,7 @@ export type Page = { offset: number; limit: number }
 // A show's published episodes, for its public page: all of them, or a page.
 export function listPublishedEpisodes(showId: string, listenerId: string | null, page?: Page) {
   const query = db
-    .select(listenerEpisodeColumns(listenerId))
+    .select({ ...listenerEpisodeColumns(listenerId), played: playedBy(listenerId) })
     .from(episodes)
     .leftJoin(playbackPositions, listenerPosition(listenerId))
     .where(and(eq(episodes.showId, showId), isListed))
@@ -221,6 +230,7 @@ export function listEpisodes(userId: string, showId: string, page?: Page) {
       createdAt: episodes.createdAt,
       publishedAt: episodes.publishedAt,
       positionSeconds: playbackPositions.positionSeconds,
+      played: playedBy(userId),
     })
     .from(episodes)
     .leftJoin(
@@ -655,12 +665,16 @@ export async function dismissEpisodeError(userId: string, episodeId: string) {
   return true
 }
 
+// How close to the end counts as finished.
+export const finishedWithinSeconds = 30
+
 // Records where the user left off; a position of 0 (e.g. they finished it) clears it.
 // Listeners can keep their place in their own episodes and in anyone's
-// they can see.
+// they can see. Getting this near the end also marks it as played, wherever
+// they're listening, so the site and the app agree on what's been played.
 export async function savePlaybackPosition(userId: string, episodeId: string, seconds: number) {
   const [episode] = await db
-    .select({ id: episodes.id })
+    .select({ id: episodes.id, durationSeconds: episodes.durationSeconds })
     .from(episodes)
     .innerJoin(shows, eq(shows.id, episodes.showId))
     .where(and(eq(episodes.id, episodeId), or(eq(shows.userId, userId), visibleTo(null))))
@@ -675,10 +689,30 @@ export async function savePlaybackPosition(userId: string, episodeId: string, se
         target: [playbackPositions.userId, playbackPositions.episodeId],
         set: { positionSeconds, updatedAt: new Date() },
       })
+    if (episode.durationSeconds && positionSeconds >= episode.durationSeconds - finishedWithinSeconds) {
+      await db.insert(playedEpisodes).values({ userId, episodeId }).onConflictDoNothing()
+    }
   } else {
     await db
       .delete(playbackPositions)
       .where(and(eq(playbackPositions.userId, userId), eq(playbackPositions.episodeId, episodeId)))
+  }
+  return true
+}
+
+// Marks an episode the user can see as played, or as not played. False if
+// there's no such episode for them.
+export async function setEpisodePlayed(userId: string, episodeId: string, played: boolean) {
+  const [episode] = await db
+    .select({ id: episodes.id })
+    .from(episodes)
+    .innerJoin(shows, eq(shows.id, episodes.showId))
+    .where(and(eq(episodes.id, episodeId), or(eq(shows.userId, userId), visibleTo(null))))
+    .limit(1)
+  if (!episode) return false
+  if (played) await db.insert(playedEpisodes).values({ userId, episodeId }).onConflictDoNothing()
+  else {
+    await db.delete(playedEpisodes).where(and(eq(playedEpisodes.userId, userId), eq(playedEpisodes.episodeId, episodeId)))
   }
   return true
 }

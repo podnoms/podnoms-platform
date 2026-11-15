@@ -8,6 +8,8 @@
 //   ?hold=ms                                       pauses after reporting download progress
 //   ?upload_date=YYYYMMDD                          reports when it was uploaded
 //   /rate-limited                                  fails as the platform refusing us (HTTP 429)
+//   ?partial=1                                     leaves part of a download behind (<output>.webm.part)
+//   ?filepath=…                                    says it saved the download there instead
 // Given --flat-playlist, it lists a channel instead:
 //   ?entries=c,b,a&title=…&thumbnail=…              its uploads' ids, newest first, and details
 //   &live=b&short=a                                 uploads that are live streams or Shorts
@@ -24,6 +26,8 @@ if (args[0] === '--version') {
 const output = args[args.indexOf('--output') + 1]
 const url = new URL(args.at(-1))
 writeFileSync(`${process.env.MEDIA_DIR}/yt-dlp-args.json`, JSON.stringify(args))
+
+if (url.searchParams.has('partial')) writeFileSync(output.replace('%(ext)s', 'webm.part'), 'part')
 
 if (url.pathname === '/fail') {
   console.error('ERROR: [youtube] abc123: This video is unavailable')
@@ -81,4 +85,4 @@ await hold()
 
 const filepath = output.replace('%(ext)s', 'mp3')
 copyFileSync(process.env.FAKE_YTDLP_AUDIO, filepath)
-console.log(`INFO ${JSON.stringify({ ...details, filepath })}`)
+console.log(`INFO ${JSON.stringify({ ...details, filepath: param('filepath') ?? filepath })}`)

@@ -79,7 +79,7 @@ describe('POST /api/uploads', () => {
 
   it('explains parts it refuses', async () => {
     signedIn()
-    const response = await callRoute(UploadsRoute, 'POST', post('/api/uploads?size=10&offset=3&uploadId=nope', 'x'))
+    const response = await callRoute(UploadsRoute, 'POST', post(`/api/uploads?size=10&offset=3&uploadId=${crypto.randomUUID()}`, 'x'))
     expect(response.status).toBe(404)
     expect(await response.text()).toBe('That upload has expired. Please try again.')
   })

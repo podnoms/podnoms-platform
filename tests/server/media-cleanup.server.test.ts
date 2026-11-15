@@ -39,7 +39,8 @@ beforeEach(() => resetDb(db))
 describe('cleanUpMedia', () => {
   it("removes episode files whose episode is gone, keeping the others'", async () => {
     const show = await createShow((await createUser()).id)
-    const kept = await createEpisode(show.id)
+    // Having its audio replaced, so its replacement and upload are in use.
+    const kept = await createEpisode(show.id, { replacement: { sourceUrl: null } })
     const keptFiles = [episodeAudioPath(kept.id), replacementAudioPath(kept.id), episodeWaveformPath(kept.id), episodeSourcePath(kept.id)]
     const gone = crypto.randomUUID()
     const goneFiles = [episodeAudioPath(gone), replacementAudioPath(gone), episodeWaveformPath(gone), episodeSourcePath(gone)]
@@ -50,6 +51,47 @@ describe('cleanUpMedia', () => {
     for (const path of keptFiles) expect(await exists(path)).toBe(true)
     for (const path of goneFiles) expect(await exists(path)).toBe(false)
     expect(removed).toMatchObject({ audio: 2, waveforms: 1, sources: 1 })
+  })
+
+  it('removes what processing left behind: unfinished downloads, replacements and the uploads of ready episodes', async () => {
+    const show = await createShow((await createUser()).id)
+    const ready = await createEpisode(show.id, { status: 'ready' })
+    const downloading = await createEpisode(show.id, { status: 'processing', sourceUrl: 'https://video.test/x' })
+    const waiting = await createEpisode(show.id, { status: 'pending', sourceUrl: null })
+    const part = (id: string) => join(mediaDirs.audio, `${id}.download.webm.part`)
+    const leftovers = [
+      part(ready.id),
+      replacementAudioPath(ready.id),
+      episodeMasterPath(`${ready.id}.replacement`),
+      episodeSourcePath(ready.id),
+    ]
+    const inUse = [episodeAudioPath(ready.id), episodeMasterPath(ready.id), part(downloading.id), episodeSourcePath(waiting.id)]
+    for (const path of [...leftovers, ...inUse]) await touch(path)
+
+    expect(await cleanUpMedia(later(day / 2))).toMatchObject({ audio: 0, masters: 0, sources: 0 })
+    const removed = await cleanUpMedia(later(2 * day))
+
+    for (const path of leftovers) expect(await exists(path)).toBe(false)
+    for (const path of inUse) expect(await exists(path)).toBe(true)
+    expect(removed.masters).toBe(1)
+  })
+
+  it("removes half-made image files, even of images in use", async () => {
+    const image = imageId()
+    await createShow((await createUser()).id, { imageUrl: `/images/${image}.jpg` })
+    const leftovers = [
+      `${imagePath(image)}.original`,
+      `${imagePath(image)}.original.png`,
+      `${imageVariantPath(image, 128, 'webp')}.${crypto.randomUUID()}.partial`,
+    ]
+    const inUse = [imagePath(image), imageVariantPath(image, 128, 'webp'), join(mediaDirs.imageVariants, `${image}-og.jpg`)]
+    for (const path of [...leftovers, ...inUse]) await touch(path)
+
+    const removed = await cleanUpMedia(later(2 * day))
+
+    for (const path of leftovers) expect(await exists(path)).toBe(false)
+    for (const path of inUse) expect(await exists(path)).toBe(true)
+    expect(removed).toMatchObject({ images: 2, imageVariants: 1 })
   })
 
   it("leaves a deleted show's files for the show-archive job to move", async () => {

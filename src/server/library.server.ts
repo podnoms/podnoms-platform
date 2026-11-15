@@ -3,7 +3,7 @@
 // Continue listening) and from the site's public shows (Explore). Private
 // shows and episodes only ever show up for their owner (see visibleTo).
 import '@tanstack/react-start/server-only'
-import { and, count, desc, eq, gt, isNull, lt, max, ne, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gt, isNull, lt, max, ne, not, or, sql } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
 import { episodeActivity, episodeLikes, episodes, playbackPositions, showFollows, shows, users } from '~/server/db/schema'
 import {
@@ -11,7 +11,9 @@ import {
   likeCount,
   listenerEpisodeColumns,
   listenerPosition,
+  finishedWithinSeconds,
   newestPublishedFirst,
+  playedBy,
   visibleTo,
   type Page,
 } from '~/server/episodes.server'
@@ -170,16 +172,15 @@ export async function listFollowingEpisodes(userId: string, page: Page) {
 
 // --- Continue listening -------------------------------------------------------
 
-// How close to the end counts as finished.
-const finishedWithinSeconds = 30
-
-// Episodes the user started and hasn't finished, most recently played first.
+// Episodes the user started and hasn't finished (or marked as played), most
+// recently played first.
 export async function listContinueListening(userId: string, limit = 8) {
   const rows = await listenerEpisodes(userId)
     .where(
       and(
         visibleTo(userId),
         gt(playbackPositions.positionSeconds, 0),
+        not(playedBy(userId)),
         or(
           isNull(episodes.durationSeconds),
           lt(playbackPositions.positionSeconds, sql`${episodes.durationSeconds} - ${finishedWithinSeconds}`),

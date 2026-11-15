@@ -330,6 +330,13 @@
       "when": 1794527361530,
       "tag": "0046_cuddly_the_liberteens",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1794759930487,
+      "tag": "0047_classy_forgotten_one",
+      "breakpoints": true
     }
   ]
 }

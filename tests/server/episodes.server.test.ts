@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { episodes, playbackPositions, shows } from '~/server/db/schema'
+import { episodes, playbackPositions, playedEpisodes, shows } from '~/server/db/schema'
 import { enqueueEpisode } from '~/server/episode-processor.server'
 import { saveLinkArtwork } from '~/server/link-details.server'
 import {
@@ -679,6 +679,24 @@ describe('savePlaybackPosition', () => {
     expect(await position()).toBe(30)
     await savePlaybackPosition(user.id, episode.id, 0.5)
     expect(await position()).toBeUndefined()
+  })
+
+  it('marks an episode as played once a position near its end is saved', async () => {
+    const { user, show } = await setup()
+    const episode = await insertEpisode(show.id, { status: 'ready', durationSeconds: 600 })
+    const unknownLength = await insertEpisode(show.id, { status: 'ready' })
+    const played = async () => (await db.select().from(playedEpisodes)).map((row) => row.episodeId)
+
+    await savePlaybackPosition(user.id, episode.id, 569)
+    await savePlaybackPosition(user.id, unknownLength.id, 5000)
+    expect(await played()).toEqual([])
+    await savePlaybackPosition(user.id, episode.id, 570)
+    await savePlaybackPosition(user.id, episode.id, 580)
+    expect(await played()).toEqual([episode.id])
+    // Going back, or the player clearing the position at the end, leaves it played.
+    await savePlaybackPosition(user.id, episode.id, 10)
+    await savePlaybackPosition(user.id, episode.id, 0)
+    expect(await played()).toEqual([episode.id])
   })
 
   it("won't save positions on another user's unpublished episode", async () => {

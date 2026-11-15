@@ -12,6 +12,7 @@ import { Route as ProvidersRoute } from '~/routes/api/mobile/auth/providers'
 import { Route as SignInRoute } from '~/routes/api/mobile/auth/sign-in'
 import { Route as SignOutRoute } from '~/routes/api/mobile/auth/sign-out'
 import { Route as ContinueRoute } from '~/routes/api/mobile/continue-listening'
+import { Route as PlayedRoute } from '~/routes/api/mobile/episodes/$id/played'
 import { Route as PositionRoute } from '~/routes/api/mobile/episodes/$id/position'
 import { Route as EpisodesRoute } from '~/routes/api/mobile/episodes/index'
 import { Route as CommentRoute } from '~/routes/api/mobile/comments/$id/index'
@@ -278,6 +279,45 @@ describe('episodes', () => {
 
     const response = await callRoute(ContinueRoute, 'GET', request('/api/mobile/continue-listening', { token }))
     expect(await response.json()).toEqual([expect.objectContaining({ id: episode.id, positionSeconds: 42, audioUrl: 'http://x/a' })])
+  })
+
+  it('marks an episode played and not played, for that user only', async () => {
+    const { token } = await signedIn()
+    const other = await createUser()
+    const show = await createShow(other.id)
+    const episode = await createEpisode(show.id, { status: 'ready', audioUrl: '/a', durationSeconds: 600 })
+    const hidden = await createEpisode(show.id, { status: 'ready', audioUrl: '/b', private: true })
+    const mark = (id: string, body: unknown, as: string | undefined = token) =>
+      callRoute(PlayedRoute, 'POST', request(`/api/mobile/episodes/${id}/played`, { method: 'POST', token: as, body }), { id })
+    const played = async (as: string) => {
+      const response = await callRoute(ShowRoute, 'GET', request(`/api/mobile/shows/${show.id}`, { token: as }), { showId: show.id })
+      return ((await response.json()) as { episodes: { played: boolean }[] }).episodes.map((each) => each.played)
+    }
+    await callRoute(
+      PositionRoute,
+      'POST',
+      request(`/api/mobile/episodes/${episode.id}/position`, { method: 'POST', token, body: { seconds: 42 } }),
+      { id: episode.id },
+    )
+
+    expect(await played(token)).toEqual([false])
+    expect(await (await mark(episode.id, { played: true })).json()).toEqual({ played: true })
+    expect((await mark(episode.id, { played: true })).status).toBe(200)
+    expect(await played(token)).toEqual([true])
+    expect(await played((await signedIn()).token)).toEqual([false])
+    const page = await callRoute(EpisodeRoute, 'GET', request(`/api/mobile/episodes/${episode.id}`, { token }), { id: episode.id })
+    expect(await page.json()).toMatchObject({ episode: { played: true, positionSeconds: 42 } })
+    // Played episodes aren't ones to carry on with.
+    const carryOn = () => callRoute(ContinueRoute, 'GET', request('/api/mobile/continue-listening', { token }))
+    expect(await (await carryOn()).json()).toEqual([])
+
+    expect(await (await mark(episode.id, { played: false })).json()).toEqual({ played: false })
+    expect(await played(token)).toEqual([false])
+    expect(await (await carryOn()).json()).toEqual([expect.objectContaining({ id: episode.id })])
+
+    expect((await mark(hidden.id, { played: true })).status).toBe(404)
+    expect((await mark(episode.id, {})).status).toBe(400)
+    expect((await mark(episode.id, { played: true }, '')).status).toBe(401)
   })
 })
 

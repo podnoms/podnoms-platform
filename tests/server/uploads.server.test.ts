@@ -2,7 +2,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { episodeSourcePath, stagedUploadPath, userUploadsDir } from '~/server/storage.server'
-import { findUpload, moveUploadToEpisode, receiveFile, saveUpload, saveUploadPart, UploadError } from '~/server/uploads.server'
+import { findUpload, moveUploadToEpisode, receiveFile, saveUpload, saveUploadPart, titleFromFilename, UploadError } from '~/server/uploads.server'
 import { exists, hasFfmpeg, makeTone, streamOf } from '../helpers'
 
 const dir = join(process.env.MEDIA_DIR!, 'receive-test')
@@ -27,6 +27,30 @@ describe('receiveFile', () => {
     const path = join(dir, 'empty')
     await expect(receiveFile(streamOf(''), path, 10)).rejects.toMatchObject({ status: 400, message: 'That file is empty' })
     expect(await exists(path)).toBe(false)
+  })
+})
+
+describe('titleFromFilename', () => {
+  it.each([
+    ['My Mix.final.wav', 'My Mix.final'],
+    ['  spaced out .mp3 ', 'spaced out'],
+    ['../../etc/passwd', 'passwd'],
+    ['..\\..\\windows\\system32\\mix.mp3', 'mix'],
+    ['C:\\Users\\me\\Music\\set.flac', 'set'],
+    ['/abs/path/to/show.m4a', 'show'],
+    ['..', 'Untitled episode'],
+    ['.mp3', 'Untitled episode'],
+    ['...hidden.mp3', 'hidden'],
+    ['a/b/', 'Untitled episode'],
+    ['evil\u0000name\r\n.mp3', 'evilname'],
+    ['\u202egnp.exe.mp3', 'gnp.exe'],
+    ['', 'Untitled episode'],
+  ])('%j → %j', (filename, title) => {
+    expect(titleFromFilename(filename)).toBe(title)
+  })
+
+  it('keeps titles to 200 characters', () => {
+    expect(titleFromFilename(`${'a'.repeat(500)}.mp3`)).toHaveLength(200)
   })
 })
 
@@ -118,6 +142,9 @@ describe('saveUploadPart', () => {
     await expect(saveUploadPart(user, streamOf('x'), part(10, 10, 'u1'))).rejects.toMatchObject({ status: 400 })
     await expect(saveUploadPart(user, streamOf('x'), part(NaN, 10, 'u1'))).rejects.toMatchObject({ status: 400 })
     await expect(saveUploadPart(user, streamOf('x'), part(3, 10, '../escape'))).rejects.toMatchObject({ status: 400 })
+    // IDs are only ever ones made here, so a first part can't name its own file.
+    await expect(saveUploadPart(user, streamOf('x'), part(0, 10, 'my-own-name'))).rejects.toMatchObject({ status: 400 })
+    expect(await exists(stagedUploadPath(user, 'my-own-name'))).toBe(false)
   })
 
   it('refuses a finished file without audio with 415 and keeps nothing', async () => {

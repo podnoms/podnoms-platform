@@ -22,6 +22,8 @@ export const mobileTwoFactorSchema = z.object({
 
 export const mobilePositionSchema = z.object({ seconds: z.number().min(0).max(60 * 60 * 24 * 7) })
 
+export const mobilePlayedSchema = z.object({ played: z.boolean() })
+
 export const mobileEpisodePageSchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
   limit: z.coerce.number().int().min(1).max(100).default(30),

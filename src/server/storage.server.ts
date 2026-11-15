@@ -1,6 +1,6 @@
 import '@tanstack/react-start/server-only'
 import { mkdir, readdir, rm, stat } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import { env } from '~/env'
 
 const audioDir = resolve(env.MEDIA_DIR, 'audio')
@@ -94,13 +94,40 @@ export async function ensureAudioDir() {
 }
 
 export function episodeAudioPath(episodeId: string) {
-  return join(audioDir, `${episodeId}.mp3`)
+  return join(audioDir, `${safeId(episodeId)}.mp3`)
 }
 
 // New audio for the episode, made alongside its current audio, which it
 // replaces once it's ready. Without the extension, as yt-dlp adds that.
 export function replacementAudioName(episodeId: string) {
-  return `${episodeId}.replacement`
+  return `${safeId(episodeId)}.replacement`
+}
+
+// An episode's ID or its replacementAudioName: what its audio's files are
+// named, before their extensions.
+export function safeAudioName(name: string) {
+  if (!/^[\w-]+(\.replacement)?$/.test(name)) throw new Error(`Invalid ID: ${name}`)
+  return name
+}
+
+// Where yt-dlp saves a download, with its `%(ext)s` for it to fill in, until
+// it's converted (see downloadSource).
+export function downloadTemplate(name: string) {
+  return join(audioDir, `${safeAudioName(name)}.download.%(ext)s`)
+}
+
+// Whether the path is one a download to downloadTemplate(name) could have:
+// yt-dlp (or the fetcher) says where it saved the file, and that's then read
+// and deleted, so it's only believed when it's where it was told to save it.
+export function isDownloadOf(name: string, path: string) {
+  const prefix = `${safeAudioName(name)}.download.`
+  const file = basename(path)
+  return resolve(path) === join(audioDir, file) && file.startsWith(prefix) && /^\w{1,16}$/.test(file.slice(prefix.length))
+}
+
+// `name` as for episodeMasterPath.
+export function audioPath(name: string) {
+  return join(audioDir, `${safeAudioName(name)}.mp3`)
 }
 
 export function replacementAudioPath(episodeId: string) {
@@ -114,7 +141,7 @@ export async function ensureMastersDir() {
 
 // `name` is the episode's ID, or replacementAudioName for audio replacing it.
 export function episodeMasterPath(name: string) {
-  return join(mastersDir, `${name}.mka`)
+  return join(mastersDir, `${safeAudioName(name)}.mka`)
 }
 
 export function episodeHlsDir(episodeId: string) {

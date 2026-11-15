@@ -56,6 +56,14 @@ describe.skipIf(!hasFfmpeg)('downloading through the fetcher', () => {
     )
   })
 
+  it.each(['../../escaped', 'mp3/../../x', '', 'a b'])('refuses a download named with the extension %j', async (ext) => {
+    useFetcher()
+    const download = remoteDownload(`https://video.test/watch?ext=${encodeURIComponent(ext)}`, join(media, 'five.download.%(ext)s'), () => {})
+    await expect(download).rejects.toThrow('The download server sent a download with an invalid name')
+    expect(await exists(join(media, 'escaped'))).toBe(false)
+    expect(await exists(join(media, '..', 'escaped'))).toBe(false)
+  })
+
   it('counts a dropped connection as the fetcher being unavailable, leaving nothing behind', async () => {
     useFetcher()
     const download = remoteDownload('https://video.test/hang-up', join(media, 'four.download.%(ext)s'), () => {})

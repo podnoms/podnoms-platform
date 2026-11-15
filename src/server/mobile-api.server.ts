@@ -13,7 +13,7 @@ import { getAppPushPrefs } from '~/server/app-push.server'
 import { db } from '~/server/db/client.server'
 import { episodes, playbackPositions, shows } from '~/server/db/schema'
 import { getEpisodeProgress } from '~/server/episode-processor.server'
-import { listenerPosition, visibleTo, type listEpisodes, type listPublishedEpisodes } from '~/server/episodes.server'
+import { listenerPosition, playedBy, visibleTo, type listEpisodes, type listPublishedEpisodes } from '~/server/episodes.server'
 import { noteAppViewer, viewerCount } from '~/server/live-events.server'
 import { getOpenBroadcast, gifConfig, liveEnabled, listChat, liveShowIdsAmong, type ChatMessage } from '~/server/live.server'
 import { siteUrl } from '~/server/extension-api.server'
@@ -91,6 +91,7 @@ export function mobileEpisode(request: Request, episode: OwnedEpisode) {
     createdAt: episode.createdAt,
     publishedAt: episode.publishedAt,
     positionSeconds: episode.positionSeconds ?? 0,
+    played: episode.played,
     progress: getEpisodeProgress(episode.id),
   }
 }
@@ -116,6 +117,7 @@ export function mobilePublishedEpisode(request: Request, episode: PublishedEpiso
     createdAt: episode.createdAt,
     publishedAt: episode.publishedAt,
     positionSeconds: episode.positionSeconds ?? 0,
+    played: episode.played,
     progress: null,
   }
 }
@@ -236,6 +238,7 @@ export async function mobileEpisodePage(request: Request, userId: string, episod
       createdAt: episodes.createdAt,
       publishedAt: episodes.publishedAt,
       positionSeconds: playbackPositions.positionSeconds,
+      played: playedBy(userId),
       show: { id: shows.id, slug: shows.slug, title: shows.title, imageUrl: shows.imageUrl, ownerId: shows.userId },
     })
     .from(episodes)

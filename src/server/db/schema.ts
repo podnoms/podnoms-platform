@@ -529,6 +529,22 @@ export const playbackPositions = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.episodeId] })],
 )
 
+// Episodes a user has played, or marked as played: the app leaves them out of
+// a show's list unless asked for.
+export const playedEpisodes = pgTable(
+  'played_episode',
+  {
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    episodeId: text('episodeId')
+      .notNull()
+      .references(() => episodes.id, { onDelete: 'cascade' }),
+    createdAt: timestamps.createdAt,
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.episodeId] })],
+)
+
 // Episodes a user likes: listed on their Likes page, and counted on the
 // episode for everyone to see (see library.server.ts).
 export const episodeLikes = pgTable(

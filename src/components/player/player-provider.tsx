@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { saveMyPlaybackPosition } from '~/functions/shows'
+import { saveMyPlaybackPosition, setMyEpisodePlayed } from '~/functions/shows'
 import { reportActivity, reportTrackedLinkVisit } from '~/lib/activity'
 import { readLastEpisode, storeLastEpisode } from '~/lib/last-episode'
 import { EpisodeSource, preloadHls } from '~/lib/stream'
@@ -332,7 +332,12 @@ export function PlayerProvider({
         }}
         onEnded={() => {
           setPlaying(false)
-          if (episode) savePosition(episode.id, 0)
+          if (episode) {
+            savePosition(episode.id, 0)
+            // Played, here and in the app. If this is missed, the position
+            // saved in its last seconds has said so already.
+            if (signedIn) setMyEpisodePlayed({ data: { episodeId: episode.id, played: true } }).catch(() => {})
+          }
           // Playing through a queue: on to the next.
           step(1)
         }}

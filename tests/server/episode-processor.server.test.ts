@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -223,6 +223,30 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
     expect(leftovers).toEqual([])
   })
 
+  it('removes what yt-dlp left of a download that failed', async () => {
+    const episode = await linkEpisode({ sourceUrl: link('/fail', { partial: '1' }) })
+    enqueueEpisode(episode.id)
+    expect((await processed(episode.id)).status).toBe('failed')
+    expect((await readdir(join(media, 'audio'))).filter((name) => name.startsWith(episode.id))).toEqual([])
+  })
+
+  it('removes the parts of a download along with it', async () => {
+    const episode = await linkEpisode({ sourceUrl: link('/watch', { partial: '1' }) })
+    enqueueEpisode(episode.id)
+    expect((await processed(episode.id)).status).toBe('ready')
+    expect((await readdir(join(media, 'audio'))).filter((name) => name.startsWith(episode.id))).toEqual([`${episode.id}.mp3`])
+  })
+
+  it("won't read or remove a download that isn't where it was to be saved", async () => {
+    const elsewhere = join(media, 'not-a-download.mp3')
+    await copyFile(process.env.FAKE_YTDLP_AUDIO!, elsewhere)
+    const episode = await linkEpisode({ sourceUrl: link('/watch', { filepath: elsewhere }) })
+    enqueueEpisode(episode.id)
+    expect(await processed(episode.id)).toMatchObject({ status: 'failed', error: "yt-dlp didn't say where it saved the download" })
+    expect(await exists(elsewhere)).toBe(true)
+    expect((await readdir(join(media, 'audio'))).filter((name) => name.startsWith(episode.id))).toEqual([])
+  })
+
   it("tells the show's followers once the episode is ready", async () => {
     vi.mocked(notifyFollowersNewEpisode).mockClear()
     const episode = await linkEpisode({ sourceUrl: link('/watch') })
@@ -304,6 +328,16 @@ describe.skipIf(!hasFfmpeg)('episodes from links', () => {
 
 describe.skipIf(!hasFfmpeg)('when the platform refuses us', () => {
   afterEach(() => resetThrottle())
+
+  it('keeps what was downloaded before the platform refused us, to carry on from', async () => {
+    const episode = await linkEpisode({ sourceUrl: link('/rate-limited', { partial: '1' }) })
+    enqueueEpisode(episode.id)
+    await vi.waitFor(() => expect(throttleStatus().cooldowns.map((c) => c.platform)).toEqual(['other']))
+    await vi.waitFor(async () => expect((await getRow(episode.id)).status).toBe('pending'))
+    const part = join(media, 'audio', `${episode.id}.download.webm.part`)
+    expect(await exists(part)).toBe(true)
+    await rm(part)
+  })
 
   it("keeps the episode pending, to try again once the platform's pause is over", async () => {
     const episode = await linkEpisode({ sourceUrl: link('/rate-limited') })

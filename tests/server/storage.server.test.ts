@@ -2,7 +2,13 @@ import { mkdir, readdir, utimes, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  audioPath,
+  downloadTemplate,
   episodeAudioPath,
+  episodeMasterPath,
+  isDownloadOf,
+  replacementAudioName,
+  replacementAudioPath,
   episodeAudioUrl,
   episodeSourcePath,
   episodeWaveformPath,
@@ -42,6 +48,32 @@ describe('paths', () => {
     expect(() => imagePath(id)).toThrow('Invalid ID')
     expect(() => imageVariantPath(id, 64, 'jpg')).toThrow('Invalid ID')
     expect(() => stagedImagePath(id, 'i1')).toThrow('Invalid ID')
+    expect(() => episodeAudioPath(id)).toThrow('Invalid ID')
+    expect(() => replacementAudioPath(id)).toThrow('Invalid ID')
+    expect(() => episodeMasterPath(id)).toThrow('Invalid ID')
+    expect(() => audioPath(id)).toThrow('Invalid ID')
+    expect(() => downloadTemplate(id)).toThrow('Invalid ID')
+  })
+
+  it("names an episode's audio by its ID, or as its replacement, and nothing else", () => {
+    expect(episodeMasterPath('e1')).toBe(join(media, 'masters', 'e1.mka'))
+    expect(episodeMasterPath(replacementAudioName('e1'))).toBe(join(media, 'masters', 'e1.replacement.mka'))
+    expect(audioPath(replacementAudioName('e1'))).toBe(replacementAudioPath('e1'))
+    expect(() => audioPath('e1.replacement/../../x')).toThrow('Invalid ID')
+    expect(() => episodeMasterPath('e1.other')).toThrow('Invalid ID')
+  })
+
+  it('only believes a download is where it was told to save it', () => {
+    const audio = join(media, 'audio')
+    expect(downloadTemplate('e1')).toBe(join(audio, 'e1.download.%(ext)s'))
+    expect(isDownloadOf('e1', join(audio, 'e1.download.webm'))).toBe(true)
+    expect(isDownloadOf('e1.replacement', join(audio, 'e1.replacement.download.m4a'))).toBe(true)
+    expect(isDownloadOf('e1', join(audio, 'e2.download.webm'))).toBe(false)
+    expect(isDownloadOf('e1', join(audio, 'e1.mp3'))).toBe(false)
+    expect(isDownloadOf('e1', join(audio, '..', 'masters', 'e1.download.webm'))).toBe(false)
+    expect(isDownloadOf('e1', join(audio, 'sub', 'e1.download.webm'))).toBe(false)
+    expect(isDownloadOf('e1', '/etc/e1.download.webm')).toBe(false)
+    expect(isDownloadOf('e1', join(audio, 'e1.download.webm.part'))).toBe(false)
   })
 
   it('accepts UUIDs and other plain IDs', () => {

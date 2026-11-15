@@ -11,7 +11,7 @@
 // download-throttle.server.ts), which keeps us polite to the platforms;
 // uploads touch no platform, so they're converted one at a time on their own.
 import '@tanstack/react-start/server-only'
-import { rename, rm, stat } from 'node:fs/promises'
+import { readdir, rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { eq, inArray, isNotNull, or } from 'drizzle-orm'
 import { plainTextToHtml } from '~/lib/rich-text'
@@ -41,10 +41,13 @@ import { runYtDlpLines } from '~/server/ytdlp.server'
 import {
   ensureAudioDir,
   ensureMastersDir,
+  audioPath,
+  downloadTemplate,
   episodeAudioPath,
   episodeMasterPath,
   episodeAudioUrl,
   episodeSourcePath,
+  isDownloadOf,
   replacementAudioName,
   replacementAudioPath,
 } from '~/server/storage.server'
@@ -157,7 +160,8 @@ type ProcessedAudio = Pick<SourceInfo, 'title' | 'description' | 'thumbnail' | '
 // returning its path. If that fails the episode just has no master, as before
 // masters were kept, and its MP3 is made from the source.
 async function saveMaster(episodeId: string, source: string, name: string) {
-  const master = join(await ensureMastersDir(), `${name}.mka`)
+  await ensureMastersDir()
+  const master = episodeMasterPath(name)
   try {
     await extractMaster(source, master)
     return master
@@ -210,13 +214,22 @@ async function downloadSource(
   const dir = await ensureAudioDir()
   let info: SourceInfo
   try {
-    info = await runYtDlp(sourceUrl, join(dir, `${name}.download.%(ext)s`), onLine)
+    info = await runYtDlp(sourceUrl, downloadTemplate(name), onLine)
+  } catch (error) {
+    // What yt-dlp had got so far is kept when the platform refused us, as
+    // it carries on from there when the episode is tried again; otherwise
+    // it's no use. (The clean-up job removes any left for over a day.)
+    if (!(error instanceof RateLimitedError)) await removeDownloadFiles(dir, name)
+    throw error
   } finally {
     await detailsSaved
   }
-  if (!info.filepath) throw new Error("yt-dlp didn't say where it saved the download")
+  if (!info.filepath || !isDownloadOf(name, info.filepath)) {
+    await removeDownloadFiles(dir, name)
+    throw new Error("yt-dlp didn't say where it saved the download")
+  }
   const downloaded = info.filepath
-  const path = join(dir, `${name}.mp3`)
+  const path = audioPath(name)
   let master: string | null = null
   try {
     if (!(await probeAudio(downloaded))) throw new Error("The download doesn't contain any audio")
@@ -229,7 +242,17 @@ async function downloadSource(
     if (master) await rm(master, { force: true })
     throw error
   } finally {
-    await rm(downloaded, { force: true })
+    // The download, and anything else yt-dlp left beside it.
+    await removeDownloadFiles(dir, name)
+  }
+}
+
+// Removes everything yt-dlp saved for the download: the file itself and any
+// parts of an unfinished one (`<name>.download.<ext>.part`, `.ytdl`, ...).
+async function removeDownloadFiles(dir: string, name: string) {
+  const prefix = `${name}.download.`
+  for (const file of await readdir(dir).catch(() => [])) {
+    if (file.startsWith(prefix)) await rm(join(dir, file), { force: true })
   }
 }
 
@@ -238,7 +261,8 @@ async function convertUpload(episodeId: string, name = episodeId): Promise<Proce
   setProgress(episodeId, { stage: 'converting', percent: 0 })
   const source = episodeSourcePath(episodeId)
   if (!(await probeAudio(source))) throw new Error("The uploaded file is missing or doesn't contain any audio")
-  const path = join(await ensureAudioDir(), `${name}.mp3`)
+  await ensureAudioDir()
+  const path = audioPath(name)
   const master = await saveMaster(episodeId, source, name)
   try {
     const durationSeconds = await makeMp3(episodeId, source, master, path, null)

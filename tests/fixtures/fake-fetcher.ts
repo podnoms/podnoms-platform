@@ -84,7 +84,8 @@ export async function startFakeFetcher(secret: string) {
         return
       }
       files.set(job, join(dir, `${job}.mp3`))
-      res.end(`${JSON.stringify({ file: { id: job, ext: 'mp3' } })}\n`)
+      // ?ext=… has it name the download's extension as that, whatever it is.
+      res.end(`${JSON.stringify({ file: { id: job, ext: new URL(url).searchParams.get('ext') ?? 'mp3' } })}\n`)
     })
   })
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))

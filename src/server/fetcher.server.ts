@@ -97,6 +97,11 @@ export async function remoteDownload(url: string, outputTemplate: string, onLine
   const final = await runJob('/download', { url, ...(downloadRateLimit ? { limitRate: downloadRateLimit } : {}) }, onLine)
   if (!('file' in final)) throw new Error("The download server didn't send the download")
   const { id, ext } = final.file
+  // Both become part of a path (the file's here, and its address there), so
+  // only plain ones are taken, whatever the fetcher or the site it asked says.
+  if (!/^[\w-]{1,100}$/.test(String(id)) || !/^\w{1,16}$/.test(String(ext))) {
+    throw new Error('The download server sent a download with an invalid name')
+  }
   const path = outputTemplate.replace('%(ext)s', ext)
   try {
     const response = await request(`/files/${id}`)
