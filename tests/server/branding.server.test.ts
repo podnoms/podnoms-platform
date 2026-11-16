@@ -10,6 +10,7 @@ import { themePresets } from '~/lib/theme-presets'
 import { pickStyles } from '~/lib/theme-schema'
 import {
   brandIcon,
+  defaultLogoVersion,
   brandOgImage,
   getBranding,
   resetLogo,
@@ -107,7 +108,7 @@ describe('saveBranding', () => {
 describe('the logo', () => {
   it('starts as the bundled default, at every icon size', async () => {
     const { path, version } = await brandIcon(192)
-    expect(version).toBe('default')
+    expect(version).toBe(defaultLogoVersion)
     expect(await sharp(path).metadata()).toMatchObject({ width: 192, height: 192, format: 'png' })
   })
 
@@ -137,12 +138,12 @@ describe('the logo', () => {
 
     await resetLogo()
     expect((await getBranding()).logoVersion).toBeNull()
-    expect((await readdir(dir)).filter((name) => !name.startsWith('icon-default-'))).toEqual([])
+    expect((await readdir(dir)).filter((name) => !name.startsWith(`icon-${defaultLogoVersion}-`))).toEqual([])
   })
 
   it('falls back to the default when the uploaded file has gone', async () => {
     await updateSiteSettings({ logoVersion: 'missing' })
-    expect((await brandIcon(32)).version).toBe('default')
+    expect((await brandIcon(32)).version).toBe(defaultLogoVersion)
     await updateSiteSettings({ logoVersion: null })
   })
 

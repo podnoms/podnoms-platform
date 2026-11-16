@@ -63,7 +63,7 @@ export function brandLogoPath(version: string) {
   return join(brandingDir, `logo-${safeId(version)}.png`)
 }
 
-// The logo (`version`, or "default") resized to `size` (or as the link
+// The logo (`version`, or the default's) resized to `size` (or as the link
 // preview card, "og"), made on request.
 export function brandIconPath(version: string, size: number | 'og') {
   return join(brandingDir, `icon-${safeId(version)}-${size}.png`)

@@ -2,6 +2,7 @@
 // the defaults, and its logo, kept in MEDIA_DIR/branding with the icons made
 // from it.
 import '@tanstack/react-start/server-only'
+import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { readdir, readFile, rename, rm } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -18,6 +19,12 @@ import { siteOrigin } from '~/server/site-url.server'
 import { brandIconPath, brandLogoPath, ensureBrandingDir } from '~/server/storage.server'
 import { receiveFile, UploadError } from '~/server/uploads.server'
 import defaultLogoDataUri from '../assets/default-logo.png?inline'
+
+const defaultLogo = Buffer.from(defaultLogoDataUri.split(',')[1]!, 'base64')
+
+// The bundled logo's version: named for its contents, so the icons made from
+// it are made again when it's replaced.
+export const defaultLogoVersion = `default-${createHash('sha256').update(defaultLogo).digest('hex').slice(0, 8)}`
 
 export async function getBranding(): Promise<Branding> {
   const settings = await getSiteSettings()
@@ -99,22 +106,22 @@ export async function resetLogo() {
   await removeOldLogos(null)
 }
 
-// Removes the files of every logo but `keep` (and the default's icons).
+// Removes the files of every logo but `keep` (and the current default's icons).
 async function removeOldLogos(keep: string | null) {
   const dir = await ensureBrandingDir()
   const kept = keep ? [`logo-${keep}.png`, `icon-${keep}-`] : []
   for (const name of await readdir(dir)) {
-    if (name.startsWith('icon-default-') || kept.some((prefix) => name.startsWith(prefix))) continue
+    if (name.startsWith(`icon-${defaultLogoVersion}-`) || kept.some((prefix) => name.startsWith(prefix))) continue
     await rm(join(dir, name), { force: true })
   }
 }
 
-// The current logo: its version ("default" for the bundled one) and the image.
+// The current logo: its version (defaultLogoVersion for the bundled one) and the image.
 export async function currentLogo(): Promise<{ version: string; image: string | Buffer }> {
   const { logoVersion } = await getSiteSettings()
   // An uploaded logo whose file has gone (say MEDIA_DIR was replaced) gives way to the default.
   if (logoVersion && existsSync(brandLogoPath(logoVersion))) return { version: logoVersion, image: brandLogoPath(logoVersion) }
-  return { version: 'default', image: Buffer.from(defaultLogoDataUri.split(',')[1]!, 'base64') }
+  return { version: defaultLogoVersion, image: defaultLogo }
 }
 
 // The logo at one of brandIconSizes, made on first request and kept.

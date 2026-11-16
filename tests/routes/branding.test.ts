@@ -8,7 +8,7 @@ import { Route as BrandRoute } from '~/routes/brand.$file'
 import { Route as FaviconRoute } from '~/routes/favicon[.]ico'
 import { Route as ManifestRoute } from '~/routes/site[.]webmanifest'
 import { getSession } from '~/server/auth.server'
-import { getBranding, resetLogo, saveBranding } from '~/server/branding.server'
+import { defaultLogoVersion, getBranding, resetLogo, saveBranding } from '~/server/branding.server'
 import { resetDb } from '../db'
 import { callRoute, createUser, db, makeImage } from '../helpers'
 
@@ -40,7 +40,7 @@ describe('GET /brand/$file', () => {
 
   it("is cached for good only when asked for with the current logo's version", async () => {
     expect((await brand('icon-32.png')).headers.get('cache-control')).toBe('public, max-age=300')
-    expect((await brand('icon-32.png', '?v=default')).headers.get('cache-control')).toContain('immutable')
+    expect((await brand('icon-32.png', `?v=${defaultLogoVersion}`)).headers.get('cache-control')).toContain('immutable')
   })
 
   it('knows no other files', async () => {
