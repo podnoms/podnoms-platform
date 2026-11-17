@@ -194,7 +194,14 @@ function EpisodePage() {
             )}
             {ready && (
               <Button variant="outline" asChild>
-                <Link to="/$user/$show/$episode" params={episodeParams(show, episode.slug)}>
+                {/* As visitors see it (see src/lib/preview.ts), in a tab of its own, as the
+                    visitor's view stays as links are followed; a private one only its owner can. */}
+                <Link
+                  to="/$user/$show/$episode"
+                  target="_blank"
+                  params={episodeParams(show, episode.slug)}
+                  search={show.private || episode.private ? undefined : { preview: true }}
+                >
                   <Icons.externalLink />
                   View public page
                 </Link>

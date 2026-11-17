@@ -11,6 +11,7 @@ import {
   testEmailSchema,
   userChannelLimitSchema,
   userDisabledSchema,
+  userExcludedSchema,
   userOnHoldSchema,
 } from '~/lib/site-settings-schema'
 import {
@@ -22,6 +23,7 @@ import {
   sendTestEmail,
   setUserChannelLimit,
   setUserDisabled,
+  setUserExcluded,
   setUserOnHold,
 } from '~/server/admin.server'
 import { getSession } from '~/server/auth.server'
@@ -81,6 +83,13 @@ export const saveUserDisabled = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     await requireAdmin()
     if (!(await setUserDisabled(data.userId, data.disabled))) throw notFound()
+  })
+
+export const saveUserExcluded = createServerFn({ method: 'POST' })
+  .validator(userExcludedSchema)
+  .handler(async ({ data }) => {
+    await requireAdmin()
+    if (!(await setUserExcluded(data.userId, data.excluded))) throw notFound()
   })
 
 export const saveUserOnHold = createServerFn({ method: 'POST' })

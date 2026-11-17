@@ -68,6 +68,11 @@ export const users = pgTable(
     // admin.server.ts): while set, signing in only shows the user the reason.
     onHoldAt: timestamp('onHoldAt', { mode: 'date' }),
     onHoldReason: text('onHoldReason'),
+    // When an admin excluded the user (see setUserExcluded in admin.server.ts):
+    // while set, their profile, shows, episodes, playlists and broadcasts are
+    // hidden from everyone else, without them being told. Their feeds and
+    // custom domains keep working, and what they do on others' shows stays.
+    excludedAt: timestamp('excludedAt', { mode: 'date' }),
     // Which emails the user gets about their shows (see notifications.server.ts).
     notifyEpisodeFailed: boolean('notifyEpisodeFailed').notNull().default(true),
     notifyNewEpisodes: boolean('notifyNewEpisodes').notNull().default(true),

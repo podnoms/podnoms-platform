@@ -29,6 +29,7 @@ export const userChannelLimitSchema = z.object({ userId: z.string().min(1), limi
 export const complimentaryAccessSchema = z.object({ userId: z.string().min(1), complimentary: z.boolean() })
 
 export const userDisabledSchema = z.object({ userId: z.string().min(1), disabled: z.boolean() })
+export const userExcludedSchema = z.object({ userId: z.string().min(1), excluded: z.boolean() })
 
 // Puts an account on hold with the reason shown to the user, or (null) takes it off.
 export const userOnHoldSchema = z.object({

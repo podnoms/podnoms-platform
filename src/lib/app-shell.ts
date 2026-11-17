@@ -2,7 +2,7 @@
 // which is for signed-in users. Public pages get it too, so someone signed in
 // never leaves the app by opening a show or an episode, except on a show's
 // own domain, which has no accounts, and in the visitor's view (`?preview=true`,
-// see login-search.ts), which the owner's Theme tab shows.
+// see preview.ts), which the manage pages and the owner's Theme tab open.
 import { isCustomDomain } from '~/lib/current-domain'
 import { themeHead } from '~/lib/theme-css'
 

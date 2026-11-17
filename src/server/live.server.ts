@@ -15,6 +15,7 @@ import { and, desc, eq, inArray, isNotNull, isNull, or } from 'drizzle-orm'
 import { env } from '~/env'
 import type { ChatGif, GifConfig } from '~/lib/gifs'
 import { db } from '~/server/db/client.server'
+import { showVisibleTo } from '~/server/shows.server'
 import { hasPaidAccess, requirePaidAccess } from '~/server/subscriptions.server'
 import { episodes, liveBroadcasts, liveChatMessages, shows, users, type LiveBroadcast } from '~/server/db/schema'
 import { ExpiringStore } from '~/server/expiring-store.server'
@@ -373,12 +374,12 @@ export async function listVisibleLiveShowIds(viewerId: string) {
     .select({ id: shows.id })
     .from(liveBroadcasts)
     .innerJoin(shows, eq(shows.id, liveBroadcasts.showId))
-    .where(and(isNull(liveBroadcasts.endedAt), or(eq(shows.private, false), eq(shows.userId, viewerId))))
+    .where(and(isNull(liveBroadcasts.endedAt), showVisibleTo(viewerId)))
   return live.map((show) => show.id)
 }
 
-// The show, by id, if the viewer may watch it: anyone, unless it's
-// private, when only its owner may.
+// The show, by id, if the viewer may watch it: anyone, unless it's private
+// (or its owner excluded, see isPublicShow), when only its owner may.
 export async function getWatchableShow(showId: string, viewerId: string | null) {
   const [show] = await db
     .select({ id: shows.id, userId: shows.userId })
@@ -386,7 +387,7 @@ export async function getWatchableShow(showId: string, viewerId: string | null) 
     .where(
       and(
         eq(shows.id, showId),
-        viewerId ? or(eq(shows.private, false), eq(shows.userId, viewerId)) : eq(shows.private, false),
+        showVisibleTo(viewerId),
       ),
     )
     .limit(1)
@@ -491,7 +492,7 @@ export async function addChatMessage(userId: string, broadcastId: string, body: 
       and(
         eq(liveBroadcasts.id, broadcastId),
         isNull(liveBroadcasts.endedAt),
-        or(eq(shows.private, false), eq(shows.userId, userId)),
+        showVisibleTo(userId),
       ),
     )
     .limit(1)

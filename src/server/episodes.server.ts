@@ -20,7 +20,7 @@ import { findUpload, moveUploadToEpisode, type UploadedAudio } from '~/server/up
 import { commitImage, deleteImage } from '~/server/images.server'
 import { newDescription, sanitizeDescription } from '~/server/rich-text.server'
 import { syncEpisodeTags } from '~/server/tags-store.server'
-import { showAuthor, showWhere, type ShowKey } from '~/server/shows.server'
+import { isPublicShow, showAuthor, showWhere, takesEpisodes, type ShowKey } from '~/server/shows.server'
 import { deleteWaveform, readWaveform } from '~/server/waveforms.server'
 import { resample } from '~/lib/waveform'
 import type { BulkUploadEpisodesInput, EditEpisodeInput, NewEpisodeInput, ReplaceAudioInput } from '~/lib/episode-schema'
@@ -88,10 +88,10 @@ export function listenerEpisodeColumns(listenerId: string | null) {
 }
 
 // Episodes the viewer may see on the public pages: anyone may see a public
-// show's listed episodes, and owners may see all of theirs. Needs the
-// show table joined.
+// show's listed episodes (unless its owner is excluded, see isPublicShow), and
+// owners may see all of theirs. Needs the show table joined.
 export function visibleTo(viewerId: string | null) {
-  const anyone = and(eq(shows.private, false), isListed)
+  const anyone = and(isPublicShow(), isListed)
   return viewerId ? or(anyone, and(isPublished, eq(shows.userId, viewerId))) : anyone
 }
 
@@ -322,15 +322,34 @@ export async function insertEpisode(values: NewEpisode & { slug: string }, tags?
   }
 }
 
-// Returns null unless the show belongs to the user. The episode starts as
-// "pending" and is downloaded or converted in the background.
+// A show that follows a channel or playlist gets its episodes from there, so
+// none can be added by hand (see takesEpisodes).
+export class FollowsChannelError extends Error {
+  override name = 'FollowsChannelError'
+
+  constructor() {
+    super('This show follows a channel or playlist, so its episodes come from there.')
+  }
+}
+
+// The user's show, by id, for adding episodes to: null if it isn't theirs.
+// Throws a FollowsChannelError if it follows a channel or playlist.
+async function showTakingEpisodes(userId: string, showId: string) {
+  const [show] = await db
+    .select({ id: shows.id, takesEpisodes: sql<boolean>`${takesEpisodes}`.mapWith(Boolean) })
+    .from(shows)
+    .where(and(eq(shows.id, showId), eq(shows.userId, userId)))
+    .limit(1)
+  if (show && !show.takesEpisodes) throw new FollowsChannelError()
+  return show ?? null
+}
+
+// Returns null unless the show belongs to the user, and throws a
+// FollowsChannelError if it follows a channel or playlist. The episode starts
+// as "pending" and is downloaded or converted in the background.
 // `pageImages`: artwork to fall back on for a link, if the platform has none.
 export async function createEpisode(userId: string, input: NewEpisodeInput, { pageImages = [] }: { pageImages?: string[] } = {}) {
-  const [show] = await db
-    .select({ id: shows.id })
-    .from(shows)
-    .where(and(eq(shows.id, input.showId), eq(shows.userId, userId)))
-    .limit(1)
+  const show = await showTakingEpisodes(userId, input.showId)
   if (!show) return null
   const description = newDescription(input)
   const upload = 'uploadId' in input ? await findUpload(userId, input.uploadId) : null
@@ -388,15 +407,12 @@ async function insertUploadedEpisode(
 }
 
 // Makes an episode of each uploaded file (e.g. a folder of them), or returns
-// null unless the show belongs to the user. Nothing is added if any upload
+// null unless the show belongs to the user (throwing, as createEpisode does,
+// if it follows a channel or playlist). Nothing is added if any upload
 // has expired. Each is published a second after the one before, so the feed
 // keeps the files' order however long each takes to convert.
 export async function createUploadedEpisodes(userId: string, input: BulkUploadEpisodesInput) {
-  const [show] = await db
-    .select({ id: shows.id })
-    .from(shows)
-    .where(and(eq(shows.id, input.showId), eq(shows.userId, userId)))
-    .limit(1)
+  const show = await showTakingEpisodes(userId, input.showId)
   if (!show) return null
   const uploads = await Promise.all(input.episodes.map((item) => findUpload(userId, item.uploadId)))
   if (uploads.some((upload) => !upload)) throw new Error('Some of the uploads have expired. Please choose the files again.')

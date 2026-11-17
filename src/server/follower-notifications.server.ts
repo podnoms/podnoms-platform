@@ -3,7 +3,7 @@
 // (push.server.ts), one on the mobile app (app-push.server.ts) and an email
 // (notifications.server.ts) for each kind they've chosen, and it goes in their notifications menu (inbox.server.ts)
 // either way, unless they've muted the show (show_follow.notify).
-// Its owner and private shows are left out.
+// Its owner, private shows and excluded users' shows (see isPublicShow) are left out.
 //
 // New episodes are collected per show for a couple of minutes first, so a
 // channel's import sends one notification rather than one per episode. Like
@@ -12,6 +12,7 @@ import '@tanstack/react-start/server-only'
 import { and, eq, getTableColumns, inArray, ne, or } from 'drizzle-orm'
 import { episodePath, livePath, showPath } from '~/lib/paths'
 import { db } from '~/server/db/client.server'
+import { isPublicShow, showVisibleTo } from '~/server/shows.server'
 import { sendAppPush } from '~/server/app-push.server'
 import { episodes, showFollows, shows, users } from '~/server/db/schema'
 import { isListed } from '~/server/episodes.server'
@@ -57,9 +58,9 @@ export function notifyFollowersLive(showId: string, broadcastTitle: string) {
         .select({ ...getTableColumns(shows), ownerSlug: users.slug })
         .from(shows)
         .innerJoin(users, eq(users.id, shows.userId))
-        .where(eq(shows.id, showId))
+        .where(and(eq(shows.id, showId), isPublicShow()))
         .limit(1)
-      if (!show || show.private) return
+      if (!show) return
       const to = await followers(showId, show.userId, 'live')
       const message = {
         title: `${show.title} is live`,
@@ -101,9 +102,9 @@ async function flushEpisodes(showId: string) {
         .select({ ...getTableColumns(shows), ownerSlug: users.slug })
         .from(shows)
         .innerJoin(users, eq(users.id, shows.userId))
-        .where(eq(shows.id, showId))
+        .where(and(eq(shows.id, showId), isPublicShow()))
         .limit(1)
-  if (!show || show.private) return
+  if (!show) return
   // As they are now: any made private or deleted meanwhile are left out.
   const ready = await db
     .select({ id: episodes.id, title: episodes.title, slug: episodes.slug, imageUrl: episodes.imageUrl })
@@ -161,7 +162,7 @@ export async function listFollowNotify(userId: string) {
     .from(showFollows)
     .innerJoin(shows, eq(shows.id, showFollows.showId))
     .innerJoin(users, eq(users.id, shows.userId))
-    .where(and(eq(showFollows.userId, userId), or(eq(shows.private, false), eq(shows.userId, userId))))
+    .where(and(eq(showFollows.userId, userId), showVisibleTo(userId)))
     .orderBy(shows.title)
 }
 

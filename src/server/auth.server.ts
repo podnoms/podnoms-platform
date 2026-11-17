@@ -19,6 +19,7 @@ import { accounts, sessions, users, verificationTokens } from '~/server/db/schem
 import { hasTwoFactor, redeemTwoFactorTicket } from '~/server/two-factor.server'
 import { assignUserSlug, firstUserIsAdmin, getAccountStatus, verifyUser } from '~/server/users.server'
 import { isReadRequest, ReadOnlyError, viewedUserId } from '~/server/view-as.server'
+import { isPreviewRequest } from '~/lib/preview'
 
 declare module '@auth/core/types' {
   interface Session {
@@ -194,6 +195,8 @@ export async function readSession(request: Request): Promise<Session | null> {
 // user's, for reading only: any request but a GET or HEAD throws, as does one
 // marked `write` (a GET that changes something or gives away a secret).
 export async function getSession(request: Request, options: { write?: boolean } = {}): Promise<Session | null> {
+  // The visitor's view is signed out (see src/lib/preview.ts).
+  if (isPreviewRequest(request)) return null
   const session = await readSession(request)
   if (!session || session.twoFactorPending || session.accountDisabled || session.accountOnHold) return null
   const viewed = await viewAsSession(request, session)

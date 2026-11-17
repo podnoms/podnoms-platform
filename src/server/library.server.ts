@@ -17,7 +17,7 @@ import {
   visibleTo,
   type Page,
 } from '~/server/episodes.server'
-import { showArtwork, showAuthor, showFollowColumns } from '~/server/shows.server'
+import { isPublicShow, ownerNotExcluded, showArtwork, showAuthor, showFollowColumns, showVisibleTo } from '~/server/shows.server'
 
 // The show an episode in a list across shows belongs to.
 const episodeShowColumns = {
@@ -109,7 +109,7 @@ export async function countLikedEpisodes(userId: string) {
 
 // Shows the user may follow: public ones, and their own.
 function followable(userId: string) {
-  return or(eq(shows.private, false), eq(shows.userId, userId))
+  return showVisibleTo(userId)
 }
 
 // Follows or unfollows a show. Returns whether the user follows it now and
@@ -158,7 +158,7 @@ function showCards(viewerId: string | null, { includeEmpty = false } = {}) {
 }
 
 // The shows the user follows, by title, for the sidebar and Following
-// page. Ones made private since are left out.
+// page. Ones made private (or whose owner was excluded) since are left out.
 export function listFollowedShows(userId: string) {
   const { query } = showCards(userId, { includeEmpty: true })
   return query
@@ -232,24 +232,26 @@ export function listIgnoredShows(userId: string) {
 
 // --- Explore ------------------------------------------------------------------
 
-const anyone = and(eq(shows.private, false), isListed)
+// Not a constant: whether an owner's excluded depends on the request's domain.
+const anyone = () => and(isPublicShow(), isListed)
 
 // Public shows with episodes, the most recently updated first.
 export function listExploreShows(viewerId: string | null, page: Page) {
   const { query, latestAt } = showCards(viewerId)
   return query
-    .where(and(eq(shows.private, false), notIgnoredBy(viewerId)))
+    .where(and(isPublicShow(), notIgnoredBy(viewerId)))
     .groupBy(shows.id, users.id)
     .orderBy(desc(latestAt), desc(shows.id))
     .offset(page.offset)
     .limit(page.limit)
 }
 
-// A user's public shows, for their profile page, newest episodes first.
+// A user's public shows, for their profile page, newest episodes first. An
+// excluded user (see isPublicShow) still sees theirs on their own.
 export function listUserShows(viewerId: string | null, ownerId: string) {
   const { query, latestAt } = showCards(viewerId)
   return query
-    .where(and(eq(shows.private, false), eq(shows.userId, ownerId)))
+    .where(and(eq(shows.private, false), eq(shows.userId, ownerId), viewerId === ownerId ? undefined : ownerNotExcluded()))
     .groupBy(shows.id, users.id)
     .orderBy(desc(latestAt), desc(shows.id))
 }
@@ -259,14 +261,14 @@ export async function countExploreShows() {
     .select({ count: sql<number>`count(distinct ${shows.id})`.mapWith(Number) })
     .from(shows)
     .innerJoin(episodes, eq(episodes.showId, shows.id))
-    .where(anyone)
+    .where(anyone())
   return row!.count
 }
 
 // The newest public episodes across the site.
 export async function listLatestEpisodes(viewerId: string | null, page: Page) {
   const rows = await listenerEpisodes(viewerId)
-    .where(and(anyone, notIgnoredBy(viewerId)))
+    .where(and(anyone(), notIgnoredBy(viewerId)))
     .orderBy(newestPublishedFirst, desc(episodes.id))
     .offset(page.offset)
     .limit(page.limit)
@@ -284,7 +286,7 @@ export async function listPopularEpisodes(viewerId: string | null, limit = 6) {
     where ${episodeLikes.episodeId} = ${episodes.id} and ${episodeLikes.createdAt} > ${since.toISOString()}
   )`
   const rows = await listenerEpisodes(viewerId)
-    .where(and(anyone, notIgnoredBy(viewerId), gt(recentLikes, 0)))
+    .where(and(anyone(), notIgnoredBy(viewerId), gt(recentLikes, 0)))
     .orderBy(desc(recentLikes), desc(likeCount), newestPublishedFirst)
     .limit(limit)
   return withOwnership(rows, viewerId)
@@ -317,7 +319,7 @@ export function listTrendingShows(viewerId: string, limit = 10) {
   return query
     .where(
       and(
-        eq(shows.private, false),
+        isPublicShow(),
         ne(shows.userId, viewerId),
         notIgnoredBy(viewerId),
         sql`not exists (

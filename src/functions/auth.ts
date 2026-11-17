@@ -2,6 +2,7 @@ import { hasPaidAccess } from '~/server/subscriptions.server'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getRequest } from '@tanstack/react-start/server'
+import { isPreviewRequest } from '~/lib/preview'
 import { credentialsSchema, passwordResetRequestSchema, resetPasswordSchema } from '~/lib/auth-schema'
 import { oauthProviders, readSession, viewAsSession } from '~/server/auth.server'
 import { publicUrl } from '~/server/site-url.server'
@@ -15,6 +16,8 @@ import { createUser, getProfile } from '~/server/users.server'
 // authentication, the second factors they can use.
 export const fetchAuthState = createServerFn({ method: 'GET' }).handler(async () => {
   const request = getRequest()
+  // The visitor's view is signed out (see src/lib/preview.ts).
+  if (isPreviewRequest(request)) return { session: null, twoFactor: null, accountDisabled: false, accountOnHold: null }
   const signedIn = await readSession(request)
   // The browser signs a disabled account out, with a message (see AccountDisabled).
   if (signedIn?.accountDisabled) return { session: null, twoFactor: null, accountDisabled: true, accountOnHold: null }

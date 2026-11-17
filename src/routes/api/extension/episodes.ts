@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
 import { linkEpisodeSchema } from '~/lib/episode-schema'
-import { createEpisode } from '~/server/episodes.server'
+import { createEpisode, FollowsChannelError } from '~/server/episodes.server'
 import { catchAudioLimit } from '~/server/subscriptions.server'
 import { extensionUserId } from '~/server/extension-api.server'
 
@@ -25,7 +25,14 @@ export const Route = createFileRoute('/api/extension/episodes')({
           return new Response(parsed.error.issues[0]?.message ?? 'Invalid episode', { status: 400 })
         }
         const { imageUrl, ...input } = parsed.data
-        const result = await catchAudioLimit(() => createEpisode(userId, input, { pageImages: imageUrl ? [imageUrl] : [] }))
+        let result
+        try {
+          result = await catchAudioLimit(() => createEpisode(userId, input, { pageImages: imageUrl ? [imageUrl] : [] }))
+        } catch (error) {
+          // A show following a channel or playlist takes no episodes by hand.
+          if (error instanceof FollowsChannelError) return new Response(error.message, { status: 409 })
+          throw error
+        }
         if ('error' in result) return new Response(result.error, { status: 403 })
         const episode = result.value
         if (!episode) return new Response('Show not found', { status: 404 })

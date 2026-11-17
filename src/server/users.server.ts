@@ -2,7 +2,7 @@
 import '@tanstack/react-start/server-only'
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto'
 import { promisify } from 'node:util'
-import { asc, eq, ilike, inArray, like, or, sql } from 'drizzle-orm'
+import { and, asc, eq, ilike, inArray, isNull, like, or, sql } from 'drizzle-orm'
 import type { EditProfileInput } from '~/lib/profile-schema'
 import { firstFreeSlug } from '~/lib/slug'
 import { reservedUserSlugs } from '~/lib/paths'
@@ -224,12 +224,13 @@ export async function searchUsers(query: string, limit = 8) {
     .limit(limit)
 }
 
-// What anyone may see of a user, for their profile page (/<slug>).
-export async function getPublicProfile(slug: string) {
+// What anyone may see of a user, for their profile page (/<slug>); null for
+// an excluded user (see setUserExcluded in admin.server.ts), except to themselves.
+export async function getPublicProfile(slug: string, viewerId: string | null) {
   const [user] = await db
     .select({ id: users.id, slug: users.slug, name: users.name, image: users.image, description: users.description })
     .from(users)
-    .where(eq(users.slug, slug.toLowerCase()))
+    .where(and(eq(users.slug, slug.toLowerCase()), or(isNull(users.excludedAt), viewerId ? eq(users.id, viewerId) : undefined)))
     .limit(1)
   return user ?? null
 }

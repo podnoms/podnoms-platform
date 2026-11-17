@@ -1,11 +1,11 @@
 import '@tanstack/react-start/server-only'
-import { and, asc, eq, like, ne, or, sql } from 'drizzle-orm'
+import { and, asc, eq, like, ne, or, sql, type SQL } from 'drizzle-orm'
 import { db } from '~/server/db/client.server'
-import { episodes, showFollows, showSlugAliases, shows, userSlugAliases, users } from '~/server/db/schema'
+import { channels, episodes, showFollows, showSlugAliases, shows, userSlugAliases, users } from '~/server/db/schema'
 import { reservedShowSlugs, type ShowRef } from '~/lib/paths'
 import { newPodcastGuid } from '~/server/podcast-guid.server'
 import { firstFreeSlug, slugify } from '~/lib/slug'
-import { customDomainValues, withDomainConflict } from '~/server/custom-domains.server'
+import { currentRequestDomainShow, customDomainValues, withDomainConflict } from '~/server/custom-domains.server'
 import { hasPaidAccess, requirePaidAccess } from '~/server/subscriptions.server'
 import { moveHlsVersions } from '~/server/hls.server'
 import { themeAssets } from '~/lib/theme-css'
@@ -33,6 +33,29 @@ export type ShowKey = { id: string } | ShowRef
 
 export function showWhere(key: ShowKey) {
   return 'id' in key ? eq(shows.id, key.id) : and(eq(users.slug, key.ownerSlug), eq(shows.slug, key.slug))
+}
+
+// Whether others may see the show for who owns it: not when an admin has
+// excluded its owner (see setUserExcluded in admin.server.ts), except on the
+// show's own domain, which keeps working, as its feed does. Needs the show
+// table in the query (not the user table: it looks the owner up itself).
+export function ownerNotExcluded(): SQL {
+  const domain = currentRequestDomainShow()
+  const onOwnDomain = domain ? sql`${users.slug} = ${domain.ownerSlug} and ${shows.slug} = ${domain.slug}` : sql`false`
+  return sql`not exists (
+    select 1 from ${users} where ${users.id} = ${shows.userId} and ${users.excludedAt} is not null and not (${onOwnDomain})
+  )`
+}
+
+// Shows anyone may see: public ones whose owner isn't excluded. Needs the show
+// table in the query.
+export function isPublicShow(): SQL {
+  return and(eq(shows.private, false), ownerNotExcluded())!
+}
+
+// Shows the viewer may see: anyone's public ones, and all of their own.
+export function showVisibleTo(viewerId: string | null): SQL {
+  return viewerId ? or(isPublicShow(), eq(shows.userId, viewerId))! : isPublicShow()
 }
 
 // Where a show that was at `ref` is now, if its owner or it has had another
@@ -98,10 +121,16 @@ export function showFollowColumns(viewerId: string | null) {
   }
 }
 
+// Whether episodes can be added to the show by hand: not once it follows a
+// channel or playlist, whose uploads are its episodes (see channels.server.ts).
+// Needs the show table in the query.
+export const takesEpisodes = sql`not exists (select 1 from ${channels} where ${channels.showId} = ${shows.id})`
+
 // With when each was made and when its latest episode came out, so the
 // sidebar can sort them (see src/lib/show-sort.ts). The join also makes
-// drizzle qualify the columns in the artwork subquery.
-export function listShows(userId: string) {
+// drizzle qualify the columns in the artwork subquery. With `takingEpisodes`,
+// only those episodes can be added to (for the extension's and the app's pickers).
+export function listShows(userId: string, { takingEpisodes = false } = {}) {
   return db
     .select({
       ...summaryColumns,
@@ -113,7 +142,7 @@ export function listShows(userId: string) {
     .from(shows)
     .innerJoin(users, eq(users.id, shows.userId))
     .leftJoin(episodes, and(eq(episodes.showId, shows.id), eq(episodes.status, 'ready')))
-    .where(eq(shows.userId, userId))
+    .where(and(eq(shows.userId, userId), takingEpisodes ? takesEpisodes : undefined))
     .groupBy(shows.id, users.slug)
     .orderBy(asc(shows.title))
 }
@@ -163,7 +192,7 @@ export async function getPublicShow(key: ShowKey, viewerId: string | null) {
     .where(
       and(
         showWhere(key),
-        viewerId ? or(eq(shows.private, false), eq(shows.userId, viewerId)) : eq(shows.private, false),
+        showVisibleTo(viewerId),
       ),
     )
     .limit(1)

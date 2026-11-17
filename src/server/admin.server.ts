@@ -35,6 +35,7 @@ export async function getAdminOverview() {
         disabledAt: users.disabledAt,
         onHoldAt: users.onHoldAt,
         onHoldReason: users.onHoldReason,
+        excludedAt: users.excludedAt,
         channelEpisodeLimit: users.channelEpisodeLimit,
         complimentaryAccess: users.complimentaryAccess,
         subscribed: exists(
@@ -102,6 +103,20 @@ export async function setUserDisabled(userId: string, disabled: boolean) {
   const updated = await db
     .update(users)
     .set({ disabledAt: disabled ? new Date() : null })
+    .where(and(eq(users.id, userId), eq(users.isAdmin, false)))
+    .returning({ id: users.id })
+  return updated.length > 0
+}
+
+// Excludes a user, or stops excluding them. Their profile, shows, episodes,
+// playlists and broadcasts are then hidden from everyone else, everywhere on
+// the site and app (see isPublicShow in shows.server.ts), without them being
+// told: they see everything as before. Their feeds and custom domains keep
+// working. Admins can't be excluded.
+export async function setUserExcluded(userId: string, excluded: boolean) {
+  const updated = await db
+    .update(users)
+    .set({ excludedAt: excluded ? new Date() : null })
     .where(and(eq(users.id, userId), eq(users.isAdmin, false)))
     .returning({ id: users.id })
   return updated.length > 0

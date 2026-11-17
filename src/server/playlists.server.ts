@@ -157,8 +157,9 @@ export async function listPublicPlaylists(ownerId: string) {
     .orderBy(desc(playlists.updatedAt))
 }
 
-// A playlist's page, if the viewer may see it (it's public, or theirs): its
-// details, who made it, and the episodes the viewer may see, in order.
+// A playlist's page, if the viewer may see it (it's public and its owner isn't
+// excluded, or it's theirs): its details, who made it, and the episodes the
+// viewer may see, in order.
 export async function getPlaylistPage(ownerSlug: string, playlistSlug: string, viewerId: string | null) {
   const [playlist] = await db
     .select({
@@ -169,17 +170,18 @@ export async function getPlaylistPage(ownerSlug: string, playlistSlug: string, v
       private: playlists.private,
       updatedAt: playlists.updatedAt,
       ownerId: playlists.userId,
+      ownerExcluded: users.excludedAt,
       owner: { slug: users.slug, name: users.name, image: users.image },
     })
     .from(playlists)
     .innerJoin(users, eq(users.id, playlists.userId))
     .where(and(eq(users.slug, ownerSlug.toLowerCase()), eq(playlists.slug, playlistSlug)))
     .limit(1)
-  if (!playlist || (playlist.private && playlist.ownerId !== viewerId)) return null
+  if (!playlist || ((playlist.private || playlist.ownerExcluded) && playlist.ownerId !== viewerId)) return null
   const rows = await listenerEpisodes(viewerId)
     .innerJoin(playlistItems, eq(playlistItems.episodeId, episodes.id))
     .where(and(eq(playlistItems.playlistId, playlist.id), visibleTo(viewerId)))
     .orderBy(asc(playlistItems.position))
-  const { ownerId, ...rest } = playlist
+  const { ownerId, ownerExcluded: _, ...rest } = playlist
   return { ...rest, isOwner: ownerId === viewerId, episodes: withOwnership(rows, viewerId) }
 }

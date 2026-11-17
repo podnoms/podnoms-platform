@@ -231,6 +231,14 @@ describe('getSession', () => {
     expect(await sessionFor('')).toBeNull()
     expect(await sessionFor('authjs.session-token=forged')).toBeNull()
   })
+
+  it("is null in the visitor's view, by its address or its header", async () => {
+    const user = await createUser('me@example.com', 'password123')
+    const { cookie } = await signIn('me@example.com', 'password123')
+    expect((await sessionFor(cookie))?.user?.id).toBe(user!.id)
+    expect(await getSession(new Request(`${origin}/maker/show?preview=true`, { headers: { cookie } }))).toBeNull()
+    expect(await getSession(new Request(`${origin}/_serverFn/x`, { headers: { cookie, 'x-preview': '1' } }))).toBeNull()
+  })
 })
 
 describe('the OAuth adapter', () => {

@@ -5,6 +5,7 @@ import '@tanstack/react-start/server-only'
 import { and, desc, eq, max, sql } from 'drizzle-orm'
 import { episodePath, showPath } from '~/lib/paths'
 import { db } from '~/server/db/client.server'
+import { isPublicShow } from '~/server/shows.server'
 import { episodes, episodeTags, shows, showTags, tags, users } from '~/server/db/schema'
 import { escapeXml } from '~/server/feed.server'
 import { isListed, newestPublishedFirst } from '~/server/episodes.server'
@@ -19,8 +20,8 @@ const sitePages = ['/', '/explore', '/privacy', '/tos']
 
 const publishedAt = sql<Date>`coalesce(${episodes.publishedAt}, ${episodes.createdAt})`.mapWith(episodes.createdAt)
 
-// Private shows and episodes are left out, as are shows with nothing
-// published yet.
+// Private shows and episodes are left out, as are excluded users' (see
+// isPublicShow) and shows with nothing published yet.
 export async function listSitemapEntries(): Promise<SitemapEntry[]> {
   const latest = max(publishedAt).mapWith(episodes.createdAt)
   const listedShows = await db
@@ -28,7 +29,7 @@ export async function listSitemapEntries(): Promise<SitemapEntry[]> {
     .from(shows)
     .innerJoin(users, eq(users.id, shows.userId))
     .innerJoin(episodes, and(eq(episodes.showId, shows.id), isListed))
-    .where(eq(shows.private, false))
+    .where(isPublicShow())
     .groupBy(shows.id, users.id)
     .orderBy(desc(latest))
     .limit(maxEntries)
@@ -37,10 +38,10 @@ export async function listSitemapEntries(): Promise<SitemapEntry[]> {
     .from(episodes)
     .innerJoin(shows, eq(shows.id, episodes.showId))
     .innerJoin(users, eq(users.id, shows.userId))
-    .where(and(eq(shows.private, false), isListed))
+    .where(and(isPublicShow(), isListed))
     .orderBy(newestPublishedFirst, desc(episodes.id))
     .limit(maxEntries)
-  const listed = and(eq(shows.private, false), isListed)
+  const listed = and(isPublicShow(), isListed)
   const tagged = [
     ...(await db
       .selectDistinct({ slug: tags.slug })

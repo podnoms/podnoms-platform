@@ -7,7 +7,7 @@ import { getSession } from '~/server/auth.server'
 import { subscribeToEpisodeEvents, type EpisodeEvent } from '~/server/episode-events.server'
 import { enqueueEpisode } from '~/server/episode-processor.server'
 import { saveLinkArtwork } from '~/server/link-details.server'
-import { episodes } from '~/server/db/schema'
+import { channels, episodes } from '~/server/db/schema'
 import { eq } from 'drizzle-orm'
 import { resetDb } from '../db'
 import { callRoute, createShow, createUser, db } from '../helpers'
@@ -56,6 +56,17 @@ describe('GET /api/extension/shows', () => {
     expect(await response.json()).toEqual([
       { id: expect.any(String), slug: 'mine', title: 'Mine', imageUrl: 'http://x/images/a.jpg', url: `http://x/${user.slug}/mine` },
     ])
+  })
+
+  it('leaves out shows following a channel or playlist, which take no episodes by hand', async () => {
+    const user = await createUser()
+    await createShow(user.id, { slug: 'mine' })
+    const following = await createShow(user.id, { slug: 'following' })
+    await db.insert(channels).values({ showId: following.id, platform: 'youtube', url: 'https://www.youtube.com/@x/videos' })
+    signedInAs(user.id)
+
+    const response = await callRoute(ShowsRoute, 'GET', new Request('http://x/api/extension/shows'))
+    expect(((await response.json()) as { slug: string }[]).map((show) => show.slug)).toEqual(['mine'])
   })
 })
 
@@ -126,6 +137,16 @@ describe('POST /api/extension/episodes', () => {
     const show = await createShow(owner.id)
     signedInAs((await createUser()).id)
     expect((await postEpisode({ showId: show.id, sourceUrl: 'https://youtu.be/abc' })).status).toBe(404)
+  })
+
+  it('is 409 for a show following a channel or playlist, saying why', async () => {
+    const user = await createUser()
+    const show = await createShow(user.id)
+    await db.insert(channels).values({ showId: show.id, platform: 'youtube', url: 'https://www.youtube.com/@x/videos' })
+    signedInAs(user.id)
+    const response = await postEpisode({ showId: show.id, sourceUrl: 'https://youtu.be/abc' })
+    expect(response.status).toBe(409)
+    expect(await response.text()).toMatch(/follows a channel or playlist/)
   })
 
   it('explains a bad link', async () => {

@@ -4,6 +4,7 @@
 import { isNotFound, isRedirect } from '@tanstack/react-router'
 import { createMiddleware, createStart } from '@tanstack/react-start'
 import { noindexPath } from '~/lib/robots'
+import { previewHeaders } from '~/lib/preview'
 import { viewAsHeaders } from '~/lib/view-as'
 
 // Served often enough that a line each would drown out everything else.
@@ -13,7 +14,7 @@ const quietPaths = [/^\/images\//, /^\/api\/episodes\/[^/]+\/audio/, /^\/api\/sh
 const expected = (error: unknown) =>
   isRedirect(error) ||
   isNotFound(error) ||
-  (error instanceof Error && (error.name === 'ZodError' || error.name === 'ReadOnlyError' || error.name === 'ChatTooFastError' || error.name === 'PaidFeatureError' || error.name === 'AudioLimitError'))
+  (error instanceof Error && (error.name === 'ZodError' || error.name === 'ReadOnlyError' || error.name === 'ChatTooFastError' || error.name === 'PaidFeatureError' || error.name === 'AudioLimitError' || error.name === 'FollowsChannelError'))
 
 const loggingMiddleware = createMiddleware().server(async ({ request, pathname, next, handlerType, serverFnMeta }) => {
   const { logger, reportError } = await import('~/server/logger.server')
@@ -69,8 +70,11 @@ const serverFnErrorMiddleware = createMiddleware({ type: 'function' }).server(as
 })
 
 // A tab where an admin is viewing the site as someone else sends its token
-// with every server function call (see src/lib/view-as.ts).
-const viewAsMiddleware = createMiddleware({ type: 'function' }).client(({ next }) => next({ headers: viewAsHeaders() }))
+// with every server function call (see src/lib/view-as.ts), and one showing
+// the visitor's view says so (see src/lib/preview.ts).
+const viewAsMiddleware = createMiddleware({ type: 'function' }).client(({ next }) =>
+  next({ headers: { ...viewAsHeaders(), ...previewHeaders() } }),
+)
 
 // Shows on their owners' own domains (see custom-domains.server.ts).
 const customDomainMiddleware = createMiddleware().server(async ({ request, next }) => {

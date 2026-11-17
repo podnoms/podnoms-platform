@@ -59,7 +59,7 @@ export const fetchUserProfile = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: z.string() }))
   .handler(async ({ data }) => {
     const { userId } = await visitor()
-    const profile = await getPublicProfile(data.slug)
+    const profile = await getPublicProfile(data.slug, userId)
     if (!profile) {
       const moved = await movedUser(data.slug)
       if (moved) throw redirect({ href: userPath(moved), statusCode: 301 })

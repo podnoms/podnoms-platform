@@ -225,7 +225,7 @@ describe('user slugs', () => {
     expect(await movedUser('ada')).toBe('ada-lovelace')
     expect(await movedUser('ADA-L')).toBe('ada-lovelace')
     expect(await movedUser('ada-lovelace')).toBeNull()
-    expect(await getPublicProfile('ada')).toBeNull()
+    expect(await getPublicProfile('ada', null)).toBeNull()
 
     expect(await updateProfile(other.id, { name: null, slug: 'ada' })).toBe('slug-taken')
     expect(await slugOf(other.id)).toBe('bob')
@@ -247,7 +247,7 @@ describe('user slugs', () => {
 
   it('shows a public profile by slug, whatever its case', async () => {
     const user = await insertUser({ slug: 'ann', name: 'Ann', description: '<p>Hi</p>' })
-    expect(await getPublicProfile('ANN')).toEqual({ id: user.id, slug: 'ann', name: 'Ann', image: null, description: '<p>Hi</p>' })
-    expect(await getPublicProfile('nobody')).toBeNull()
+    expect(await getPublicProfile('ANN', null)).toEqual({ id: user.id, slug: 'ann', name: 'Ann', image: null, description: '<p>Hi</p>' })
+    expect(await getPublicProfile('nobody', null)).toBeNull()
   })
 })

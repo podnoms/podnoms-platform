@@ -4,7 +4,7 @@ import { z } from 'zod'
 // `login=true` opens it on sign-in, `login=signup` on account creation.
 // `authError` carries the error code Auth.js reports after a failed sign-in,
 // and `notice` a message to show. `preview=true` shows a page as visitors
-// see it, without the app's shell (see app-shell.ts).
+// see it: signed out, without the app's shell (see preview.ts).
 export const loginSearchSchema = z.object({
   login: z.union([z.literal(true), z.literal('signup')]).optional().catch(undefined),
   authError: z.string().optional().catch(undefined),

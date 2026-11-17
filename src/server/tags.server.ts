@@ -2,6 +2,7 @@ import '@tanstack/react-start/server-only'
 import { and, count, desc, eq, sql } from 'drizzle-orm'
 import type { TagSort } from '~/lib/tag-schema'
 import { db } from '~/server/db/client.server'
+import { isPublicShow } from '~/server/shows.server'
 import { episodeLikes, episodes, episodeTags, playbackPositions, shows, showTags, users } from '~/server/db/schema'
 import { isListed, likeCount, listenerEpisodeColumns, listenerPosition, newestPublishedFirst, type Page } from '~/server/episodes.server'
 import { popularDays } from '~/server/library.server'
@@ -13,7 +14,7 @@ export * from '~/server/tags-store.server'
 
 function taggedPublicEpisode(tagId: string) {
   return and(
-    eq(shows.private, false),
+    isPublicShow(),
     isListed,
     // EXISTS keeps an episode occurring once when it and its show both match.
     sql`(exists (

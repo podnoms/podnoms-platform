@@ -47,6 +47,7 @@ import {
   saveAdminEmailSettings,
   saveAdminSettings,
   saveComplimentaryAccess,
+  saveUserExcluded,
   saveUserChannelLimit,
   saveUserDisabled,
   saveUserOnHold,
@@ -607,7 +608,9 @@ function Users({ users }: { users: Overview['users'] }) {
           Uploads per channel is how many of a channel's newest uploads each user's shows import, and look at on each
           check. 0 stops them following channels. Free {paidPlanName} gives someone everything a subscriber gets, with
           unlimited audio, without paying. Turning it off gives them {paidGraceDays} days before it stops. Disabling an
-          account signs it out everywhere and stops it signing in; its shows stay as they are.
+          account signs it out everywhere and stops it signing in; its shows stay as they are. Excluding someone
+          hides their profile, shows, episodes, playlists and broadcasts from everyone else, without telling them; their
+          feeds and custom domains keep working.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -633,6 +636,7 @@ function Users({ users }: { users: Overview['users'] }) {
               <TableHead className="text-end">Channels</TableHead>
               <TableHead>Uploads per channel</TableHead>
               <TableHead>Free {paidPlanName}</TableHead>
+              <TableHead>Excluded</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -650,6 +654,7 @@ function Users({ users }: { users: Overview['users'] }) {
                       {user.name ?? user.email}
                       {user.disabledAt && <Badge variant="destructive">Disabled</Badge>}
                       {user.onHoldAt && <Badge variant="secondary">On hold</Badge>}
+                      {user.excludedAt && <Badge variant="outline">Excluded</Badge>}
                     </span>
                     {user.name && <span className="text-xs text-muted-foreground">{user.email}</span>}
                     {user.onHoldAt && (
@@ -665,6 +670,9 @@ function Users({ users }: { users: Overview['users'] }) {
                 </TableCell>
                 <TableCell>
                   <ComplimentaryAccess user={user} />
+                </TableCell>
+                <TableCell>
+                  <ExcludeUser user={user} />
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
@@ -890,6 +898,39 @@ function ComplimentaryAccess({ user }: { user: Overview['users'][number] }) {
         onCheckedChange={(checked) => void save(checked)}
       />
       {user.subscribed && <Badge variant="secondary">Subscribed</Badge>}
+      {state === 'error' && <span className="text-xs text-destructive">Couldn't save</span>}
+    </div>
+  )
+}
+
+// Hides the user's content from everyone else (see setUserExcluded).
+function ExcludeUser({ user }: { user: Overview['users'][number] }) {
+  const router = useRouter()
+  const [state, setState] = useState<'idle' | 'saving' | 'error'>('idle')
+
+  async function save(excluded: boolean) {
+    setState('saving')
+    try {
+      await saveUserExcluded({ data: { userId: user.id, excluded } })
+      await router.invalidate()
+      setState('idle')
+    } catch {
+      setState('error')
+    }
+  }
+
+  if (user.isAdmin) return <span className="text-sm text-muted-foreground">Admin</span>
+  return (
+    <div className="flex items-center gap-2">
+      <Switch
+        aria-label={`Exclude ${user.name ?? user.email}`}
+        checked={Boolean(user.excludedAt)}
+        disabled={state === 'saving'}
+        onCheckedChange={(checked) => void save(checked)}
+      />
+      {user.excludedAt && (
+        <span className="text-xs text-muted-foreground">Since {formatDateTime(user.excludedAt)}</span>
+      )}
       {state === 'error' && <span className="text-xs text-destructive">Couldn't save</span>}
     </div>
   )

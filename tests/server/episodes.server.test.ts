@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { episodes, playbackPositions, playedEpisodes, shows } from '~/server/db/schema'
+import { channels, episodes, playbackPositions, playedEpisodes, shows } from '~/server/db/schema'
 import { enqueueEpisode } from '~/server/episode-processor.server'
 import { saveLinkArtwork } from '~/server/link-details.server'
 import {
@@ -11,6 +11,7 @@ import {
   deleteEpisode,
   deleteShow,
   dismissEpisodeError,
+  FollowsChannelError,
   getEpisode,
   getEpisodeAudio,
   getEpisodeSlug,
@@ -196,6 +197,21 @@ describe('createEpisode from an upload', () => {
     const { user, show } = await setup()
     const uploadId = await stageUpload((await createUser()).id, { title: 'Theirs', durationSeconds: 1 })
     await expect(createEpisode(user.id, { showId: show.id, uploadId })).rejects.toThrow('That upload has expired')
+  })
+})
+
+describe('adding episodes to a show that follows a channel or playlist', () => {
+  it("is refused, by link or upload, as they come from there", async () => {
+    const { user, show } = await setup()
+    await db.insert(channels).values({ showId: show.id, platform: 'youtube', url: 'https://www.youtube.com/playlist?list=x', kind: 'playlist' })
+    const uploadId = await stageUpload(user.id, { title: 'Track', durationSeconds: 10 })
+    await expect(createEpisode(user.id, { showId: show.id, sourceUrl: 'https://youtu.be/abc' })).rejects.toBeInstanceOf(FollowsChannelError)
+    await expect(createEpisode(user.id, { showId: show.id, uploadId })).rejects.toBeInstanceOf(FollowsChannelError)
+    await expect(createUploadedEpisodes(user.id, { showId: show.id, episodes: [{ uploadId }] })).rejects.toBeInstanceOf(
+      FollowsChannelError,
+    )
+    expect(await listEpisodes(user.id, show.id)).toEqual([])
+    expect(enqueueEpisode).not.toHaveBeenCalled()
   })
 })
 

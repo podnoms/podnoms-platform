@@ -74,10 +74,20 @@ const previewEpisodes: { title: string; source: string; SourceIcon: Icon; durati
 // Decorative only, so hidden from screen readers.
 function HeroPreview() {
   const origin = useLoaderData({ from: '__root__', select: (data) => data.siteLinks.origin })
+  const branding = useBranding()
   return (
-    <div aria-hidden="true" className="relative min-w-0">
+    // Room above for the logo peeking over the card, where it's below the text.
+    <div aria-hidden="true" className="relative mt-20 min-w-0 lg:mt-0">
       <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-primary/20 blur-3xl" />
-      <div className="flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-2xl sm:p-5">
+      {/* The site's logo peeks over the card from behind, its chin hidden by it. */}
+      <img
+        src={brandLogoUrl(branding)}
+        alt=""
+        width={128}
+        height={128}
+        className="absolute -top-[6.5rem] right-6 size-32 rotate-12 drop-shadow-xl sm:right-10"
+      />
+      <div className="relative flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-2xl sm:p-5">
         <div className="flex items-center gap-4">
           <div className="grid size-20 shrink-0 place-items-center rounded-xl bg-linear-to-br from-primary via-accent to-secondary sm:size-24">
             <Icons.logo className="size-9 text-black/70" />
@@ -160,7 +170,7 @@ export function LandingPage({ shows }: { shows: ShowCardData[] }) {
         className="absolute inset-x-0 top-0 -z-10 h-[40rem] bg-[radial-gradient(60%_50%_at_50%_0%,color-mix(in_oklch,var(--primary)_22%,transparent),transparent)]"
       />
 
-      <section className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 px-4 pt-16 pb-20 md:pt-24 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16">
+      <section className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 px-4 pt-16 pb-20 md:pt-24 lg:pt-36 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16">
         <div className="flex min-w-0 flex-col items-center gap-6 text-center lg:items-start lg:text-left">
           <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-6xl">
             <Headline text={text(copy.heroTitle)} />

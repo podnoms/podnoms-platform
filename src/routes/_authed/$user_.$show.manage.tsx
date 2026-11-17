@@ -90,7 +90,9 @@ function ShowPage() {
   // Square, label-less buttons below md, so the header's actions fit one row.
   const iconOnMobile = 'max-md:w-8 max-md:px-0'
 
-  const newEpisodeButtons = (
+  // A show following a channel or playlist gets its episodes from there alone
+  // (see takesEpisodes in shows.server.ts), so it has no buttons to add them.
+  const newEpisodeButtons = show.channel ? null : (
     <>
       {/* Picking a folder of audio isn't something people do on a phone. */}
       <BulkUploadDialog showId={show.id}>
@@ -163,7 +165,13 @@ function ShowPage() {
                   <span className="max-md:sr-only">Edit</span>
                 </Button>
                 <Button variant="outline" className={iconOnMobile} asChild>
-                  <Link to="/$user/$show" target="_blank" params={showParams(show)}>
+                  {/* As visitors see it (see src/lib/preview.ts); a private show only its owner can. */}
+                  <Link
+                    to="/$user/$show"
+                    target="_blank"
+                    params={showParams(show)}
+                    search={show.private ? undefined : { preview: true }}
+                  >
                     <Icons.externalLink />
                     <span className="max-md:sr-only">Public page</span>
                   </Link>
@@ -235,11 +243,13 @@ function ShowPage() {
                     <EmptyTitle>No episodes yet</EmptyTitle>
                     <EmptyDescription>
                       {show.channel
-                        ? "The channel's uploads appear here as they're found. You can add episodes of your own too."
+                        ? `The ${show.channel.kind === 'playlist' ? "playlist's episodes" : "channel's uploads"} appear here as they're found.`
                         : `Paste a YouTube link or upload an audio file, and ${branding.name} will turn it into an episode.`}
                     </EmptyDescription>
                   </EmptyHeader>
-                  <EmptyContent className="flex-row flex-wrap justify-center">{newEpisodeButtons}</EmptyContent>
+                  {newEpisodeButtons && (
+                    <EmptyContent className="flex-row flex-wrap justify-center">{newEpisodeButtons}</EmptyContent>
+                  )}
                 </Empty>
               ) : (
                 <ItemGroup className="gap-3">
