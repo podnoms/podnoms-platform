@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { saveMyPlaybackPosition, setMyEpisodePlayed } from '~/functions/shows'
 import { reportActivity, reportTrackedLinkVisit } from '~/lib/activity'
 import { readLastEpisode, storeLastEpisode } from '~/lib/last-episode'
+import { playOneAtATime } from '~/lib/one-player'
 import { EpisodeSource, preloadHls } from '~/lib/stream'
 import { defaultVolume, readStoredVolume, storeVolume, type Volume } from '~/lib/volume'
 
@@ -90,6 +91,8 @@ export function PlayerProvider({
       sourceRef.current = null
     }
   }, [])
+  // Playing here pauses whatever's playing in the site's other tabs, and the other way round.
+  useEffect(() => (audioRef.current ? playOneAtATime(audioRef.current) : undefined), [])
   const [episode, setEpisode] = useState<PlayerEpisode | null>(null)
   const [queue, setQueue] = useState<PlayerQueue | null>(null)
   const queueIndex = queue && episode ? queue.episodes.findIndex((queued) => queued.id === episode.id) : -1

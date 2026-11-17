@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type Hls from 'hls.js'
 import { Icons } from '~/components/icons'
 import { imageSrc } from '~/lib/images'
+import { playOneAtATime } from '~/lib/one-player'
 
 // How long to wait before trying again when the stream can't be played (it
 // may not have reached the server yet, or OBS is reconnecting).
@@ -27,6 +28,9 @@ export function LivePlayer({
 }) {
   const video = useRef<HTMLVideoElement>(null)
   const [state, setState] = useState<'loading' | 'playing' | 'waiting'>('loading')
+
+  // Watching with sound pauses whatever's playing in the site's other tabs, and the other way round.
+  useEffect(() => (video.current ? playOneAtATime(video.current) : undefined), [])
 
   useEffect(() => {
     const element = video.current

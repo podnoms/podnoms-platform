@@ -10,6 +10,7 @@ import { imageSrc } from '~/lib/images'
 import { brandIconUrl, pageTitle, useBranding } from '~/lib/branding'
 import { isCustomDomain } from '~/lib/current-domain'
 import { themeHead } from '~/lib/theme-css'
+import { playOneAtATime } from '~/lib/one-player'
 import { EpisodeSource } from '~/lib/stream'
 
 // A compact player for an episode, made to be put in an <iframe> on other
@@ -42,6 +43,9 @@ function EmbedPlayer() {
   // Nothing is fetched until it's first played (see src/lib/stream.ts).
   const sourceRef = useRef<EpisodeSource | null>(null)
   useEffect(() => () => sourceRef.current?.destroy(), [])
+  // Playing here pauses the site's players open elsewhere in this browser, and
+  // the other way round (where the browser lets embeds talk to them).
+  useEffect(() => (audioRef.current ? playOneAtATime(audioRef.current) : undefined), [])
 
   useEffect(() => {
     const audio = audioRef.current
