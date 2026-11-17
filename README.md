@@ -398,8 +398,8 @@ if the branch is behind or has diverged, merge or rebase the remote changes firs
 ```sh
 ./scripts/create-release.sh --dry-run  # preview the next patch (0.2.0 -> 0.2.1)
 ./scripts/create-release.sh           # publish the next patch
-./scripts/create-release.sh minor     # e.g. 0.2.1 -> 0.3.0
-./scripts/create-release.sh major     # e.g. 0.3.0 -> 1.0.0
+./scripts/create-release.sh --minor   # e.g. 0.2.1 -> 0.3.0
+./scripts/create-release.sh --major   # e.g. 0.3.0 -> 1.0.0
 ```
 
 The script installs locked dependencies, type-checks, tests, and builds. It then

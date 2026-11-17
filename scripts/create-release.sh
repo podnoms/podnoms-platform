@@ -138,10 +138,13 @@ def release(bump, dry_run):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "bump", nargs="?", choices=("patch", "minor", "major"), default="patch",
-        help="version component to bump (default: patch)",
-    )
+    bump = parser.add_mutually_exclusive_group()
+    for component in ("patch", "minor", "major"):
+        bump.add_argument(
+            f"--{component}", dest="bump", action="store_const", const=component,
+            help=f"bump the {component} version" + (" (the default)" if component == "patch" else ""),
+        )
+    parser.set_defaults(bump="patch")
     parser.add_argument(
         "--dry-run", action="store_true", help="preview the version and release steps",
     )
