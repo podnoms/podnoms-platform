@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import { AuthorLink, Separated } from '~/components/author-link'
 import { AddToPlaylistButton } from '~/components/add-to-playlist-button'
+import { EditDetailsDialog } from '~/components/edit-details-dialog'
 import { EpisodeComments, WaveformCommentBox } from '~/components/episode-comments'
 import { Icons } from '~/components/icons'
 import { LikeButton } from '~/components/like-button'
@@ -14,10 +15,12 @@ import { Button } from '~/components/ui/button'
 import { Popover, PopoverAnchor, PopoverContent } from '~/components/ui/popover'
 import { Slider } from '~/components/ui/slider'
 import type { fetchEpisodePage } from '~/functions/public'
+import { updateMyEpisode } from '~/functions/shows'
 import { isCustomDomain } from '~/lib/current-domain'
 import { formatClock, formatDate, initials, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { mentionsAsText } from '~/lib/user-slug'
+import { cn } from '~/lib/utils'
 import { showParams, episodeParams } from '~/lib/paths'
 
 export type EpisodePageData = Awaited<ReturnType<typeof fetchEpisodePage>>
@@ -31,6 +34,9 @@ export type EpisodePageData = Awaited<ReturnType<typeof fetchEpisodePage>>
 export function PublicEpisode({ page, standalone = false }: { page: EpisodePageData; standalone?: boolean }) {
   const { show, episode, waveform, isOwner, shareUrl, embedUrl } = page
   const player = usePlayer()
+  const router = useRouter()
+  // The owner edits the episode's details here, rather than on its manage page.
+  const [editing, setEditing] = useState(false)
   const onDomain = isCustomDomain()
   const commentable = !standalone && !onDomain
   // Shown with the details rather than on the button; the button keeps it current.
@@ -77,6 +83,32 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
     if (isCurrent) player.seek(seconds)
     else play(seconds)
   }
+
+  // Below the player: the show notes and comments, and more of the show's
+  // episodes. On wide screens those sit in a column beside the notes and
+  // comments, rather than pushing the comments down; on narrow ones they come
+  // after the comments.
+  const notes = episode.description && !standalone && (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-lg font-semibold">About this episode</h2>
+      {/* Sanitised on the server (see rich-text.server.ts). */}
+      <div className="rich-text max-w-prose" dangerouslySetInnerHTML={{ __html: episode.description }} />
+    </section>
+  )
+  const discussion = commentable && (
+    <EpisodeComments
+      episodeId={episode.id}
+      comments={comments}
+      gifs={page.gifs}
+      onChange={setComments}
+      position={position}
+      playing={isPlaying}
+      onSeek={seek}
+    />
+  )
+  const more = !standalone && page.moreEpisodes.length > 0 && (
+    <MoreEpisodes show={show} episodes={page.moreEpisodes} beside={Boolean(notes || discussion)} />
+  )
 
   return (
     <div className="flex flex-col gap-8">
@@ -129,14 +161,9 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
               />
               {!standalone && <AddToPlaylistButton episodeId={episode.id} size="default" />}
               {isOwner && !standalone && !onDomain && (
-                <Button variant="outline" asChild>
-                  <Link
-                    to="/$user/$show/$episode/manage"
-                    params={episodeParams(show, episode.slug)}
-                  >
-                    <Icons.settings />
-                    Manage
-                  </Link>
+                <Button variant="outline" onClick={() => setEditing(true)}>
+                  <Icons.edit />
+                  Edit
                 </Button>
               )}
               {/* The share page is what's shared; it doesn't pass itself on. */}
@@ -225,49 +252,86 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
         </div>
       </section>
 
-      {episode.description && !standalone && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold">About this episode</h2>
-          {/* Sanitised on the server (see rich-text.server.ts). */}
-          <div className="rich-text max-w-prose" dangerouslySetInnerHTML={{ __html: episode.description }} />
-        </section>
+      {(notes || discussion || more) && (
+        <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_20rem] 2xl:grid-cols-[minmax(0,1fr)_24rem]">
+          {(notes || discussion) && (
+            <div className="flex min-w-0 flex-col gap-8">
+              {notes}
+              {discussion}
+            </div>
+          )}
+          {more}
+        </div>
       )}
 
-      {!standalone && page.moreEpisodes.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold">More from {show.title}</h2>
-          <ul className="flex flex-col divide-y rounded-lg border">
-            {page.moreEpisodes.map((other) => (
-              <li key={other.id}>
-                <Link
-                  to="/$user/$show/$episode"
-                  params={episodeParams(show, other.slug)}
-                  className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm hover:bg-muted/50"
-                >
-                  <span className="min-w-0 truncate font-medium">{other.title}</span>
-                  <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                    {formatDate(other.publishedAt ?? other.createdAt)}
-                    {other.durationSeconds != null && ` · ${formatClock(other.durationSeconds)}`}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {commentable && (
-        <EpisodeComments
-          episodeId={episode.id}
-          comments={comments}
-          gifs={page.gifs}
-          onChange={setComments}
-          position={position}
-          playing={isPlaying}
-          onSeek={seek}
+      {isOwner && !standalone && !onDomain && (
+        <EditDetailsDialog
+          open={editing}
+          onOpenChange={setEditing}
+          heading="Edit episode"
+          description={`An episode of ${show.title}.`}
+          imageContext={show.title}
+          details={{ title: episode.title, description: episode.description, imageUrl: episode.imageUrl, tags: episode.tags }}
+          maxTitleLength={200}
+          onSave={async (change) => {
+            await updateMyEpisode({ data: { id: episode.id, ...change } })
+            await router.invalidate()
+          }}
         />
       )}
     </div>
+  )
+}
+
+// How many of the show's other episodes a phone lists; the rest are a tap away
+// on the show's page.
+const moreOnNarrowScreens = 4
+
+// The show's other episodes, compact enough for the episode page's side column.
+function MoreEpisodes({
+  show,
+  episodes,
+  beside,
+}: {
+  show: EpisodePageData['show']
+  episodes: EpisodePageData['moreEpisodes']
+  // In the side column, next to the notes and comments.
+  beside: boolean
+}) {
+  return (
+    <aside
+      aria-labelledby="more-episodes-heading"
+      className={cn('flex min-w-0 flex-col gap-3', beside ? 'xl:col-start-2 xl:row-start-1' : 'xl:col-span-full')}
+    >
+      <h2 id="more-episodes-heading" className="text-lg font-semibold text-balance">
+        More from {show.title}
+      </h2>
+      <ul className="flex flex-col divide-y rounded-lg border">
+        {episodes.map((other, i) => (
+          <li key={other.id} className={i >= moreOnNarrowScreens ? 'max-xl:hidden' : undefined}>
+            <Link
+              to="/$user/$show/$episode"
+              params={episodeParams(show, other.slug)}
+              className="flex flex-col gap-0.5 px-4 py-3 text-sm hover:bg-muted/50"
+            >
+              <span className="line-clamp-2 font-medium">{other.title}</span>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {formatDate(other.publishedAt ?? other.createdAt)}
+                {other.durationSeconds != null && ` · ${formatClock(other.durationSeconds)}`}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <Link
+        to="/$user/$show"
+        params={showParams(show)}
+        className="flex w-fit items-center gap-1 text-sm text-primary hover:underline"
+      >
+        All episodes
+        <Icons.chevronRight className="size-4" />
+      </Link>
+    </aside>
   )
 }
 

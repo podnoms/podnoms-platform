@@ -1,4 +1,6 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { useState } from 'react'
+import { createFileRoute, Link, useNavigate, useRouter } from '@tanstack/react-router'
+import { EditDetailsDialog } from '~/components/edit-details-dialog'
 import { EpisodeListEnd } from '~/components/episode-list-end'
 import { AuthorLink, Separated } from '~/components/author-link'
 import { FeedUrlButton } from '~/components/feed-url-button'
@@ -11,6 +13,7 @@ import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '~/components/ui/empty'
 import { fetchShowEpisodes, fetchShowPage } from '~/functions/public'
+import { updateMyShow } from '~/functions/shows'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { useLiveStart } from '~/hooks/use-live-events'
 import { isCustomDomain } from '~/lib/current-domain'
@@ -66,6 +69,9 @@ export const Route = createFileRoute('/$user_/$show')({
 function ShowPage() {
   const show = Route.useLoaderData()
   const navigate = useNavigate()
+  const router = useRouter()
+  // The owner edits the show's details here, rather than on its manage page.
+  const [editing, setEditing] = useState(false)
   // A show's own domain stands alone: it has no accounts, so no followers or
   // owner's controls, and doesn't name the author.
   const onDomain = isCustomDomain()
@@ -149,11 +155,9 @@ function ShowPage() {
                   </Button>
                 )}
                 {show.isOwner && !onDomain && (
-                  <Button variant="outline" asChild>
-                    <Link to="/$user/$show/manage" params={showParams(show)}>
-                      <Icons.settings />
-                      Manage
-                    </Link>
+                  <Button variant="outline" onClick={() => setEditing(true)}>
+                    <Icons.edit />
+                    Edit
                   </Button>
                 )}
                 {/* Owners don't follow their own shows; it's in their sidebar already. */}
@@ -256,6 +260,31 @@ function ShowPage() {
           </dl>
         </aside>
       </div>
+      {show.isOwner && !onDomain && (
+        <EditDetailsDialog
+          open={editing}
+          onOpenChange={setEditing}
+          heading="Edit show"
+          description="Changes show in podcast apps the next time they check the feed."
+          details={{
+            title: show.title,
+            description: show.description,
+            imageUrl: show.imageUrl,
+            tags: show.tags,
+            slug: show.slug,
+            slugPrefix: `${show.ownerSlug}/`,
+          }}
+          maxTitleLength={100}
+          onSave={async (change) => {
+            const result = await updateMyShow({ data: { id: show.id, ...change } })
+            if (result.error) return result.error
+            // To the new address first, as the old one has gone.
+            if (change.slug) await navigate({ to: '/$user/$show', params: showParams({ ...show, slug: change.slug }), replace: true })
+            // The sidebar's shows are reloaded too, for their links.
+            await router.invalidate()
+          }}
+        />
+      )}
     </div>
   )
 }
