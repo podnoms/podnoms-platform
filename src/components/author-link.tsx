@@ -1,14 +1,15 @@
 import { Fragment, type ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
+import { showByline } from '~/lib/byline'
 
 // "by <author>", linking to the profile of the show's owner, who made it on
-// the site, whether the author is their name or one they've given the show.
-export function AuthorLink({ author, slug }: { author: string; slug: string }) {
+// the site: the author they've given the show, else their @slug (see showByline).
+export function AuthorLink({ credit, slug }: { credit: string | null; slug: string }) {
   return (
     <>
       by{' '}
       <Link to="/$user" params={{ user: slug }} className="text-foreground/80 hover:text-foreground hover:underline">
-        {author}
+        {showByline({ credit, ownerSlug: slug })}
       </Link>
     </>
   )

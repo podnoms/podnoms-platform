@@ -29,6 +29,19 @@ describe('createUser', () => {
     expect(row!.passwordHash).not.toContain('password123')
   })
 
+  it('keeps the name given, and makes the slug from it', async () => {
+    const user = await createUser('a@example.com', 'password123', 'Adam Dunbar')
+    const [row] = await db.select().from(users).where(eq(users.id, user!.id))
+    expect(row).toMatchObject({ name: 'Adam Dunbar', slug: 'adam-dunbar' })
+  })
+
+  it('without a name, leaves it empty and makes the slug from the email', async () => {
+    const user = await createUser('adam.d@example.com', 'password123')
+    const [row] = await db.select().from(users).where(eq(users.id, user!.id))
+    expect(row!.name).toBeNull()
+    expect(row!.slug).not.toMatch(/^user-/)
+  })
+
   it('makes the first user an admin, and nobody after', async () => {
     const first = await createUser('a@example.com', 'password123')
     const second = await createUser('b@example.com', 'password123')

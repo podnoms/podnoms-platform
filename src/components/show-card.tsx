@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
 import { formatDate, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
+import { showByline } from '~/lib/byline'
 import { showParams } from '~/lib/paths'
 
 export type ShowCardData = {
@@ -11,6 +12,8 @@ export type ShowCardData = {
   ownerSlug: string
   imageUrl: string | null
   author: string | null
+  // The author the owner gave the show, for its byline (see showByline).
+  credit: string | null
   episodeCount: number
   latestAt: Date | null
   followerCount: number
@@ -42,7 +45,7 @@ export function ShowCard({ show }: { show: ShowCardData }) {
       )}
       <div className="flex min-w-0 flex-col gap-0.5 px-1">
         <p className="truncate font-semibold">{show.title}</p>
-        {show.author && <p className="truncate text-sm text-muted-foreground">{show.author}</p>}
+        <p className="truncate text-sm text-muted-foreground">{showByline(show)}</p>
         <p className="truncate text-xs text-muted-foreground">
           {stats.join(' · ')}
           {show.latestAt && <> · {formatDate(show.latestAt)}</>}

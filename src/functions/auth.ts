@@ -3,7 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getRequest } from '@tanstack/react-start/server'
 import { isPreviewRequest } from '~/lib/preview'
-import { credentialsSchema, passwordResetRequestSchema, resetPasswordSchema } from '~/lib/auth-schema'
+import { passwordResetRequestSchema, resetPasswordSchema, signUpSchema } from '~/lib/auth-schema'
 import { oauthProviders, readSession, viewAsSession } from '~/server/auth.server'
 import { publicUrl } from '~/server/site-url.server'
 import { clientIp } from '~/server/activity.server'
@@ -82,9 +82,9 @@ export const resetPasswordFn = createServerFn({ method: 'POST' })
   .handler(({ data }) => resetPassword(data.token, data.password))
 
 export const signUp = createServerFn({ method: 'POST' })
-  .validator(credentialsSchema)
+  .validator(signUpSchema)
   .handler(async ({ data }) => {
-    const user = await createUser(data.email, data.password)
+    const user = await createUser(data.email, data.password, data.name)
     return user
       ? { ok: true as const }
       : {

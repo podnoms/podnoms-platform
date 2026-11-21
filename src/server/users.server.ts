@@ -38,16 +38,18 @@ const byEmail = (email: string) => sql`lower(${users.email}) = ${email.toLowerCa
 export const firstUserIsAdmin = sql<boolean>`not exists (select 1 from ${users})`
 
 // Returns null if the email is already registered, including by an OAuth sign-in.
-export async function createUser(email: string, password: string): Promise<User | null> {
+// The name is optional; the slug is made from it when there is one, as for
+// OAuth sign-ups, else from the email.
+export async function createUser(email: string, password: string, name?: string): Promise<User | null> {
   const passwordHash = await hashPassword(password)
   // The unique index on lower(email) turns a taken address into a no-op.
   const [user] = await db
     .insert(users)
-    .values({ email, passwordHash, isAdmin: firstUserIsAdmin })
+    .values({ email, passwordHash, name: name ?? null, isAdmin: firstUserIsAdmin })
     .onConflictDoNothing()
     .returning({ id: users.id, email: users.email })
   if (!user?.email) return null
-  await assignUserSlug(user.id, email.split('@')[0]!)
+  await assignUserSlug(user.id, name || email.split('@')[0]!)
   return { id: user.id, email: user.email }
 }
 

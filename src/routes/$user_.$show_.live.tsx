@@ -10,6 +10,7 @@ import { useLiveEvents } from '~/hooks/use-live-events'
 import { isCustomDomain } from '~/lib/current-domain'
 import { formatCount } from '~/lib/format'
 import { pageTitle } from '~/lib/branding'
+import { showByline } from '~/lib/byline'
 import { showParams } from '~/lib/paths'
 import { showThemeHead } from '~/lib/app-shell'
 
@@ -79,7 +80,7 @@ function LivePage() {
             <h1 className="text-2xl font-bold tracking-tight text-balance">{broadcast?.title ?? show.title}</h1>
             <p className="text-sm text-muted-foreground">
               {show.title}
-              {show.author && !isCustomDomain() && ` · by ${show.author}`}
+              {!isCustomDomain() && ` · by ${showByline(show)}`}
             </p>
           </div>
           <div className="flex gap-2">

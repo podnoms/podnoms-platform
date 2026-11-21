@@ -54,6 +54,7 @@ export const fetchLivePage = createServerFn({ method: 'GET' })
         ownerSlug: show.ownerSlug,
         imageUrl: show.imageUrl,
         author: show.author,
+        credit: show.credit,
         private: show.private,
       },
       // The owner's theme for the show's pages, if they've given it one.

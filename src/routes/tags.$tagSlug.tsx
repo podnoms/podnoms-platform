@@ -54,7 +54,6 @@ function TagPage() {
       <PageHeading
         icon={<Icons.explore />}
         title={`#${tag.name}`}
-        description="Mixes with this tag, including episodes from tagged shows."
       />
       <section aria-label="Tagged mixes" className="flex min-w-0 flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">

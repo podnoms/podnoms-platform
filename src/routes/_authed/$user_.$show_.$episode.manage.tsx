@@ -416,10 +416,18 @@ function EpisodePage() {
         heading="Edit episode"
         description={`An episode of ${show.title}.`}
         imageContext={show.title}
-        details={{ title: episode.title, description: episode.description, imageUrl: episode.imageUrl, tags: episode.tags }}
+        details={{
+          title: episode.title,
+          description: episode.description,
+          imageUrl: episode.imageUrl,
+          tags: episode.tags,
+          private: episode.private,
+          kind: 'episode',
+        }}
         maxTitleLength={200}
-        onSave={async (change) => {
+        onSave={async ({ private: makePrivate, ...change }) => {
           await updateMyEpisode({ data: { id: episode.id, ...change } })
+          if (makePrivate !== undefined) await setMyEpisodePrivacy({ data: { id: episode.id, private: makePrivate } })
           await router.invalidate()
         }}
       />

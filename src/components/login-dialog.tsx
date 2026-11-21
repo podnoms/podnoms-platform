@@ -15,7 +15,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldSepar
 import { Input } from '~/components/ui/input'
 import { requestPasswordResetFn, signUp } from '~/functions/auth'
 import { signIn, signOut } from '~/lib/auth-client'
-import { credentialsSchema, passwordResetRequestSchema } from '~/lib/auth-schema'
+import { credentialsSchema, passwordResetRequestSchema, signUpSchema } from '~/lib/auth-schema'
 import { brandLogoUrl } from '~/lib/branding'
 
 const oauthButtons = [
@@ -82,7 +82,8 @@ export function LoginDialog() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const parsed = credentialsSchema.safeParse(Object.fromEntries(new FormData(event.currentTarget)))
+    const form = Object.fromEntries(new FormData(event.currentTarget))
+    const parsed = (mode === 'signUp' ? signUpSchema : credentialsSchema).safeParse(form)
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message)
       return
@@ -99,7 +100,8 @@ export function LoginDialog() {
         }
       }
       // Navigates away on success, and back here with ?authError=… on failure.
-      await signIn('credentials', { ...parsed.data, callbackUrl: currentPageUrl() })
+      const { email, password } = parsed.data
+      await signIn('credentials', { email, password, callbackUrl: currentPageUrl() })
     } catch {
       setError('Something went wrong. Please try again.')
       setPending(false)
@@ -176,6 +178,14 @@ export function LoginDialog() {
                   <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
                     Or continue with
                   </FieldSeparator>
+                  {!isSignIn && (
+                    <Field>
+                      <FieldLabel htmlFor="name">
+                        Name <span className="font-normal text-muted-foreground">(optional)</span>
+                      </FieldLabel>
+                      <Input id="name" name="name" autoComplete="name" maxLength={100} className="h-9" />
+                    </Field>
+                  )}
                   <Field>
                     <FieldLabel htmlFor="email">Email</FieldLabel>
                     <Input

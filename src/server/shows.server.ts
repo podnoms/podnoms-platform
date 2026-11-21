@@ -93,7 +93,11 @@ export async function movedShow(ref: ShowRef): Promise<ShowRef | null> {
 
 // Who makes the show: as its owner says on the Distribution tab, or else
 // the owner's name. Needs the user table joined.
-export const showAuthor = sql<string | null>`coalesce(${shows.author}, ${users.name})`
+export const showAuthor = sql<string | null>`coalesce(nullif(trim(${shows.author}), ''), nullif(trim(${users.name}), ''))`
+
+// Who the site's pages say a show is by: the author the owner has given it,
+// if any, else (see showByline) their @slug, never their account name.
+export const showCredit = sql<string | null>`nullif(trim(${shows.author}), '')`
 
 // The show's own artwork, or else its newest ready episode's, as on the
 // show page. Private episodes' artwork isn't used, as listeners see it.
@@ -181,6 +185,7 @@ export async function getPublicShow(key: ShowKey, viewerId: string | null) {
       private: shows.private,
       feedKey: shows.feedKey,
       author: showAuthor,
+      credit: showCredit,
       // The owner's profile, which the author's name links to.
       ownerSlug: users.slug,
       directoryLinks: shows.directoryLinks,

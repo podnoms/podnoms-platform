@@ -11,6 +11,7 @@ import { Button } from '~/components/ui/button'
 import { formatClock, formatDate, formatRelative } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { episodeParams, shortPath, showParams, type ShowRef } from '~/lib/paths'
+import { showByline } from '~/lib/byline'
 import type { Tag } from '~/lib/tag-schema'
 import { cn } from '~/lib/utils'
 
@@ -35,7 +36,8 @@ export type PublicEpisodeRowData = {
 // An episode in a listener's list, laid out as Mixcloud does: the artwork, a
 // play button by the title, the episode's waveform to see how far through it
 // you are and to seek, and buttons to like and share it. In lists across
-// shows (Likes, Explore), `withShow` names the show too. In a
+// shows (Likes, Explore), `withShow` names who it's by and the show too, as
+// shows belong to their owners. In a
 // playlist, `onPlay` starts it playing through the playlist instead, and
 // `actions` are the owner's buttons for it.
 export function PublicEpisodeRow({
@@ -49,7 +51,8 @@ export function PublicEpisodeRow({
   actions,
 }: {
   episode: PublicEpisodeRowData
-  show: ShowRef
+  // `credit` is the author the owner gave the show, for the byline (see showByline).
+  show: ShowRef & { credit?: string | null }
   showTitle: string
   showImageUrl: string | null
   isOwner: boolean
@@ -124,11 +127,22 @@ export function PublicEpisodeRow({
           <div className="flex min-w-0 flex-col">
             <p className="truncate text-sm text-muted-foreground">
               {withShow && (
-                <Separated>
-                  <Link to="/$user/$show" params={showParams(show)} className="hover:text-foreground hover:underline">
-                    {showTitle}
-                  </Link>
-                </Separated>
+                <>
+                  <Separated>
+                    <Link
+                      to="/$user"
+                      params={{ user: show.ownerSlug }}
+                      className="font-medium text-foreground/80 hover:text-foreground hover:underline"
+                    >
+                      {showByline({ credit: show.credit ?? null, ownerSlug: show.ownerSlug })}
+                    </Link>
+                  </Separated>
+                  <Separated>
+                    <Link to="/$user/$show" params={showParams(show)} className="hover:text-foreground hover:underline">
+                      {showTitle}
+                    </Link>
+                  </Separated>
+                </>
               )}
               <time dateTime={published.toISOString()} title={formatDate(published)} suppressHydrationWarning>
                 {formatRelative(published)}

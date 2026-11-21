@@ -15,7 +15,7 @@ import { Button } from '~/components/ui/button'
 import { Popover, PopoverAnchor, PopoverContent } from '~/components/ui/popover'
 import { Slider } from '~/components/ui/slider'
 import type { fetchEpisodePage } from '~/functions/public'
-import { updateMyEpisode } from '~/functions/shows'
+import { setMyEpisodePrivacy, updateMyEpisode } from '~/functions/shows'
 import { isCustomDomain } from '~/lib/current-domain'
 import { formatClock, formatDate, initials, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
@@ -54,7 +54,7 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
   const artwork = episode.imageUrl ?? show.imageUrl
   // The share page leaves out the date and length; the waveform shows the length.
   const meta = [
-    show.author && !onDomain ? <AuthorLink key="by" author={show.author} slug={show.ownerSlug} /> : null,
+    !onDomain ? <AuthorLink key="by" credit={show.credit} slug={show.ownerSlug} /> : null,
     standalone ? null : formatDate(episode.publishedAt ?? episode.createdAt),
     !standalone && episode.durationSeconds != null ? formatClock(episode.durationSeconds) : null,
     likeCount > 0 && !onDomain ? pluralise(likeCount, 'like') : null,
@@ -143,8 +143,8 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
           <p className="text-sm text-muted-foreground">
             <Separated items={meta} />
           </p>
-          <TagList tags={episode.tags} />
-          <TagList tags={show.tags.filter((tag) => !episode.tags.some((own) => own.id === tag.id))} label="Show tags" />
+          {/* One row: the episode's own tags, then the show's it doesn't already have. */}
+          <TagList tags={[...episode.tags, ...show.tags.filter((tag) => !episode.tags.some((own) => own.id === tag.id))]} />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Button size="icon-lg" className="size-14 rounded-full [&_svg]:size-6!" onClick={() => play()}>
               {isPlaying ? <Icons.pause /> : <Icons.play />}
@@ -271,10 +271,18 @@ export function PublicEpisode({ page, standalone = false }: { page: EpisodePageD
           heading="Edit episode"
           description={`An episode of ${show.title}.`}
           imageContext={show.title}
-          details={{ title: episode.title, description: episode.description, imageUrl: episode.imageUrl, tags: episode.tags }}
+          details={{
+            title: episode.title,
+            description: episode.description,
+            imageUrl: episode.imageUrl,
+            tags: episode.tags,
+            private: episode.private,
+            kind: 'episode',
+          }}
           maxTitleLength={200}
-          onSave={async (change) => {
+          onSave={async ({ private: makePrivate, ...change }) => {
             await updateMyEpisode({ data: { id: episode.id, ...change } })
+            if (makePrivate !== undefined) await setMyEpisodePrivacy({ data: { id: episode.id, private: makePrivate } })
             await router.invalidate()
           }}
         />

@@ -20,7 +20,7 @@ import { findUpload, moveUploadToEpisode, type UploadedAudio } from '~/server/up
 import { commitImage, deleteImage } from '~/server/images.server'
 import { newDescription, sanitizeDescription } from '~/server/rich-text.server'
 import { syncEpisodeTags } from '~/server/tags-store.server'
-import { isPublicShow, showAuthor, showWhere, takesEpisodes, type ShowKey } from '~/server/shows.server'
+import { isPublicShow, showAuthor, showCredit, showWhere, takesEpisodes, type ShowKey } from '~/server/shows.server'
 import { deleteWaveform, readWaveform } from '~/server/waveforms.server'
 import { resample } from '~/lib/waveform'
 import type { BulkUploadEpisodesInput, EditEpisodeInput, NewEpisodeInput, ReplaceAudioInput } from '~/lib/episode-schema'
@@ -173,7 +173,11 @@ export async function listNeighbouringEpisodes(
 export async function getPublicEpisode(show: ShowKey, episodeSlug: string, listenerId: string | null) {
   const [row] = await db
     .select({
-      episode: listenerEpisodeColumns(listenerId),
+      episode: {
+        ...listenerEpisodeColumns(listenerId),
+        // Only its owner sees a private one; their Edit form shows it.
+        private: episodes.private,
+      },
       show: {
         id: shows.id,
         title: shows.title,
@@ -183,6 +187,7 @@ export async function getPublicEpisode(show: ShowKey, episodeSlug: string, liste
         feedKey: shows.feedKey,
         userId: shows.userId,
         author: showAuthor,
+        credit: showCredit,
         // The owner's profile, which the author's name links to.
         ownerSlug: users.slug,
         theme: shows.theme,

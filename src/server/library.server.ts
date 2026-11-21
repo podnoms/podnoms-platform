@@ -17,7 +17,7 @@ import {
   visibleTo,
   type Page,
 } from '~/server/episodes.server'
-import { isPublicShow, ownerNotExcluded, showArtwork, showAuthor, showFollowColumns, showVisibleTo } from '~/server/shows.server'
+import { isPublicShow, ownerNotExcluded, showArtwork, showAuthor, showCredit, showFollowColumns, showVisibleTo } from '~/server/shows.server'
 
 // The show an episode in a list across shows belongs to.
 const episodeShowColumns = {
@@ -28,6 +28,8 @@ const episodeShowColumns = {
     title: shows.title,
     imageUrl: shows.imageUrl,
     userId: shows.userId,
+    // Who it's by, for the row's byline (see showByline).
+    credit: showCredit,
   },
 }
 
@@ -145,6 +147,7 @@ function showCards(viewerId: string | null, { includeEmpty = false } = {}) {
       ownerSlug: users.slug,
       imageUrl: showArtwork,
       author: showAuthor,
+      credit: showCredit,
       episodeCount: count(episodes.id),
       latestAt,
       ...showFollowColumns(viewerId),

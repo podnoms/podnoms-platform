@@ -9,6 +9,17 @@ export const credentialsSchema = z.object({
 })
 export type Credentials = z.infer<typeof credentialsSchema>
 
+// Signing up with an email and password. The name is optional (OAuth sign-ups
+// usually bring one): without it, pages show the user's @slug instead.
+export const signUpSchema = credentialsSchema.extend({
+  name: z
+    .string()
+    .trim()
+    .max(100, 'Keep your name under 100 characters')
+    .optional()
+    .transform((value) => value || undefined),
+})
+
 // Setting a password on the security settings page. The current password is
 // needed only to change one, not to add one to an OAuth-only account.
 export const setPasswordSchema = z

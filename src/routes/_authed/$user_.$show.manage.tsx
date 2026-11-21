@@ -34,7 +34,7 @@ import {
 } from '~/components/ui/empty'
 import { ItemGroup } from '~/components/ui/item'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
-import { fetchMyShow, fetchMyShowEpisodes, updateMyShow } from '~/functions/shows'
+import { fetchMyShow, fetchMyShowEpisodes, setMyShowPrivacy, updateMyShow } from '~/functions/shows'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { useLiveProgress, withLiveProgress } from '~/hooks/use-episode-events'
 import { useLiveStart } from '~/hooks/use-live-events'
@@ -335,6 +335,8 @@ function ShowPage() {
           tags: show.tags,
           slug: show.slug,
           slugPrefix: `${show.ownerSlug}/`,
+          private: show.private,
+          kind: 'show',
         }}
         maxTitleLength={100}
         addressHint={
@@ -354,9 +356,10 @@ function ShowPage() {
             </>
           )
         }
-        onSave={async (change) => {
+        onSave={async ({ private: makePrivate, ...change }) => {
           const result = await updateMyShow({ data: { id: show.id, ...change } })
           if (result.error) return result.error
+          if (makePrivate !== undefined) await setMyShowPrivacy({ data: { id: show.id, private: makePrivate } })
           // To the new address first, as the old one has gone.
           if (change.slug) await navigate({ to: '/$user/$show/manage', params: showParams({ ...show, slug: change.slug }), replace: true })
           // The sidebar's shows are reloaded too, for their links.

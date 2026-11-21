@@ -13,12 +13,13 @@ import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '~/components/ui/empty'
 import { fetchShowEpisodes, fetchShowPage } from '~/functions/public'
-import { updateMyShow } from '~/functions/shows'
+import { setMyShowPrivacy, updateMyShow } from '~/functions/shows'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
 import { useLiveStart } from '~/hooks/use-live-events'
 import { isCustomDomain } from '~/lib/current-domain'
 import { formatDate, formatLength, pluralise } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
+import { showByline } from '~/lib/byline'
 import { showParams } from '~/lib/paths'
 import { directories } from '~/lib/podcast-directories'
 import { publicPageHead } from '~/lib/page-meta'
@@ -95,7 +96,7 @@ function ShowPage() {
     return link ? [{ directory, link }] : []
   })
   const stats = [
-    show.author && !onDomain ? <AuthorLink key="by" author={show.author} slug={show.ownerSlug} /> : null,
+    !onDomain ? <AuthorLink key="by" credit={show.credit} slug={show.ownerSlug} /> : null,
     `${summary.count} ${summary.count === 1 ? 'episode' : 'episodes'}`,
     totalSeconds ? formatLength(totalSeconds) : null,
     show.followerCount > 0 && !onDomain ? pluralise(show.followerCount, 'follower') : null,
@@ -227,12 +228,12 @@ function ShowPage() {
             </div>
           )}
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-            {show.author && !onDomain && (
+            {!onDomain && (
               <>
                 <dt className="text-muted-foreground">By</dt>
                 <dd className="text-end">
                   <Link to="/$user" params={{ user: show.ownerSlug }} className="hover:text-primary hover:underline">
-                    {show.author}
+                    {showByline(show)}
                   </Link>
                 </dd>
               </>
@@ -273,11 +274,14 @@ function ShowPage() {
             tags: show.tags,
             slug: show.slug,
             slugPrefix: `${show.ownerSlug}/`,
+            private: show.private,
+            kind: 'show',
           }}
           maxTitleLength={100}
-          onSave={async (change) => {
+          onSave={async ({ private: makePrivate, ...change }) => {
             const result = await updateMyShow({ data: { id: show.id, ...change } })
             if (result.error) return result.error
+            if (makePrivate !== undefined) await setMyShowPrivacy({ data: { id: show.id, private: makePrivate } })
             // To the new address first, as the old one has gone.
             if (change.slug) await navigate({ to: '/$user/$show', params: showParams({ ...show, slug: change.slug }), replace: true })
             // The sidebar's shows are reloaded too, for their links.

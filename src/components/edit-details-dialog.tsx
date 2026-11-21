@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { ImageField, imageIdToSave, type ImageValue } from '~/components/image-field'
 import { RichTextEditor } from '~/components/rich-text-editor'
+import { PaidFeatureNotice, usePaidAccess } from '~/components/paid-feature-notice'
 import { TagInput } from '~/components/tag-input'
 import { Button } from '~/components/ui/button'
 import {
@@ -12,8 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '~/components/ui/dialog'
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
+import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
+import { Switch } from '~/components/ui/switch'
 import { showSlugField } from '~/lib/show-schema'
 
 export type Details = {
@@ -25,6 +27,11 @@ export type Details = {
   slug?: string
   // What comes before it in the address, after the host: the owner's slug.
   slugPrefix?: string
+  // Its privacy, which the form then lets the owner change: a show's (see
+  // setShowPrivacy; making one private is a paid feature) or an episode's
+  // (setEpisodePrivacy), as `kind` says.
+  private?: boolean
+  kind?: 'show' | 'episode'
 }
 
 export type DetailsChange = {
@@ -35,6 +42,8 @@ export type DetailsChange = {
   imageId: string | null | undefined
   // Only given when it's changed.
   slug?: string
+  // Only given when it's changed; the caller saves it (setMyShowPrivacy or setMyEpisodePrivacy).
+  private?: boolean
 }
 
 // Edits the title, artwork, description and tags of a show or an episode.
@@ -105,6 +114,13 @@ function DetailsForm({
   const [tags, setTags] = useState(details.tags?.map((tag) => tag.name) ?? [])
   const [slug, setSlug] = useState(details.slug ?? '')
   const slugChanged = details.slug !== undefined && slug.trim().toLowerCase() !== details.slug
+  const isShow = details.kind !== 'episode'
+  // Only making a show private needs paid access; episodes are free, and a
+  // private show can always be made public.
+  const paidAccess = usePaidAccess()
+  const privacyLocked = isShow && !paidAccess && !details.private
+  const [isPrivate, setIsPrivate] = useState(details.private ?? false)
+  const privacyChanged = details.private !== undefined && isPrivate !== details.private
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string>()
 
@@ -128,6 +144,7 @@ function DetailsForm({
         imageId: imageIdToSave(image),
         tags,
         ...(newSlug && { slug: newSlug.data }),
+        ...(privacyChanged && { private: isPrivate }),
       })
       if (refused) return setError(refused)
       onSaved()
@@ -201,6 +218,27 @@ function DetailsForm({
               />
             </Field>
             <TagInput id="details-tags" value={tags} onChange={setTags} disabled={pending} />
+            {details.private !== undefined && (
+              <>
+                {privacyLocked && <PaidFeatureNotice feature="privateShows" />}
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldLabel htmlFor="details-private">{isShow ? 'Private show' : 'Private episode'}</FieldLabel>
+                    <FieldDescription>
+                      {isShow
+                        ? "Only you can see it and its episodes: it's left out of Explore, search, other people's feeds and directories. Listeners you choose can still subscribe with its private feed URL, which you'll find under Privacy on its manage page."
+                        : "Only you can see it: it's left out of the show's page and feed, Explore, search and other people's feeds, and its share link stops working for anyone else."}
+                    </FieldDescription>
+                  </FieldContent>
+                  <Switch
+                    id="details-private"
+                    checked={isPrivate}
+                    disabled={pending || privacyLocked}
+                    onCheckedChange={setIsPrivate}
+                  />
+                </Field>
+              </>
+            )}
             {error && <FieldError>{error}</FieldError>}
           </FieldGroup>
         </div>

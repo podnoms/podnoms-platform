@@ -254,6 +254,18 @@ describe('updateShow', () => {
 })
 
 describe('getPublicShow', () => {
+  it("treats a blank author or name as none, so the page shows the owner's @slug", async () => {
+    const user = await createUser({ name: '' })
+    await insertShow(user.id, { slug: 'blank', author: ' ' })
+    expect(await getPublicShow({ ownerSlug: user.slug, slug: 'blank' }, null)).toMatchObject({ author: null })
+  })
+
+  it("uses the owner's name when the show has no author", async () => {
+    const user = await createUser({ name: 'Ada' })
+    await insertShow(user.id, { slug: 'named', author: '' })
+    expect(await getPublicShow({ ownerSlug: user.slug, slug: 'named' }, null)).toMatchObject({ author: 'Ada' })
+  })
+
   it('finds any show by slug, with its author', async () => {
     const user = await createUser({ name: 'Ada' })
     const show = await insertShow(user.id, { slug: 'show', title: 'Show', category: 'Music' })
@@ -269,6 +281,7 @@ describe('getPublicShow', () => {
       private: false,
       feedKey: null,
       author: 'Ada',
+      credit: null,
       ownerSlug: user.slug,
       directoryLinks: {},
       theme: null,
@@ -279,7 +292,7 @@ describe('getPublicShow', () => {
 
   it("prefers the show's own author to the owner's name", async () => {
     const show = await insertShow((await createUser({ name: 'Ada' })).id, { slug: 'show', author: 'The Show Team' })
-    expect(await getPublicShow({ id: show.id }, null)).toMatchObject({ author: 'The Show Team' })
+    expect(await getPublicShow({ id: show.id }, null)).toMatchObject({ author: 'The Show Team', credit: 'The Show Team' })
   })
 
   it('shows private shows only to their owner', async () => {
