@@ -20,6 +20,7 @@ import { getOpenBroadcast, liveEnabled } from '~/server/live.server'
 import { publicUrl } from '~/server/site-url.server'
 import { catchAudioLimit } from '~/server/subscriptions.server'
 import { getShowChannel } from '~/server/channels.server'
+import { enabledCloudProviders } from '~/server/cloud-storage.server'
 import { listComments } from '~/server/comments.server'
 import {
   catchDomainError,
@@ -148,6 +149,8 @@ export const fetchMyShow = createServerFn({ method: 'GET' })
       // broadcasting now.
       liveEnabled: liveEnabled(),
       live: broadcast !== null,
+      // The cloud storage folders can be uploaded from (see cloud-storage.server.ts).
+      cloudStorage: enabledCloudProviders(),
     }
   })
 

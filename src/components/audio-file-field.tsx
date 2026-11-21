@@ -4,6 +4,7 @@ import { Icons } from '~/components/icons'
 import { Button } from '~/components/ui/button'
 import { Field, FieldDescription, FieldLabel } from '~/components/ui/field'
 import { Progress } from '~/components/ui/progress'
+import { byFileName, isAudioFileName } from '~/lib/audio-files'
 import { maxUploadBytes } from '~/lib/episode-schema'
 import { formatBytes, formatClock } from '~/lib/format'
 import { isAbort, uploadFileInParts } from '~/lib/upload'
@@ -60,21 +61,35 @@ export function useAudioUpload(onUploaded?: (result: UploadedAudio) => void) {
   return { upload, fileInput, clear, onFileChosen }
 }
 
+// Something to upload with several others: a file chosen on this computer, or
+// one in cloud storage that the server copies across. `send` starts it,
+// reporting progress as it goes, or null while there's none to report.
+export type UploadItem = {
+  name: string
+  size: number
+  // Where it is in the folder chosen, for the list.
+  path: string
+  send: (onProgress: (percent: number) => void) => { done: Promise<UploadedAudio>; abort: () => void }
+}
+
 // One of several files being uploaded, waiting its turn to begin with.
-export type QueuedAudioUpload = { id: string } & (
-  | { status: 'queued'; file: File }
-  | Exclude<AudioUpload, { status: 'idle' }>
+export type QueuedAudioUpload = { id: string; item: UploadItem } & (
+  | { status: 'queued' }
+  | { status: 'uploading'; percent: number | null; abort: () => void }
+  | { status: 'ready'; result: UploadedAudio }
+  | { status: 'failed'; message: string }
 )
 
-// Files a folder holds besides its audio (artwork, playlists, notes) are left
-// out. Some systems give no type for formats like FLAC or Opus, hence the
-// extensions; names starting with a dot are hidden files, e.g. macOS's "._" ones.
-const audioExtension = /\.(mp3|m4a|m4b|aac|wav|flac|ogg|oga|opus|wma|aiff?|mp4|m4v|mkv|webm|mov|avi)$/i
-const isAudioOrVideo = (file: File) =>
-  !file.name.startsWith('.') && (/^(audio|video)\//.test(file.type) || audioExtension.test(file.name))
+// A file on this computer, sent to /api/uploads.
+export const localUploadItem = (file: File): UploadItem => ({
+  name: file.name,
+  size: file.size,
+  path: file.webkitRelativePath || file.name,
+  send: (onProgress) => uploadFileInParts<UploadedAudio>(file, onProgress),
+})
 
-// Several audio files (e.g. a folder of them) uploaded to /api/uploads, a few
-// at a time, in name order, for BulkUploadDialog.
+// Several audio files (e.g. a folder of them) uploaded a few at a time, in
+// name order, for BulkUploadDialog.
 export function useAudioUploads(maxFiles: number, concurrency = 2) {
   const [uploads, setUploads] = useState<QueuedAudioUpload[]>([])
   const current = useRef(uploads)
@@ -83,17 +98,17 @@ export function useAudioUploads(maxFiles: number, concurrency = 2) {
   const update = (id: string, change: (upload: QueuedAudioUpload) => QueuedAudioUpload) =>
     setUploads((list) => list.map((upload) => (upload.id === id ? change(upload) : upload)))
 
-  function start(id: string, file: File) {
-    const { done, abort } = uploadFileInParts<UploadedAudio>(file, (percent) =>
+  function start(id: string, item: UploadItem) {
+    const { done, abort } = item.send((percent) =>
       update(id, (upload) => (upload.status === 'uploading' ? { ...upload, percent } : upload)),
     )
-    update(id, () => ({ id, status: 'uploading', file, percent: 0, abort }))
+    update(id, () => ({ id, item, status: 'uploading', percent: null, abort }))
     done.then(
-      (result) => update(id, (upload) => (upload.status === 'uploading' ? { id, status: 'ready', file, result } : upload)),
+      (result) => update(id, (upload) => (upload.status === 'uploading' ? { id, item, status: 'ready', result } : upload)),
       (error) => {
         if (isAbort(error)) return
         const message = error instanceof Error ? error.message : String(error)
-        update(id, (upload) => (upload.status === 'uploading' ? { id, status: 'failed', file, message } : upload))
+        update(id, (upload) => (upload.status === 'uploading' ? { id, item, status: 'failed', message } : upload))
       },
     )
   }
@@ -102,27 +117,31 @@ export function useAudioUploads(maxFiles: number, concurrency = 2) {
   useEffect(() => {
     const running = uploads.filter((upload) => upload.status === 'uploading').length
     const next = uploads.filter((upload) => upload.status === 'queued').slice(0, Math.max(0, concurrency - running))
-    for (const upload of next) start(upload.id, upload.file)
+    for (const upload of next) start(upload.id, upload.item)
   }, [uploads, concurrency])
 
   // Uploads still going when the form goes away are stopped.
   useEffect(() => () => clear(), [])
 
   // Queues the audio among the files chosen. Returns how many were left out
-  // for not being audio, or for going over maxFiles.
+  // for not being audio (artwork, playlists, notes), or for going over maxFiles.
   function add(files: File[]) {
-    const audio = files
-      .filter(isAudioOrVideo)
-      .sort((a, b) => (a.webkitRelativePath || a.name).localeCompare(b.webkitRelativePath || b.name, undefined, { numeric: true }))
+    const audio = files.filter((file) => isAudioFileName(file.name, file.type)).map(localUploadItem)
+    return { ...addItems(audio), notAudio: files.length - audio.length }
+  }
+
+  // Queues files that are all audio. Returns how many went over maxFiles.
+  function addItems(items: UploadItem[]) {
+    const sorted = [...items].sort((a, b) => byFileName(a.path, b.path))
     const room = Math.max(0, maxFiles - current.current.length)
-    const added: QueuedAudioUpload[] = audio.slice(0, room).map((file) => {
+    const added: QueuedAudioUpload[] = sorted.slice(0, room).map((item) => {
       const id = crypto.randomUUID()
-      return file.size > maxUploadBytes
-        ? { id, status: 'failed', file, message: `That file is too big. The limit is ${formatBytes(maxUploadBytes)}.` }
-        : { id, status: 'queued', file }
+      return item.size > maxUploadBytes
+        ? { id, item, status: 'failed', message: `That file is too big. The limit is ${formatBytes(maxUploadBytes)}.` }
+        : { id, item, status: 'queued' }
     })
     setUploads((list) => [...list, ...added])
-    return { notAudio: files.length - audio.length, overLimit: audio.length - added.length }
+    return { notAudio: 0, overLimit: sorted.length - added.length }
   }
 
   function remove(id: string) {
@@ -136,7 +155,7 @@ export function useAudioUploads(maxFiles: number, concurrency = 2) {
     setUploads([])
   }
 
-  return { uploads, add, remove, clear }
+  return { uploads, add, addItems, remove, clear }
 }
 
 // Choosing an audio file, with its upload's progress, or what's wrong with it.

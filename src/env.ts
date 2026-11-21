@@ -158,6 +158,18 @@ export const env = createEnv({
     PATREON_WEBHOOK_SECRET: z.string().optional(),
     PATREON_CAMPAIGN_ID: z.string().optional(),
     PATREON_URL: z.url().optional(),
+    // Uploading folders of audio from cloud storage (see
+    // cloud-storage.server.ts); each is offered when both of its values are set.
+    // Dropbox: an app from dropbox.com/developers/apps with the
+    // files.metadata.read and files.content.read scopes and
+    // <site>/api/cloud/dropbox/callback as a redirect URI.
+    // Box: a "User Authentication (OAuth 2.0)" app from
+    // app.box.com/developers/console with "Read all files and folders" and
+    // <site>/api/cloud/box/callback as its redirect URI.
+    DROPBOX_APP_KEY: z.string().optional(),
+    DROPBOX_APP_SECRET: z.string().optional(),
+    BOX_CLIENT_ID: z.string().optional(),
+    BOX_CLIENT_SECRET: z.string().optional(),
     LIVE_RTMP_URL: z.string().regex(/^rtmps?:\/\//, 'Must be an rtmp:// or rtmps:// URL').optional(),
   },
   clientPrefix: 'VITE_',

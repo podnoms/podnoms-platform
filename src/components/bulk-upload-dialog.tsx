@@ -1,6 +1,7 @@
-import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { useRouter } from '@tanstack/react-router'
-import { useAudioUploads, type QueuedAudioUpload } from '~/components/audio-file-field'
+import { useAudioUploads, type QueuedAudioUpload, type UploadItem } from '~/components/audio-file-field'
+import { CloudFolderPicker } from '~/components/cloud-folder-picker'
 import { Icons } from '~/components/icons'
 import { Button } from '~/components/ui/button'
 import {
@@ -11,28 +12,102 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '~/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu'
 import { FieldDescription, FieldError } from '~/components/ui/field'
 import { Input } from '~/components/ui/input'
 import { Progress } from '~/components/ui/progress'
 import { createMyEpisodes } from '~/functions/shows'
+import { cloudProviderNames, type CloudProvider } from '~/lib/cloud-storage'
 import { bulkUploadEpisodesSchema, maxBulkUploadFiles, maxUploadBytes } from '~/lib/episode-schema'
 import { formatBytes, formatClock } from '~/lib/format'
 
-// Wraps a trigger (a button) that opens a form for uploading a folder of audio
-// files (or several chosen at once), each to become an episode of the show.
-export function BulkUploadDialog({ showId, children }: { showId: string; children: ReactNode }) {
+// Where a folder is uploaded from: this computer, or cloud storage.
+export type FolderSource = 'computer' | CloudProvider
+
+// The Upload folder button: a menu of where from when cloud storage is set up
+// (`providers`, see cloud-storage.server.ts), else straight to this computer's.
+export function UploadFolderButton({
+  showId,
+  providers,
+  className,
+}: {
+  showId: string
+  providers: CloudProvider[]
+  className?: string
+}) {
+  const [source, setSource] = useState<FolderSource>()
+  const label = (
+    <>
+      <Icons.uploadFolder />
+      Upload folder
+    </>
+  )
+  return (
+    <>
+      {providers.length === 0 ? (
+        <Button variant="outline" className={className} onClick={() => setSource('computer')}>
+          {label}
+        </Button>
+      ) : (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className={className}>
+              {label}
+              <Icons.chevronDown />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => setSource('computer')}>
+              <Icons.computer />
+              From this computer
+            </DropdownMenuItem>
+            {providers.map((provider) => (
+              <DropdownMenuItem key={provider} onSelect={() => setSource(provider)}>
+                <Icons.cloud />
+                From {cloudProviderNames[provider]}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+      <BulkUploadDialog
+        showId={showId}
+        source={source ?? 'computer'}
+        open={source !== undefined}
+        onOpenChange={(open) => !open && setSource(undefined)}
+      />
+    </>
+  )
+}
+
+// A form for uploading a folder of audio files (or several chosen at once),
+// from this computer or cloud storage, each to become an episode of the show.
+export function BulkUploadDialog({
+  showId,
+  source,
+  open,
+  onOpenChange,
+}: {
+  showId: string
+  source: FolderSource
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const router = useRouter()
   const folderInput = useRef<HTMLInputElement>(null)
   const filesInput = useRef<HTMLInputElement>(null)
-  const [open, setOpen] = useState(false)
   // Titles the user has typed, by upload; the others use the file's own title.
   const [titles, setTitles] = useState<Record<string, string>>({})
   const [notice, setNotice] = useState<string>()
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string>()
-  const { uploads, add, remove, clear } = useAudioUploads(maxBulkUploadFiles)
+  const { uploads, add, addItems, remove, clear } = useAudioUploads(maxBulkUploadFiles)
 
   const ready = uploads.filter((upload) => upload.status === 'ready')
   const busy = uploads.some((upload) => upload.status === 'queued' || upload.status === 'uploading')
@@ -41,7 +116,11 @@ export function BulkUploadDialog({ showId, children }: { showId: string; childre
     const files = [...(event.target.files ?? [])]
     event.target.value = ''
     if (files.length === 0) return
-    const { notAudio, overLimit } = add(files)
+    explain(add(files))
+  }
+
+  // Says what was left out of the files just added.
+  function explain({ notAudio, overLimit }: { notAudio: number; overLimit: number }) {
     setError(undefined)
     setNotice(
       [
@@ -70,7 +149,7 @@ export function BulkUploadDialog({ showId, children }: { showId: string; childre
         setError(saved.error)
         return
       }
-      setOpen(false)
+      onOpenChange(false)
       clear()
       // Reload the show page so the new episodes are listed.
       await router.invalidate()
@@ -85,55 +164,63 @@ export function BulkUploadDialog({ showId, children }: { showId: string; childre
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        setOpen(next)
-        if (next) {
+        onOpenChange(next)
+        if (!next) {
+          clear()
           setError(undefined)
           setNotice(undefined)
           setTitles({})
-        } else {
-          clear()
         }
       }}
     >
-      <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Upload a folder</DialogTitle>
+          <DialogTitle>
+            {source === 'computer' ? 'Upload a folder' : `Upload a folder from ${cloudProviderNames[source]}`}
+          </DialogTitle>
           <DialogDescription>
             Each audio file becomes an episode, in the order of the files' names. They're turned into episodes in the
             background, so you can carry on meanwhile.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap gap-2">
-            {/* webkitdirectory picks a whole folder; React doesn't know the attribute, so it's set directly. */}
-            <input
-              ref={(input) => {
-                folderInput.current = input
-                input?.setAttribute('webkitdirectory', '')
-              }}
-              type="file"
-              multiple
-              className="sr-only"
-              onChange={onFilesChosen}
+          {source === 'computer' ? (
+            <div className="flex flex-wrap gap-2">
+              {/* webkitdirectory picks a whole folder; React doesn't know the attribute, so it's set directly. */}
+              <input
+                ref={(input) => {
+                  folderInput.current = input
+                  input?.setAttribute('webkitdirectory', '')
+                }}
+                type="file"
+                multiple
+                className="sr-only"
+                onChange={onFilesChosen}
+              />
+              <input
+                ref={filesInput}
+                type="file"
+                multiple
+                accept="audio/*,video/*"
+                className="sr-only"
+                onChange={onFilesChosen}
+              />
+              <Button type="button" variant="outline" onClick={() => folderInput.current?.click()}>
+                <Icons.uploadFolder />
+                Choose folder
+              </Button>
+              <Button type="button" variant="outline" onClick={() => filesInput.current?.click()}>
+                <Icons.upload />
+                Choose files
+              </Button>
+            </div>
+          ) : (
+            <CloudFolderPicker
+              key={source}
+              provider={source}
+              onChoose={(items: UploadItem[]) => explain(addItems(items))}
             />
-            <input
-              ref={filesInput}
-              type="file"
-              multiple
-              accept="audio/*,video/*"
-              className="sr-only"
-              onChange={onFilesChosen}
-            />
-            <Button type="button" variant="outline" onClick={() => folderInput.current?.click()}>
-              <Icons.uploadFolder />
-              Choose folder
-            </Button>
-            <Button type="button" variant="outline" onClick={() => filesInput.current?.click()}>
-              <Icons.upload />
-              Choose files
-            </Button>
-          </div>
+          )}
           <FieldDescription>
             Up to {maxBulkUploadFiles} files, each up to {formatBytes(maxUploadBytes)}. Anything that isn't audio or
             video, like artwork, is left out.
@@ -179,15 +266,19 @@ function UploadRow({
   onTitleChange: (title: string) => void
   onRemove: () => void
 }) {
+  const { item } = upload
+  // Files copied from cloud storage have no progress to show.
   const detail =
     upload.status === 'queued'
       ? 'Waiting…'
       : upload.status === 'uploading'
-        ? upload.percent < 100
-          ? `${upload.percent}%`
-          : 'Checking…'
+        ? upload.percent === null
+          ? 'Copying…'
+          : upload.percent < 100
+            ? `${upload.percent}%`
+            : 'Checking…'
         : upload.status === 'ready'
-          ? [formatBytes(upload.file.size), upload.result.durationSeconds ? formatClock(upload.result.durationSeconds) : null]
+          ? [formatBytes(item.size), upload.result.durationSeconds ? formatClock(upload.result.durationSeconds) : null]
               .filter(Boolean)
               .join(' · ')
           : null
@@ -198,14 +289,14 @@ function UploadRow({
         <Icons.audioFile className="size-4 shrink-0 text-muted-foreground" />
         {upload.status === 'ready' ? (
           <Input
-            aria-label={`Title for ${upload.file.name}`}
+            aria-label={`Title for ${item.name}`}
             className="h-8 min-w-0 flex-1"
             maxLength={200}
             value={title ?? upload.result.title}
             onChange={(event) => onTitleChange(event.target.value)}
           />
         ) : (
-          <span className="min-w-0 flex-1 truncate">{upload.file.name}</span>
+          <span className="min-w-0 flex-1 truncate">{item.name}</span>
         )}
         {detail && <span className="shrink-0 text-muted-foreground tabular-nums">{detail}</span>}
         <Button type="button" variant="ghost" size="icon-sm" onClick={onRemove}>
@@ -214,10 +305,13 @@ function UploadRow({
         </Button>
       </div>
       {upload.status === 'ready' && (
-        <span className="truncate text-xs text-muted-foreground">{upload.file.webkitRelativePath || upload.file.name}</span>
+        <span className="truncate text-xs text-muted-foreground">{item.path}</span>
       )}
       {upload.status === 'uploading' && (
-        <Progress value={upload.percent} className={upload.percent === 100 ? 'animate-pulse' : undefined} />
+        <Progress
+          value={upload.percent ?? 100}
+          className={upload.percent === null || upload.percent === 100 ? 'animate-pulse' : undefined}
+        />
       )}
       {upload.status === 'failed' && <p className="text-sm text-destructive">{upload.message}</p>}
     </li>

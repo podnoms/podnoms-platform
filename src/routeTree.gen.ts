@@ -63,6 +63,8 @@ import { Route as ApiBillingPatreonCallbackRouteImport } from './routes/api/bill
 import { Route as ApiBillingPatreonConnectRouteImport } from './routes/api/billing/patreon/connect'
 import { Route as ApiBillingPatreonWebhookRouteImport } from './routes/api/billing/patreon/webhook'
 import { Route as ApiBillingStripeWebhookRouteImport } from './routes/api/billing/stripe/webhook'
+import { Route as ApiCloudProviderCallbackRouteImport } from './routes/api/cloud/$provider/callback'
+import { Route as ApiCloudProviderConnectRouteImport } from './routes/api/cloud/$provider/connect'
 import { Route as ApiEpisodesIdActivityRouteImport } from './routes/api/episodes/$id/activity'
 import { Route as ApiEpisodesIdAudioRouteImport } from './routes/api/episodes/$id/audio'
 import { Route as ApiEpisodesIdAudioDotmp3RouteImport } from './routes/api/episodes/$id/audio[.]mp3'
@@ -374,6 +376,17 @@ const ApiBillingStripeWebhookRoute = ApiBillingStripeWebhookRouteImport.update({
   path: '/api/billing/stripe/webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCloudProviderCallbackRoute =
+  ApiCloudProviderCallbackRouteImport.update({
+    id: '/api/cloud/$provider/callback',
+    path: '/api/cloud/$provider/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiCloudProviderConnectRoute = ApiCloudProviderConnectRouteImport.update({
+  id: '/api/cloud/$provider/connect',
+  path: '/api/cloud/$provider/connect',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiEpisodesIdActivityRoute = ApiEpisodesIdActivityRouteImport.update({
   id: '/api/episodes/$id/activity',
   path: '/api/episodes/$id/activity',
@@ -624,6 +637,8 @@ export interface FileRoutesByFullPath {
   '/api/billing/patreon/connect': typeof ApiBillingPatreonConnectRoute
   '/api/billing/patreon/webhook': typeof ApiBillingPatreonWebhookRoute
   '/api/billing/stripe/webhook': typeof ApiBillingStripeWebhookRoute
+  '/api/cloud/$provider/callback': typeof ApiCloudProviderCallbackRoute
+  '/api/cloud/$provider/connect': typeof ApiCloudProviderConnectRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/episodes/$id/audio.mp3': typeof ApiEpisodesIdAudioDotmp3Route
@@ -713,6 +728,8 @@ export interface FileRoutesByTo {
   '/api/billing/patreon/connect': typeof ApiBillingPatreonConnectRoute
   '/api/billing/patreon/webhook': typeof ApiBillingPatreonWebhookRoute
   '/api/billing/stripe/webhook': typeof ApiBillingStripeWebhookRoute
+  '/api/cloud/$provider/callback': typeof ApiCloudProviderCallbackRoute
+  '/api/cloud/$provider/connect': typeof ApiCloudProviderConnectRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/episodes/$id/audio.mp3': typeof ApiEpisodesIdAudioDotmp3Route
@@ -805,6 +822,8 @@ export interface FileRoutesById {
   '/api/billing/patreon/connect': typeof ApiBillingPatreonConnectRoute
   '/api/billing/patreon/webhook': typeof ApiBillingPatreonWebhookRoute
   '/api/billing/stripe/webhook': typeof ApiBillingStripeWebhookRoute
+  '/api/cloud/$provider/callback': typeof ApiCloudProviderCallbackRoute
+  '/api/cloud/$provider/connect': typeof ApiCloudProviderConnectRoute
   '/api/episodes/$id/activity': typeof ApiEpisodesIdActivityRoute
   '/api/episodes/$id/audio': typeof ApiEpisodesIdAudioRoute
   '/api/episodes/$id/audio.mp3': typeof ApiEpisodesIdAudioDotmp3Route
@@ -897,6 +916,8 @@ export interface FileRouteTypes {
     | '/api/billing/patreon/connect'
     | '/api/billing/patreon/webhook'
     | '/api/billing/stripe/webhook'
+    | '/api/cloud/$provider/callback'
+    | '/api/cloud/$provider/connect'
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
     | '/api/episodes/$id/audio.mp3'
@@ -986,6 +1007,8 @@ export interface FileRouteTypes {
     | '/api/billing/patreon/connect'
     | '/api/billing/patreon/webhook'
     | '/api/billing/stripe/webhook'
+    | '/api/cloud/$provider/callback'
+    | '/api/cloud/$provider/connect'
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
     | '/api/episodes/$id/audio.mp3'
@@ -1077,6 +1100,8 @@ export interface FileRouteTypes {
     | '/api/billing/patreon/connect'
     | '/api/billing/patreon/webhook'
     | '/api/billing/stripe/webhook'
+    | '/api/cloud/$provider/callback'
+    | '/api/cloud/$provider/connect'
     | '/api/episodes/$id/activity'
     | '/api/episodes/$id/audio'
     | '/api/episodes/$id/audio.mp3'
@@ -1158,6 +1183,8 @@ export interface RootRouteChildren {
   ApiBillingPatreonConnectRoute: typeof ApiBillingPatreonConnectRoute
   ApiBillingPatreonWebhookRoute: typeof ApiBillingPatreonWebhookRoute
   ApiBillingStripeWebhookRoute: typeof ApiBillingStripeWebhookRoute
+  ApiCloudProviderCallbackRoute: typeof ApiCloudProviderCallbackRoute
+  ApiCloudProviderConnectRoute: typeof ApiCloudProviderConnectRoute
   ApiEpisodesIdActivityRoute: typeof ApiEpisodesIdActivityRoute
   ApiEpisodesIdAudioRoute: typeof ApiEpisodesIdAudioRoute
   ApiEpisodesIdAudioDotmp3Route: typeof ApiEpisodesIdAudioDotmp3Route
@@ -1574,6 +1601,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBillingStripeWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cloud/$provider/callback': {
+      id: '/api/cloud/$provider/callback'
+      path: '/api/cloud/$provider/callback'
+      fullPath: '/api/cloud/$provider/callback'
+      preLoaderRoute: typeof ApiCloudProviderCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cloud/$provider/connect': {
+      id: '/api/cloud/$provider/connect'
+      path: '/api/cloud/$provider/connect'
+      fullPath: '/api/cloud/$provider/connect'
+      preLoaderRoute: typeof ApiCloudProviderConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/episodes/$id/activity': {
       id: '/api/episodes/$id/activity'
       path: '/api/episodes/$id/activity'
@@ -1909,6 +1950,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBillingPatreonConnectRoute: ApiBillingPatreonConnectRoute,
   ApiBillingPatreonWebhookRoute: ApiBillingPatreonWebhookRoute,
   ApiBillingStripeWebhookRoute: ApiBillingStripeWebhookRoute,
+  ApiCloudProviderCallbackRoute: ApiCloudProviderCallbackRoute,
+  ApiCloudProviderConnectRoute: ApiCloudProviderConnectRoute,
   ApiEpisodesIdActivityRoute: ApiEpisodesIdActivityRoute,
   ApiEpisodesIdAudioRoute: ApiEpisodesIdAudioRoute,
   ApiEpisodesIdAudioDotmp3Route: ApiEpisodesIdAudioDotmp3Route,

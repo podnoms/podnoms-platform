@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { createFileRoute, Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { ActivityPanel } from '~/components/activity-panel'
-import { BulkUploadDialog } from '~/components/bulk-upload-dialog'
+import { UploadFolderButton } from '~/components/bulk-upload-dialog'
 import { ChannelPanel } from '~/components/channel-panel'
 import { CustomDomainCard } from '~/components/custom-domain-card'
 import { DeleteShowDialog } from '~/components/delete-show-dialog'
@@ -95,12 +95,7 @@ function ShowPage() {
   const newEpisodeButtons = show.channel ? null : (
     <>
       {/* Picking a folder of audio isn't something people do on a phone. */}
-      <BulkUploadDialog showId={show.id}>
-        <Button variant="outline" className="max-md:hidden">
-          <Icons.uploadFolder />
-          Upload folder
-        </Button>
-      </BulkUploadDialog>
+      <UploadFolderButton showId={show.id} providers={show.cloudStorage} className="max-md:hidden" />
       <NewEpisodeDialog showId={show.id} showTitle={show.title}>
         <Button>
           <Icons.add />
