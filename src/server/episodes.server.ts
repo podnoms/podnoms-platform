@@ -1,6 +1,7 @@
 import '@tanstack/react-start/server-only'
 import { rm } from 'node:fs/promises'
-import { and, count, desc, eq, isNotNull, isNull, max, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, ilike, isNotNull, isNull, max, or, sql } from 'drizzle-orm'
+import { containing } from '~/lib/like-pattern'
 import { db } from '~/server/db/client.server'
 import { hasPaidAccess, requireAudioRoom } from '~/server/subscriptions.server'
 import { archiveDeletedShow, writeDeletedShowManifest } from '~/server/deleted-shows.server'
@@ -20,7 +21,7 @@ import { findUpload, moveUploadToEpisode, type UploadedAudio } from '~/server/up
 import { commitImage, deleteImage } from '~/server/images.server'
 import { newDescription, sanitizeDescription } from '~/server/rich-text.server'
 import { syncEpisodeTags } from '~/server/tags-store.server'
-import { isPublicShow, showAuthor, showCredit, showWhere, takesEpisodes, type ShowKey } from '~/server/shows.server'
+import { isPublicShow, showArtwork, showAuthor, showCredit, showWhere, takesEpisodes, type ShowKey } from '~/server/shows.server'
 import { deleteWaveform, readWaveform } from '~/server/waveforms.server'
 import { resample } from '~/lib/waveform'
 import type { BulkUploadEpisodesInput, EditEpisodeInput, NewEpisodeInput, ReplaceAudioInput } from '~/lib/episode-schema'
@@ -107,12 +108,14 @@ export function listenerPosition(listenerId: string | null) {
 export type Page = { offset: number; limit: number }
 
 // A show's published episodes, for its public page: all of them, or a page.
-export function listPublishedEpisodes(showId: string, listenerId: string | null, page?: Page) {
+// With a titleQuery, only those whose titles contain it, ignoring case.
+export function listPublishedEpisodes(showId: string, listenerId: string | null, page?: Page & { titleQuery?: string }) {
+  const titleQuery = page?.titleQuery?.trim()
   const query = db
     .select({ ...listenerEpisodeColumns(listenerId), played: playedBy(listenerId) })
     .from(episodes)
     .leftJoin(playbackPositions, listenerPosition(listenerId))
-    .where(and(eq(episodes.showId, showId), isListed))
+    .where(and(eq(episodes.showId, showId), isListed, titleQuery ? ilike(episodes.title, containing(titleQuery)) : undefined))
     // By id too, so pages split ties the same way each time.
     .orderBy(newestPublishedFirst, desc(episodes.id))
   return page ? query.offset(page.offset).limit(page.limit) : query
@@ -182,7 +185,7 @@ export async function getPublicEpisode(show: ShowKey, episodeSlug: string, liste
         id: shows.id,
         title: shows.title,
         slug: shows.slug,
-        imageUrl: shows.imageUrl,
+        imageUrl: showArtwork,
         private: shows.private,
         feedKey: shows.feedKey,
         userId: shows.userId,
@@ -292,7 +295,7 @@ export async function getEpisode(userId: string, showSlug: string, episodeSlug: 
         title: shows.title,
         slug: shows.slug,
         ownerSlug: users.slug,
-        imageUrl: shows.imageUrl,
+        imageUrl: showArtwork,
         private: shows.private,
       },
     })

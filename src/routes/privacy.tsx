@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { ContactLink, LegalPage, LegalSection } from '~/components/legal-page'
 import { brandingFrom, useBranding, withSiteName } from '~/lib/branding'
 import { siteHead } from '~/lib/page-meta'
@@ -26,7 +26,7 @@ function PrivacyPage() {
   const branding = useBranding()
   const { name } = branding
   return (
-    <LegalPage title="Privacy policy" updated="9 October 2026" html={branding.privacyHtml}>
+    <LegalPage title="Privacy policy" updated="27 November 2026" html={branding.privacyHtml}>
       <p>
         This policy explains what {name} collects when you use the site, why, and what you can do about it. If anything
         here is unclear, email <ContactLink />.
@@ -50,7 +50,17 @@ function PrivacyPage() {
           <li>
             <strong>Listening activity:</strong> plays, downloads and shares of episodes, with the listener's country,
             region and city, app and referring site. Listeners are told apart by a hash of their IP address and browser,
-            salted with a random value that changes daily and is then deleted. We don't keep IP addresses.
+            salted with a random value that changes daily and is then deleted. We don't keep IP addresses. Show owners
+            see only these anonymous totals, never who listened.
+          </li>
+          <li>
+            <strong>Your listening history:</strong> while you're signed in, the episodes you play, download and share,
+            and when, are recorded against your account, so {name}'s administrators can understand how the site is
+            used. Show owners can't see it. You can turn this off at any time in{' '}
+            <Link to="/settings/privacy" className="underline underline-offset-4">
+              Settings → Privacy
+            </Link>
+            , which also deletes what's been kept.
           </li>
           <li>
             <strong>Tracked links:</strong> a show's owner can make a link to an episode for a particular person. When
@@ -67,7 +77,7 @@ function PrivacyPage() {
       <LegalSection title="How we use it">
         <p>
           We use your data only to run {name}: to sign you in, build and serve your shows and feeds, show you
-          statistics about your listeners, keep the service secure and fix problems. We don't sell your data or use it for
+          statistics about your listeners, understand how the site is used, keep the service secure and fix problems. We don't sell your data or use it for
           advertising.
         </p>
       </LegalSection>
@@ -94,7 +104,8 @@ function PrivacyPage() {
         <p>
           We keep your account and content until you delete them or ask us to delete your account. Uploads that are
           never turned into episodes are removed after a day. Logs and error reports are kept only as long as they're
-          useful for running the service.
+          useful for running the service. Your listening history is kept for a year, then deleted, or straight away if
+          you turn it off.
         </p>
       </LegalSection>
 

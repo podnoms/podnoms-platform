@@ -1,5 +1,5 @@
 import { useDeferredValue, useState, type FormEvent } from 'react'
-import { createFileRoute, notFound, useNavigate, useRouter } from '@tanstack/react-router'
+import { createFileRoute, Link, notFound, useNavigate, useRouter } from '@tanstack/react-router'
 import { z } from 'zod'
 import { AdminModeration } from '~/components/admin-moderation'
 import { AdminShows } from '~/components/admin-shows'
@@ -651,7 +651,9 @@ function Users({ users }: { users: Overview['users'] }) {
                 <TableCell>
                   <div className="flex flex-col">
                     <span className="flex items-center gap-2">
-                      {user.name ?? user.email}
+                      <Link to="/admin/users/$userId" params={{ userId: user.id }} className="font-medium hover:underline">
+                        {user.name ?? user.email}
+                      </Link>
                       {user.disabledAt && <Badge variant="destructive">Disabled</Badge>}
                       {user.onHoldAt && <Badge variant="secondary">On hold</Badge>}
                       {user.excludedAt && <Badge variant="outline">Excluded</Badge>}

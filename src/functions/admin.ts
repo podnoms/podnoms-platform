@@ -26,6 +26,7 @@ import {
   setUserExcluded,
   setUserOnHold,
 } from '~/server/admin.server'
+import { getAdminUserDetail } from '~/server/admin-users.server'
 import { getSession } from '~/server/auth.server'
 import { resolveReport } from '~/server/reports.server'
 import { setComplimentaryAccess } from '~/server/subscriptions.server'
@@ -42,6 +43,15 @@ export const fetchAdminOverview = createServerFn({ method: 'GET' }).handler(asyn
   await requireAdmin()
   return getAdminOverview()
 })
+
+export const fetchAdminUser = createServerFn({ method: 'GET' })
+  .validator(z.object({ userId: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    await requireAdmin()
+    const detail = await getAdminUserDetail(data.userId)
+    if (!detail) throw notFound()
+    return detail
+  })
 
 export const saveAdminSettings = createServerFn({ method: 'POST' })
   .validator(siteSettingsSchema)

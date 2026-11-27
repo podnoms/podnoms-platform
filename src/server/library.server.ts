@@ -26,7 +26,7 @@ const episodeShowColumns = {
     slug: shows.slug,
     ownerSlug: users.slug,
     title: shows.title,
-    imageUrl: shows.imageUrl,
+    imageUrl: showArtwork,
     userId: shows.userId,
     // Who it's by, for the row's byline (see showByline).
     credit: showCredit,

@@ -19,7 +19,7 @@ import { getOpenBroadcast, gifConfig, liveEnabled, listChat, liveShowIdsAmong, t
 import { siteUrl } from '~/server/extension-api.server'
 import { listFollowedShows, listTrendingShows, type listContinueListening } from '~/server/library.server'
 import { listFollowNotify } from '~/server/follower-notifications.server'
-import { getPublicShow, listShows } from '~/server/shows.server'
+import { getPublicShow, listShows, showArtwork } from '~/server/shows.server'
 import { getSiteSettings } from '~/server/site-settings.server'
 
 // The app's web build (for development) calls the API from another origin.
@@ -239,7 +239,7 @@ export async function mobileEpisodePage(request: Request, userId: string, episod
       publishedAt: episodes.publishedAt,
       positionSeconds: playbackPositions.positionSeconds,
       played: playedBy(userId),
-      show: { id: shows.id, slug: shows.slug, title: shows.title, imageUrl: shows.imageUrl, ownerId: shows.userId },
+      show: { id: shows.id, slug: shows.slug, title: shows.title, imageUrl: showArtwork, ownerId: shows.userId },
     })
     .from(episodes)
     .innerJoin(shows, eq(shows.id, episodes.showId))

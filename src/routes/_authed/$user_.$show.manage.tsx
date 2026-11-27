@@ -249,7 +249,7 @@ function ShowPage() {
               ) : (
                 <ItemGroup className="gap-3">
                   {episodes.map((episode) => (
-                    <EpisodeRow key={episode.id} episode={episode} show={show} showTitle={show.title} />
+                    <EpisodeRow key={episode.id} episode={episode} show={show} showTitle={show.title} showImageUrl={artwork} />
                   ))}
                 </ItemGroup>
               )}

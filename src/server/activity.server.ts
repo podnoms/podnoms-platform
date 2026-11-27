@@ -7,7 +7,9 @@
 //   address, or linked from one day to the next.
 // - Each visitor counts once a day for each episode and kind of activity, as
 //   podcast apps fetch the same audio in many pieces.
-// - Crawlers aren't counted, nor are signed-in users' accounts recorded.
+// - Crawlers aren't counted, nor are signed-in users' accounts recorded here.
+//   A signed-in user's own history (unless they've turned it off) is kept
+//   apart, for admins only (see listening-history.server.ts).
 import '@tanstack/react-start/server-only'
 import { createHash, randomBytes } from 'node:crypto'
 import { getRequestIP } from '@tanstack/react-start/server'
@@ -17,6 +19,8 @@ import { db } from '~/server/db/client.server'
 import { z } from 'zod'
 import { episodeActivity, episodes, shows, siteSettings, type ActivitySource, type ActivityType } from '~/server/db/schema'
 import { lookupLocation } from '~/server/geoip.server'
+import { recordListening } from '~/server/listening-history.server'
+import { reportError } from '~/server/logger.server'
 import { internalKeyPrefix } from '~/server/site-settings.server'
 import { describeUserAgent, isBot } from '~/server/user-agent.server'
 import { hasViewAs } from '~/server/view-as.server'
@@ -34,8 +38,9 @@ export type ActivityInput = {
 
 // Records the activity, unless it's from a crawler, the episode isn't
 // published, or this visitor has already done it today. Resolves to whether
-// it was recorded.
-export async function recordActivity(request: Request, input: ActivityInput) {
+// it was recorded. With the signed-in user's id, it's also added to their
+// listening history.
+export async function recordActivity(request: Request, input: ActivityInput, userId?: string | null) {
   const userAgent = request.headers.get('user-agent')
   // Nor an admin's tab viewing the site as someone else (see view-as.server.ts).
   if (isBot(userAgent) || hasViewAs(request)) return false
@@ -45,6 +50,12 @@ export async function recordActivity(request: Request, input: ActivityInput) {
     .where(and(eq(episodes.id, input.episodeId), eq(episodes.status, 'ready'), isNotNull(episodes.audioUrl)))
     .limit(1)
   if (!episode) return false
+
+  if (userId) {
+    await recordListening(userId, { episodeId: input.episodeId, type: input.type, source: input.source, detail: input.detail }).catch(
+      (error: unknown) => reportError(error, { episodeId: input.episodeId, msg: 'Could not record listening history' }),
+    )
+  }
 
   const ip = clientIp(request)
   const [salt, location] = await Promise.all([saltFor(today()), lookupLocation(ip)])

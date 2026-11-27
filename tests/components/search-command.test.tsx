@@ -23,6 +23,7 @@ beforeEach(() => {
 afterEach(cleanup)
 
 const results = {
+  people: [{ id: 'u1', slug: 'adam-dunbar', name: 'Adam Dunbar', image: null }],
   shows: [{ id: 'p1', title: 'Deep House Sessions', slug: 'deep-house', ownerSlug: 'ada', imageUrl: null, excerpt: null }],
   episodes: [
     {
@@ -41,7 +42,7 @@ const results = {
 function openPalette() {
   render(<SearchCommand />)
   fireEvent.keyDown(document, { key: '/' })
-  return screen.getByPlaceholderText('Search shows and episodes…')
+  return screen.getByPlaceholderText('Search your shows and episodes, and people…')
 }
 
 describe('SearchCommand', () => {
@@ -71,7 +72,7 @@ describe('SearchCommand', () => {
     fireEvent.keyDown(screen.getByLabelText('Editor'), { key: '/' })
     fireEvent.keyDown(document, { key: '/', ctrlKey: true })
     fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
-    expect(screen.queryByPlaceholderText('Search shows and episodes…')).toBeNull()
+    expect(screen.queryByPlaceholderText('Search your shows and episodes, and people…')).toBeNull()
   })
 
   it('searches once typing pauses and groups the results by type', async () => {
@@ -108,10 +109,19 @@ describe('SearchCommand', () => {
     expect(navigate).toHaveBeenCalledWith({ to: '/$user/$show/manage', params: { user: 'ada', show: 'deep-house' } })
   })
 
+  it("opens the chosen person's profile", async () => {
+    vi.mocked(searchMyLibrary).mockResolvedValue(results as never)
+    await userEvent.type(openPalette(), 'adam')
+    await userEvent.click(await screen.findByText('Adam Dunbar'))
+
+    expect(screen.queryByText('People')).toBeNull()
+    expect(navigate).toHaveBeenCalledWith({ to: '/$user', params: { user: 'adam-dunbar' } })
+  })
+
   it('says when nothing matches', async () => {
-    vi.mocked(searchMyLibrary).mockResolvedValue({ shows: [], episodes: [] })
+    vi.mocked(searchMyLibrary).mockResolvedValue({ people: [], shows: [], episodes: [] })
     await userEvent.type(openPalette(), 'zzz')
-    expect(await screen.findByText('No shows or episodes match “zzz”.')).toBeTruthy()
+    expect(await screen.findByText('Nothing matches “zzz”.')).toBeTruthy()
   })
 
   it('says when searching fails', async () => {

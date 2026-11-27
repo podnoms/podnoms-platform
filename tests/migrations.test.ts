@@ -250,6 +250,7 @@ describe('migrations', () => {
       'episode_like',
       'episode_tag',
       'ignored_show',
+      'listening_history',
       'live_broadcast',
       'live_chat_message',
       'notification',

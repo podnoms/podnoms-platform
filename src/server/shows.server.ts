@@ -109,6 +109,10 @@ export const showArtwork = sql<string | null>`coalesce(${shows.imageUrl}, (
   limit 1
 ))`
 
+// An episode's own artwork, or else its show's (showArtwork). Needs the
+// episode and show tables in the query.
+export const episodeArtwork = sql<string | null>`coalesce(${episodes.imageUrl}, ${showArtwork})`
+
 // How many follow the show, and whether the viewer (if signed in) does.
 // In a query with a join, so drizzle qualifies the show's id.
 export function showFollowColumns(viewerId: string | null) {

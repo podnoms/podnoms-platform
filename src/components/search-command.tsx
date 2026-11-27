@@ -1,9 +1,10 @@
 // The search box in the top nav: opens a command palette that searches the
-// user's shows and episodes as they type. Also opened by pressing / (as in
+// user's shows and episodes, and people, as they type. Also opened by pressing / (as in
 // Lotus 1-2-3, and GitHub and YouTube since), unless you're typing somewhere.
 import { useEffect, useState } from 'react'
 import { useLoaderData, useNavigate } from '@tanstack/react-router'
 import { Icons } from '~/components/icons'
+import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar'
 import { Button } from '~/components/ui/button'
 import {
   Command,
@@ -17,6 +18,7 @@ import {
 import { Kbd } from '~/components/ui/kbd'
 import { Spinner } from '~/components/ui/spinner'
 import { searchMyLibrary } from '~/functions/search'
+import { initials } from '~/lib/format'
 import { imageSrc } from '~/lib/images'
 import { episodeParams, showParams, type ShowRef } from '~/lib/paths'
 import type { SearchResults } from '~/server/search.server'
@@ -57,7 +59,7 @@ export function SearchCommand() {
         open={open}
         onOpenChange={setOpen}
         title="Search"
-        description="Search your shows and episodes"
+        description="Search your shows and episodes, and people"
         className="sm:max-w-2xl"
       >
         {/* Remounted on each opening, so it starts with an empty search. */}
@@ -124,7 +126,7 @@ function SearchPalette({ close }: { close: () => void }) {
   return (
     // Filtering is done by the server.
     <Command shouldFilter={false}>
-      <CommandInput value={query} onValueChange={setQuery} placeholder="Search shows and episodes…" />
+      <CommandInput value={query} onValueChange={setQuery} placeholder="Search your shows and episodes, and people…" />
       <CommandList className="max-h-[min(60vh,28rem)]">
         {!trimmed && shows.length > 0 && (
           <CommandGroup heading="Your shows">
@@ -144,7 +146,24 @@ function SearchPalette({ close }: { close: () => void }) {
         {failed && <p className="py-6 text-center text-sm text-destructive">Searching failed. Please try again.</p>}
         {found && !failed && (
           <>
-            {!searching && <CommandEmpty>No shows or episodes match “{trimmed}”.</CommandEmpty>}
+            {!searching && <CommandEmpty>Nothing matches “{trimmed}”.</CommandEmpty>}
+            {found.people.length > 0 && (
+              <CommandGroup heading="People">
+                {found.people.map((person) => (
+                  <CommandItem
+                    key={person.id}
+                    value={`person-${person.id}`}
+                    onSelect={() => go(() => navigate({ to: '/$user', params: { user: person.slug } }))}
+                  >
+                    <Avatar className="size-8 shrink-0">
+                      {person.image && <AvatarImage src={imageSrc(person.image, 32)} alt="" />}
+                      <AvatarFallback className="text-xs">{initials(person.name, person.slug)}</AvatarFallback>
+                    </Avatar>
+                    <ResultText title={person.name?.trim() || `@${person.slug}`} detail={person.name?.trim() ? `@${person.slug}` : null} />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
             {found.shows.length > 0 && (
               <CommandGroup heading="Shows">
                 {found.shows.map((show) => (

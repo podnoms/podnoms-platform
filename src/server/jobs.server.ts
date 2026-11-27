@@ -13,6 +13,7 @@ import { recheckCustomDomains } from '~/server/custom-domains.server'
 import { archiveDeletedShow, purgeDeletedShows } from '~/server/deleted-shows.server'
 import { updateGeoipDatabase } from '~/server/geoip.server'
 import { pruneNotifications } from '~/server/inbox.server'
+import { pruneListeningHistory } from '~/server/listening-history.server'
 import { cleanUpMedia } from '~/server/media-cleanup.server'
 import { logger, reportError } from '~/server/logger.server'
 import { updateYtDlp } from '~/server/ytdlp-update.server'
@@ -31,6 +32,7 @@ const jobs = {
   'custom-domain-check': () => recheckCustomDomains(),
   // Drops notifications older than 90 days from the notifications menu.
   'notification-prune': () => pruneNotifications(),
+  'listening-history-prune': () => pruneListeningHistory(),
   // Queued when a show is deleted: moves its files to MEDIA_DIR/deleted.
   'show-archive': (data) => archiveDeletedShow(String(data.showId)),
   // Removes deleted shows' files for good once they've been kept 30 days.
@@ -49,6 +51,7 @@ const schedules: { name: JobName; pattern: string }[] = [
   { name: 'channel-check', pattern: '*/15 * * * *' },
   { name: 'custom-domain-check', pattern: '15 5 * * *' },
   { name: 'notification-prune', pattern: '45 3 * * *' },
+  { name: 'listening-history-prune', pattern: '50 3 * * *' },
   { name: 'deleted-purge', pattern: '15 4 * * *' },
   // Often, as it waits for a moment with no downloads running; pip does
   // nothing when yt-dlp is already the latest.

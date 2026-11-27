@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createFileRoute, Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { EditDetailsDialog } from '~/components/edit-details-dialog'
 import { EpisodeListEnd } from '~/components/episode-list-end'
+import { EpisodeTitleSearchBox, useEpisodeTitleSearch } from '~/components/episode-title-search'
 import { AuthorLink, Separated } from '~/components/author-link'
 import { FeedUrlButton } from '~/components/feed-url-button'
 import { FollowButton } from '~/components/follow-button'
@@ -11,10 +12,12 @@ import { PublicEpisodeList, PublicEpisodeRow } from '~/components/public-episode
 import { TagList } from '~/components/tag-list'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
+import { Spinner } from '~/components/ui/spinner'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '~/components/ui/empty'
 import { fetchShowEpisodes, fetchShowPage } from '~/functions/public'
 import { setMyShowPrivacy, updateMyShow } from '~/functions/shows'
 import { useEpisodePages } from '~/hooks/use-episode-pages'
+import { episodePageSize } from '~/lib/episode-pages'
 import { useLiveStart } from '~/hooks/use-live-events'
 import { isCustomDomain } from '~/lib/current-domain'
 import { formatDate, formatLength, pluralise } from '~/lib/format'
@@ -90,6 +93,12 @@ function ShowPage() {
     total: summary.count,
     fetchMore: (offset, limit) => fetchShowEpisodes({ data: { showId: show.id, offset, limit } }),
   })
+  // Searching the episodes' titles, which shows the matches in place of the list.
+  const [titleQuery, setTitleQuery] = useState('')
+  const search = useEpisodeTitleSearch(titleQuery, (query, offset, limit) =>
+    fetchShowEpisodes({ data: { showId: show.id, offset, limit, titleQuery: query } }),
+  )
+  const shown = search.active ? search.episodes : episodes
   // The directories it's listed on, in the order they're offered to owners.
   const listings = directories.flatMap((directory) => {
     const link = show.directoryLinks[directory.id]
@@ -143,9 +152,15 @@ function ShowPage() {
               <p className="line-clamp-2 max-w-3xl text-muted-foreground xl:hidden">{htmlToText(show.description)}</p>
             )}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 pt-3">
-              <p className="text-sm text-muted-foreground">
-                <Separated items={stats} />
-              </p>
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
+                <p className="text-sm text-muted-foreground">
+                  <Separated items={stats} />
+                </p>
+                {/* Only worth it once there's more than a page of episodes. */}
+                {summary.count > episodePageSize && (
+                  <EpisodeTitleSearchBox value={titleQuery} onChange={setTitleQuery} />
+                )}
+              </div>
               <div className="flex flex-wrap gap-2 sm:ml-auto">
                 {live && (
                   <Button className="bg-destructive text-destructive-foreground hover:bg-destructive/90" asChild>
@@ -183,14 +198,42 @@ function ShowPage() {
         </div>
       </header>
       <div className="mx-auto grid w-full max-w-page items-start gap-8 p-4 md:p-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <section aria-labelledby="episodes-heading" className="flex min-w-0 flex-col gap-3">
-          <div className="flex items-baseline gap-2">
-            <h2 id="episodes-heading" className="text-lg font-semibold">
-              Episodes
-            </h2>
-            {summary.count > 0 && <span className="text-sm text-muted-foreground">{summary.count}</span>}
-          </div>
-          {episodes.length === 0 ? (
+        <section aria-label="Episodes" className="flex min-w-0 flex-col gap-3">
+          {search.active ? (
+            search.failed ? (
+              <p className="py-6 text-center text-sm text-destructive">Searching failed. Please try again.</p>
+            ) : search.settled && shown.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">No episode titles match “{search.query}”.</p>
+            ) : null
+          ) : null}
+          {search.active ? (
+            <>
+              {shown.length > 0 && (
+                <PublicEpisodeList>
+                  {shown.map((episode) => (
+                    <PublicEpisodeRow
+                      key={episode.id}
+                      episode={episode}
+                      show={show}
+                      showTitle={show.title}
+                      showImageUrl={show.imageUrl}
+                      isOwner={show.isOwner}
+                    />
+                  ))}
+                </PublicEpisodeList>
+              )}
+              {search.loading && (
+                <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+                  <Spinner /> Searching…
+                </div>
+              )}
+              {search.hasMore && !search.loading && (
+                <Button variant="outline" className="self-center" onClick={search.loadMore}>
+                  More matches
+                </Button>
+              )}
+            </>
+          ) : episodes.length === 0 ? (
             <Empty className="border border-dashed">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
@@ -214,7 +257,7 @@ function ShowPage() {
               ))}
             </PublicEpisodeList>
           )}
-          <EpisodeListEnd {...more} />
+          {!search.active && <EpisodeListEnd {...more} />}
         </section>
         <aside className="sticky top-[calc(var(--top-nav-height,0px)+1rem)] hidden flex-col gap-6 rounded-xl border bg-card p-5 xl:flex">
           {show.description && (

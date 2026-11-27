@@ -4,6 +4,7 @@ import { and, count, desc, eq, gte, isNotNull, lt, sql } from 'drizzle-orm'
 import { activityInScope, activityPeriod, summariseActivity } from '~/server/activity.server'
 import { db } from '~/server/db/client.server'
 import { episodeActivity, episodes, shows, users } from '~/server/db/schema'
+import { episodeArtwork } from '~/server/shows.server'
 
 export type Dashboard = Awaited<ReturnType<typeof getDashboard>>
 
@@ -38,7 +39,7 @@ export async function getDashboard(userId: string, days: number, now = new Date(
         id: episodes.id,
         title: episodes.title,
         slug: episodes.slug,
-        imageUrl: sql<string | null>`coalesce(${episodes.imageUrl}, ${shows.imageUrl})`,
+        imageUrl: episodeArtwork,
         showTitle: shows.title,
         showSlug: shows.slug,
         ownerSlug: users.slug,
@@ -59,7 +60,7 @@ export async function getDashboard(userId: string, days: number, now = new Date(
         title: episodes.title,
         slug: episodes.slug,
         status: episodes.status,
-        imageUrl: sql<string | null>`coalesce(${episodes.imageUrl}, ${shows.imageUrl})`,
+        imageUrl: episodeArtwork,
         durationSeconds: episodes.durationSeconds,
         createdAt: episodes.createdAt,
         showTitle: shows.title,

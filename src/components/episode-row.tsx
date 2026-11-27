@@ -65,10 +65,13 @@ export function EpisodeRow({
   episode,
   show,
   showTitle,
+  showImageUrl,
 }: {
   episode: EpisodeRowData
   show: ShowRef
   showTitle: string
+  // Shown, and given to the player, for an episode without its own artwork.
+  showImageUrl: string | null
 }) {
   const router = useRouter()
   const player = usePlayer()
@@ -95,13 +98,15 @@ export function EpisodeRow({
     }
   }
 
+  const artwork = episode.imageUrl ?? showImageUrl
+
   function play() {
     if (!episode.audioUrl) return
     player.play({
       id: episode.id,
       title: episode.title,
       audioUrl: episode.audioUrl,
-      imageUrl: episode.imageUrl,
+      imageUrl: artwork,
       showTitle,
       slug: episode.slug,
       showSlug: show.slug,
@@ -129,8 +134,8 @@ export function EpisodeRow({
       className="relative gap-5 overflow-hidden rounded-xl border bg-card p-4 transition-colors before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-primary before:opacity-0 hover:bg-muted/50 data-current:border-primary/40 data-current:bg-primary/5 data-current:before:opacity-100 sm:p-5"
     >
       <ItemMedia variant="image" className="relative size-20 rounded-lg">
-        {episode.imageUrl ? (
-          <img src={imageSrc(episode.imageUrl, 80)} alt="" />
+        {artwork ? (
+          <img src={imageSrc(artwork, 80)} alt="" />
         ) : (
           <div className="flex size-full items-center justify-center bg-muted">
             <Icons.logo className="size-7 text-muted-foreground" />

@@ -58,9 +58,9 @@ function countDownload(request: Request, episodeId: string, bytes: number) {
   const destination = request.headers.get('sec-fetch-dest')
   if (destination === 'audio' || destination === 'video' || bytes <= probeBytes) return
   // In the background, so the audio isn't held up.
-  recordActivity(request, { episodeId, type: 'download', source: 'app' }).catch((error: unknown) =>
-    reportError(error, { episodeId, msg: 'Could not record a download' }),
-  )
+  requestUserId(request)
+    .then((userId) => recordActivity(request, { episodeId, type: 'download', source: 'app' }, userId))
+    .catch((error: unknown) => reportError(error, { episodeId, msg: 'Could not record a download' }))
 }
 
 function stream(path: string, start?: number, end?: number) {

@@ -12,7 +12,7 @@ import '@tanstack/react-start/server-only'
 import { and, eq, getTableColumns, inArray, ne, or } from 'drizzle-orm'
 import { episodePath, livePath, showPath } from '~/lib/paths'
 import { db } from '~/server/db/client.server'
-import { isPublicShow, showVisibleTo } from '~/server/shows.server'
+import { isPublicShow, showArtwork, showVisibleTo } from '~/server/shows.server'
 import { sendAppPush } from '~/server/app-push.server'
 import { episodes, showFollows, shows, users } from '~/server/db/schema'
 import { isListed } from '~/server/episodes.server'
@@ -156,7 +156,7 @@ export async function listFollowNotify(userId: string) {
       title: shows.title,
       slug: shows.slug,
       ownerSlug: users.slug,
-      imageUrl: shows.imageUrl,
+      imageUrl: showArtwork,
       notify: showFollows.notify,
     })
     .from(showFollows)

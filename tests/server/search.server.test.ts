@@ -13,6 +13,7 @@ describe('searchLibrary', () => {
     await createEpisode(show.id, { title: 'Techno Hour' })
 
     expect(await searchLibrary(user.id, 'house')).toEqual({
+      people: [],
       shows: [{ id: show.id, title: 'Deep House Sessions', slug: 'deep-house', ownerSlug: user.slug, imageUrl: null, excerpt: null }],
       episodes: [
         {
@@ -75,7 +76,29 @@ describe('searchLibrary', () => {
   it("only searches the user's own shows and episodes", async () => {
     const other = await createShow((await createUser()).id, { title: 'Secret show' })
     await createEpisode(other.id, { title: 'Secret episode' })
-    expect(await searchLibrary((await createUser()).id, 'secret')).toEqual({ shows: [], episodes: [] })
+    expect(await searchLibrary((await createUser()).id, 'secret')).toMatchObject({ shows: [], episodes: [] })
+  })
+
+  it('finds people by name or slug, slugs starting with the query first', async () => {
+    const me = await createUser({ slug: 'me' })
+    await createUser({ slug: 'adam-dunbar', name: null })
+    await createUser({ slug: 'the-dunbars', name: 'Lots of Dunbars' })
+    await createUser({ slug: 'fergal', name: 'Fergal Dunbar' })
+
+    const found = await searchLibrary(me.id, 'dunbar')
+    expect(found.people.map((p) => p.slug)).toEqual(['adam-dunbar', 'the-dunbars', 'fergal'])
+    // A leading @ is a slug, as in mentions.
+    expect((await searchLibrary(me.id, '@adam')).people).toEqual([
+      { id: expect.any(String), slug: 'adam-dunbar', name: null, image: null },
+    ])
+  })
+
+  it("leaves out people others can't see, except the searcher themselves", async () => {
+    const me = await createUser({ slug: 'hidden-me', excludedAt: new Date() })
+    await createUser({ slug: 'hidden-excluded', excludedAt: new Date() })
+    await createUser({ slug: 'hidden-disabled', disabledAt: new Date() })
+    await createUser({ slug: 'hidden-on-hold', onHoldAt: new Date() })
+    expect((await searchLibrary(me.id, 'hidden')).people.map((p) => p.slug)).toEqual(['hidden-me'])
   })
 
   it('takes LIKE wildcards literally', async () => {

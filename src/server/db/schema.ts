@@ -7,6 +7,7 @@ import {
   bigint,
   boolean,
   customType,
+  date,
   index,
   integer,
   jsonb,
@@ -90,6 +91,10 @@ export const users = pgTable(
     // Being @mentioned in a comment, or replied to (see comment-notifications.server.ts).
     pushMentions: boolean('pushMentions').notNull().default(true),
     emailMentions: boolean('emailMentions').notNull().default(true),
+    // Whether what they play, download and share is kept against their account
+    // (listening_history, see listening-history.server.ts), for admins to see.
+    // Turning it off deletes what's been kept.
+    keepListeningHistory: boolean('keepListeningHistory').notNull().default(true),
     // How many of a channel's newest uploads are imported when the user makes
     // a show from it, and considered on each check. Set by admins.
     channelEpisodeLimit: integer('channelEpisodeLimit').notNull().default(10),
@@ -872,6 +877,36 @@ export const episodeActivity = pgTable(
     // Each visitor counts once a day for each episode and kind of activity;
     // hashes change daily, so this is per day.
     uniqueIndex('episode_activity_once_a_day_idx').on(table.episodeId, table.type, table.visitorHash),
+  ],
+)
+
+// What signed-in users play, download and share, against their account, for
+// admins (see listening-history.server.ts). Separate from episode_activity,
+// which never says who: show owners never see this. Only kept for users with
+// keepListeningHistory on, once a day for each episode and kind, for a year.
+export const listeningEvents = pgTable(
+  'listening_history',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    episodeId: text('episodeId')
+      .notNull()
+      .references(() => episodes.id, { onDelete: 'cascade' }),
+    type: activityType('type').notNull(),
+    source: activitySource('source').notNull(),
+    // For a share, what was shared: 'link' or 'embed'.
+    detail: text('detail'),
+    // The UTC day, so each counts once a day.
+    day: date('day', { mode: 'string' }).notNull(),
+    occurredAt: timestamp('occurredAt', { mode: 'date', withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('listening_history_userId_occurredAt_idx').on(table.userId, table.occurredAt),
+    uniqueIndex('listening_history_once_a_day_idx').on(table.userId, table.episodeId, table.type, table.day),
   ],
 )
 

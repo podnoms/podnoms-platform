@@ -5,18 +5,26 @@ import { dirname } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Route as ActivityRoute } from '~/routes/api/episodes/$id/activity'
 import { Route as AudioRoute } from '~/routes/api/episodes/$id/audio'
-import { episodeActivity } from '~/server/db/schema'
+import { getSession } from '~/server/auth.server'
+import { episodeActivity, listeningEvents } from '~/server/db/schema'
 import { episodeAudioPath } from '~/server/storage.server'
 import { resetDb } from '../db'
 import { callRoute, createEpisode, createShow, createUser, db } from '../helpers'
 
 vi.mock('~/server/geoip.server', () => ({ lookupLocation: vi.fn(async () => null) }))
+vi.mock('~/server/auth.server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('~/server/auth.server')>()),
+  getSession: vi.fn(),
+}))
 
 const overcast = 'Overcast/3.0 (+http://overcast.fm/; iOS podcast app)'
 const chrome =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
 
-beforeEach(() => resetDb(db))
+beforeEach(async () => {
+  await resetDb(db)
+  vi.mocked(getSession).mockResolvedValue(null)
+})
 
 async function readyEpisode() {
   const show = await createShow((await createUser()).id)
@@ -101,3 +109,66 @@ describe('POST /api/episodes/:id/activity', () => {
     expect((await post(episode.id, 'nonsense')).status).toBe(400)
   })
 })
+
+describe("a signed-in user's listening history", () => {
+  const signIn = (userId: string) => vi.mocked(getSession).mockResolvedValue({ user: { id: userId }, expires: '' })
+  const history = () => db.select().from(listeningEvents)
+  const post = (id: string, body: unknown) =>
+    callRoute(
+      ActivityRoute,
+      'POST',
+      new Request(`http://x/api/episodes/${id}/activity`, {
+        method: 'POST',
+        headers: { 'user-agent': chrome, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+      { id },
+    )
+
+  it('records their plays and shares against them, as well as anonymously', async () => {
+    const episode = await readyEpisode()
+    const listener = await createUser()
+    signIn(listener.id)
+    await post(episode.id, { type: 'play', source: 'web' })
+    await post(episode.id, { type: 'play', source: 'web' })
+    await post(episode.id, { type: 'share', source: 'web', detail: 'link' })
+
+    const rows = await history()
+    expect(rows.map(({ userId, type, source, detail }) => ({ userId, type, source, detail }))).toEqual(
+      expect.arrayContaining([
+        { userId: listener.id, type: 'play', source: 'web', detail: null },
+        { userId: listener.id, type: 'share', source: 'web', detail: 'link' },
+      ]),
+    )
+    // Once a day per episode and kind.
+    expect(rows).toHaveLength(2)
+    // The show's anonymous stats still say nothing about who.
+    expect(await activity()).toHaveLength(2)
+    expect(JSON.stringify(await activity())).not.toContain(listener.id)
+  })
+
+  it('records their downloads', async () => {
+    const episode = await readyEpisode()
+    const listener = await createUser()
+    signIn(listener.id)
+    const response = await callRoute(
+      AudioRoute,
+      'GET',
+      new Request(`http://x/api/episodes/${episode.id}/audio`, { headers: { 'user-agent': chrome, 'sec-fetch-dest': 'document' } }),
+      { id: episode.id },
+    )
+    await response.arrayBuffer()
+    await vi.waitFor(async () => expect(await history()).toMatchObject([{ userId: listener.id, type: 'download' }]))
+  })
+
+  it("isn't kept for those who've turned it off, nor for signed-out visitors", async () => {
+    const episode = await readyEpisode()
+    await post(episode.id, { type: 'play', source: 'web' })
+    const listener = await createUser({ keepListeningHistory: false })
+    signIn(listener.id)
+    await post(episode.id, { type: 'play', source: 'listen' })
+    expect(await history()).toEqual([])
+    expect(await activity()).toHaveLength(1)
+  })
+})
+

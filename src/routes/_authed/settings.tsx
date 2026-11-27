@@ -10,6 +10,7 @@ const tabs = {
   details: '/settings',
   security: '/settings/security',
   notifications: '/settings/notifications',
+  privacy: '/settings/privacy',
   billing: '/settings/billing',
 } as const
 
@@ -17,8 +18,17 @@ function SettingsLayout() {
   const navigate = useNavigate()
   const onSecurity = useMatch({ from: '/_authed/settings/security', shouldThrow: false })
   const onNotifications = useMatch({ from: '/_authed/settings/notifications', shouldThrow: false })
+  const onPrivacy = useMatch({ from: '/_authed/settings/privacy', shouldThrow: false })
   const onBilling = useMatch({ from: '/_authed/settings/billing', shouldThrow: false })
-  const tab = onSecurity ? 'security' : onNotifications ? 'notifications' : onBilling ? 'billing' : 'details'
+  const tab = onSecurity
+    ? 'security'
+    : onNotifications
+      ? 'notifications'
+      : onPrivacy
+        ? 'privacy'
+        : onBilling
+          ? 'billing'
+          : 'details'
 
   return (
     <div className="mx-auto flex w-full max-w-page flex-col gap-6 p-4 md:p-6">
@@ -28,6 +38,7 @@ function SettingsLayout() {
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="privacy">Privacy</TabsTrigger>
           <TabsTrigger value="billing">Subscription</TabsTrigger>
         </TabsList>
         <TabsContent value={tab} className="pt-4">

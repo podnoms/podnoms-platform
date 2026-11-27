@@ -42,6 +42,7 @@ import { Route as AuthedAdminIndexRouteImport } from './routes/_authed/admin/ind
 import { Route as AuthedSettingsIndexRouteImport } from './routes/_authed/settings/index'
 import { Route as AuthedSettingsBillingRouteImport } from './routes/_authed/settings/billing'
 import { Route as AuthedSettingsNotificationsRouteImport } from './routes/_authed/settings/notifications'
+import { Route as AuthedSettingsPrivacyRouteImport } from './routes/_authed/settings/privacy'
 import { Route as AuthedSettingsSecurityRouteImport } from './routes/_authed/settings/security'
 import { Route as AdminQueuesSplatRouteImport } from './routes/admin/queues/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -59,6 +60,7 @@ import { Route as ApiTrackedLinksTokenRouteImport } from './routes/api/tracked-l
 import { Route as ApiTraefikConfigRouteImport } from './routes/api/traefik/config'
 import { Route as FontsFamilyFileRouteImport } from './routes/fonts.$family.$file'
 import { Route as AuthedUserShowManageRouteImport } from './routes/_authed/$user_.$show.manage'
+import { Route as AuthedAdminUsersUserIdRouteImport } from './routes/_authed/admin/users.$userId'
 import { Route as ApiBillingPatreonCallbackRouteImport } from './routes/api/billing/patreon/callback'
 import { Route as ApiBillingPatreonConnectRouteImport } from './routes/api/billing/patreon/connect'
 import { Route as ApiBillingPatreonWebhookRouteImport } from './routes/api/billing/patreon/webhook'
@@ -267,6 +269,11 @@ const AuthedSettingsNotificationsRoute =
     path: '/notifications',
     getParentRoute: () => AuthedSettingsRoute,
   } as any)
+const AuthedSettingsPrivacyRoute = AuthedSettingsPrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => AuthedSettingsRoute,
+} as any)
 const AuthedSettingsSecurityRoute = AuthedSettingsSecurityRouteImport.update({
   id: '/security',
   path: '/security',
@@ -351,6 +358,11 @@ const FontsFamilyFileRoute = FontsFamilyFileRouteImport.update({
 const AuthedUserShowManageRoute = AuthedUserShowManageRouteImport.update({
   id: '/$user_/$show/manage',
   path: '/$user/$show/manage',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedAdminUsersUserIdRoute = AuthedAdminUsersUserIdRouteImport.update({
+  id: '/admin/users/$userId',
+  path: '/admin/users/$userId',
   getParentRoute: () => AuthedRoute,
 } as any)
 const ApiBillingPatreonCallbackRoute =
@@ -614,6 +626,7 @@ export interface FileRoutesByFullPath {
   '/$user/playlists/$playlistSlug': typeof UserPlaylistsPlaylistSlugRoute
   '/settings/billing': typeof AuthedSettingsBillingRoute
   '/settings/notifications': typeof AuthedSettingsNotificationsRoute
+  '/settings/privacy': typeof AuthedSettingsPrivacyRoute
   '/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -633,6 +646,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthedAdminIndexRoute
   '/settings/': typeof AuthedSettingsIndexRoute
   '/$user/$show/manage': typeof AuthedUserShowManageRoute
+  '/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
   '/api/billing/patreon/callback': typeof ApiBillingPatreonCallbackRoute
   '/api/billing/patreon/connect': typeof ApiBillingPatreonConnectRoute
   '/api/billing/patreon/webhook': typeof ApiBillingPatreonWebhookRoute
@@ -705,6 +719,7 @@ export interface FileRoutesByTo {
   '/$user/playlists/$playlistSlug': typeof UserPlaylistsPlaylistSlugRoute
   '/settings/billing': typeof AuthedSettingsBillingRoute
   '/settings/notifications': typeof AuthedSettingsNotificationsRoute
+  '/settings/privacy': typeof AuthedSettingsPrivacyRoute
   '/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -724,6 +739,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthedAdminIndexRoute
   '/settings': typeof AuthedSettingsIndexRoute
   '/$user/$show/manage': typeof AuthedUserShowManageRoute
+  '/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
   '/api/billing/patreon/callback': typeof ApiBillingPatreonCallbackRoute
   '/api/billing/patreon/connect': typeof ApiBillingPatreonConnectRoute
   '/api/billing/patreon/webhook': typeof ApiBillingPatreonWebhookRoute
@@ -799,6 +815,7 @@ export interface FileRoutesById {
   '/$user_/playlists/$playlistSlug': typeof UserPlaylistsPlaylistSlugRoute
   '/_authed/settings/billing': typeof AuthedSettingsBillingRoute
   '/_authed/settings/notifications': typeof AuthedSettingsNotificationsRoute
+  '/_authed/settings/privacy': typeof AuthedSettingsPrivacyRoute
   '/_authed/settings/security': typeof AuthedSettingsSecurityRoute
   '/admin/queues/$': typeof AdminQueuesSplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -818,6 +835,7 @@ export interface FileRoutesById {
   '/_authed/admin/': typeof AuthedAdminIndexRoute
   '/_authed/settings/': typeof AuthedSettingsIndexRoute
   '/_authed/$user_/$show/manage': typeof AuthedUserShowManageRoute
+  '/_authed/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
   '/api/billing/patreon/callback': typeof ApiBillingPatreonCallbackRoute
   '/api/billing/patreon/connect': typeof ApiBillingPatreonConnectRoute
   '/api/billing/patreon/webhook': typeof ApiBillingPatreonWebhookRoute
@@ -893,6 +911,7 @@ export interface FileRouteTypes {
     | '/$user/playlists/$playlistSlug'
     | '/settings/billing'
     | '/settings/notifications'
+    | '/settings/privacy'
     | '/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
@@ -912,6 +931,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/settings/'
     | '/$user/$show/manage'
+    | '/admin/users/$userId'
     | '/api/billing/patreon/callback'
     | '/api/billing/patreon/connect'
     | '/api/billing/patreon/webhook'
@@ -984,6 +1004,7 @@ export interface FileRouteTypes {
     | '/$user/playlists/$playlistSlug'
     | '/settings/billing'
     | '/settings/notifications'
+    | '/settings/privacy'
     | '/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
@@ -1003,6 +1024,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/settings'
     | '/$user/$show/manage'
+    | '/admin/users/$userId'
     | '/api/billing/patreon/callback'
     | '/api/billing/patreon/connect'
     | '/api/billing/patreon/webhook'
@@ -1077,6 +1099,7 @@ export interface FileRouteTypes {
     | '/$user_/playlists/$playlistSlug'
     | '/_authed/settings/billing'
     | '/_authed/settings/notifications'
+    | '/_authed/settings/privacy'
     | '/_authed/settings/security'
     | '/admin/queues/$'
     | '/api/auth/$'
@@ -1096,6 +1119,7 @@ export interface FileRouteTypes {
     | '/_authed/admin/'
     | '/_authed/settings/'
     | '/_authed/$user_/$show/manage'
+    | '/_authed/admin/users/$userId'
     | '/api/billing/patreon/callback'
     | '/api/billing/patreon/connect'
     | '/api/billing/patreon/webhook'
@@ -1454,6 +1478,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedSettingsNotificationsRouteImport
       parentRoute: typeof AuthedSettingsRoute
     }
+    '/_authed/settings/privacy': {
+      id: '/_authed/settings/privacy'
+      path: '/privacy'
+      fullPath: '/settings/privacy'
+      preLoaderRoute: typeof AuthedSettingsPrivacyRouteImport
+      parentRoute: typeof AuthedSettingsRoute
+    }
     '/_authed/settings/security': {
       id: '/_authed/settings/security'
       path: '/security'
@@ -1571,6 +1602,13 @@ declare module '@tanstack/react-router' {
       path: '/$user/$show/manage'
       fullPath: '/$user/$show/manage'
       preLoaderRoute: typeof AuthedUserShowManageRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/admin/users/$userId': {
+      id: '/_authed/admin/users/$userId'
+      path: '/admin/users/$userId'
+      fullPath: '/admin/users/$userId'
+      preLoaderRoute: typeof AuthedAdminUsersUserIdRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/api/billing/patreon/callback': {
@@ -1866,6 +1904,7 @@ declare module '@tanstack/react-router' {
 interface AuthedSettingsRouteChildren {
   AuthedSettingsBillingRoute: typeof AuthedSettingsBillingRoute
   AuthedSettingsNotificationsRoute: typeof AuthedSettingsNotificationsRoute
+  AuthedSettingsPrivacyRoute: typeof AuthedSettingsPrivacyRoute
   AuthedSettingsSecurityRoute: typeof AuthedSettingsSecurityRoute
   AuthedSettingsIndexRoute: typeof AuthedSettingsIndexRoute
 }
@@ -1873,6 +1912,7 @@ interface AuthedSettingsRouteChildren {
 const AuthedSettingsRouteChildren: AuthedSettingsRouteChildren = {
   AuthedSettingsBillingRoute: AuthedSettingsBillingRoute,
   AuthedSettingsNotificationsRoute: AuthedSettingsNotificationsRoute,
+  AuthedSettingsPrivacyRoute: AuthedSettingsPrivacyRoute,
   AuthedSettingsSecurityRoute: AuthedSettingsSecurityRoute,
   AuthedSettingsIndexRoute: AuthedSettingsIndexRoute,
 }
@@ -1889,6 +1929,7 @@ interface AuthedRouteChildren {
   AuthedSettingsRoute: typeof AuthedSettingsRouteWithChildren
   AuthedAdminIndexRoute: typeof AuthedAdminIndexRoute
   AuthedUserShowManageRoute: typeof AuthedUserShowManageRoute
+  AuthedAdminUsersUserIdRoute: typeof AuthedAdminUsersUserIdRoute
   AuthedUserShowEpisodeManageRoute: typeof AuthedUserShowEpisodeManageRoute
 }
 
@@ -1900,6 +1941,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedSettingsRoute: AuthedSettingsRouteWithChildren,
   AuthedAdminIndexRoute: AuthedAdminIndexRoute,
   AuthedUserShowManageRoute: AuthedUserShowManageRoute,
+  AuthedAdminUsersUserIdRoute: AuthedAdminUsersUserIdRoute,
   AuthedUserShowEpisodeManageRoute: AuthedUserShowEpisodeManageRoute,
 }
 

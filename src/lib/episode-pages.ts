@@ -10,4 +10,6 @@ export const episodePageSchema = z.object({
   showId: z.string(),
   offset: z.number().int().min(0),
   limit: z.number().int().min(1).max(1000),
+  // Only episodes whose titles contain this (the show page's episode search).
+  titleQuery: z.string().trim().max(200).optional(),
 })

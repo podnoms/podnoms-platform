@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { setPasswordSchema } from '~/lib/auth-schema'
@@ -13,6 +14,7 @@ import {
   updateNotificationPrefs,
   updateProfile,
 } from '~/server/users.server'
+import { getKeepListeningHistory, listeningHistoryKeepDays, setKeepListeningHistory } from '~/server/listening-history.server'
 
 async function requireUserId() {
   const session = await getSession(getRequest())
@@ -61,3 +63,16 @@ export const saveFollowNotify = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     if (!(await setFollowNotify(await requireUserId(), data.showId, data.notify))) throw new Error("You don't follow that show")
   })
+
+// Whether what they play, download and share is kept against their account
+// (see listening-history.server.ts).
+export const fetchListeningHistoryPref = createServerFn({ method: 'GET' }).handler(async () => {
+  const keep = await getKeepListeningHistory(await requireUserId())
+  if (keep === null) throw new Error('You need to be signed in')
+  return { keep, keepDays: listeningHistoryKeepDays }
+})
+
+// Turning it off deletes what's been kept.
+export const saveListeningHistoryPref = createServerFn({ method: 'POST' })
+  .validator(z.object({ keep: z.boolean() }))
+  .handler(async ({ data }) => setKeepListeningHistory(await requireUserId(), data.keep))

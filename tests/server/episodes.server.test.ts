@@ -793,6 +793,20 @@ describe('public episode reads', () => {
       expect(await listPublishedEpisodes(show.id, null, { offset: 2, limit: 10 })).toEqual([])
     })
 
+    it('lists only those whose titles contain a search, ignoring case and taking wildcards literally', async () => {
+      const { show } = await showWithEpisodes()
+      await db.update(episodes).set({ title: 'Deep South Sounds - Adam Dunbar' }).where(eq(episodes.slug, 'newer'))
+      await db.update(episodes).set({ title: '100% Jazz' }).where(eq(episodes.slug, 'older'))
+      await db.update(episodes).set({ title: 'Adam Dunbar, private' }).where(eq(episodes.slug, 'hidden'))
+      const titled = (titleQuery: string) =>
+        listPublishedEpisodes(show.id, null, { offset: 0, limit: 10, titleQuery }).then((list) => list.map((e) => e.slug))
+
+      expect(await titled('adam dunbar')).toEqual(['newer'])
+      expect(await titled('0%')).toEqual(['older'])
+      expect(await titled('%')).toEqual(['older'])
+      expect(await titled('  ')).toEqual(['newer', 'older'])
+    })
+
     it('summarises only published episodes', async () => {
       const { show } = await showWithEpisodes()
       await db.update(episodes).set({ durationSeconds: 100 })
@@ -863,6 +877,16 @@ describe('public episode reads', () => {
       expect(found!.episode.id).toBe(older.id)
       expect(found!.episode).not.toHaveProperty('sourceUrl')
       expect(found!.show).toMatchObject({ slug: 'show', private: false, userId: owner.id, author: 'Ada' })
+    })
+
+    it("gives a show without artwork of its own its newest episode's, as its page does", async () => {
+      const { owner, show } = await showWithEpisodes()
+      await db.update(shows).set({ imageUrl: null }).where(eq(shows.id, show.id))
+      await db.update(episodes).set({ imageUrl: null }).where(eq(episodes.showId, show.id))
+      await db.update(episodes).set({ imageUrl: '/images/from-an-episode.jpg' }).where(eq(episodes.slug, 'newer'))
+      const found = await getPublicEpisode({ ownerSlug: owner.slug, slug: 'show' }, 'older', null)
+      expect(found!.episode.imageUrl).toBeNull()
+      expect(found!.show.imageUrl).toBe('/images/from-an-episode.jpg')
     })
 
     it('shows private episodes only to their owner', async () => {

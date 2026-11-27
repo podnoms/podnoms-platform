@@ -2,7 +2,7 @@ import '@tanstack/react-start/server-only'
 import { and, count, desc, eq, sql } from 'drizzle-orm'
 import type { TagSort } from '~/lib/tag-schema'
 import { db } from '~/server/db/client.server'
-import { isPublicShow, showCredit } from '~/server/shows.server'
+import { isPublicShow, showArtwork, showCredit } from '~/server/shows.server'
 import { episodeLikes, episodes, episodeTags, playbackPositions, shows, showTags, users } from '~/server/db/schema'
 import { isListed, likeCount, listenerEpisodeColumns, listenerPosition, newestPublishedFirst, type Page } from '~/server/episodes.server'
 import { popularDays } from '~/server/library.server'
@@ -46,7 +46,7 @@ export async function listTagEpisodes(tagId: string, viewerId: string | null, so
       slug: shows.slug,
       ownerSlug: users.slug,
       title: shows.title,
-      imageUrl: shows.imageUrl,
+      imageUrl: showArtwork,
       userId: shows.userId,
       // Who it's by, for the row's byline (see showByline).
       credit: showCredit,
